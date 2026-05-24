@@ -83,9 +83,7 @@ def unique_slug(conn: sqlite3.Connection, base: str, *, ignore_id: int | None = 
     candidate = base
     suffix = 1
     while True:
-        row = conn.execute(
-            "SELECT id FROM pages WHERE slug = ?", (candidate,)
-        ).fetchone()
+        row = conn.execute("SELECT id FROM pages WHERE slug = ?", (candidate,)).fetchone()
         if row is None or row["id"] == ignore_id:
             return candidate
         suffix += 1
@@ -106,9 +104,7 @@ def get_page(slug: str) -> sqlite3.Row | None:
 
 def latest_page() -> sqlite3.Row | None:
     with connect() as conn:
-        return conn.execute(
-            "SELECT * FROM pages ORDER BY updated_at DESC LIMIT 1"
-        ).fetchone()
+        return conn.execute("SELECT * FROM pages ORDER BY updated_at DESC LIMIT 1").fetchone()
 
 
 def count_pages() -> int:

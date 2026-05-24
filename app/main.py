@@ -51,9 +51,7 @@ async def health() -> dict[str, str]:
 async def home(request: Request) -> HTMLResponse:
     page = db.latest_page()
     if page is None:
-        return templates.TemplateResponse(
-            request, "empty.html", {"pages": _sidebar_pages()}
-        )
+        return templates.TemplateResponse(request, "empty.html", {"pages": _sidebar_pages()})
     return templates.TemplateResponse(
         request,
         "page.html",

@@ -11,6 +11,7 @@
   --mark: #fbe7c6;
   --radius: 8px;
   --measure: 70ch;
+  --editor-measure: 1200px;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
 }
@@ -52,6 +53,46 @@ a { color: inherit; }
   height: 100vh;
   overflow-y: auto;
 }
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* ---------- Sidebar toggle ---------- */
+.sidebar-toggle {
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  border-radius: var(--radius);
+  padding: 0.25rem 0.5rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar-toggle:hover { background: var(--accent-soft); color: var(--text); }
+
+.sidebar-toggle--hide { font-size: 1.1rem; }
+
+.sidebar-toggle--show {
+  display: none;
+  position: fixed;
+  top: 0.85rem;
+  left: 0.85rem;
+  z-index: 50;
+  font-size: 1.2rem;
+  padding: 0.3rem 0.6rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Collapsed state: hide the sidebar, reclaim the space, show the opener. */
+.sidebar-collapsed .sidebar { display: none; }
+.sidebar-collapsed .layout { grid-template-columns: 1fr; }
+.sidebar-collapsed .sidebar-toggle--show { display: inline-block; }
+.sidebar-collapsed .content { padding-left: 4rem; }
 
 .brand {
   font-weight: 650;
@@ -136,7 +177,8 @@ a { color: inherit; }
   justify-content: center;
 }
 
-.page, .editor, .placeholder { width: 100%; max-width: var(--measure); }
+.page, .placeholder { width: 100%; max-width: var(--measure); }
+.editor { width: 100%; max-width: var(--editor-measure); }
 
 .page-header { margin-bottom: 1.5rem; }
 .page-header h1 {
@@ -248,20 +290,20 @@ a { color: inherit; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.25rem;
-  min-height: 60vh;
+  min-height: 80vh;
 }
 .editor-textarea {
   width: 100%;
   resize: vertical;
   font-family: var(--font-mono);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  padding: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  padding: 1.1rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
-  min-height: 60vh;
+  min-height: 80vh;
 }
 .editor-textarea:focus { outline: none; border-color: var(--accent); }
 .preview {

@@ -4,13 +4,28 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}MiniDocMost{% endblock %}</title>
+  <script>
+    /* Apply saved sidebar state before paint to avoid a flash. */
+    try {
+      if (localStorage.getItem('sidebarCollapsed') === '1')
+        document.documentElement.classList.add('sidebar-collapsed');
+    } catch (e) {}
+  </script>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/vendor/htmx.min.js" defer></script>
 </head>
 <body>
+  <button class="sidebar-toggle sidebar-toggle--show" type="button"
+          aria-label="Show sidebar" title="Show sidebar"
+          onclick="toggleSidebar()">☰</button>
   <div class="layout">
     <aside class="sidebar">
-      <a class="brand" href="/">MiniDocMost</a>
+      <div class="sidebar-head">
+        <a class="brand" href="/">MiniDocMost</a>
+        <button class="sidebar-toggle sidebar-toggle--hide" type="button"
+                aria-label="Hide sidebar" title="Hide sidebar"
+                onclick="toggleSidebar()">«</button>
+      </div>
       <a class="new-btn" href="/new">+ New page</a>
       <div class="search">
         <input
@@ -32,5 +47,11 @@
       {% block content %}{% endblock %}
     </main>
   </div>
+  <script>
+    function toggleSidebar() {
+      var collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+      try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+    }
+  </script>
 </body>
 </html>
