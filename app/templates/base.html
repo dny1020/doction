@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MiniDocMost{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/vendor/htmx.min.js" defer></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="/">MiniDocMost</a>
+      <a class="new-btn" href="/new">+ New page</a>
+      <div class="search">
+        <input
+          type="search"
+          name="q"
+          placeholder="Search…"
+          autocomplete="off"
+          hx-get="/search"
+          hx-trigger="keyup changed delay:200ms, search"
+          hx-target="#search-results"
+          hx-swap="innerHTML">
+        <div id="search-results"></div>
+      </div>
+      <nav class="page-list">
+        {% include "partials/sidebar_list.html" %}
+      </nav>
+    </aside>
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

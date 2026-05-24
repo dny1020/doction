@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}New page — MiniDocMost{% endblock %}
+{% block content %}
+<form class="editor" method="post" action="/pages">
+  <div class="editor-bar">
+    <input class="title-input" type="text" name="title" placeholder="Title" required autofocus>
+    <div class="editor-actions">
+      <a class="btn" href="/">Cancel</a>
+      <button class="btn btn-primary" type="submit">Create</button>
+    </div>
+  </div>
+  <div class="editor-split">
+    <textarea class="editor-textarea" name="content" placeholder="Write markdown…"
+              hx-post="/preview"
+              hx-trigger="keyup changed delay:250ms"
+              hx-target="#preview"
+              hx-swap="innerHTML"></textarea>
+    <div class="prose preview" id="preview"></div>
+  </div>
+</form>
+{% endblock %}

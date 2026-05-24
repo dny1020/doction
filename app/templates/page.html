@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }} — MiniDocMost{% endblock %}
+{% block content %}
+<article class="page">
+  <header class="page-header">
+    <h1>{{ page.title }}</h1>
+    <div class="page-actions">
+      <a class="btn" href="/pages/{{ page.slug }}/edit">Edit</a>
+      <form method="post" action="/pages/{{ page.slug }}/delete"
+            onsubmit="return confirm('Delete “{{ page.title }}”?');">
+        <button class="btn btn-danger" type="submit">Delete</button>
+      </form>
+    </div>
+    <p class="meta">Updated {{ page.updated_at }}</p>
+  </header>
+  <div class="prose">
+    {{ rendered | safe }}
+  </div>
+</article>
+{% endblock %}

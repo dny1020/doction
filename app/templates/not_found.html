@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Not found — MiniDocMost{% endblock %}
+{% block content %}
+<div class="placeholder">
+  <h1>Page not found</h1>
+  <p class="muted">No page exists at <code>{{ slug }}</code>.</p>
+  <a class="btn" href="/">Back home</a>
+</div>
+{% endblock %}

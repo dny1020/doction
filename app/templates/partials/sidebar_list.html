@@ -1,0 +1,10 @@
+<ul>
+  {% for p in pages %}
+  <li>
+    <a href="/pages/{{ p.slug }}"
+       class="{% if p.slug == active_slug %}active{% endif %}">{{ p.title }}</a>
+  </li>
+  {% else %}
+  <li class="muted">No pages yet</li>
+  {% endfor %}
+</ul>

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Editing {{ page.title }} — MiniDocMost{% endblock %}
+{% block content %}
+<form class="editor" method="post" action="/pages/{{ page.slug }}">
+  <div class="editor-bar">
+    <input class="title-input" type="text" name="title" value="{{ page.title }}"
+           placeholder="Title" required>
+    <div class="editor-actions">
+      <a class="btn" href="/pages/{{ page.slug }}">Cancel</a>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+  </div>
+  <div class="editor-split">
+    <textarea class="editor-textarea" name="content" placeholder="Write markdown…"
+              hx-post="/preview"
+              hx-trigger="keyup changed delay:250ms"
+              hx-target="#preview"
+              hx-swap="innerHTML">{{ page.content }}</textarea>
+    <div class="prose preview" id="preview" hx-post="/preview" hx-trigger="load"
+         hx-include="previous textarea" hx-swap="innerHTML"></div>
+  </div>
+</form>
+{% endblock %}

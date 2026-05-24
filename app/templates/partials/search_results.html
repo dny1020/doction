@@ -1,0 +1,14 @@
+{% if query.strip() %}
+  {% if results %}
+  <ul class="results">
+    {% for r in results %}
+    <li>
+      <a href="/pages/{{ r.slug }}">{{ r.title }}</a>
+      <p class="snippet">{{ r.snippet | safe }}</p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted no-results">No matches for "{{ query }}"</p>
+  {% endif %}
+{% endif %}
