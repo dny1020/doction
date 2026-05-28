@@ -124,9 +124,6 @@ def init_db() -> None:
             );
             """
         )
-        conn.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS pages_user_slug_idx ON pages(user_id, slug)"
-        )
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(pages)")}
         if (
             "user_id" not in columns
@@ -135,6 +132,9 @@ def init_db() -> None:
         ):
             _rebuild_pages_schema(conn)
             return
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS pages_user_slug_idx ON pages(user_id, slug)"
+        )
         conn.executescript(
             """
             CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
