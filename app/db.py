@@ -124,9 +124,15 @@ def init_db() -> None:
             );
             """
         )
-        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS pages_user_slug_idx ON pages(user_id, slug)")
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS pages_user_slug_idx ON pages(user_id, slug)"
+        )
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(pages)")}
-        if "user_id" not in columns or _slug_unique_index_present(conn) or not _user_slug_index_present(conn):
+        if (
+            "user_id" not in columns
+            or _slug_unique_index_present(conn)
+            or not _user_slug_index_present(conn)
+        ):
             _rebuild_pages_schema(conn)
             return
         conn.executescript(

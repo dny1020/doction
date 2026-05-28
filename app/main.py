@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from datetime import UTC, datetime, timedelta
 import hashlib
 import hmac
 import os
-from pathlib import Path
 import secrets
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
+import jwt
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import jwt
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
 
 from app import db, seed
