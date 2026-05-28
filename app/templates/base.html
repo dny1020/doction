@@ -5,11 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}MiniDocMost{% endblock %}</title>
   <script>
-    /* Apply saved sidebar state before paint to avoid a flash. */
+    /* Apply saved sidebar state + theme before paint to avoid a flash. */
     try {
       if (localStorage.getItem('sidebarCollapsed') === '1')
         document.documentElement.classList.add('sidebar-collapsed');
     } catch (e) {}
+    try {
+      var _t = localStorage.getItem('theme');
+      if (!_t) _t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', _t);
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
   </script>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/vendor/htmx.min.js" defer></script>
@@ -60,7 +67,25 @@
       {% endif %}
     </aside>
     <main class="content">
-      {% block content %}{% endblock %}
+      <div class="topbar">
+        <div class="topbar-right">
+          <button class="theme-toggle" type="button" onclick="toggleTheme()"
+                  title="Toggle theme" aria-label="Toggle theme">
+            <span class="theme-icon-moon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </span>
+            <span class="theme-icon-sun" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </span>
+          </button>
+          {% if user_email %}
+          <div class="avatar" id="user-avatar" title="{{ user_email }}">{{ user_email[0] | upper }}</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="content-body">
+        {% block content %}{% endblock %}
+      </div>
     </main>
   </div>
   <script>
@@ -78,6 +103,23 @@
       toggles.forEach(function (btn) { btn.setAttribute('aria-expanded', String(expanded)); });
       try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
     }
+
+    function toggleTheme() {
+      var root = document.documentElement;
+      var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('theme', next); } catch (e) {}
+    }
+
+    (function () {
+      var avatar = document.getElementById('user-avatar');
+      if (!avatar) return;
+      var palette = ['#c0604a','#4a7fc0','#4aab6e','#8b5fc0','#c0914a','#4aabc0','#c05473','#7a9c4a'];
+      var email = avatar.getAttribute('title') || '';
+      var h = 0;
+      for (var i = 0; i < email.length; i++) h = (h * 31 + email.charCodeAt(i)) & 0xfffffff;
+      avatar.style.background = palette[h % palette.length];
+    })();
 
     syncSidebarAria();
 
