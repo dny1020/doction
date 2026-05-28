@@ -17,15 +17,25 @@
 <body>
   <button class="sidebar-toggle sidebar-toggle--show" type="button"
           aria-label="Show sidebar" title="Show sidebar"
-          onclick="toggleSidebar()">☰</button>
+          aria-expanded="true" onclick="toggleSidebar()">☰</button>
+  <div class="sidebar-overlay" onclick="toggleSidebar()" aria-hidden="true"></div>
   <div class="layout">
-    <aside class="sidebar">
+    <aside class="sidebar" aria-label="Sidebar">
       <div class="sidebar-head">
         <a class="brand" href="/">MiniDocMost</a>
         <button class="sidebar-toggle sidebar-toggle--hide" type="button"
                 aria-label="Hide sidebar" title="Hide sidebar"
-                onclick="toggleSidebar()">«</button>
+                aria-expanded="true" onclick="toggleSidebar()">«</button>
       </div>
+      {% if user_email %}
+      <div class="user-block">
+        <div class="user-email">{{ user_email }}</div>
+        <form method="post" action="/logout">
+          <button class="btn btn-ghost" type="submit">Log out</button>
+        </form>
+      </div>
+      {% endif %}
+      {% if user_email %}
       <a class="new-btn" href="/new">+ New page</a>
       <div class="search">
         <input
@@ -42,16 +52,56 @@
       <nav class="page-list">
         {% include "partials/sidebar_list.html" %}
       </nav>
+      {% else %}
+      <div class="auth-links">
+        <a class="btn" href="/login">Log in</a>
+        <a class="btn btn-primary" href="/register">Create account</a>
+      </div>
+      {% endif %}
     </aside>
     <main class="content">
       {% block content %}{% endblock %}
     </main>
   </div>
   <script>
+    function syncSidebarAria() {
+      var expanded = !document.documentElement.classList.contains('sidebar-collapsed');
+      var toggles = document.querySelectorAll('.sidebar-toggle');
+      toggles.forEach(function (btn) { btn.setAttribute('aria-expanded', String(expanded)); });
+    }
+
     function toggleSidebar() {
-      var collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+      var root = document.documentElement;
+      var collapsed = root.classList.toggle('sidebar-collapsed');
+      var expanded = !collapsed;
+      var toggles = document.querySelectorAll('.sidebar-toggle');
+      toggles.forEach(function (btn) { btn.setAttribute('aria-expanded', String(expanded)); });
       try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
     }
+
+    syncSidebarAria();
+
+    if (typeof htmx !== 'undefined') {
+      document.body.addEventListener('htmx:afterSwap', function (event) {
+        if (event.detail && event.detail.target && event.detail.target.id === 'preview') {
+          event.detail.target.classList.remove('preview-empty');
+        }
+      });
+    }
+
+    document.addEventListener('keydown', function (event) {
+      if (event.defaultPrevented) return;
+      var target = event.target;
+      if (target && (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      if (event.key === '[' || event.key === ']') {
+        toggleSidebar();
+      }
+      if (event.key === 'Escape') {
+        if (!document.documentElement.classList.contains('sidebar-collapsed')) {
+          toggleSidebar();
+        }
+      }
+    });
   </script>
 </body>
 </html>

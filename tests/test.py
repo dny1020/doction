@@ -16,6 +16,7 @@ def client():
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     os.environ["DATABASE_PATH"] = tmp.name
+    os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
 
     # Re-import so modules pick up the temp DATABASE_PATH cleanly.
     import app.db as db_module
@@ -40,18 +41,24 @@ def test_health(client):
     assert r.json() == {"status": "ok"}
 
 
+def _register(client, email: str = "user@example.com", password: str = "password123"):
+    return client.post("/register", data={"email": email, "password": password})
+
+
 def test_docs_available(client):
     # Required by the CI smoke test.
     assert client.get("/docs").status_code == 200
 
 
 def test_home_renders_seed(client):
+    _register(client)
     r = client.get("/")
     assert r.status_code == 200
     assert "MiniDocMost" in r.text
 
 
 def test_create_and_read_page(client):
+    _register(client)
     r = client.post(
         "/pages",
         data={"title": "My Test Note", "content": "# Hello\n\nSome **bold** text."},
@@ -67,6 +74,7 @@ def test_create_and_read_page(client):
 
 
 def test_search_finds_page(client):
+    _register(client)
     client.post("/pages", data={"title": "Searchable Widget", "content": "kubernetes deploy"})
     r = client.get("/search", params={"q": "kubernetes"})
     assert r.status_code == 200
@@ -74,12 +82,14 @@ def test_search_finds_page(client):
 
 
 def test_search_empty_query_returns_nothing(client):
+    _register(client)
     r = client.get("/search", params={"q": "   "})
     assert r.status_code == 200
     assert "results" not in r.text.lower() or "Searchable" not in r.text
 
 
 def test_update_page(client):
+    _register(client)
     client.post("/pages", data={"title": "Edit Me", "content": "original"})
     r = client.post("/pages/edit-me", data={"title": "Edit Me", "content": "updated body"})
     assert r.status_code == 200
@@ -88,6 +98,7 @@ def test_update_page(client):
 
 
 def test_delete_page(client):
+    _register(client)
     client.post("/pages", data={"title": "Trash Me", "content": "bye"})
     assert client.get("/pages/trash-me").status_code == 200
     client.post("/pages/trash-me/delete")
@@ -95,6 +106,7 @@ def test_delete_page(client):
 
 
 def test_preview_renders_markdown(client):
+    _register(client)
     r = client.post("/preview", data={"content": "## Heading"})
     assert r.status_code == 200
     assert "<h2>Heading</h2>" in r.text

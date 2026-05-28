@@ -53,7 +53,7 @@ MARKDOWN_NOTES = """\
 ~~Strikethrough~~ and tables are supported out of the box.
 """
 
-_SEED_PAGES = [
+SEED_PAGES = [
     ("Welcome to MiniDocMost", WELCOME),
     ("Runbook: Deploy to Raspberry Pi", RUNBOOK),
     ("Markdown Cheatsheet", MARKDOWN_NOTES),
@@ -61,7 +61,5 @@ _SEED_PAGES = [
 
 
 def seed_if_empty() -> None:
-    if db.count_pages() > 0:
+    if db.count_users() > 0:
         return
-    for title, content in _SEED_PAGES:
-        db.create_page(title, content)

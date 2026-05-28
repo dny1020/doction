@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Log in — MiniDocMost{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="auth-card">
+    <h1>Welcome back</h1>
+    <p class="muted">Log in to access your notes.</p>
+    {% if error %}
+    <div class="auth-error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/login">
+      <label class="auth-label" for="email">Email</label>
+      <input class="auth-input" id="email" type="email" name="email" required autofocus>
+      <label class="auth-label" for="password">Password</label>
+      <input class="auth-input" id="password" type="password" name="password" required>
+      <button class="btn btn-primary auth-submit" type="submit">Log in</button>
+    </form>
+    <p class="auth-switch">New here? <a href="/register">Create an account</a></p>
+  </div>
+</div>
+{% endblock %}
