@@ -301,6 +301,8 @@ a { color: inherit; }
 [data-theme="dark"] .theme-icon-sun { display: flex; }
 
 /* ---------- Avatar ---------- */
+.avatar-wrap { position: relative; }
+
 .avatar {
   width: 2rem;
   height: 2rem;
@@ -310,14 +312,77 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
+  font: inherit;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0;
   user-select: none;
   flex-shrink: 0;
-  cursor: default;
+  cursor: pointer;
+  border: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
 }
+.avatar:hover { opacity: 0.88; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22); }
+.avatar:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(184, 92, 56, 0.35);
+}
+
+.avatar-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+[data-theme="dark"] .avatar-menu {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.avatar-menu.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.avatar-menu-email {
+  padding: 0.65rem 0.9rem 0.4rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.3rem 0;
+}
+
+.avatar-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.88rem;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  border-radius: 0 0 var(--radius) var(--radius);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.avatar-menu-item:hover { background: var(--accent-soft); color: var(--accent); }
 
 /* ---------- Content ---------- */
 .content {

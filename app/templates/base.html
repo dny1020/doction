@@ -35,14 +35,6 @@
                 aria-expanded="true" onclick="toggleSidebar()">«</button>
       </div>
       {% if user_email %}
-      <div class="user-block">
-        <div class="user-email">{{ user_email }}</div>
-        <form method="post" action="/logout">
-          <button class="btn btn-ghost" type="submit">Log out</button>
-        </form>
-      </div>
-      {% endif %}
-      {% if user_email %}
       <a class="new-btn" href="/new">+ New page</a>
       <div class="search">
         <input
@@ -79,7 +71,20 @@
             </span>
           </button>
           {% if user_email %}
-          <div class="avatar" id="user-avatar" title="{{ user_email }}">{{ user_email[0] | upper }}</div>
+          <div class="avatar-wrap">
+            <button class="avatar" id="user-avatar" type="button"
+                    onclick="toggleAvatarMenu()" aria-haspopup="true"
+                    aria-expanded="false" title="{{ user_email }}">
+              {{ user_email[0] | upper }}
+            </button>
+            <div class="avatar-menu" id="avatar-menu" aria-hidden="true">
+              <div class="avatar-menu-email">{{ user_email }}</div>
+              <div class="avatar-menu-divider"></div>
+              <form method="post" action="/logout">
+                <button class="avatar-menu-item" type="submit">Log out</button>
+              </form>
+            </div>
+          </div>
           {% endif %}
         </div>
       </div>
@@ -110,6 +115,28 @@
       root.setAttribute('data-theme', next);
       try { localStorage.setItem('theme', next); } catch (e) {}
     }
+
+    function toggleAvatarMenu() {
+      var menu = document.getElementById('avatar-menu');
+      var btn = document.getElementById('user-avatar');
+      if (!menu) return;
+      var open = menu.classList.toggle('open');
+      menu.setAttribute('aria-hidden', String(!open));
+      if (btn) btn.setAttribute('aria-expanded', String(open));
+    }
+
+    document.addEventListener('click', function (e) {
+      var wrap = document.querySelector('.avatar-wrap');
+      if (wrap && !wrap.contains(e.target)) {
+        var menu = document.getElementById('avatar-menu');
+        var btn = document.getElementById('user-avatar');
+        if (menu && menu.classList.contains('open')) {
+          menu.classList.remove('open');
+          menu.setAttribute('aria-hidden', 'true');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
 
     (function () {
       var avatar = document.getElementById('user-avatar');
