@@ -37,7 +37,7 @@ a { color: inherit; }
 /* ---------- Layout ---------- */
 .layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: auto 1fr;
   min-height: 100vh;
 }
 
@@ -52,6 +52,8 @@ a { color: inherit; }
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: 280px;
 }
 
 .sidebar-head {
@@ -92,14 +94,13 @@ a { color: inherit; }
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* Collapsed state: hide the sidebar, reclaim the space, show the opener. */
-.sidebar { transition: transform 0.2s ease, opacity 0.2s ease; }
+/* Collapsed state: animate width to 0 so the sidebar slides away smoothly. */
+.sidebar { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease; }
 .sidebar-collapsed .sidebar {
-  display: none;
-  transform: translateX(-16px);
+  width: 0;
   opacity: 0;
+  pointer-events: none;
 }
-.sidebar-collapsed .layout { grid-template-columns: 1fr; }
 .sidebar-collapsed .sidebar-toggle--show { display: inline-block; }
 .sidebar-collapsed .content { padding-left: 4rem; }
 
@@ -461,6 +462,8 @@ a { color: inherit; }
   }
   .sidebar-collapsed .sidebar {
     display: block;
+    width: 85vw;
+    max-width: 320px;
     transform: translateX(-110%);
     opacity: 0;
   }
