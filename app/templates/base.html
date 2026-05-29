@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}MiniDocMost{% endblock %}</title>
   <script>
-    /* Apply saved sidebar state + theme before paint to avoid a flash. */
+    /* Apply saved sidebar + theme state before paint to avoid flash. */
     try {
       if (localStorage.getItem('sidebarCollapsed') === '1')
         document.documentElement.classList.add('sidebar-collapsed');
@@ -20,11 +20,14 @@
   </script>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/vendor/htmx.min.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.min.js" defer></script>
 </head>
 <body>
   <button class="sidebar-toggle sidebar-toggle--show" type="button"
           aria-label="Show sidebar" title="Show sidebar"
-          aria-expanded="true" onclick="toggleSidebar()">☰</button>
+          aria-expanded="false" onclick="toggleSidebar()">
+    <i data-lucide="panel-left-open" class="lucide"></i>
+  </button>
   <div class="sidebar-overlay" onclick="toggleSidebar()" aria-hidden="true"></div>
   <div class="layout">
     <aside class="sidebar" aria-label="Sidebar">
@@ -32,25 +35,36 @@
         <a class="brand" href="/">MiniDocMost</a>
         <button class="sidebar-toggle sidebar-toggle--hide" type="button"
                 aria-label="Hide sidebar" title="Hide sidebar"
-                aria-expanded="true" onclick="toggleSidebar()">«</button>
+                aria-expanded="true" onclick="toggleSidebar()">
+          <i data-lucide="panel-left-close" class="lucide"></i>
+        </button>
       </div>
+
       {% if user_email %}
-      <a class="new-btn" href="/new">+ New page</a>
-      <div class="search">
-        <input
-          type="search"
-          name="q"
-          placeholder="Search…"
-          autocomplete="off"
-          hx-get="/search"
-          hx-trigger="keyup changed delay:200ms, search"
-          hx-target="#search-results"
-          hx-swap="innerHTML">
+      <div class="search-wrap">
+        <div class="search-field">
+          <i data-lucide="search" class="lucide" width="15" height="15"></i>
+          <input
+            type="search"
+            name="q"
+            placeholder="Search pages…"
+            autocomplete="off"
+            hx-get="/search"
+            hx-trigger="keyup changed delay:200ms, search"
+            hx-target="#search-results"
+            hx-swap="innerHTML">
+        </div>
         <div id="search-results"></div>
       </div>
+      <div class="sidebar-eyebrow">Recent</div>
       <nav class="page-list">
         {% include "partials/sidebar_list.html" %}
       </nav>
+      <div class="sidebar-foot">
+        <a class="new-btn" href="/new">
+          <i data-lucide="plus" class="lucide" width="15" height="15"></i> New page
+        </a>
+      </div>
       {% else %}
       <div class="auth-links">
         <a class="btn" href="/login">Log in</a>
@@ -58,6 +72,7 @@
       </div>
       {% endif %}
     </aside>
+
     <main class="content">
       <div class="topbar">
         <div class="topbar-right">
@@ -93,19 +108,20 @@
       </div>
     </main>
   </div>
+
   <script>
     function syncSidebarAria() {
       var expanded = !document.documentElement.classList.contains('sidebar-collapsed');
-      var toggles = document.querySelectorAll('.sidebar-toggle');
-      toggles.forEach(function (btn) { btn.setAttribute('aria-expanded', String(expanded)); });
+      document.querySelectorAll('.sidebar-toggle').forEach(function (btn) {
+        btn.setAttribute('aria-expanded', String(expanded));
+      });
     }
 
     function toggleSidebar() {
-      var root = document.documentElement;
-      var collapsed = root.classList.toggle('sidebar-collapsed');
-      var expanded = !collapsed;
-      var toggles = document.querySelectorAll('.sidebar-toggle');
-      toggles.forEach(function (btn) { btn.setAttribute('aria-expanded', String(expanded)); });
+      var collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+      document.querySelectorAll('.sidebar-toggle').forEach(function (btn) {
+        btn.setAttribute('aria-expanded', String(!collapsed));
+      });
       try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
     }
 
@@ -118,7 +134,7 @@
 
     function toggleAvatarMenu() {
       var menu = document.getElementById('avatar-menu');
-      var btn = document.getElementById('user-avatar');
+      var btn  = document.getElementById('user-avatar');
       if (!menu) return;
       var open = menu.classList.toggle('open');
       menu.setAttribute('aria-hidden', String(!open));
@@ -129,7 +145,7 @@
       var wrap = document.querySelector('.avatar-wrap');
       if (wrap && !wrap.contains(e.target)) {
         var menu = document.getElementById('avatar-menu');
-        var btn = document.getElementById('user-avatar');
+        var btn  = document.getElementById('user-avatar');
         if (menu && menu.classList.contains('open')) {
           menu.classList.remove('open');
           menu.setAttribute('aria-hidden', 'true');
@@ -138,6 +154,7 @@
       }
     });
 
+    /* Avatar color from email hash */
     (function () {
       var avatar = document.getElementById('user-avatar');
       if (!avatar) return;
@@ -150,6 +167,11 @@
 
     syncSidebarAria();
 
+    /* Init Lucide icons after DOM + script load */
+    window.addEventListener('load', function () {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+
     if (typeof htmx !== 'undefined') {
       document.body.addEventListener('htmx:afterSwap', function (event) {
         if (event.detail && event.detail.target && event.detail.target.id === 'preview') {
@@ -160,15 +182,11 @@
 
     document.addEventListener('keydown', function (event) {
       if (event.defaultPrevented) return;
-      var target = event.target;
-      if (target && (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (event.key === '[' || event.key === ']') {
+      var t = event.target;
+      if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      if (event.key === '[' || event.key === ']') toggleSidebar();
+      if (event.key === 'Escape' && !document.documentElement.classList.contains('sidebar-collapsed')) {
         toggleSidebar();
-      }
-      if (event.key === 'Escape') {
-        if (!document.documentElement.classList.contains('sidebar-collapsed')) {
-          toggleSidebar();
-        }
       }
     });
   </script>
