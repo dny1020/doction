@@ -1,4 +1,4 @@
-"""SQLite storage with FTS5 full-text search for MiniDocMost pages."""
+"""SQLite storage with FTS5 full-text search for doction pages."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
 
-DEFAULT_DB_PATH = "minidocmost.db"
+DEFAULT_DB_PATH = "doction.db"
 
 
 def db_path() -> Path:

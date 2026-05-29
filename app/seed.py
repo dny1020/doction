@@ -5,7 +5,7 @@ from __future__ import annotations
 from app import db
 
 WELCOME = """\
-# Welcome to MiniDocMost
+# Welcome to doction
 
 A quiet, markdown-first place to think, document, and operate.
 
@@ -29,9 +29,9 @@ A short example of the kind of operational note this wiki is built for.
 
 ```bash
 docker pull api-test:latest
-docker rm -f minidocmost || true
-docker run -d --name minidocmost -p 8000:8000 \\
-  -v /srv/minidocmost:/data api-test:latest
+docker rm -f doction || true
+docker run -d --name doction -p 8000:8000 \\
+  -v /srv/doction:/data api-test:latest
 ```
 
 > Tip: keep the SQLite database on a mounted volume (`/data`) so notes
@@ -54,7 +54,7 @@ MARKDOWN_NOTES = """\
 """
 
 SEED_PAGES = [
-    ("Welcome to MiniDocMost", WELCOME),
+    ("Welcome to doction", WELCOME),
     ("Runbook: Deploy to Raspberry Pi", RUNBOOK),
     ("Markdown Cheatsheet", MARKDOWN_NOTES),
 ]

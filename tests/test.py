@@ -1,4 +1,4 @@
-"""End-to-end tests for MiniDocMost using FastAPI's TestClient."""
+"""End-to-end tests for doction using FastAPI's TestClient."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ def test_home_renders_seed(client):
     _register(client)
     r = client.get("/")
     assert r.status_code == 200
-    assert "MiniDocMost" in r.text
+    assert "doction" in r.text
 
 
 def test_create_and_read_page(client):

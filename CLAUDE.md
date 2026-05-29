@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Vision
 
-MiniDocMost is a minimalist, markdown-first DevOps knowledge system — a quiet personal wiki for thinking, documenting, and operating. No Notion-style blocks or dashboard clutter.
+doction is a minimalist, markdown-first DevOps knowledge system — a quiet personal wiki for thinking, documenting, and operating. No Notion-style blocks or dashboard clutter.
 
 **Stack:**
 - FastAPI backend with Jinja2 templates

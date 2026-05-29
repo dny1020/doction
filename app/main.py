@@ -1,4 +1,4 @@
-"""MiniDocMost — FastAPI + HTMX markdown wiki."""
+"""doction — FastAPI + HTMX markdown wiki."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="MiniDocMost", lifespan=lifespan)
+app = FastAPI(title="doction", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 

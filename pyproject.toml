@@ -1,5 +1,5 @@
 [project]
-name = "mini-docmost"
+name = "doction"
 version = "0.1.0"
 description = "Minimalist, markdown-first DevOps knowledge system"
 requires-python = ">=3.13"

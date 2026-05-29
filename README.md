@@ -1,4 +1,4 @@
-# MiniDocMost
+# doction
 
 A minimalist, markdown-first DevOps knowledge wiki — a quiet personal space to think, document, and operate. Calm, low-chrome UI inspired by Claude.ai: no blocks, no dashboard noise, just fast capture, search, and reading.
 
@@ -51,7 +51,7 @@ docker run -p 8000:8000 -v "$PWD/data:/data" -e DATABASE_PATH=/data/doction.db d
 
 | Env var         | Default          | Purpose                                                        |
 | --------------- | ---------------- | -------------------------------------------------------------- |
-| `DATABASE_PATH` | `minidocmost.db` | SQLite file location. In Docker, point it at a mounted volume. |
+| `DATABASE_PATH` | `doction.db` | SQLite file location. In Docker, point it at a mounted volume. |
 
 ## Routes
 

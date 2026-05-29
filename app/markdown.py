@@ -1,4 +1,4 @@
-"""Markdown -> HTML rendering for MiniDocMost."""
+"""Markdown -> HTML rendering for doction."""
 
 from __future__ import annotations
 
