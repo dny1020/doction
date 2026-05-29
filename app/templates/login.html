@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Log in — doction{% endblock %}
+{% block body_class %}no-sidebar{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="auth-card">
-    <h1>Welcome back</h1>
+    <h1 class="auth-brand">DOCTION</h1>
     <p class="muted">Log in to access your notes.</p>
     {% if error %}
     <div class="auth-error">{{ error }}</div>

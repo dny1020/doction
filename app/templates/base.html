@@ -22,7 +22,7 @@
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.min.js" defer></script>
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <button class="sidebar-toggle sidebar-toggle--show" type="button"
           aria-label="Show sidebar" title="Show sidebar"
           aria-expanded="false" onclick="toggleSidebar()">
@@ -154,7 +154,6 @@
       }
     });
 
-    /* Avatar color from email hash */
     (function () {
       var avatar = document.getElementById('user-avatar');
       if (!avatar) return;
@@ -167,7 +166,6 @@
 
     syncSidebarAria();
 
-    /* Init Lucide icons after DOM + script load */
     window.addEventListener('load', function () {
       if (typeof lucide !== 'undefined') lucide.createIcons();
     });
