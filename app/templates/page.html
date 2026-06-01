@@ -1,38 +1,98 @@
 {% extends "base.html" %}
 {% block title %}{{ page.title }} — doction{% endblock %}
 {% block content %}
-<article class="page">
-  <header class="page-header">
-    <h1>{{ page.title }}</h1>
-    <div class="page-actions">
-      <a class="btn" href="/pages/{{ page.slug }}/edit">Edit</a>
-      <a class="btn" href="/new?parent={{ page.slug }}">New subpage</a>
-      <form method="post" action="/pages/{{ page.slug }}/delete"
-            onsubmit="return confirm('Delete “{{ page.title }}”?');">
-        <button class="btn btn-danger" type="submit">Delete</button>
-      </form>
-    </div>
-    <p class="meta">
-      Updated {{ page.updated_at }}
-      {% if page.parent_slug %}
-      <span>•</span>
-      <span>In <a href="/pages/{{ page.parent_slug }}">{{ page.parent_title }}</a></span>
-      {% endif %}
-    </p>
-  </header>
-  <div class="prose">
-    {{ rendered | safe }}
-  </div>
+<div class="page-wrap" id="page-wrap">
 
-  {% if children %}
-  <section class="subpages">
-    <h2>Subpages</h2>
-    <ul>
-      {% for child in children %}
-      <li><a href="/pages/{{ child.slug }}">{{ child.title }}</a></li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
-</article>
+  <article class="page">
+    <header class="page-header">
+      <h1>{{ page.title }}</h1>
+      <div class="page-actions">
+        <a class="btn" href="/pages/{{ page.slug }}/edit">Edit</a>
+        <a class="btn" href="/new?parent={{ page.slug }}">New subpage</a>
+        <form method="post" action="/pages/{{ page.slug }}/delete"
+              onsubmit="return confirm('Delete &quot;{{ page.title }}&quot;?');">
+          <button class="btn btn-danger" type="submit">Delete</button>
+        </form>
+      </div>
+      <p class="meta">
+        Updated {{ page.updated_at[:10] }}
+        {% if page.parent_slug %}
+        <span>•</span>
+        <span>In <a href="/pages/{{ page.parent_slug }}">{{ page.parent_title }}</a></span>
+        {% endif %}
+      </p>
+    </header>
+
+    <div class="prose">{{ rendered | safe }}</div>
+
+    {% if children %}
+    <section class="subpages">
+      <div class="subpages-hd">
+        <span class="subpages-eyebrow">Subpages</span>
+        <a class="btn btn-sm" href="/new?parent={{ page.slug }}">+ New</a>
+      </div>
+      <div class="subpages-grid">
+        {% for child in children %}
+        <a class="subpage-card" href="/pages/{{ child.slug }}">
+          <svg class="subpage-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+               viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <div class="subpage-info">
+            <span class="subpage-name">{{ child.title }}</span>
+            <span class="subpage-date">{{ child.updated_at[:10] }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </article>
+
+  <aside class="toc" id="toc" aria-label="Table of contents">
+    <div class="toc-label">On this page</div>
+    <nav id="toc-nav"></nav>
+  </aside>
+
+</div>
+
+<script>
+(function () {
+  var prose = document.querySelector('.prose');
+  var nav   = document.getElementById('toc-nav');
+  var wrap  = document.getElementById('page-wrap');
+  if (!prose || !nav || !wrap) return;
+
+  var hs = Array.from(prose.querySelectorAll('h1, h2, h3'));
+  if (hs.length < 2) return;
+
+  var used = {};
+  hs.forEach(function (h) {
+    var base = h.textContent.trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'heading';
+    var id = base;
+    if (id in used) { used[id]++; id = base + '-' + used[id]; } else { used[id] = 0; }
+    h.id = id;
+
+    var a = document.createElement('a');
+    a.href = '#' + id;
+    a.textContent = h.textContent;
+    a.className = 'toc-item toc-' + h.tagName.toLowerCase();
+    nav.appendChild(a);
+  });
+
+  wrap.classList.add('has-toc');
+
+  if (!('IntersectionObserver' in window)) return;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      var link = nav.querySelector('a[href="#' + e.target.id + '"]');
+      if (link) link.classList.toggle('active', e.isIntersecting);
+    });
+  }, { rootMargin: '-5% 0px -85% 0px', threshold: 0 });
+  hs.forEach(function (h) { io.observe(h); });
+})();
+</script>
 {% endblock %}

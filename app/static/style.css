@@ -611,8 +611,79 @@ a { color: inherit; }
   justify-content: center;
 }
 
-.page, .placeholder { width: 100%; max-width: var(--measure); }
+.page, .placeholder { width: 100%; max-width: var(--measure); min-width: 0; }
 .editor { width: 100%; max-width: var(--editor-measure); }
+
+/* === Page wrapper + optional TOC column =================================== */
+.page-wrap {
+  width: 100%;
+  max-width: var(--measure);
+  align-self: flex-start;
+}
+
+.page-wrap.has-toc {
+  max-width: calc(var(--measure) + 220px + var(--sp-7));
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: var(--sp-7);
+  align-items: start;
+}
+
+/* === Table of contents ==================================================== */
+.toc { display: none; }
+
+.has-toc .toc {
+  display: block;
+  position: sticky;
+  top: 64px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+.toc-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  padding-bottom: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+}
+
+#toc-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.toc-item {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  text-decoration: none;
+  line-height: 1.5;
+  padding: 3px 6px 3px 8px;
+  border-left: 2px solid transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.toc-item:hover { color: var(--fg-1); }
+.toc-item.active { color: var(--accent); border-color: var(--accent); }
+.toc-h1 { font-weight: 500; }
+.toc-h2 { padding-left: 18px; }
+.toc-h3 { padding-left: 28px; font-size: 11px; }
+
+@media (max-width: 1120px) {
+  .page-wrap.has-toc {
+    max-width: var(--measure);
+    grid-template-columns: 1fr;
+  }
+  .toc { display: none !important; }
+}
 
 /* === Page view ============================================================ */
 .page-header { margin-bottom: var(--sp-5); }
@@ -649,35 +720,76 @@ a { color: inherit; }
 }
 
 .subpages {
-  margin-top: var(--sp-6);
-  padding-top: var(--sp-4);
+  margin-top: var(--sp-7);
+  padding-top: var(--sp-5);
   border-top: 1px solid var(--border);
 }
 
-.subpages h2 {
-  margin: 0 0 var(--sp-2);
-  font-family: var(--font-sans);
-  font-size: var(--text-lg);
+.subpages-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-4);
+}
+
+.subpages-eyebrow {
+  font-size: 10.5px;
   font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-3);
 }
 
-.subpages ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.subpages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--sp-3);
 }
 
-.subpages li + li {
-  margin-top: var(--sp-1);
-}
-
-.subpages a {
-  color: var(--fg-2);
+.subpage-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
   text-decoration: none;
+  transition:
+    background    var(--dur-fast) var(--ease),
+    border-color  var(--dur-fast) var(--ease);
+}
+.subpage-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 
-.subpages a:hover {
-  color: var(--accent);
+.subpage-icon {
+  color: var(--fg-3);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.subpage-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.subpage-name {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subpage-date {
+  font-size: var(--text-xs);
+  color: var(--fg-3);
 }
 
 /* === Buttons ============================================================== */
@@ -728,6 +840,13 @@ a { color: inherit; }
   color: var(--danger);
 }
 .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger-soft); }
+
+.btn-sm {
+  height: 26px;
+  padding: 0 var(--sp-3);
+  font-size: var(--text-xs);
+  border-radius: var(--r-sm);
+}
 
 /* === Prose (reading view) ================================================= */
 .prose {
