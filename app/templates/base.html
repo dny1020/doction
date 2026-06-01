@@ -47,6 +47,9 @@
           <span class="workspace-current">
             {{ active_workspace.name if active_workspace else "—" }}
           </span>
+          <button class="workspace-add-toggle" type="button"
+                  onclick="toggleWsForm()" title="New workspace"
+                  aria-label="New workspace">+</button>
         </div>
         <div class="workspace-list">
           {% for ws in workspaces %}
@@ -56,9 +59,10 @@
           </a>
           {% endfor %}
         </div>
-        <form class="workspace-form" method="post" action="/workspaces">
+        <form class="workspace-form" id="ws-form" method="post" action="/workspaces"
+              style="display:none">
           <input class="workspace-input" type="text" name="name"
-                 placeholder="New workspace…" required>
+                 placeholder="New workspace…" required autofocus>
           <button class="workspace-add" type="submit">Add</button>
         </form>
       </div>
@@ -66,9 +70,10 @@
         <div class="search-field">
           <i data-lucide="search" class="lucide" width="15" height="15"></i>
           <input
+            id="sidebar-search"
             type="search"
             name="q"
-            placeholder="Search pages…"
+            placeholder="Search  (/)"
             autocomplete="off"
             hx-get="/search"
             hx-trigger="keyup changed delay:200ms, search"
@@ -85,18 +90,7 @@
         <a class="new-btn" href="/new">
           <i data-lucide="plus" class="lucide" width="15" height="15"></i> New page
         </a>
-      </div>
-      {% else %}
-      <div class="auth-links">
-        <a class="btn" href="/login">Log in</a>
-        <a class="btn btn-primary" href="/register">Create account</a>
-      </div>
-      {% endif %}
-    </aside>
-
-    <main class="content">
-      <div class="topbar">
-        <div class="topbar-right">
+        <div class="sidebar-user">
           <button class="theme-toggle" type="button" onclick="toggleTheme()"
                   title="Toggle theme" aria-label="Toggle theme">
             <span class="theme-icon-moon" aria-hidden="true">
@@ -106,7 +100,6 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             </span>
           </button>
-          {% if user_email %}
           <div class="avatar-wrap">
             <button class="avatar" id="user-avatar" type="button"
                     onclick="toggleAvatarMenu()" aria-haspopup="true"
@@ -121,9 +114,17 @@
               </form>
             </div>
           </div>
-          {% endif %}
         </div>
       </div>
+      {% else %}
+      <div class="auth-links">
+        <a class="btn" href="/login">Log in</a>
+        <a class="btn btn-primary" href="/register">Create account</a>
+      </div>
+      {% endif %}
+    </aside>
+
+    <main class="content">
       <div class="content-body">
         {% block content %}{% endblock %}
       </div>
@@ -160,6 +161,14 @@
       var open = menu.classList.toggle('open');
       menu.setAttribute('aria-hidden', String(!open));
       if (btn) btn.setAttribute('aria-expanded', String(open));
+    }
+
+    function toggleWsForm() {
+      var form = document.getElementById('ws-form');
+      if (!form) return;
+      var visible = form.style.display !== 'none';
+      form.style.display = visible ? 'none' : 'grid';
+      if (!visible) form.querySelector('input') && form.querySelector('input').focus();
     }
 
     document.addEventListener('click', function (e) {
@@ -203,9 +212,31 @@
       if (event.defaultPrevented) return;
       var t = event.target;
       if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+
       if (event.key === '[' || event.key === ']') toggleSidebar();
       if (event.key === 'Escape' && !document.documentElement.classList.contains('sidebar-collapsed')) {
         toggleSidebar();
+      }
+
+      /* e → edit current page */
+      if (event.key === 'e') {
+        var editLink = document.querySelector('a[href$="/edit"]');
+        if (editLink) window.location.href = editLink.href;
+      }
+
+      /* n → new page */
+      if (event.key === 'n') {
+        window.location.href = '/new';
+      }
+
+      /* / → focus sidebar search */
+      if (event.key === '/') {
+        event.preventDefault();
+        var searchInput = document.getElementById('sidebar-search');
+        if (searchInput) {
+          if (document.documentElement.classList.contains('sidebar-collapsed')) toggleSidebar();
+          searchInput.focus();
+        }
       }
     });
   </script>

@@ -98,7 +98,7 @@
 }
 
 /* === Theme transition on key surfaces ==================================== */
-body, .sidebar, .topbar, .content-body, .auth-card,
+body, .sidebar, .content-body, .auth-card,
 .btn, .new-btn, .search-field, .editor-textarea, .preview,
 .avatar-menu, .user-block {
   transition:
@@ -247,9 +247,23 @@ a { color: inherit; }
 .workspace-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-2);
 }
+
+.workspace-add-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--fg-3);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  border-radius: var(--r-xs);
+  transition: color var(--dur-fast) var(--ease);
+}
+.workspace-add-toggle:hover { color: var(--fg-1); }
 
 .workspace-label {
   font-size: 10.5px;
@@ -452,6 +466,22 @@ a { color: inherit; }
   padding: var(--sp-3);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-1);
+}
+
+/* avatar-menu opens upward when in sidebar footer */
+.sidebar-user .avatar-menu {
+  top: auto;
+  bottom: calc(100% + 6px);
 }
 
 .new-btn {
@@ -480,25 +510,6 @@ a { color: inherit; }
   flex-direction: column;
   gap: var(--sp-2);
   padding: 0 var(--sp-3);
-}
-
-/* === Topbar =============================================================== */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: var(--sp-2) var(--sp-5);
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  min-height: 48px;
-}
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
 }
 
 /* === Theme toggle ========================================================= */
@@ -609,7 +620,7 @@ a { color: inherit; }
 
 .content-body {
   flex: 1;
-  padding: var(--sp-7) var(--sp-7) var(--sp-8);
+  padding: var(--sp-6) var(--sp-7) var(--sp-8);
   display: flex;
   justify-content: center;
 }
@@ -638,7 +649,7 @@ a { color: inherit; }
 .has-toc .toc {
   display: block;
   position: sticky;
-  top: 64px;
+  top: var(--sp-7);
   max-height: calc(100vh - 80px);
   overflow-y: auto;
 }
