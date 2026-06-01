@@ -156,3 +156,95 @@ def test_preview_renders_markdown(client):
     r = client.post("/preview", data={"content": "## Heading"})
     assert r.status_code == 200
     assert "<h2>Heading</h2>" in r.text
+
+
+# ── REST API tests ────────────────────────────────────────────────────────────
+
+def _api_token(client, email="user@example.com", password="password123") -> str:
+    _register(client, email, password)
+    r = client.post("/api/token", json={"email": email, "password": password})
+    assert r.status_code == 200
+    return r.json()["token"]
+
+
+def test_api_token_valid(client):
+    token = _api_token(client)
+    assert isinstance(token, str) and len(token) > 20
+
+
+def test_api_token_bad_password(client):
+    _register(client)
+    r = client.post("/api/token", json={"email": "user@example.com", "password": "wrong"})
+    assert r.status_code == 401
+
+
+def test_api_pages_crud(client):
+    token = _api_token(client)
+    hdrs = {"Authorization": f"Bearer {token}"}
+
+    # create
+    r = client.post(
+        "/api/pages", json={"title": "Runbook", "content": "# Steps\nDo X."}, headers=hdrs
+    )
+    assert r.status_code == 201
+    slug = r.json()["slug"]
+
+    # read JSON
+    r = client.get(f"/api/pages/{slug}", headers=hdrs)
+    assert r.status_code == 200
+    assert r.json()["title"] == "Runbook"
+    assert r.json()["content"] == "# Steps\nDo X."
+
+    # read raw markdown
+    r = client.get(f"/api/pages/{slug}/raw", headers=hdrs)
+    assert r.status_code == 200
+    assert "# Steps" in r.text
+
+    # update (partial patch)
+    r = client.put(f"/api/pages/{slug}", json={"content": "# Steps\nDo Y."}, headers=hdrs)
+    assert r.status_code == 200
+    assert client.get(f"/api/pages/{slug}", headers=hdrs).json()["content"] == "# Steps\nDo Y."
+
+    # delete
+    assert client.delete(f"/api/pages/{slug}", headers=hdrs).status_code == 204
+    assert client.get(f"/api/pages/{slug}", headers=hdrs).status_code == 404
+
+
+def test_api_subpage_creation(client):
+    token = _api_token(client)
+    hdrs = {"Authorization": f"Bearer {token}"}
+    client.post("/api/pages", json={"title": "Parent"}, headers=hdrs)
+    client.post("/api/pages", json={"title": "Child", "parent_slug": "parent"}, headers=hdrs)
+
+    page = client.get("/api/pages/parent", headers=hdrs).json()
+    assert any(c["slug"] == "child" for c in page["children"])
+    assert client.get("/api/pages/child", headers=hdrs).json()["parent_slug"] == "parent"
+
+
+def test_api_search(client):
+    token = _api_token(client)
+    hdrs = {"Authorization": f"Bearer {token}"}
+    client.post(
+        "/api/pages", json={"title": "Terraform Guide", "content": "provision infra"}, headers=hdrs
+    )
+    r = client.get("/api/search", params={"q": "terraform"}, headers=hdrs)
+    assert r.status_code == 200
+    assert any(p["slug"] == "terraform-guide" for p in r.json())
+
+
+def test_api_workspaces(client):
+    token = _api_token(client)
+    hdrs = {"Authorization": f"Bearer {token}"}
+    r = client.post("/api/workspaces", json={"name": "Infra"}, headers=hdrs)
+    assert r.status_code == 201
+    assert r.json()["slug"] == "infra"
+
+    r = client.get("/api/workspaces", headers=hdrs)
+    assert r.status_code == 200
+    names = [w["name"] for w in r.json()]
+    assert "Infra" in names and "Personal" in names
+
+
+def test_api_requires_auth(client):
+    r = client.get("/api/pages")
+    assert r.status_code == 401

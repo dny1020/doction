@@ -11,10 +11,11 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import jwt
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi import APIRouter, FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
 
 from app import db, seed
@@ -24,6 +25,143 @@ BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 SESSION_MAX_AGE = 60 * 60 * 24 * 7
 WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
+
+
+# ── REST API ─────────────────────────────────────────────────────────────────
+
+class _TokenIn(BaseModel):
+    email: str
+    password: str
+
+
+class _PageIn(BaseModel):
+    title: str
+    content: str = ""
+    parent_slug: str | None = None
+    slug: str | None = None
+
+
+class _PagePatch(BaseModel):
+    title: str | None = None
+    content: str | None = None
+
+
+class _WorkspaceIn(BaseModel):
+    name: str
+
+
+api_router = APIRouter(prefix="/api")
+
+
+def _api_user(request: Request) -> int:
+    uid = getattr(request.state, "user_id", None)
+    if uid is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return int(uid)
+
+
+def _api_workspace(request: Request, user_id: int) -> int:
+    ws = getattr(request.state, "workspace", None)
+    if ws is None:
+        ws = db.ensure_default_workspace(user_id)
+    return int(ws["id"])
+
+
+@api_router.post("/token")
+def api_token(body: _TokenIn):
+    user = db.get_user_by_email(body.email.strip().lower())
+    if user is None or not _verify_password(body.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return {"token": _encode_token(int(user["id"])), "token_type": "bearer"}
+
+
+@api_router.get("/workspaces")
+def api_list_workspaces(request: Request):
+    uid = _api_user(request)
+    return [dict(w) for w in db.list_workspaces(uid)]
+
+
+@api_router.post("/workspaces", status_code=201)
+def api_create_workspace(request: Request, body: _WorkspaceIn):
+    uid = _api_user(request)
+    slug = db.create_workspace(uid, body.name)
+    return {"slug": slug, "name": body.name.strip() or "Workspace"}
+
+
+@api_router.get("/pages")
+def api_list_pages(request: Request):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    return db.list_pages_tree(uid, wid)
+
+
+@api_router.post("/pages", status_code=201)
+def api_create_page(request: Request, body: _PageIn):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    slug = db.create_page(
+        uid, wid, body.title, body.content,
+        parent_slug=body.parent_slug, requested_slug=body.slug,
+    )
+    return {"slug": slug, "title": body.title.strip() or "Untitled"}
+
+
+@api_router.get("/pages/{slug}/raw", response_class=PlainTextResponse)
+def api_get_page_raw(request: Request, slug: str):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    page = db.get_page(slug, uid, wid)
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    return page["content"]
+
+
+@api_router.get("/pages/{slug}")
+def api_get_page(request: Request, slug: str):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    page = db.get_page(slug, uid, wid)
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    children = db.list_child_pages(uid, wid, int(page["id"]))
+    return {
+        "slug": page["slug"],
+        "title": page["title"],
+        "content": page["content"],
+        "parent_slug": page["parent_slug"],
+        "children": [{"slug": c["slug"], "title": c["title"]} for c in children],
+        "created_at": page["created_at"],
+        "updated_at": page["updated_at"],
+    }
+
+
+@api_router.put("/pages/{slug}")
+def api_update_page(request: Request, slug: str, body: _PagePatch):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    page = db.get_page(slug, uid, wid)
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    new_title = body.title if body.title is not None else page["title"]
+    new_content = body.content if body.content is not None else page["content"]
+    db.update_page(uid, wid, slug, new_title, new_content)
+    return {"slug": slug, "title": new_title, "updated": True}
+
+
+@api_router.delete("/pages/{slug}", status_code=204)
+def api_delete_page(request: Request, slug: str):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    if not db.delete_page(uid, wid, slug):
+        raise HTTPException(status_code=404, detail="Page not found")
+
+
+@api_router.get("/search")
+def api_search(request: Request, q: str = ""):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    results = db.search_pages(uid, wid, q) if q.strip() else []
+    return [{"slug": r["slug"], "title": r["title"], "snippet": r["snippet"]} for r in results]
 
 
 @asynccontextmanager
@@ -36,6 +174,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="doction", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+app.include_router(api_router)
 
 
 def _hash_password(password: str) -> str:
@@ -508,6 +647,11 @@ async def attach_user(request: Request, call_next):
     request.state.workspace = None
 
     user_id = _get_user_id(request)
+    if user_id is None:
+        auth = request.headers.get("authorization", "")
+        if auth.lower().startswith("bearer "):
+            user_id = _decode_token(auth[7:])
+
     if user_id is not None:
         user = db.get_user_by_id(user_id)
         if user is not None:
