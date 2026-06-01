@@ -6,15 +6,33 @@
     <h1>{{ page.title }}</h1>
     <div class="page-actions">
       <a class="btn" href="/pages/{{ page.slug }}/edit">Edit</a>
+      <a class="btn" href="/new?parent={{ page.slug }}">New subpage</a>
       <form method="post" action="/pages/{{ page.slug }}/delete"
             onsubmit="return confirm('Delete “{{ page.title }}”?');">
         <button class="btn btn-danger" type="submit">Delete</button>
       </form>
     </div>
-    <p class="meta">Updated {{ page.updated_at }}</p>
+    <p class="meta">
+      Updated {{ page.updated_at }}
+      {% if page.parent_slug %}
+      <span>•</span>
+      <span>In <a href="/pages/{{ page.parent_slug }}">{{ page.parent_title }}</a></span>
+      {% endif %}
+    </p>
   </header>
   <div class="prose">
     {{ rendered | safe }}
   </div>
+
+  {% if children %}
+  <section class="subpages">
+    <h2>Subpages</h2>
+    <ul>
+      {% for child in children %}
+      <li><a href="/pages/{{ child.slug }}">{{ child.title }}</a></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 </article>
 {% endblock %}

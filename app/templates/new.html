@@ -3,12 +3,22 @@
 {% block content %}
 <form class="editor" method="post" action="/pages">
   <div class="editor-bar">
-    <input class="title-input" type="text" name="title" placeholder="Title" required autofocus>
+    <input class="title-input" type="text" name="title" value="{{ prefill_title }}"
+           placeholder="Title" required autofocus>
     <div class="editor-actions">
       <a class="btn" href="/">Cancel</a>
       <button class="btn btn-primary" type="submit">Create</button>
     </div>
   </div>
+
+  {% if parent %}
+  <p class="meta">Parent: <a href="/pages/{{ parent.slug }}">{{ parent.title }}</a></p>
+  <input type="hidden" name="parent_slug" value="{{ parent.slug }}">
+  {% endif %}
+  {% if prefill_slug %}
+  <input type="hidden" name="slug" value="{{ prefill_slug }}">
+  {% endif %}
+
   <div class="editor-split">
     <textarea class="editor-textarea" name="content" placeholder="Write markdown…"
               hx-post="/preview"

@@ -22,6 +22,8 @@ from app.markdown import render_markdown
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+SESSION_MAX_AGE = 60 * 60 * 24 * 7
+WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
 
 
 @asynccontextmanager
@@ -91,26 +93,60 @@ def _get_user_id(request: Request) -> int | None:
 
 
 def _require_user(request: Request) -> int | Response:
-    user_id = _get_user_id(request)
+    user_id = getattr(request.state, "user_id", None)
     if user_id is None:
         return RedirectResponse("/login", status_code=HTTP_303_SEE_OTHER)
-    return user_id
+    return int(user_id)
 
 
-def _sidebar_pages(user_id: int):
-    return db.list_pages(user_id)
+def _require_workspace_id(request: Request, user_id: int) -> int:
+    workspace = getattr(request.state, "workspace", None)
+    if workspace is None:
+        workspace = db.ensure_default_workspace(user_id)
+        request.state.workspaces = db.list_workspaces(user_id)
+        request.state.workspace = workspace
+    return int(workspace["id"])
+
+
+def _anonymous_context(request: Request) -> dict[str, object]:
+    return {
+        "pages": [],
+        "workspaces": [],
+        "active_workspace": None,
+        "user_email": request.state.user_email,
+    }
+
+
+def _authed_context(request: Request, user_id: int) -> dict[str, object]:
+    workspace = getattr(request.state, "workspace", None)
+    pages = []
+    if workspace is not None:
+        pages = db.list_pages(user_id, int(workspace["id"]))
+    return {
+        "pages": pages,
+        "workspaces": getattr(request.state, "workspaces", []),
+        "active_workspace": workspace,
+        "user_email": request.state.user_email,
+    }
+
+
+def _safe_next(path: str) -> str:
+    if not path.startswith("/") or path.startswith("//"):
+        return "/"
+    return path
 
 
 def _not_found(request: Request, slug: str) -> HTMLResponse:
-    user_id = _get_user_id(request)
+    user_id = getattr(request.state, "user_id", None)
+    if user_id is not None:
+        context = _authed_context(request, user_id)
+    else:
+        context = _anonymous_context(request)
+    context.update({"slug": slug})
     return templates.TemplateResponse(
         request,
         "not_found.html",
-        {
-            "pages": _sidebar_pages(user_id) if user_id else [],
-            "slug": slug,
-            "user_email": request.state.user_email,
-        },
+        context,
         status_code=HTTP_404_NOT_FOUND,
     )
 
@@ -122,54 +158,84 @@ async def health() -> dict[str, str]:
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request) -> HTMLResponse:
-    user_id = _get_user_id(request)
-    if user_id is None:
-        return RedirectResponse("/login", status_code=HTTP_303_SEE_OTHER)
-    page = db.latest_page(user_id)
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.latest_page(user_id, workspace_id)
+    context = _authed_context(request, user_id)
     if page is None:
         return templates.TemplateResponse(
             request,
             "empty.html",
-            {"pages": _sidebar_pages(user_id), "user_email": request.state.user_email},
+            {**context, "active_slug": None},
         )
+    children = db.list_child_pages(user_id, workspace_id, int(page["id"]))
     return templates.TemplateResponse(
         request,
         "page.html",
         {
-            "pages": _sidebar_pages(user_id),
+            **context,
             "page": page,
             "rendered": render_markdown(page["content"]),
+            "children": children,
             "active_slug": page["slug"],
-            "user_email": request.state.user_email,
         },
     )
 
 
 @app.get("/new", response_class=HTMLResponse)
-async def new_page_form(request: Request) -> Response:
+async def new_page_form(
+    request: Request,
+    parent: str = "",
+    title: str = "",
+    slug: str = "",
+) -> Response:
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+
+    parent_page = db.get_page(parent, user_id, workspace_id) if parent else None
+    prefill_slug = slug.strip()
+    prefill_title = title.strip()
+    if not prefill_title and prefill_slug:
+        prefill_title = prefill_slug.replace("-", " ").strip().title()
+
     return templates.TemplateResponse(
         request,
         "new.html",
         {
-            "pages": _sidebar_pages(user_id),
+            **_authed_context(request, user_id),
             "active_slug": None,
-            "user_email": request.state.user_email,
+            "parent": parent_page,
+            "prefill_title": prefill_title,
+            "prefill_slug": prefill_slug,
         },
     )
 
 
 @app.post("/pages")
 async def create_page_authed(
-    request: Request, title: str = Form(...), content: str = Form("")
+    request: Request,
+    title: str = Form(...),
+    content: str = Form(""),
+    parent_slug: str = Form(""),
+    slug: str = Form(""),
 ) -> Response:
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
-    slug = db.create_page(user_id, title, content)
-    return RedirectResponse(f"/pages/{slug}", status_code=HTTP_303_SEE_OTHER)
+    workspace_id = _require_workspace_id(request, user_id)
+    new_slug = db.create_page(
+        user_id,
+        workspace_id,
+        title,
+        content,
+        parent_slug=parent_slug or None,
+        requested_slug=slug or None,
+    )
+    return RedirectResponse(f"/pages/{new_slug}", status_code=HTTP_303_SEE_OTHER)
 
 
 @app.get("/pages/{slug}", response_class=HTMLResponse)
@@ -177,18 +243,20 @@ async def read_page(request: Request, slug: str) -> Response:
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
-    page = db.get_page(slug, user_id)
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.get_page(slug, user_id, workspace_id)
     if page is None:
         return _not_found(request, slug)
+    children = db.list_child_pages(user_id, workspace_id, int(page["id"]))
     return templates.TemplateResponse(
         request,
         "page.html",
         {
-            "pages": _sidebar_pages(user_id),
+            **_authed_context(request, user_id),
             "page": page,
             "rendered": render_markdown(page["content"]),
+            "children": children,
             "active_slug": slug,
-            "user_email": request.state.user_email,
         },
     )
 
@@ -198,29 +266,33 @@ async def edit_page_form(request: Request, slug: str) -> Response:
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
-    page = db.get_page(slug, user_id)
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.get_page(slug, user_id, workspace_id)
     if page is None:
         return _not_found(request, slug)
     return templates.TemplateResponse(
         request,
         "edit.html",
         {
-            "pages": _sidebar_pages(user_id),
+            **_authed_context(request, user_id),
             "page": page,
             "active_slug": slug,
-            "user_email": request.state.user_email,
         },
     )
 
 
 @app.post("/pages/{slug}")
 async def update_page(
-    request: Request, slug: str, title: str = Form(...), content: str = Form("")
+    request: Request,
+    slug: str,
+    title: str = Form(...),
+    content: str = Form(""),
 ) -> Response:
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
-    new_slug = db.update_page(user_id, slug, title, content)
+    workspace_id = _require_workspace_id(request, user_id)
+    new_slug = db.update_page(user_id, workspace_id, slug, title, content)
     target = new_slug or slug
     return RedirectResponse(f"/pages/{target}", status_code=HTTP_303_SEE_OTHER)
 
@@ -230,7 +302,8 @@ async def remove_page(request: Request, slug: str) -> Response:
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
-    db.delete_page(user_id, slug)
+    workspace_id = _require_workspace_id(request, user_id)
+    db.delete_page(user_id, workspace_id, slug)
     return RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
 
 
@@ -243,7 +316,8 @@ async def search(request: Request, q: str = "") -> Response:
             "partials/search_results.html",
             {"results": [], "query": ""},
         )
-    results = db.search_pages(user_id, q) if q.strip() else []
+    workspace_id = _require_workspace_id(request, user_id)
+    results = db.search_pages(user_id, workspace_id, q) if q.strip() else []
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
@@ -261,12 +335,12 @@ async def preview(request: Request, content: str = Form("")) -> Response:
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request) -> Response:
-    if _get_user_id(request) is not None:
+    if getattr(request.state, "user_id", None) is not None:
         return RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
         request,
         "login.html",
-        {"pages": [], "active_slug": None, "user_email": None},
+        {**_anonymous_context(request), "active_slug": None},
     )
 
 
@@ -277,23 +351,43 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"pages": [], "active_slug": None, "error": "Invalid credentials."},
+            {
+                **_anonymous_context(request),
+                "active_slug": None,
+                "error": "Invalid credentials.",
+            },
             status_code=400,
         )
-    token = _encode_token(int(user["id"]))
+
+    user_id = int(user["id"])
+    workspace = db.ensure_default_workspace(user_id)
+    token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+    response.set_cookie(
+        "session",
+        token,
+        httponly=True,
+        samesite="lax",
+        max_age=SESSION_MAX_AGE,
+    )
+    response.set_cookie(
+        "workspace",
+        workspace["slug"],
+        httponly=True,
+        samesite="lax",
+        max_age=WORKSPACE_MAX_AGE,
+    )
     return response
 
 
 @app.get("/register", response_class=HTMLResponse)
 async def register_form(request: Request) -> Response:
-    if _get_user_id(request) is not None:
+    if getattr(request.state, "user_id", None) is not None:
         return RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
         request,
         "register.html",
-        {"pages": [], "active_slug": None, "user_email": None},
+        {**_anonymous_context(request), "active_slug": None},
     )
 
 
@@ -304,46 +398,145 @@ async def register(request: Request, email: str = Form(...), password: str = For
         return templates.TemplateResponse(
             request,
             "register.html",
-            {"pages": [], "active_slug": None, "error": "Enter a valid email."},
+            {
+                **_anonymous_context(request),
+                "active_slug": None,
+                "error": "Enter a valid email.",
+            },
             status_code=400,
         )
     if len(password) < 8:
         return templates.TemplateResponse(
             request,
             "register.html",
-            {"pages": [], "active_slug": None, "error": "Password must be 8+ chars."},
+            {
+                **_anonymous_context(request),
+                "active_slug": None,
+                "error": "Password must be 8+ chars.",
+            },
             status_code=400,
         )
     if db.get_user_by_email(email) is not None:
         return templates.TemplateResponse(
             request,
             "register.html",
-            {"pages": [], "active_slug": None, "error": "Email already registered."},
+            {
+                **_anonymous_context(request),
+                "active_slug": None,
+                "error": "Email already registered.",
+            },
             status_code=400,
         )
+
     user_id = db.create_user(email, _hash_password(password))
-    db.claim_unowned_pages(user_id)
+    workspace = db.ensure_default_workspace(user_id)
+    workspace_id = int(workspace["id"])
+    db.claim_unowned_pages(user_id, workspace_id)
     for title, content in seed.SEED_PAGES:
-        db.create_page(user_id, title, content)
+        db.create_page(user_id, workspace_id, title, content)
+
     token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+    response.set_cookie(
+        "session",
+        token,
+        httponly=True,
+        samesite="lax",
+        max_age=SESSION_MAX_AGE,
+    )
+    response.set_cookie(
+        "workspace",
+        workspace["slug"],
+        httponly=True,
+        samesite="lax",
+        max_age=WORKSPACE_MAX_AGE,
+    )
+    return response
+
+
+@app.post("/workspaces")
+async def create_workspace(request: Request, name: str = Form(...)) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    slug = db.create_workspace(user_id, name)
+    response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
+    response.set_cookie(
+        "workspace",
+        slug,
+        httponly=True,
+        samesite="lax",
+        max_age=WORKSPACE_MAX_AGE,
+    )
+    return response
+
+
+@app.get("/workspaces/switch/{slug}")
+async def switch_workspace(request: Request, slug: str, next_url: str = "/") -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+
+    workspace = db.get_workspace_by_slug(user_id, slug)
+    target = _safe_next(next_url)
+    response = RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
+    if workspace is not None:
+        response.set_cookie(
+            "workspace",
+            workspace["slug"],
+            httponly=True,
+            samesite="lax",
+            max_age=WORKSPACE_MAX_AGE,
+        )
     return response
 
 
 @app.post("/logout")
-async def logout() -> RedirectResponse:
+async def logout(request: Request) -> RedirectResponse:
+    request.state.workspace = None
     response = RedirectResponse("/login", status_code=HTTP_303_SEE_OTHER)
     response.delete_cookie("session")
+    response.delete_cookie("workspace")
     return response
 
 
 @app.middleware("http")
 async def attach_user(request: Request, call_next):
+    request.state.user_id = None
     request.state.user_email = None
+    request.state.workspaces = []
+    request.state.workspace = None
+
     user_id = _get_user_id(request)
     if user_id is not None:
         user = db.get_user_by_id(user_id)
         if user is not None:
+            user_id = int(user["id"])
+            request.state.user_id = user_id
             request.state.user_email = user["email"]
-    return await call_next(request)
+
+            db.ensure_default_workspace(user_id)
+            workspaces = db.list_workspaces(user_id)
+            request.state.workspaces = workspaces
+
+            requested_slug = request.query_params.get("ws") or request.cookies.get("workspace")
+            workspace = None
+            if requested_slug:
+                workspace = next((ws for ws in workspaces if ws["slug"] == requested_slug), None)
+            if workspace is None and workspaces:
+                workspace = workspaces[0]
+            request.state.workspace = workspace
+
+    response = await call_next(request)
+
+    workspace = getattr(request.state, "workspace", None)
+    if workspace is not None and request.cookies.get("workspace") != workspace["slug"]:
+        response.set_cookie(
+            "workspace",
+            workspace["slug"],
+            httponly=True,
+            samesite="lax",
+            max_age=WORKSPACE_MAX_AGE,
+        )
+
+    return response

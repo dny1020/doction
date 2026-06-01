@@ -97,6 +97,52 @@ def test_update_page(client):
     assert "original" not in client.get("/pages/edit-me").text
 
 
+def test_slug_stays_stable_on_title_change(client):
+    _register(client)
+    client.post("/pages", data={"title": "Stable Slug", "content": "before"})
+    r = client.post("/pages/stable-slug", data={"title": "Renamed Title", "content": "after"})
+    assert r.status_code == 200
+    assert "Renamed Title" in r.text
+    assert client.get("/pages/stable-slug").status_code == 200
+    assert client.get("/pages/renamed-title").status_code == 404
+
+
+def test_subpage_creation(client):
+    _register(client)
+    client.post("/pages", data={"title": "Parent Node", "content": "root"})
+    client.post(
+        "/pages",
+        data={"title": "Child Node", "content": "leaf", "parent_slug": "parent-node"},
+    )
+
+    parent = client.get("/pages/parent-node")
+    assert parent.status_code == 200
+    assert "Subpages" in parent.text
+    assert 'href="/pages/child-node"' in parent.text
+
+    child = client.get("/pages/child-node")
+    assert child.status_code == 200
+    assert 'href="/pages/parent-node"' in child.text
+
+
+def test_workspaces_are_isolated(client):
+    _register(client)
+    client.post("/pages", data={"title": "Shared Name", "content": "from personal workspace"})
+
+    create_workspace = client.post("/workspaces", data={"name": "Work"})
+    assert create_workspace.status_code == 200
+
+    client.post("/pages", data={"title": "Shared Name", "content": "from work workspace"})
+    work_page = client.get("/pages/shared-name")
+    assert "from work workspace" in work_page.text
+    assert "from personal workspace" not in work_page.text
+
+    client.get("/workspaces/switch/personal")
+    personal_page = client.get("/pages/shared-name")
+    assert "from personal workspace" in personal_page.text
+    assert "from work workspace" not in personal_page.text
+
+
 def test_delete_page(client):
     _register(client)
     client.post("/pages", data={"title": "Trash Me", "content": "bye"})

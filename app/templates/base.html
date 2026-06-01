@@ -41,6 +41,27 @@
       </div>
 
       {% if user_email %}
+      <div class="workspace-wrap">
+        <div class="workspace-head">
+          <span class="workspace-label">Workspace</span>
+          <span class="workspace-current">
+            {{ active_workspace.name if active_workspace else "—" }}
+          </span>
+        </div>
+        <div class="workspace-list">
+          {% for ws in workspaces %}
+          <a href="/workspaces/switch/{{ ws.slug }}?next_url={{ request.url.path }}"
+             class="workspace-link {% if active_workspace and ws.slug == active_workspace.slug %}active{% endif %}">
+            {{ ws.name }}
+          </a>
+          {% endfor %}
+        </div>
+        <form class="workspace-form" method="post" action="/workspaces">
+          <input class="workspace-input" type="text" name="name"
+                 placeholder="New workspace…" required>
+          <button class="workspace-add" type="submit">Add</button>
+        </form>
+      </div>
       <div class="search-wrap">
         <div class="search-field">
           <i data-lucide="search" class="lucide" width="15" height="15"></i>
