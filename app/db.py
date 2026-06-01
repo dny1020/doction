@@ -385,6 +385,38 @@ def list_pages(user_id: int, workspace_id: int) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def list_pages_tree(user_id: int, workspace_id: int) -> list[dict]:
+    """Return all pages as a DFS-ordered flat list with a depth field for sidebar tree rendering."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, slug, title, parent_id FROM pages "
+            "WHERE user_id = ? AND workspace_id = ? ORDER BY created_at, id",
+            (user_id, workspace_id),
+        ).fetchall()
+
+    by_id = {r["id"]: r for r in rows}
+    children: dict[int, list] = {}
+    roots = []
+    for r in rows:
+        pid = r["parent_id"]
+        if pid is None or pid not in by_id:
+            roots.append(r)
+        else:
+            children.setdefault(int(pid), []).append(r)
+
+    result: list[dict] = []
+
+    def _dfs(node, depth: int) -> None:
+        result.append({"slug": node["slug"], "title": node["title"], "depth": depth})
+        for child in children.get(int(node["id"]), []):
+            _dfs(child, depth + 1)
+
+    for root in roots:
+        _dfs(root, 0)
+
+    return result
+
+
 def get_page(slug: str, user_id: int, workspace_id: int) -> sqlite3.Row | None:
     with connect() as conn:
         return conn.execute(

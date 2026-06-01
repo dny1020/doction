@@ -442,6 +442,9 @@ a { color: inherit; }
   color: var(--accent-press);
   font-weight: 500;
 }
+.page-list a[data-depth="1"] { padding-left: calc(var(--sp-3) + 14px); }
+.page-list a[data-depth="2"] { padding-left: calc(var(--sp-3) + 28px); }
+.page-list a[data-depth="3"] { padding-left: calc(var(--sp-3) + 42px); }
 .muted { color: var(--fg-3); }
 
 /* === Sidebar footer ======================================================= */

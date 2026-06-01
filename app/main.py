@@ -121,7 +121,7 @@ def _authed_context(request: Request, user_id: int) -> dict[str, object]:
     workspace = getattr(request.state, "workspace", None)
     pages = []
     if workspace is not None:
-        pages = db.list_pages(user_id, int(workspace["id"]))
+        pages = db.list_pages_tree(user_id, int(workspace["id"]))
     return {
         "pages": pages,
         "workspaces": getattr(request.state, "workspaces", []),

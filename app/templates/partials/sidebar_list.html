@@ -2,6 +2,7 @@
   {% for p in pages %}
   <li>
     <a href="/pages/{{ p.slug }}"
+       data-depth="{{ p.depth }}"
        class="{% if p.slug == active_slug %}active{% endif %}">{{ p.title }}</a>
   </li>
   {% else %}
