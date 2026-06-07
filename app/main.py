@@ -229,18 +229,32 @@ def _commit_and_embed(
         db.update_page_embedding(uid, wid, slug, emb)
 
 
+async def _load_embedder_bg() -> None:
+    """Load the embedding model in the background so startup is not blocked."""
+    try:
+        model = await asyncio.to_thread(embeddings.load_model)
+        app.state.embedder = model
+        if model is not None:
+            logger.info("Embedding model loaded; semantic search enabled.")
+    except Exception:
+        logger.warning("Embedding model failed to load; semantic search disabled.")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     app.state.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
+    app.state.embedder = None
     db.init_db()
     seed.seed_if_empty()
     git_repo.ensure_repo()
-    try:
-        app.state.embedder = await asyncio.to_thread(embeddings.load_model)
-    except Exception:
-        logger.warning("Embedding model failed to load; semantic search disabled.")
-        app.state.embedder = None
+    # Load model in background — app serves immediately, model ready after ~60s on ARM64.
+    task = asyncio.create_task(_load_embedder_bg())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(title="doction", lifespan=lifespan)
