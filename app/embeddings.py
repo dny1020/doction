@@ -12,7 +12,15 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 
 
 def load_model():
-    """Load the embedding model. Returns None if unavailable (network/disk error)."""
+    """Load the embedding model. Returns None if unavailable or offline mode is set.
+
+    Set HF_HUB_OFFLINE=1 to skip the import entirely (avoids the ~60s torch
+    import penalty on ARM64 CI containers where the model is not needed).
+    """
+    import os
+    if os.environ.get("HF_HUB_OFFLINE") == "1":
+        logger.info("HF_HUB_OFFLINE=1: skipping embedding model load.")
+        return None
     try:
         from sentence_transformers import SentenceTransformer
         return SentenceTransformer(MODEL_NAME)
