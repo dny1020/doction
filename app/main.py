@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac
+import asyncio
+import logging
 import os
-import secrets
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -18,8 +17,12 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
 
-from app import db, seed
+from app import db, embeddings, git_repo, seed
+from app.auth import hash_password as _hash_password
+from app.auth import verify_password as _verify_password
 from app.markdown import render_markdown
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -103,7 +106,35 @@ def api_create_page(request: Request, body: _PageIn):
         uid, wid, body.title, body.content,
         parent_slug=body.parent_slug, requested_slug=body.slug,
     )
+    _commit_and_embed(request, uid, wid, slug, body.title, body.content)
     return {"slug": slug, "title": body.title.strip() or "Untitled"}
+
+
+@api_router.get("/pages/{slug}/history")
+def api_page_history(request: Request, slug: str):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    page = db.get_page(slug, uid, wid)
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    ws = db.get_workspace_by_id(wid)
+    ws_slug = ws["slug"] if ws else "unknown"
+    return git_repo.get_page_history(ws_slug, slug)
+
+
+@api_router.get("/pages/{slug}/history/{sha}")
+def api_page_at_commit(request: Request, slug: str, sha: str):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    page = db.get_page(slug, uid, wid)
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    ws = db.get_workspace_by_id(wid)
+    ws_slug = ws["slug"] if ws else "unknown"
+    content = git_repo.get_page_at_commit(ws_slug, slug, sha)
+    if content is None:
+        raise HTTPException(status_code=404, detail="Commit not found")
+    return {"slug": slug, "sha": sha, "content": content}
 
 
 @api_router.get("/pages/{slug}/raw", response_class=PlainTextResponse)
@@ -145,6 +176,7 @@ def api_update_page(request: Request, slug: str, body: _PagePatch):
     new_title = body.title if body.title is not None else page["title"]
     new_content = body.content if body.content is not None else page["content"]
     db.update_page(uid, wid, slug, new_title, new_content)
+    _commit_and_embed(request, uid, wid, slug, new_title, new_content)
     return {"slug": slug, "title": new_title, "updated": True}
 
 
@@ -157,11 +189,44 @@ def api_delete_page(request: Request, slug: str):
 
 
 @api_router.get("/search")
-def api_search(request: Request, q: str = ""):
+def api_search(request: Request, q: str = "", mode: str = "fts"):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    results = db.search_pages(uid, wid, q) if q.strip() else []
-    return [{"slug": r["slug"], "title": r["title"], "snippet": r["snippet"]} for r in results]
+    if not q.strip():
+        return []
+    embedder = getattr(request.app.state, "embedder", None)
+    if mode == "semantic" and embedder is not None:
+        query_emb = embeddings.embed(embedder, q)
+        results = db.semantic_search_pages(uid, wid, query_emb)
+    elif mode == "hybrid" and embedder is not None:
+        query_emb = embeddings.embed(embedder, q)
+        results = db.hybrid_search_pages(uid, wid, q, query_emb)
+    else:
+        results = db.search_pages(uid, wid, q)
+    return [
+        {"slug": r["slug"], "title": r["title"],
+         "snippet": (r.get("snippet") or "") if isinstance(r, dict) else r["snippet"]}
+        for r in results
+    ]
+
+
+def _commit_and_embed(
+    request: Request, uid: int, wid: int, slug: str, title: str, content: str
+) -> None:
+    ws = getattr(request.state, "workspace", None)
+    if ws:
+        ws_slug = ws["slug"]
+    else:
+        _ws = db.get_workspace_by_id(wid)
+        ws_slug = _ws["slug"] if _ws else "default"
+    author = getattr(request.state, "user_email", None) or "user"
+    sha = git_repo.commit_page(ws_slug, slug, content, author, f"Save: {title}")
+    if sha:
+        db.set_page_git_commit(uid, wid, slug, sha)
+    embedder = getattr(request.app.state, "embedder", None)
+    if embedder is not None:
+        emb = embeddings.embed(embedder, f"{title}\n\n{content}")
+        db.update_page_embedding(uid, wid, slug, emb)
 
 
 @asynccontextmanager
@@ -169,37 +234,18 @@ async def lifespan(_: FastAPI):
     app.state.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
     db.init_db()
     seed.seed_if_empty()
+    git_repo.ensure_repo()
+    try:
+        app.state.embedder = await asyncio.to_thread(embeddings.load_model)
+    except Exception:
+        logger.warning("Embedding model failed to load; semantic search disabled.")
+        app.state.embedder = None
     yield
 
 
 app = FastAPI(title="doction", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 app.include_router(api_router)
-
-
-def _hash_password(password: str) -> str:
-    salt = secrets.token_hex(16)
-    digest = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        bytes.fromhex(salt),
-        200_000,
-    )
-    return f"{salt}${digest.hex()}"
-
-
-def _verify_password(password: str, hashed: str) -> bool:
-    try:
-        salt, digest = hashed.split("$", 1)
-    except ValueError:
-        return False
-    candidate = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        bytes.fromhex(salt),
-        200_000,
-    ).hex()
-    return hmac.compare_digest(candidate, digest)
 
 
 def _encode_token(user_id: int) -> str:
@@ -374,6 +420,7 @@ async def create_page_authed(
         parent_slug=parent_slug or None,
         requested_slug=slug or None,
     )
+    _commit_and_embed(request, user_id, workspace_id, new_slug, title, content)
     return RedirectResponse(f"/pages/{new_slug}", status_code=HTTP_303_SEE_OTHER)
 
 
@@ -432,8 +479,9 @@ async def update_page(
         return user_id
     workspace_id = _require_workspace_id(request, user_id)
     new_slug = db.update_page(user_id, workspace_id, slug, title, content)
-    target = new_slug or slug
-    return RedirectResponse(f"/pages/{target}", status_code=HTTP_303_SEE_OTHER)
+    effective_slug = new_slug or slug
+    _commit_and_embed(request, user_id, workspace_id, effective_slug, title, content)
+    return RedirectResponse(f"/pages/{effective_slug}", status_code=HTTP_303_SEE_OTHER)
 
 
 @app.post("/pages/{slug}/delete")

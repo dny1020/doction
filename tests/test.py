@@ -17,6 +17,8 @@ def client():
     tmp.close()
     os.environ["DATABASE_PATH"] = tmp.name
     os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
+    # Prevent HuggingFace model download in tests; embedder=None → FTS fallback.
+    os.environ["HF_HUB_OFFLINE"] = "1"
 
     # Re-import so modules pick up the temp DATABASE_PATH cleanly.
     import app.db as db_module

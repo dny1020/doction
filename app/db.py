@@ -9,6 +9,8 @@ import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
 
+import numpy as np
+
 DEFAULT_DB_PATH = "doction.db"
 DEFAULT_WORKSPACE_NAME = "Personal"
 DEFAULT_WORKSPACE_SLUG = "personal"
@@ -112,7 +114,9 @@ def _rebuild_pages_schema(conn: sqlite3.Connection) -> None:
             title        TEXT NOT NULL,
             content      TEXT NOT NULL,
             created_at   TEXT NOT NULL,
-            updated_at   TEXT NOT NULL
+            updated_at   TEXT NOT NULL,
+            git_commit   TEXT,
+            embedding    BLOB
         );
         """
     )
@@ -253,6 +257,12 @@ def init_db() -> None:
 
         _ensure_default_workspaces(conn)
         _backfill_page_workspaces(conn)
+
+        page_cols = {r["name"] for r in conn.execute("PRAGMA table_info(pages)")}
+        if "git_commit" not in page_cols:
+            conn.execute("ALTER TABLE pages ADD COLUMN git_commit TEXT")
+        if "embedding" not in page_cols:
+            conn.execute("ALTER TABLE pages ADD COLUMN embedding BLOB")
 
 
 def slugify(text: str) -> str:
@@ -575,3 +585,119 @@ def search_pages(
             """,
             (match, user_id, workspace_id, limit),
         ).fetchall()
+
+
+def get_workspace_by_id(workspace_id: int) -> sqlite3.Row | None:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, slug, name FROM workspaces WHERE id = ?",
+            (workspace_id,),
+        ).fetchone()
+
+
+def set_page_git_commit(user_id: int, workspace_id: int, slug: str, sha: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE pages SET git_commit = ? WHERE slug = ? AND user_id = ? AND workspace_id = ?",
+            (sha, slug, user_id, workspace_id),
+        )
+
+
+def update_page_embedding(user_id: int, workspace_id: int, slug: str, embedding: bytes) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE pages SET embedding = ? WHERE slug = ? AND user_id = ? AND workspace_id = ?",
+            (embedding, slug, user_id, workspace_id),
+        )
+
+
+def get_all_embeddings(user_id: int, workspace_id: int) -> list[sqlite3.Row]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT slug, title, embedding FROM pages "
+            "WHERE user_id = ? AND workspace_id = ? AND embedding IS NOT NULL",
+            (user_id, workspace_id),
+        ).fetchall()
+
+
+def semantic_search_pages(
+    user_id: int,
+    workspace_id: int,
+    query_embedding: bytes,
+    limit: int = 20,
+) -> list[dict]:
+    """Cosine similarity search using stored float32 embeddings (normalized → dot product)."""
+    rows = get_all_embeddings(user_id, workspace_id)
+    if not rows:
+        return []
+    q_vec = np.frombuffer(query_embedding, dtype=np.float32)
+    scored = []
+    for row in rows:
+        d_vec = np.frombuffer(bytes(row["embedding"]), dtype=np.float32)
+        score = float(np.dot(q_vec, d_vec))
+        scored.append({"slug": row["slug"], "title": row["title"], "score": score, "snippet": ""})
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:limit]
+
+
+def _search_pages_with_rank(
+    user_id: int,
+    workspace_id: int,
+    query: str,
+    limit: int = 40,
+) -> list[dict]:
+    match = _fts_query(query)
+    if not match:
+        return []
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT p.slug, p.title,
+                   snippet(pages_fts, 1, '<mark>', '</mark>', '…', 12) AS snippet,
+                   pages_fts.rank AS rank
+            FROM pages_fts
+            JOIN pages p ON p.id = pages_fts.rowid
+            WHERE pages_fts MATCH ? AND p.user_id = ? AND p.workspace_id = ?
+            ORDER BY rank
+            LIMIT ?
+            """,
+            (match, user_id, workspace_id, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def hybrid_search_pages(
+    user_id: int,
+    workspace_id: int,
+    query: str,
+    query_embedding: bytes,
+    limit: int = 20,
+) -> list[dict]:
+    """Combine BM25 (FTS5) and cosine similarity with equal weighting."""
+    fts_results = {
+        r["slug"]: r for r in _search_pages_with_rank(user_id, workspace_id, query, limit * 2)
+    }
+    sem_results = {
+        r["slug"]: r
+        for r in semantic_search_pages(user_id, workspace_id, query_embedding, limit * 2)
+    }
+
+    all_slugs = set(fts_results) | set(sem_results)
+    scored = []
+    for slug in all_slugs:
+        fts_score = 0.0
+        snippet = ""
+        if slug in fts_results:
+            rank = fts_results[slug]["rank"]  # negative BM25
+            fts_score = 1.0 / (1.0 + abs(rank))
+            snippet = fts_results[slug]["snippet"]
+        sem_score = sem_results[slug]["score"] if slug in sem_results else 0.0
+        title = (fts_results.get(slug) or sem_results.get(slug))["title"]  # type: ignore[index]
+        scored.append({
+            "slug": slug,
+            "title": title,
+            "score": 0.5 * sem_score + 0.5 * fts_score,
+            "snippet": snippet,
+        })
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:limit]

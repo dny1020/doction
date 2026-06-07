@@ -10,6 +10,10 @@ dependencies = [
     "markdown-it-py>=3.0",
     "PyJWT>=2.8",
     "python-multipart>=0.0.18",
+    "gitpython>=3.1",
+    "numpy>=1.26",
+    "sentence-transformers>=3.0",
+    "mcp>=1.0",
 ]
 
 [dependency-groups]
@@ -30,5 +34,6 @@ target-version = "py313"
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q -m 'not slow'"
 pythonpath = ["."]
+markers = ["slow: heavy tests skipped in CI (require model download)"]
