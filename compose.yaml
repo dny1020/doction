@@ -10,7 +10,5 @@ services:
       DATABASE_PATH: /data/doction.db
       SECRET_KEY: change-me
       SENTENCE_TRANSFORMERS_HOME: /data/models
-      DOCTION_EMAIL: you@example.com
-      DOCTION_PASSWORD: yourpassword
       MCP_SECRET: change-me
     restart: unless-stopped

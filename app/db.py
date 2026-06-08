@@ -312,6 +312,11 @@ def get_user_by_id(user_id: int) -> sqlite3.Row | None:
         return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
 
 
+def get_first_user() -> sqlite3.Row | None:
+    with connect() as conn:
+        return conn.execute("SELECT * FROM users ORDER BY id LIMIT 1").fetchone()
+
+
 def list_workspaces(user_id: int) -> list[sqlite3.Row]:
     with connect() as conn:
         return conn.execute(

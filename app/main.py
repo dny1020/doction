@@ -273,17 +273,15 @@ async def lifespan(_: FastAPI):
     app.state.embedder = None
     db.init_db()
     git_repo.ensure_repo()
-    _email = os.environ.get("DOCTION_EMAIL", "").strip()
-    _password = os.environ.get("DOCTION_PASSWORD", "")
-    if _email and _password and _MCP_SECRET:
-        _user = db.get_user_by_email(_email)
-        if _user and _verify_password(_password, _user["password_hash"]):
+    if _MCP_SECRET:
+        _user = db.get_first_user()
+        if _user:
             _ws = db.ensure_default_workspace(int(_user["id"]))
             _mcp_module.setup(int(_user["id"]), int(_ws["id"]))
             app.mount("/mcp", _build_mcp_app())
             logger.info("MCP HTTP server ready at /mcp")
         else:
-            logger.warning("MCP: invalid DOCTION_EMAIL/DOCTION_PASSWORD — /mcp disabled")
+            logger.info("MCP: no users yet — /mcp will be inactive until first registration")
     # Load model in background — app serves immediately, model ready after ~60s on ARM64.
     task = asyncio.create_task(_load_embedder_bg())
     yield
