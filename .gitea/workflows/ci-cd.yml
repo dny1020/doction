@@ -11,7 +11,7 @@ on:
 jobs:
   ci:
     name: Lint and test
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: ubuntu-latest
     container: python:3.13-bookworm
     steps:
       - name: Install Git
@@ -36,7 +36,7 @@ jobs:
 
   package:
     name: Build and smoke test
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: ubuntu-latest
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     outputs:
@@ -85,7 +85,7 @@ jobs:
 
   deploy:
     name: Deploy to Raspberry Pi
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: ubuntu-latest
     needs: package
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     env:
