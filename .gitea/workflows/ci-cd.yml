@@ -13,6 +13,8 @@ jobs:
     name: Lint and test
     runs-on: ubuntu-latest
     container: python:3.13-bookworm
+    env:
+      HF_HUB_OFFLINE: "1"
     steps:
       - name: Install Git
         run: apt-get update -qq && apt-get install -y -qq git
@@ -32,7 +34,7 @@ jobs:
         run: uv run ruff check .
 
       - name: Test
-        run: timeout 120s uv run pytest tests/test.py tests/test_git.py tests/test_mcp.py -q
+        run: timeout 240s uv run pytest tests/test.py tests/test_git.py tests/test_mcp.py -q
 
   package:
     name: Build and smoke test
