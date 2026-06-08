@@ -58,7 +58,7 @@ jobs:
 
       - name: Read version
         id: version
-        run: echo "tag=$(cat VERSION)" >> $GITHUB_OUTPUT
+        run: echo "tag=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")" >> $GITHUB_OUTPUT
 
       - name: Build image
         run: |

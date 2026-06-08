@@ -184,7 +184,7 @@ On every push to `main`, the Gitea Actions pipeline (`.gitea/workflows/ci-cd.yml
 2. **package** — build the Docker image and smoke-test it (`GET /docs`)
 3. **deploy** — redeploy the `doction` container on the Pi (on `proxy_net`, persistent data at `/mnt/ssd/doction`), fronted by nginx at `doction.danilocloud.me`
 
-The pipeline needs a `GIT_TOKEN` Actions secret (a Gitea PAT for cloning). See [CLAUDE.md](CLAUDE.md) for full pipeline and infrastructure details.
+The pipeline needs a `GIT_TOKEN` Actions secret (a Gitea PAT for cloning). See `.gitea/workflows/ci-cd.yml` for pipeline details.
 
 **Persistent volumes on the Pi (`/mnt/ssd/doction/`):**
 - `doction.db` — SQLite database

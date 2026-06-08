@@ -10,7 +10,6 @@ dependencies = [
     "markdown-it-py>=3.0",
     "PyJWT>=2.8",
     "python-multipart>=0.0.18",
-    "gitpython>=3.1",
     "numpy>=1.26",
     "sentence-transformers>=3.0",
     "mcp>=1.0",
