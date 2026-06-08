@@ -245,7 +245,6 @@ async def lifespan(_: FastAPI):
     app.state.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
     app.state.embedder = None
     db.init_db()
-    seed.seed_if_empty()
     git_repo.ensure_repo()
     # Load model in background — app serves immediately, model ready after ~60s on ARM64.
     task = asyncio.create_task(_load_embedder_bg())

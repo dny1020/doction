@@ -293,11 +293,6 @@ def unique_slug(
         candidate = f"{base}-{suffix}"
 
 
-def count_users() -> int:
-    with connect() as conn:
-        return conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
-
-
 def create_user(email: str, password_hash: str) -> int:
     with connect() as conn:
         cur = conn.execute(
@@ -386,15 +381,6 @@ def claim_unowned_pages(user_id: int, workspace_id: int) -> int:
         return cur.rowcount
 
 
-def list_pages(user_id: int, workspace_id: int) -> list[sqlite3.Row]:
-    with connect() as conn:
-        return conn.execute(
-            "SELECT slug, title, updated_at FROM pages "
-            "WHERE user_id = ? AND workspace_id = ? ORDER BY updated_at DESC",
-            (user_id, workspace_id),
-        ).fetchall()
-
-
 def list_pages_tree(user_id: int, workspace_id: int) -> list[dict]:
     """Return all pages as a DFS-ordered flat list with a depth field for sidebar tree rendering."""
     with connect() as conn:
@@ -453,14 +439,6 @@ def latest_page(user_id: int, workspace_id: int) -> sqlite3.Row | None:
             """,
             (user_id, workspace_id),
         ).fetchone()
-
-
-def count_pages(user_id: int, workspace_id: int) -> int:
-    with connect() as conn:
-        return conn.execute(
-            "SELECT COUNT(*) AS n FROM pages WHERE user_id = ? AND workspace_id = ?",
-            (user_id, workspace_id),
-        ).fetchone()["n"]
 
 
 def _resolve_parent_id(

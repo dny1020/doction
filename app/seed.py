@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from app import db
-
 WELCOME = """\
 # Welcome to doction
 
@@ -58,8 +56,3 @@ SEED_PAGES = [
     ("Runbook: Deploy to Raspberry Pi", RUNBOOK),
     ("Markdown Cheatsheet", MARKDOWN_NOTES),
 ]
-
-
-def seed_if_empty() -> None:
-    if db.count_users() > 0:
-        return
