@@ -37,7 +37,7 @@ uv run uvicorn app.main:app --reload
 # open http://localhost:8000
 ```
 
-Seed content is created automatically on first run. The embedding model (~80MB) downloads on first startup and is cached locally.
+Seed content (welcome page + examples) is created when the first user registers. The embedding model (~80MB) downloads on first startup and is cached locally.
 
 ## Docker
 
