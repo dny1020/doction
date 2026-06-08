@@ -12,13 +12,10 @@ jobs:
   ci:
     name: Lint and test
     runs-on: ubuntu-latest
-    container: python:3.13-bookworm
+    container: python-git:3.13-bookworm
     env:
       HF_HUB_OFFLINE: "1"
     steps:
-      - name: Install Git
-        run: apt-get update -qq && apt-get install -y -qq git
-
       - name: Checkout
         run: |
           git clone "http://dany:${{ secrets.GIT_TOKEN }}@gitea:3000/${GITHUB_REPOSITORY}.git" .

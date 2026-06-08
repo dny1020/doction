@@ -1,0 +1,13 @@
+services:
+  doction:
+    image: doction:latest
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      DATABASE_PATH: /data/doction.db
+      SECRET_KEY: change-me
+      SENTENCE_TRANSFORMERS_HOME: /data/models
+    restart: unless-stopped
