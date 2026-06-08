@@ -17,10 +17,37 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
 
+import app.mcp_server as _mcp_module
 from app import db, embeddings, git_repo, seed
 from app.auth import hash_password as _hash_password
 from app.auth import verify_password as _verify_password
 from app.markdown import render_markdown
+
+_MCP_SECRET = os.environ.get("MCP_SECRET", "")
+
+
+def _build_mcp_app():
+    from mcp.server.fastmcp import FastMCP
+    _server = FastMCP("doction")
+    for fn in (
+        _mcp_module.list_workspaces, _mcp_module.list_pages, _mcp_module.get_page,
+        _mcp_module.search_pages, _mcp_module.create_page, _mcp_module.update_page,
+    ):
+        _server.tool()(fn)
+    _inner = _server.streamable_http_app()
+
+    async def _auth_wrapper(scope, receive, send):
+        if scope["type"] == "http":
+            headers = dict(scope.get("headers", []))
+            auth = headers.get(b"authorization", b"").decode()
+            if auth != f"Bearer {_MCP_SECRET}":
+                await send({"type": "http.response.start", "status": 401,
+                            "headers": [(b"content-type", b"text/plain")]})
+                await send({"type": "http.response.body", "body": b"Unauthorized"})
+                return
+        await _inner(scope, receive, send)
+
+    return _auth_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +273,17 @@ async def lifespan(_: FastAPI):
     app.state.embedder = None
     db.init_db()
     git_repo.ensure_repo()
+    _email = os.environ.get("DOCTION_EMAIL", "").strip()
+    _password = os.environ.get("DOCTION_PASSWORD", "")
+    if _email and _password and _MCP_SECRET:
+        _user = db.get_user_by_email(_email)
+        if _user and _verify_password(_password, _user["password_hash"]):
+            _ws = db.ensure_default_workspace(int(_user["id"]))
+            _mcp_module.setup(int(_user["id"]), int(_ws["id"]))
+            app.mount("/mcp", _build_mcp_app())
+            logger.info("MCP HTTP server ready at /mcp")
+        else:
+            logger.warning("MCP: invalid DOCTION_EMAIL/DOCTION_PASSWORD — /mcp disabled")
     # Load model in background — app serves immediately, model ready after ~60s on ARM64.
     task = asyncio.create_task(_load_embedder_bg())
     yield
@@ -702,6 +740,8 @@ async def logout(request: Request) -> RedirectResponse:
 
 @app.middleware("http")
 async def attach_user(request: Request, call_next):
+    if request.url.path.startswith("/mcp"):
+        return await call_next(request)
     request.state.user_id = None
     request.state.user_email = None
     request.state.workspaces = []

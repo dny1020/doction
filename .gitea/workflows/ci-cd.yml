@@ -113,6 +113,10 @@ jobs:
             --restart unless-stopped \
             -v "${DATA_DIR}:/data" \
             -e DATABASE_PATH=/data/doction.db \
+            -e SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+            -e DOCTION_EMAIL="${{ secrets.DOCTION_EMAIL }}" \
+            -e DOCTION_PASSWORD="${{ secrets.DOCTION_PASSWORD }}" \
+            -e MCP_SECRET="${{ secrets.MCP_SECRET }}" \
             "$IMAGE"
 
       - name: Health check

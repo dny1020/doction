@@ -35,6 +35,13 @@ _user_id: int = 0
 _workspace_id: int = 0
 
 
+def setup(user_id: int, workspace_id: int) -> None:
+    """Called from main.py lifespan to configure the HTTP MCP transport."""
+    global _user_id, _workspace_id
+    _user_id = user_id
+    _workspace_id = workspace_id
+
+
 def _resolve_workspace(workspace_slug: str | None) -> int:
     if workspace_slug is None:
         return _workspace_id
