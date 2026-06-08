@@ -1,5 +1,11 @@
 # doction
 
+![Python](https://img.shields.io/badge/python-3.13-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-0.2-orange)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
+![uv](https://img.shields.io/badge/uv-managed-blueviolet)
+
 A minimalist, markdown-first DevOps knowledge wiki — a quiet personal space to think, document, and operate. Calm, low-chrome UI: no blocks, no dashboard noise, just fast capture, search, and reading.
 
 **Live instance:** https://doction.danilocloud.me
