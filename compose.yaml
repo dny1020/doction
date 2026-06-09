@@ -9,6 +9,4 @@ services:
     environment:
       DATABASE_PATH: /data/doction.db
       SECRET_KEY: change-me
-      SENTENCE_TRANSFORMERS_HOME: /data/models
-      MCP_SECRET: change-me
     restart: unless-stopped

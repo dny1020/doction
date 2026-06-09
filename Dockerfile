@@ -8,8 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
     GIT_AUTHOR_NAME="doction" \
     GIT_AUTHOR_EMAIL="doction@localhost" \
     GIT_COMMITTER_NAME="doction" \
-    GIT_COMMITTER_EMAIL="doction@localhost" \
-    SENTENCE_TRANSFORMERS_HOME=/data/models
+    GIT_COMMITTER_EMAIL="doction@localhost"
 
 WORKDIR /app
 
@@ -17,11 +16,9 @@ RUN pip install --no-cache-dir uv
 
 RUN apt-get update -qq && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies first (better layer caching).
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev && uv cache clean
 
-# App code (non-packaged project; uvicorn adds the working dir to sys.path).
 COPY app ./app
 RUN mkdir -p /data
 

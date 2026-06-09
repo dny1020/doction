@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -17,37 +16,10 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
 
-import app.mcp_server as _mcp_module
-from app import db, embeddings, git_repo, seed
+from app import db, git_repo, seed
 from app.auth import hash_password as _hash_password
 from app.auth import verify_password as _verify_password
 from app.markdown import render_markdown
-
-_MCP_SECRET = os.environ.get("MCP_SECRET", "")
-
-
-def _build_mcp_app():
-    from mcp.server.fastmcp import FastMCP
-    _server = FastMCP("doction")
-    for fn in (
-        _mcp_module.list_workspaces, _mcp_module.list_pages, _mcp_module.get_page,
-        _mcp_module.search_pages, _mcp_module.create_page, _mcp_module.update_page,
-    ):
-        _server.tool()(fn)
-    _inner = _server.streamable_http_app()
-
-    async def _auth_wrapper(scope, receive, send):
-        if scope["type"] == "http":
-            headers = dict(scope.get("headers", []))
-            auth = headers.get(b"authorization", b"").decode()
-            if auth != f"Bearer {_MCP_SECRET}":
-                await send({"type": "http.response.start", "status": 401,
-                            "headers": [(b"content-type", b"text/plain")]})
-                await send({"type": "http.response.body", "body": b"Unauthorized"})
-                return
-        await _inner(scope, receive, send)
-
-    return _auth_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +105,7 @@ def api_create_page(request: Request, body: _PageIn):
         uid, wid, body.title, body.content,
         parent_slug=body.parent_slug, requested_slug=body.slug,
     )
-    _commit_and_embed(request, uid, wid, slug, body.title, body.content)
+    _commit_page(request, uid, wid, slug, body.title, body.content)
     return {"slug": slug, "title": body.title.strip() or "Untitled"}
 
 
@@ -203,7 +175,7 @@ def api_update_page(request: Request, slug: str, body: _PagePatch):
     new_title = body.title if body.title is not None else page["title"]
     new_content = body.content if body.content is not None else page["content"]
     db.update_page(uid, wid, slug, new_title, new_content)
-    _commit_and_embed(request, uid, wid, slug, new_title, new_content)
+    _commit_page(request, uid, wid, slug, new_title, new_content)
     return {"slug": slug, "title": new_title, "updated": True}
 
 
@@ -216,28 +188,19 @@ def api_delete_page(request: Request, slug: str):
 
 
 @api_router.get("/search")
-def api_search(request: Request, q: str = "", mode: str = "fts"):
+def api_search(request: Request, q: str = ""):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     if not q.strip():
         return []
-    embedder = getattr(request.app.state, "embedder", None)
-    if mode == "semantic" and embedder is not None:
-        query_emb = embeddings.embed(embedder, q)
-        results = db.semantic_search_pages(uid, wid, query_emb)
-    elif mode == "hybrid" and embedder is not None:
-        query_emb = embeddings.embed(embedder, q)
-        results = db.hybrid_search_pages(uid, wid, q, query_emb)
-    else:
-        results = db.search_pages(uid, wid, q)
+    results = db.search_pages(uid, wid, q)
     return [
-        {"slug": r["slug"], "title": r["title"],
-         "snippet": (r.get("snippet") or "") if isinstance(r, dict) else r["snippet"]}
+        {"slug": r["slug"], "title": r["title"], "snippet": r["snippet"]}
         for r in results
     ]
 
 
-def _commit_and_embed(
+def _commit_page(
     request: Request, uid: int, wid: int, slug: str, title: str, content: str
 ) -> None:
     ws = getattr(request.state, "workspace", None)
@@ -250,46 +213,14 @@ def _commit_and_embed(
     sha = git_repo.commit_page(ws_slug, slug, content, author, f"Save: {title}")
     if sha:
         db.set_page_git_commit(uid, wid, slug, sha)
-    embedder = getattr(request.app.state, "embedder", None)
-    if embedder is not None:
-        emb = embeddings.embed(embedder, f"{title}\n\n{content}")
-        db.update_page_embedding(uid, wid, slug, emb)
-
-
-async def _load_embedder_bg() -> None:
-    """Load the embedding model in the background so startup is not blocked."""
-    try:
-        model = await asyncio.to_thread(embeddings.load_model)
-        app.state.embedder = model
-        if model is not None:
-            logger.info("Embedding model loaded; semantic search enabled.")
-    except Exception:
-        logger.warning("Embedding model failed to load; semantic search disabled.")
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     app.state.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
-    app.state.embedder = None
     db.init_db()
     git_repo.ensure_repo()
-    if _MCP_SECRET:
-        _user = db.get_first_user()
-        if _user:
-            _ws = db.ensure_default_workspace(int(_user["id"]))
-            _mcp_module.setup(int(_user["id"]), int(_ws["id"]))
-            app.mount("/mcp", _build_mcp_app())
-            logger.info("MCP HTTP server ready at /mcp")
-        else:
-            logger.info("MCP: no users yet — /mcp will be inactive until first registration")
-    # Load model in background — app serves immediately, model ready after ~60s on ARM64.
-    task = asyncio.create_task(_load_embedder_bg())
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
 
 
 app = FastAPI(title="doction", lifespan=lifespan)
@@ -391,7 +322,7 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request) -> HTMLResponse:
+async def home(request: Request) -> Response:
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
@@ -469,7 +400,7 @@ async def create_page_authed(
         parent_slug=parent_slug or None,
         requested_slug=slug or None,
     )
-    _commit_and_embed(request, user_id, workspace_id, new_slug, title, content)
+    _commit_page(request, user_id, workspace_id, new_slug, title, content)
     return RedirectResponse(f"/pages/{new_slug}", status_code=HTTP_303_SEE_OTHER)
 
 
@@ -529,7 +460,7 @@ async def update_page(
     workspace_id = _require_workspace_id(request, user_id)
     new_slug = db.update_page(user_id, workspace_id, slug, title, content)
     effective_slug = new_slug or slug
-    _commit_and_embed(request, user_id, workspace_id, effective_slug, title, content)
+    _commit_page(request, user_id, workspace_id, effective_slug, title, content)
     return RedirectResponse(f"/pages/{effective_slug}", status_code=HTTP_303_SEE_OTHER)
 
 
@@ -599,20 +530,8 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
     workspace = db.ensure_default_workspace(user_id)
     token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie(
-        "session",
-        token,
-        httponly=True,
-        samesite="lax",
-        max_age=SESSION_MAX_AGE,
-    )
-    response.set_cookie(
-        "workspace",
-        workspace["slug"],
-        httponly=True,
-        samesite="lax",
-        max_age=WORKSPACE_MAX_AGE,
-    )
+    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=SESSION_MAX_AGE)
+    response.set_cookie("workspace", workspace["slug"], httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
     return response
 
 
@@ -632,35 +551,20 @@ async def register(request: Request, email: str = Form(...), password: str = For
     email = email.strip().lower()
     if not email or "@" not in email:
         return templates.TemplateResponse(
-            request,
-            "register.html",
-            {
-                **_anonymous_context(request),
-                "active_slug": None,
-                "error": "Enter a valid email.",
-            },
+            request, "register.html",
+            {**_anonymous_context(request), "active_slug": None, "error": "Enter a valid email."},
             status_code=400,
         )
     if len(password) < 8:
         return templates.TemplateResponse(
-            request,
-            "register.html",
-            {
-                **_anonymous_context(request),
-                "active_slug": None,
-                "error": "Password must be 8+ chars.",
-            },
+            request, "register.html",
+            {**_anonymous_context(request), "active_slug": None, "error": "Password must be 8+ chars."},
             status_code=400,
         )
     if db.get_user_by_email(email) is not None:
         return templates.TemplateResponse(
-            request,
-            "register.html",
-            {
-                **_anonymous_context(request),
-                "active_slug": None,
-                "error": "Email already registered.",
-            },
+            request, "register.html",
+            {**_anonymous_context(request), "active_slug": None, "error": "Email already registered."},
             status_code=400,
         )
 
@@ -673,20 +577,8 @@ async def register(request: Request, email: str = Form(...), password: str = For
 
     token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie(
-        "session",
-        token,
-        httponly=True,
-        samesite="lax",
-        max_age=SESSION_MAX_AGE,
-    )
-    response.set_cookie(
-        "workspace",
-        workspace["slug"],
-        httponly=True,
-        samesite="lax",
-        max_age=WORKSPACE_MAX_AGE,
-    )
+    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=SESSION_MAX_AGE)
+    response.set_cookie("workspace", workspace["slug"], httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
     return response
 
 
@@ -697,13 +589,7 @@ async def create_workspace(request: Request, name: str = Form(...)) -> Response:
         return user_id
     slug = db.create_workspace(user_id, name)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie(
-        "workspace",
-        slug,
-        httponly=True,
-        samesite="lax",
-        max_age=WORKSPACE_MAX_AGE,
-    )
+    response.set_cookie("workspace", slug, httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
     return response
 
 
@@ -712,18 +598,11 @@ async def switch_workspace(request: Request, slug: str, next_url: str = "/") -> 
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
-
     workspace = db.get_workspace_by_slug(user_id, slug)
     target = _safe_next(next_url)
     response = RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
     if workspace is not None:
-        response.set_cookie(
-            "workspace",
-            workspace["slug"],
-            httponly=True,
-            samesite="lax",
-            max_age=WORKSPACE_MAX_AGE,
-        )
+        response.set_cookie("workspace", workspace["slug"], httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
     return response
 
 
@@ -738,8 +617,6 @@ async def logout(request: Request) -> RedirectResponse:
 
 @app.middleware("http")
 async def attach_user(request: Request, call_next):
-    if request.url.path.startswith("/mcp"):
-        return await call_next(request)
     request.state.user_id = None
     request.state.user_email = None
     request.state.workspaces = []
@@ -774,12 +651,6 @@ async def attach_user(request: Request, call_next):
 
     workspace = getattr(request.state, "workspace", None)
     if workspace is not None and request.cookies.get("workspace") != workspace["slug"]:
-        response.set_cookie(
-            "workspace",
-            workspace["slug"],
-            httponly=True,
-            samesite="lax",
-            max_age=WORKSPACE_MAX_AGE,
-        )
+        response.set_cookie("workspace", workspace["slug"], httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
 
     return response
