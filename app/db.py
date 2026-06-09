@@ -113,8 +113,7 @@ def _rebuild_pages_schema(conn: sqlite3.Connection) -> None:
             content      TEXT NOT NULL,
             created_at   TEXT NOT NULL,
             updated_at   TEXT NOT NULL,
-            git_commit   TEXT,
-            embedding    BLOB
+            git_commit   TEXT
         );
         """
     )
@@ -259,8 +258,6 @@ def init_db() -> None:
         page_cols = {r["name"] for r in conn.execute("PRAGMA table_info(pages)")}
         if "git_commit" not in page_cols:
             conn.execute("ALTER TABLE pages ADD COLUMN git_commit TEXT")
-        if "embedding" not in page_cols:
-            conn.execute("ALTER TABLE pages ADD COLUMN embedding BLOB")
 
 
 def slugify(text: str) -> str:
@@ -309,10 +306,6 @@ def get_user_by_id(user_id: int) -> sqlite3.Row | None:
     with connect() as conn:
         return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
 
-
-def get_first_user() -> sqlite3.Row | None:
-    with connect() as conn:
-        return conn.execute("SELECT * FROM users ORDER BY id LIMIT 1").fetchone()
 
 
 def list_workspaces(user_id: int) -> list[sqlite3.Row]:
@@ -367,7 +360,8 @@ def ensure_default_workspace(user_id: int) -> sqlite3.Row:
                 "SELECT id, slug, name FROM workspaces WHERE user_id = ? AND slug = ?",
                 (user_id, slug),
             ).fetchone()
-        assert workspace is not None
+        if workspace is None:
+            raise RuntimeError("Failed to create default workspace")
         conn.execute(
             "UPDATE pages SET workspace_id = ? WHERE user_id = ? AND workspace_id IS NULL",
             (workspace["id"], user_id),

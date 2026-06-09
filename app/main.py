@@ -110,7 +110,7 @@ def api_create_page(request: Request, body: _PageIn):
 
 
 @api_router.get("/pages/{slug}/history")
-def api_page_history(request: Request, slug: str):
+def api_page_history(request: Request, slug: str, limit: int = 50):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     page = db.get_page(slug, uid, wid)
@@ -118,7 +118,7 @@ def api_page_history(request: Request, slug: str):
         raise HTTPException(status_code=404, detail="Page not found")
     ws = db.get_workspace_by_id(wid)
     ws_slug = ws["slug"] if ws else "unknown"
-    return git_repo.get_page_history(ws_slug, slug)
+    return git_repo.get_page_history(ws_slug, slug, limit=limit)
 
 
 @api_router.get("/pages/{slug}/history/{sha}")
@@ -220,6 +220,7 @@ async def lifespan(_: FastAPI):
     app.state.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
     db.init_db()
     git_repo.ensure_repo()
+    logger.info("doction ready — db: %s", db.db_path())
     yield
 
 
@@ -293,6 +294,10 @@ def _authed_context(request: Request, user_id: int) -> dict[str, object]:
         "active_workspace": workspace,
         "user_email": request.state.user_email,
     }
+
+
+def _ws_cookie(response: Response, slug: str) -> None:
+    response.set_cookie("workspace", slug, httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
 
 
 def _safe_next(path: str) -> str:
@@ -531,7 +536,7 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
     token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=SESSION_MAX_AGE)
-    response.set_cookie("workspace", workspace["slug"], httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
+    _ws_cookie(response, workspace["slug"])
     return response
 
 
@@ -558,13 +563,15 @@ async def register(request: Request, email: str = Form(...), password: str = For
     if len(password) < 8:
         return templates.TemplateResponse(
             request, "register.html",
-            {**_anonymous_context(request), "active_slug": None, "error": "Password must be 8+ chars."},
+            {**_anonymous_context(request), "active_slug": None,
+             "error": "Password must be 8+ chars."},
             status_code=400,
         )
     if db.get_user_by_email(email) is not None:
         return templates.TemplateResponse(
             request, "register.html",
-            {**_anonymous_context(request), "active_slug": None, "error": "Email already registered."},
+            {**_anonymous_context(request), "active_slug": None,
+             "error": "Email already registered."},
             status_code=400,
         )
 
@@ -578,7 +585,7 @@ async def register(request: Request, email: str = Form(...), password: str = For
     token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=SESSION_MAX_AGE)
-    response.set_cookie("workspace", workspace["slug"], httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
+    _ws_cookie(response, workspace["slug"])
     return response
 
 
@@ -589,7 +596,7 @@ async def create_workspace(request: Request, name: str = Form(...)) -> Response:
         return user_id
     slug = db.create_workspace(user_id, name)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie("workspace", slug, httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
+    _ws_cookie(response, slug)
     return response
 
 
@@ -602,7 +609,7 @@ async def switch_workspace(request: Request, slug: str, next_url: str = "/") -> 
     target = _safe_next(next_url)
     response = RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
     if workspace is not None:
-        response.set_cookie("workspace", workspace["slug"], httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
+        _ws_cookie(response, workspace["slug"])
     return response
 
 
@@ -651,6 +658,6 @@ async def attach_user(request: Request, call_next):
 
     workspace = getattr(request.state, "workspace", None)
     if workspace is not None and request.cookies.get("workspace") != workspace["slug"]:
-        response.set_cookie("workspace", workspace["slug"], httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
+        _ws_cookie(response, workspace["slug"])
 
     return response

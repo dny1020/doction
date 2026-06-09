@@ -1,6 +1,5 @@
 .PHONY: test test-image lint deploy
 
-VERSION := $(shell python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
 GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 
 IMAGE := doction-test-$(GIT_SHA)

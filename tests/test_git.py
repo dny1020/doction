@@ -16,7 +16,6 @@ def client(tmp_path):
     db_file = tmp_path / "test.db"
     os.environ["DATABASE_PATH"] = str(db_file)
     os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
-    os.environ["HF_HUB_OFFLINE"] = "1"
 
     import app.db as db_module
     import app.git_repo as git_module

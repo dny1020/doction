@@ -49,7 +49,7 @@
 
   /* Layout */
   --sidebar-w:      264px;
-  --measure:        70ch;
+  --measure:        78ch;
   --editor-measure: 1200px;
 
   /* Motion */
@@ -228,11 +228,21 @@ a { color: inherit; }
 
 /* === Brand ================================================================ */
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   letter-spacing: -0.01em;
   text-decoration: none;
   color: var(--fg-1);
+}
+
+.brand-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 /* === Workspaces =========================================================== */
@@ -620,7 +630,7 @@ a { color: inherit; }
 
 .content-body {
   flex: 1;
-  padding: var(--sp-6) var(--sp-7) var(--sp-8);
+  padding: var(--sp-6) var(--sp-6) var(--sp-8);
   display: flex;
   justify-content: center;
 }
