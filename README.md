@@ -31,7 +31,7 @@ A minimalist, markdown-first DevOps knowledge wiki — a quiet personal space to
 - **markdown-it-py** for rendering
 - **sentence-transformers** (`all-MiniLM-L6-v2`) for local semantic embeddings
 - **MCP** (Model Context Protocol) for AI agent integration
-- Shipped as a **Docker** image, deployed via **Gitea Actions** to a Raspberry Pi
+- Shipped as a **Docker** image, tested via **Gitea Actions** and deployed with `make deploy`
 
 ## Quick start (local)
 
@@ -138,9 +138,28 @@ doction exposes itself as an MCP (Model Context Protocol) server, letting AI age
 
 **6 tools:** `list_workspaces`, `list_pages`, `get_page`, `search_pages`, `create_page`, `update_page`
 
-### Homelab setup (agent on PC, doction on Pi, same local network)
+### HTTP transport (recommended)
 
-**1. Create `/home/danilo/mcp.sh` on the Pi:**
+Set `MCP_SECRET` in your `.env`, then add to `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "doction": {
+      "url": "https://doction.danilocloud.me/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-MCP_SECRET>"
+      }
+    }
+  }
+}
+```
+
+The MCP endpoint mounts automatically at `/mcp` when `MCP_SECRET` is set. It authenticates as the first registered user — no separate credentials needed.
+
+### stdio transport (alternative, LAN-only)
+
+Create `/home/danilo/mcp.sh` on the Pi:
 ```bash
 #!/bin/bash
 exec docker exec -i \
@@ -148,11 +167,8 @@ exec docker exec -i \
   -e DOCTION_PASSWORD="yourpass" \
   doction /app/.venv/bin/python -m app.mcp_server
 ```
-```bash
-chmod +x /home/danilo/mcp.sh
-```
 
-**2. Add to `~/.claude/settings.json` on your machine:**
+Add to `~/.claude/settings.json`:
 ```json
 {
   "mcpServers": {
@@ -164,35 +180,30 @@ chmod +x /home/danilo/mcp.sh
 }
 ```
 
-Claude Code spawns `ssh rpi /home/danilo/mcp.sh` and pipes MCP stdio through the SSH tunnel. No port exposure needed — the Pi stays on the local network only.
-
-**Test the connection:**
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}' \
-  | ssh rpi /home/danilo/mcp.sh
-```
-
-You should get a JSON response with `serverInfo.name = "doction"` and a list of capabilities.
-
 ## Development
 
 ```bash
 make test           # fast test suite (pytest, no model loading)
 make lint           # ruff check
 make test-image     # build Docker image, smoke-test /health, delete on pass / keep on fail
+make deploy         # build on Pi via DOCKER_HOST=ssh://rpi and redeploy container
 ```
 
 ## Deployment
 
-On every push to `main`, the Gitea Actions pipeline (`.gitea/workflows/ci-cd.yml`) runs three jobs:
+**CI (Gitea Actions)** runs on every push/PR to `main` — lint + fast test suite only. Needs a `GIT_TOKEN` Actions secret (Gitea PAT for cloning).
 
-1. **ci** — lint (`ruff`) + tests (`pytest`, fast suite only)
-2. **package** — build the Docker image and smoke-test it (`GET /docs`)
-3. **deploy** — redeploy the `doction` container on the Pi (on `proxy_net`, persistent data at `/mnt/ssd/doction`), fronted by nginx at `doction.danilocloud.me`
+**Deploy** is done from the dev machine:
 
-The pipeline needs a `GIT_TOKEN` Actions secret (a Gitea PAT for cloning). See `.gitea/workflows/ci-cd.yml` for pipeline details.
+```bash
+make deploy
+```
 
-**Persistent volumes on the Pi (`/mnt/ssd/doction/`):**
+This uses `DOCKER_HOST=ssh://rpi` to build the image directly on the Pi (uses its native Docker layer cache), then redeploys the container. Requires SSH access to the Pi as `rpi`.
+
+The container runs on `proxy_net` with persistent data at `/mnt/ssd/doction/`:
 - `doction.db` — SQLite database
 - `pages/` — git repo with all page history
-- `models/` — cached embedding model (downloads once on first boot, ~80MB)
+- `models/` — cached embedding model (~80MB, downloads once on first boot)
+
+Nginx fronts the app at `doction.danilocloud.me` — no host port is published.

@@ -15,14 +15,12 @@ jobs:
     container: python-git:3.13-bookworm
     env:
       HF_HUB_OFFLINE: "1"
+      UV_CACHE_DIR: /root/.cache/uv
     steps:
       - name: Checkout
         run: |
           git clone "http://dany:${{ secrets.GIT_TOKEN }}@gitea:3000/${GITHUB_REPOSITORY}.git" .
           git checkout "$GITHUB_SHA"
-
-      - name: Install uv
-        run: python -m pip install --upgrade pip uv
 
       - name: Install dependencies
         run: uv sync --frozen --dev
@@ -33,102 +31,3 @@ jobs:
       - name: Test
         run: timeout 240s uv run pytest tests/test.py tests/test_git.py tests/test_mcp.py -q
 
-  package:
-    name: Build and smoke test
-    runs-on: ubuntu-latest
-    needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    outputs:
-      version: ${{ steps.version.outputs.tag }}
-    steps:
-      - name: Install Git
-        run: apt-get update -qq && apt-get install -y -qq git curl
-
-      - name: Checkout
-        run: |
-          git clone "http://dany:${{ secrets.GIT_TOKEN }}@gitea:3000/${GITHUB_REPOSITORY}.git" .
-          git checkout "$GITHUB_SHA"
-
-      - name: Install Docker CLI
-        run: |
-          if ! command -v docker >/dev/null 2>&1; then
-            apt-get update
-            apt-get install -y docker.io curl
-          fi
-
-      - name: Read version
-        id: version
-        run: echo "tag=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")" >> $GITHUB_OUTPUT
-
-      - name: Build image
-        run: |
-          docker build \
-            --label "git.sha=${GITHUB_SHA}" \
-            -t doction:${{ steps.version.outputs.tag }} .
-
-      - name: Smoke test image
-        run: |
-          name="doction-smoke-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          docker rm -f "$name" >/dev/null 2>&1 || true
-          docker run -d --name "$name" --network proxy_net doction:${{ steps.version.outputs.tag }}
-          for i in $(seq 1 30); do
-            if curl -fsS "http://${name}:8000/docs" >/dev/null; then
-              docker rm -f "$name"
-              exit 0
-            fi
-            sleep 1
-          done
-          docker logs "$name"
-          docker rm -f "$name"
-          exit 1
-
-  deploy:
-    name: Deploy to Raspberry Pi
-    runs-on: ubuntu-latest
-    needs: package
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    env:
-      APP_NAME: doction
-      DATA_DIR: /mnt/ssd/doction
-      VERSION: ${{ needs.package.outputs.version }}
-    steps:
-      - name: Install Docker CLI
-        run: |
-          if ! command -v docker >/dev/null 2>&1; then
-            apt-get update
-            apt-get install -y docker.io curl
-          fi
-
-      - name: Deploy container
-        run: |
-          set -e
-          IMAGE="doction:${VERSION}"
-
-          docker tag "$IMAGE" "${APP_NAME}:latest"
-
-          docker rm -f "$APP_NAME" >/dev/null 2>&1 || true
-          docker run -d \
-            --name "$APP_NAME" \
-            --network proxy_net \
-            --restart unless-stopped \
-            -v "${DATA_DIR}:/data" \
-            -e DATABASE_PATH=/data/doction.db \
-            --env-file "${DATA_DIR}/.env" \
-            "$IMAGE"
-
-      - name: Health check
-        run: |
-          for i in $(seq 1 30); do
-            if curl -fsS "http://${APP_NAME}:8000/health" >/dev/null; then
-              echo "Doction is up — version ${VERSION}"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Health check failed — recent container logs:"
-          docker logs --tail 50 "$APP_NAME" || true
-          exit 1
-
-      - name: Prune old images
-        if: always()
-        run: docker image prune -f >/dev/null 2>&1 || true

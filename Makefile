@@ -1,12 +1,32 @@
-.PHONY: test test-image lint
+.PHONY: test test-image lint deploy
 
-IMAGE := doction-test-$(shell git rev-parse --short HEAD 2>/dev/null || echo local)
+VERSION := $(shell python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
+
+IMAGE := doction-test-$(GIT_SHA)
 
 test:
 	uv run python -m pytest tests/test.py tests/test_git.py tests/test_mcp.py -q
 
 lint:
 	uv run ruff check .
+
+deploy:
+	DOCKER_HOST=ssh://rpi docker build \
+		--label "git.sha=$(GIT_SHA)" \
+		-t doction:$(VERSION) .
+	DOCKER_HOST=ssh://rpi docker tag doction:$(VERSION) doction:latest
+	DOCKER_HOST=ssh://rpi docker rm -f doction 2>/dev/null || true
+	DOCKER_HOST=ssh://rpi docker run -d \
+		--name doction \
+		--network proxy_net \
+		--restart unless-stopped \
+		-v /mnt/ssd/doction:/data \
+		-e DATABASE_PATH=/data/doction.db \
+		--env-file /mnt/ssd/doction/.env \
+		doction:latest
+	@echo "Waiting for health..."
+	@ssh rpi 'for i in $$(seq 1 30); do curl -fsS http://doction:8000/health >/dev/null 2>&1 && echo "doction $(VERSION) is up" && exit 0; sleep 1; done; exit 1'
 
 test-image:
 	docker build -t $(IMAGE) .
