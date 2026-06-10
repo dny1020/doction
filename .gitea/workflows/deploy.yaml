@@ -20,16 +20,12 @@ jobs:
             git -C /opt/doction fetch --depth=1 origin main
             git -C /opt/doction reset --hard FETCH_HEAD
           else
-            if [ -f /opt/doction/.env ]; then cp /opt/doction/.env /tmp/doction-env; fi
             rm -rf /opt/doction
             git clone --depth=1 "$REPO" /opt/doction
-            if [ -f /tmp/doction-env ]; then mv /tmp/doction-env /opt/doction/.env; fi
           fi
 
       - name: Prepare data dir
-        run: |
-          docker run --rm -v /mnt/ssd:/mnt/ssd alpine \
-            sh -c "mkdir -p /mnt/ssd/doction && chmod 777 /mnt/ssd/doction"
+        run: mkdir -p /mnt/ssd/doction
 
       - name: Build image
         run: docker build -t doction:latest /opt/doction
@@ -41,13 +37,18 @@ jobs:
             --name doction \
             --restart unless-stopped \
             --network proxy_net \
-            --env-file /opt/doction/.env \
+            -e SECRET_KEY=${{ secrets.SECRET_KEY }} \
             -v /mnt/ssd/doction:/data \
             doction:latest
 
       - name: Health check
         run: |
-          sleep 6
-          DOCTION_IP=$(docker inspect -f '{{(index .NetworkSettings.Networks "proxy_net").IPAddress}}' doction)
-          curl -sf "http://${DOCTION_IP}:8000/health" || exit 1
-          echo "doction is up at ${DOCTION_IP}:8000"
+          ok=0
+          for i in $(seq 1 20); do
+            IP=$(docker inspect -f '{{(index .NetworkSettings.Networks "proxy_net").IPAddress}}' doction 2>/dev/null)
+            if curl -sf "http://${IP}:8000/health" >/dev/null 2>&1; then
+              ok=1; break
+            fi
+            sleep 2
+          done
+          [ $ok -eq 1 ] && echo "doction is up" || { echo "health check failed"; exit 1; }
