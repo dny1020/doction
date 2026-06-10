@@ -28,7 +28,10 @@ jobs:
         run: mkdir -p /mnt/ssd/doction
 
       - name: Build image
-        run: docker build -t doction:latest /opt/doction
+        run: |
+          VERSION=$(awk -F'"' '/^version/{print $2}' /opt/doction/pyproject.toml)
+          docker build -t doction:${VERSION} -t doction:latest /opt/doction
+          echo "Built doction:${VERSION} and doction:latest"
 
       - name: Deploy
         run: |

@@ -1,6 +1,6 @@
 [project]
 name = "doction"
-version = "0.3"
+version = "0.4"
 description = "Minimalist, markdown-first DevOps knowledge system"
 requires-python = ">=3.13"
 dependencies = [
