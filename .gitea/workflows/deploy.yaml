@@ -20,10 +20,10 @@ jobs:
             git -C /opt/doction fetch --depth=1 origin main
             git -C /opt/doction reset --hard FETCH_HEAD
           else
-            [ -f /opt/doction/.env ] && cp /opt/doction/.env /tmp/doction-env
+            if [ -f /opt/doction/.env ]; then cp /opt/doction/.env /tmp/doction-env; fi
             rm -rf /opt/doction
             git clone --depth=1 "$REPO" /opt/doction
-            [ -f /tmp/doction-env ] && mv /tmp/doction-env /opt/doction/.env
+            if [ -f /tmp/doction-env ]; then mv /tmp/doction-env /opt/doction/.env; fi
           fi
 
       - name: Prepare data dir
