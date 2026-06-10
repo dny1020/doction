@@ -1,0 +1,53 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Install tools
+        run: apk add --no-cache docker-cli curl
+
+      - name: Checkout
+        run: |
+          REPO="http://oauth2:${{ secrets.GIT_TOKEN }}@gitea:3000/${{ gitea.repository }}.git"
+          if [ -d /opt/doction/.git ]; then
+            git -C /opt/doction remote set-url origin "$REPO"
+            git -C /opt/doction fetch --depth=1 origin main
+            git -C /opt/doction reset --hard FETCH_HEAD
+          else
+            [ -f /opt/doction/.env ] && cp /opt/doction/.env /tmp/doction-env
+            rm -rf /opt/doction
+            git clone --depth=1 "$REPO" /opt/doction
+            [ -f /tmp/doction-env ] && mv /tmp/doction-env /opt/doction/.env
+          fi
+
+      - name: Prepare data dir
+        run: |
+          docker run --rm -v /mnt/ssd:/mnt/ssd alpine \
+            sh -c "mkdir -p /mnt/ssd/doction && chmod 777 /mnt/ssd/doction"
+
+      - name: Build image
+        run: docker build -t doction:latest /opt/doction
+
+      - name: Deploy
+        run: |
+          docker rm -f doction 2>/dev/null || true
+          docker run -d \
+            --name doction \
+            --restart unless-stopped \
+            --network proxy_net \
+            --env-file /opt/doction/.env \
+            -v /mnt/ssd/doction:/data \
+            doction:latest
+
+      - name: Health check
+        run: |
+          sleep 6
+          DOCTION_IP=$(docker inspect -f '{{(index .NetworkSettings.Networks "proxy_net").IPAddress}}' doction)
+          curl -sf "http://${DOCTION_IP}:8000/health" || exit 1
+          echo "doction is up at ${DOCTION_IP}:8000"

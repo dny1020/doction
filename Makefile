@@ -1,8 +1,6 @@
-.PHONY: test test-image lint deploy
+.PHONY: test lint test-image
 
-GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
-
-IMAGE := doction-test-$(GIT_SHA)
+IMAGE := doction-test-$(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 
 test:
 	uv run python -m pytest tests/test.py tests/test_git.py -q
@@ -10,20 +8,12 @@ test:
 lint:
 	uv run ruff check .
 
-deploy:
-	DOCKER_HOST=ssh://rpi docker build \
-		--label "git.sha=$(GIT_SHA)" \
-		-t doction:latest .
-	ssh rpi 'cd /opt/doction && docker compose up -d --force-recreate'
-	@ssh rpi 'for i in $$(seq 1 30); do docker exec doction python3 -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")" >/dev/null 2>&1 && echo "doction is up" && exit 0; sleep 1; done; exit 1'
-
 test-image:
 	docker build -t $(IMAGE) .
 	@name=$(IMAGE)-smoke-$$$$; \
 	docker run -d --name $$name \
 	  -e DATABASE_PATH=/tmp/doction-test.db \
 	  -e SECRET_KEY=test-secret \
-	  -e HF_HUB_OFFLINE=1 \
 	  -p 18000:8000 \
 	  $(IMAGE); \
 	echo "Waiting for app..."; \
