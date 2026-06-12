@@ -1,0 +1,14 @@
+services:
+  doction:
+    image: ghcr.io/dny1020/doction:latest
+    container_name: doction
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - /mnt/ssd/doction:/data
+    networks:
+      - proxy_net
+
+networks:
+  proxy_net:
+    external: true

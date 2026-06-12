@@ -1,6 +1,6 @@
 services:
   doction:
-    image: doction:latest
+    image: ghcr.io/dny1020/doction:latest
     build: .
     ports:
       - "8000:8000"

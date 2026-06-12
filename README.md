@@ -1,8 +1,9 @@
 # doction
 
+[![CI](https://github.com/dny1020/doction/actions/workflows/ci.yaml/badge.svg)](https://github.com/dny1020/doction/actions/workflows/ci.yaml)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Docker](https://img.shields.io/badge/docker-ready-blue)
+[![GHCR](https://img.shields.io/badge/ghcr.io-dny1020%2Fdoction-blue?logo=docker)](https://github.com/dny1020/doction/pkgs/container/doction)
 
 Wiki personal **markdown-first** y knowledge base para agentes. Pensada para devs
 backend y DevOps: captura rápida desde la terminal, búsqueda full-text, historial
@@ -25,10 +26,21 @@ git por página, API REST y servidor MCP nativo — todo en un contenedor con SQ
 
 ## Levantar la app
 
+Con la imagen publicada (amd64 + arm64), sin clonar nada:
+
+```bash
+docker run -d --name doction -p 8000:8000 \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  -v doction-data:/data \
+  ghcr.io/dny1020/doction:latest
+# abre http://localhost:8000 y registra el primer usuario
+```
+
+O clonando el repo (compila local con `build: .`):
+
 ```bash
 cp .env.example .env      # editar SECRET_KEY
 docker compose up
-# abre http://localhost:8000 y registra el primer usuario
 ```
 
 El primer registro crea el workspace `personal` con páginas semilla de ejemplo.
@@ -160,7 +172,13 @@ make lint           # ruff check
 make test-image     # build + smoke-test /health, borra imagen si pasa
 ```
 
-**Deploy = push a `main`.** Gitea Actions (runner self-hosted en la Pi) corre
-lint + tests dentro de la imagen (`docker build --target test`), construye
-`doction:{version}`, recrea el contenedor con health check y limpia imágenes
-viejas. Si los tests fallan, el contenedor actual sigue corriendo.
+**CI/CD = push a `main`.** GitHub Actions corre lint + tests dentro de la imagen
+(`docker build --target test`) y publica `ghcr.io/dny1020/doction` (amd64 + arm64),
+tagueada con la versión de `pyproject.toml` y `latest`. Los PRs solo corren el
+gate de tests.
+
+El servidor (una Raspberry Pi) se actualiza solo: un systemd timer hace
+`docker compose pull` cada 5 minutos y recrea el contenedor únicamente si el
+digest cambió, con health check y rollback por pin de versión. Detalles y setup
+en [`deploy/`](deploy/README.md) — pull-based: el servidor no expone nada hacia
+afuera ni necesita runners.

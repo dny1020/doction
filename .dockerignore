@@ -1,5 +1,6 @@
 .git/
-.gitea/
+.github/
+deploy/
 .venv/
 __pycache__/
 *.db
