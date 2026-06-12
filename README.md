@@ -54,7 +54,10 @@ export TOKEN=<token>
 Endpoints:
 
 ```
-POST /api/token                         obtener token
+POST /api/token                         obtener token JWT (7 días)
+POST /api/tokens                        crear PAT de larga vida (se muestra una vez)
+GET  /api/tokens                        listar PATs (id, name, last_used_at)
+DELETE /api/tokens/{id}                 revocar PAT
 GET  /api/workspaces                    listar workspaces
 POST /api/workspaces                    crear workspace
 GET  /api/pages                         listar páginas (árbol)
@@ -78,9 +81,16 @@ modo stateless, misma auth Bearer que la API REST. Tools: `list_workspaces`,
 `list_pages`, `get_page`, `search_pages`, `create_page`, `update_page`,
 `get_page_history`.
 
+Para agentes usa un PAT (no expira, revocable; el JWT dura 7 días):
+
 ```bash
+curl -X POST https://doction.danilocloud.me/api/tokens \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"name":"claude-code"}'
+# → {"id": 1, "name": "claude-code", "token": "doction_..."}  (se muestra una sola vez)
+
 claude mcp add --transport http doction https://doction.danilocloud.me/api/mcp \
-  --header "Authorization: Bearer $TOKEN"
+  --header "Authorization: Bearer doction_..."
 ```
 
 ---

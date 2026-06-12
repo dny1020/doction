@@ -17,6 +17,11 @@ from pydantic import BaseModel
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
 
 from app import db, git_repo, mcp, seed
+from app.auth import (
+    TOKEN_PREFIX,
+    generate_api_token,
+    hash_api_token,
+)
 from app.auth import hash_password as _hash_password
 from app.auth import verify_password as _verify_password
 from app.markdown import render_markdown
@@ -54,6 +59,10 @@ class _WorkspaceIn(BaseModel):
     name: str
 
 
+class _ApiTokenIn(BaseModel):
+    name: str = "token"
+
+
 api_router = APIRouter(prefix="/api")
 
 
@@ -77,6 +86,28 @@ def api_token(body: _TokenIn):
     if user is None or not _verify_password(body.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"token": _encode_token(int(user["id"])), "token_type": "bearer"}
+
+
+@api_router.post("/tokens", status_code=201)
+def api_create_token(request: Request, body: _ApiTokenIn):
+    uid = _api_user(request)
+    token = generate_api_token()
+    token_id = db.create_api_token(uid, body.name, hash_api_token(token))
+    # The plaintext token is returned once and never stored.
+    return {"id": token_id, "name": body.name.strip() or "token", "token": token}
+
+
+@api_router.get("/tokens")
+def api_list_tokens(request: Request):
+    uid = _api_user(request)
+    return [dict(t) for t in db.list_api_tokens(uid)]
+
+
+@api_router.delete("/tokens/{token_id}", status_code=204)
+def api_revoke_token(request: Request, token_id: int):
+    uid = _api_user(request)
+    if not db.revoke_api_token(uid, token_id):
+        raise HTTPException(status_code=404, detail="Token not found")
 
 
 @api_router.get("/workspaces")
@@ -649,7 +680,11 @@ async def attach_user(request: Request, call_next):
     if user_id is None:
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
-            user_id = _decode_token(auth[7:])
+            bearer = auth[7:].strip()
+            if bearer.startswith(TOKEN_PREFIX):
+                user_id = db.resolve_api_token(hash_api_token(bearer))
+            else:
+                user_id = _decode_token(bearer)
 
     if user_id is not None:
         user = db.get_user_by_id(user_id)

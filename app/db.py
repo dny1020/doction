@@ -217,6 +217,15 @@ def init_db() -> None:
                 created_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS api_tokens (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                name         TEXT NOT NULL,
+                token_hash   TEXT NOT NULL UNIQUE,
+                created_at   TEXT NOT NULL,
+                last_used_at TEXT
+            );
+
             CREATE TABLE IF NOT EXISTS pages (
                 id           INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -576,3 +585,46 @@ def set_page_git_commit(user_id: int, workspace_id: int, slug: str, sha: str) ->
             "UPDATE pages SET git_commit = ? WHERE slug = ? AND user_id = ? AND workspace_id = ?",
             (sha, slug, user_id, workspace_id),
         )
+
+
+def create_api_token(user_id: int, name: str, token_hash: str) -> int:
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO api_tokens (user_id, name, token_hash, created_at) VALUES (?, ?, ?, ?)",
+            (user_id, name.strip() or "token", token_hash, _now()),
+        )
+        return int(cur.lastrowid)
+
+
+def list_api_tokens(user_id: int) -> list[sqlite3.Row]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, name, created_at, last_used_at FROM api_tokens "
+            "WHERE user_id = ? ORDER BY created_at, id",
+            (user_id,),
+        ).fetchall()
+
+
+def revoke_api_token(user_id: int, token_id: int) -> bool:
+    with connect() as conn:
+        cur = conn.execute(
+            "DELETE FROM api_tokens WHERE id = ? AND user_id = ?",
+            (token_id, user_id),
+        )
+        return cur.rowcount > 0
+
+
+def resolve_api_token(token_hash: str) -> int | None:
+    """Return the owning user_id and touch last_used_at; None if unknown."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id, user_id FROM api_tokens WHERE token_hash = ?",
+            (token_hash,),
+        ).fetchone()
+        if row is None:
+            return None
+        conn.execute(
+            "UPDATE api_tokens SET last_used_at = ? WHERE id = ?",
+            (_now(), row["id"]),
+        )
+        return int(row["user_id"])
