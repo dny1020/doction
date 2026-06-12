@@ -27,6 +27,8 @@ BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 SESSION_MAX_AGE = 60 * 60 * 24 * 7
 WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
+# Enable behind TLS (nginx); off by default so local http dev keeps working.
+SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "yes"}
 
 
 # ── REST API ─────────────────────────────────────────────────────────────────
@@ -217,7 +219,11 @@ def _commit_page(
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    app.state.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
+    secret_key = os.environ.get("SECRET_KEY")
+    if not secret_key:
+        secret_key = "dev-secret-key"
+        logger.warning("SECRET_KEY not set — using insecure dev default, do not use in production")
+    app.state.secret_key = secret_key
     db.init_db()
     git_repo.ensure_repo()
     logger.info("doction ready — db: %s", db.db_path())
@@ -297,7 +303,10 @@ def _authed_context(request: Request, user_id: int) -> dict[str, object]:
 
 
 def _ws_cookie(response: Response, slug: str) -> None:
-    response.set_cookie("workspace", slug, httponly=True, samesite="lax", max_age=WORKSPACE_MAX_AGE)
+    response.set_cookie(
+        "workspace", slug,
+        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=WORKSPACE_MAX_AGE,
+    )
 
 
 def _safe_next(path: str) -> str:
@@ -535,7 +544,10 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
     workspace = db.ensure_default_workspace(user_id)
     token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=SESSION_MAX_AGE)
+    response.set_cookie(
+        "session", token,
+        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=SESSION_MAX_AGE,
+    )
     _ws_cookie(response, workspace["slug"])
     return response
 
@@ -584,7 +596,10 @@ async def register(request: Request, email: str = Form(...), password: str = For
 
     token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=SESSION_MAX_AGE)
+    response.set_cookie(
+        "session", token,
+        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=SESSION_MAX_AGE,
+    )
     _ws_cookie(response, workspace["slug"])
     return response
 

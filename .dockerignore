@@ -7,7 +7,6 @@ __pycache__/
 *.db-wal
 .pytest_cache/
 .ruff_cache/
-tests/
 data/
 *.md
 !init.md

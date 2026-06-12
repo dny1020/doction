@@ -27,6 +27,9 @@ jobs:
       - name: Prepare data dir
         run: mkdir -p /mnt/ssd/doction
 
+      - name: Test
+        run: docker build --target test -t doction:test /opt/doction
+
       - name: Build image
         run: |
           VERSION=$(awk -F'"' '/^version/{print $2}' /opt/doction/pyproject.toml)
@@ -41,6 +44,7 @@ jobs:
             --restart unless-stopped \
             --network proxy_net \
             -e SECRET_KEY=${{ secrets.SECRET_KEY }} \
+            -e SECURE_COOKIES=1 \
             -v /mnt/ssd/doction:/data \
             doction:latest
 
@@ -55,3 +59,11 @@ jobs:
             sleep 2
           done
           [ $ok -eq 1 ] && echo "doction is up" || { echo "health check failed"; exit 1; }
+
+      - name: Cleanup old images
+        run: |
+          VERSION=$(awk -F'"' '/^version/{print $2}' /opt/doction/pyproject.toml)
+          docker images doction --format '{{.Tag}}' \
+            | grep -v -e '^latest$' -e '^test$' -e "^${VERSION}$" \
+            | xargs -r -I{} docker rmi doction:{} || true
+          docker image prune -f > /dev/null
