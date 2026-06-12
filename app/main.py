@@ -16,7 +16,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
 
-from app import db, git_repo, seed
+from app import db, git_repo, mcp, seed
 from app.auth import hash_password as _hash_password
 from app.auth import verify_password as _verify_password
 from app.markdown import render_markdown
@@ -233,6 +233,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="doction", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 app.include_router(api_router)
+app.include_router(mcp.router)
 
 
 def _encode_token(user_id: int) -> str:

@@ -22,11 +22,10 @@ docker compose up
 
 ### Producción (Raspberry Pi)
 
-```bash
-make deploy
-```
-
-Construye la imagen directamente en la Pi vía `DOCKER_HOST=ssh://rpi` y reinicia el contenedor con `docker compose up -d --force-recreate` en `/opt/doction/`.
+Push a `main` → Gitea Actions (runner self-hosted en la Pi): corre lint + tests
+dentro de la imagen (`docker build --target test`), construye `doction:{version}`
+y recrea el contenedor en `proxy_net` con health check. Si los tests fallan, el
+contenedor actual sigue corriendo.
 
 ---
 
@@ -66,7 +65,22 @@ DELETE /api/pages/{slug}               eliminar página
 GET  /api/search?q=...                  buscar (FTS5)
 GET  /api/pages/{slug}/history          historial git
 GET  /api/pages/{slug}/history/{sha}    versión en un commit
+POST /api/mcp                           MCP (JSON-RPC 2.0, streamable HTTP)
 GET  /health                            health check
+```
+
+---
+
+## MCP
+
+Servidor MCP nativo (sin SDK, sin deps extra): JSON-RPC 2.0 sobre `POST /api/mcp`,
+modo stateless, misma auth Bearer que la API REST. Tools: `list_workspaces`,
+`list_pages`, `get_page`, `search_pages`, `create_page`, `update_page`,
+`get_page_history`.
+
+```bash
+claude mcp add --transport http doction https://doction.danilocloud.me/api/mcp \
+  --header "Authorization: Bearer $TOKEN"
 ```
 
 ---
@@ -104,5 +118,4 @@ Los errores de git nunca interrumpen el guardado.
 make test           # pytest
 make lint           # ruff check
 make test-image     # build + smoke-test /health, borra imagen si pasa
-make deploy         # build en la Pi y redeploy
 ```

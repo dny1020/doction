@@ -26,7 +26,7 @@ RUN uv sync --frozen
 COPY app ./app
 COPY tests ./tests
 
-RUN uv run ruff check . && uv run python -m pytest tests/test.py tests/test_git.py -q
+RUN uv run ruff check . && uv run python -m pytest tests -q
 
 FROM base AS runtime
 

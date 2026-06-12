@@ -3,7 +3,7 @@
 IMAGE := doction-test-$(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 
 test:
-	uv run python -m pytest tests/test.py tests/test_git.py -q
+	uv run python -m pytest tests -q
 
 lint:
 	uv run ruff check .
