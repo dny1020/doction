@@ -5,28 +5,17 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 [![GHCR](https://img.shields.io/badge/ghcr.io-dny1020%2Fdoction-blue?logo=docker)](https://github.com/dny1020/doction/pkgs/container/doction)
 
-Wiki personal **markdown-first** y knowledge base para agentes. Pensada para devs
-backend y DevOps: captura rápida desde la terminal, búsqueda full-text, historial
-git por página, API REST y servidor MCP nativo — todo en un contenedor con SQLite.
+Wiki personal markdown-first y knowledge base para agentes. Captura rápida desde
+la terminal, búsqueda FTS5, historial git por página, API REST y servidor MCP nativo
+— todo en un contenedor con SQLite.
 
 **Live:** https://doction.danilocloud.me
 
 ---
 
-## Cómo funciona
-
-- **Workspaces → páginas → subpáginas.** Cada usuario tiene su workspace `personal`
-  por defecto; puedes crear más (trabajo, homelab, etc.).
-- **Todo es markdown.** Editor con preview en vivo (HTMX), render con markdown-it.
-- **Cada guardado es un commit git** silencioso en `/data/pages/{workspace}/{slug}.md`.
-  Si git falla, el guardado nunca se pierde. El historial se consulta por API o MCP.
-- **Búsqueda FTS5 (BM25)** sobre título y contenido, con snippets resaltados.
-- **Tres formas de usarla:** la web (sidebar + búsqueda), la API REST (curl/scripts)
-  y MCP (Claude Code, Cursor o cualquier agente).
-
 ## Levantar la app
 
-Con la imagen publicada (amd64 + arm64), sin clonar nada:
+Sin clonar nada (amd64 + arm64):
 
 ```bash
 docker run -d --name doction -p 8000:8000 \
@@ -36,20 +25,18 @@ docker run -d --name doction -p 8000:8000 \
 # abre http://localhost:8000 y registra el primer usuario
 ```
 
-O clonando el repo (compila local con `build: .`):
+O desde el repo (build local):
 
 ```bash
-cp .env.example .env      # editar SECRET_KEY
+cp .env.example .env   # editar SECRET_KEY
 docker compose up
 ```
-
-El primer registro crea el workspace `personal` con páginas semilla de ejemplo.
 
 | Variable | Descripción |
 |---|---|
 | `DATABASE_PATH` | Ruta al SQLite. En Docker: `/data/doction.db` |
 | `SECRET_KEY` | Clave para firmar JWT. Cambiar en producción. |
-| `SECURE_COOKIES` | `1` detrás de TLS (nginx). Apagado por defecto para dev http. |
+| `SECURE_COOKIES` | `1` detrás de TLS (nginx). Apagado por defecto. |
 
 ---
 
@@ -57,20 +44,13 @@ El primer registro crea el workspace `personal` con páginas semilla de ejemplo.
 
 ### Autenticación
 
-Dos tipos de credencial, ambas como `Authorization: Bearer ...`:
-
-| Credencial | Cómo se obtiene | Duración | Uso |
-|---|---|---|---|
-| JWT | `POST /api/token` (email + password) | 7 días | sesiones interactivas |
-| PAT `doction_...` | `POST /api/tokens` | no expira, revocable | scripts y agentes |
-
 ```bash
-# 1. JWT con tus credenciales
+# JWT (7 días)
 TOKEN=$(curl -s -X POST https://doction.danilocloud.me/api/token \
   -H "Content-Type: application/json" \
   -d '{"email":"you@example.com","password":"yourpass"}' | jq -r .token)
 
-# 2. PAT de larga vida (el plaintext se muestra UNA sola vez — guárdalo)
+# PAT de larga vida (el plaintext se muestra UNA sola vez)
 curl -s -X POST https://doction.danilocloud.me/api/tokens \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"mi-laptop"}'
@@ -82,77 +62,67 @@ export TOKEN=doction_...
 ### Endpoints
 
 ```
-POST /api/token                         JWT (7 días)
-POST /api/tokens                        crear PAT (plaintext una sola vez)
-GET  /api/tokens                        listar PATs (id, name, last_used_at)
-DELETE /api/tokens/{id}                 revocar PAT
+POST   /api/token                        JWT (7 días)
+POST   /api/tokens                       crear PAT
+GET    /api/tokens                       listar PATs
+DELETE /api/tokens/{id}                  revocar PAT
 
-GET  /api/workspaces                    listar workspaces
-POST /api/workspaces                    crear workspace
-GET  /api/pages                         listar páginas (árbol con depth)
-GET  /api/pages/{slug}                  leer página (JSON)
-GET  /api/pages/{slug}/raw              markdown crudo a stdout
-POST /api/pages                         crear página
-PUT  /api/pages/{slug}                  actualizar página
-DELETE /api/pages/{slug}               eliminar página
-GET  /api/search?q=...                  búsqueda FTS5
-GET  /api/pages/{slug}/history          historial git
-GET  /api/pages/{slug}/history/{sha}    contenido en un commit
-POST /api/mcp                           MCP (JSON-RPC 2.0)
-GET  /health                            health check
+GET    /api/workspaces                   listar workspaces
+POST   /api/workspaces                   crear workspace
+GET    /api/pages                        árbol de páginas
+GET    /api/pages/{slug}                 leer página (JSON)
+GET    /api/pages/{slug}/raw             markdown crudo
+POST   /api/pages                        crear página
+PUT    /api/pages/{slug}                 actualizar página
+DELETE /api/pages/{slug}                 eliminar página
+GET    /api/search?q=...                 búsqueda FTS5
+GET    /api/pages/{slug}/history         historial git
+GET    /api/pages/{slug}/history/{sha}   contenido en un commit
+POST   /api/mcp                          MCP (JSON-RPC 2.0)
+GET    /health                           health check
 ```
 
-Todas las rutas de páginas aceptan `?ws=<slug>` para elegir workspace
-(por defecto, el primero del usuario).
+Todas las rutas de páginas aceptan `?ws=<slug>` para elegir workspace.
 
 ### Ejemplos
 
 ```bash
-# crear página desde un archivo markdown
+# crear página desde archivo markdown
 curl -s -X POST https://doction.danilocloud.me/api/pages \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d "$(jq -n --arg t 'K8s Runbook' --rawfile c runbook.md '{title:$t,content:$c}')"
 
 # buscar
 curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://doction.danilocloud.me/api/search?q=kamailio+dispatcher" | jq
+  "https://doction.danilocloud.me/api/search?q=kamailio" | jq
 
-# historial git de una página y su contenido en un commit
+# historial git
 curl -s -H "Authorization: Bearer $TOKEN" \
   https://doction.danilocloud.me/api/pages/k8s-runbook/history | jq
-curl -s -H "Authorization: Bearer $TOKEN" \
-  https://doction.danilocloud.me/api/pages/k8s-runbook/history/a1b2c3d | jq -r .content
 ```
 
 ---
 
 ## MCP — conectar agentes
 
-Servidor MCP **nativo** (JSON-RPC 2.0 sobre `POST /api/mcp`, streamable HTTP
-stateless, sin SDK ni dependencias extra). La misma auth Bearer de la API;
-usa un PAT para no renovar credenciales:
+Servidor MCP nativo (JSON-RPC 2.0, stateless, sin SDK). Usa un PAT como Bearer:
 
 ```bash
 claude mcp add --transport http doction https://doction.danilocloud.me/api/mcp \
   --header "Authorization: Bearer doction_..."
 ```
 
-Tools disponibles:
-
 | Tool | Qué hace |
 |---|---|
 | `list_workspaces` | listar workspaces |
-| `list_pages` | árbol de páginas de un workspace |
+| `list_pages` | árbol de páginas |
 | `get_page` | leer página (markdown + metadata) |
 | `search_pages` | búsqueda FTS5 |
-| `create_page` | crear página (hace commit git) |
-| `update_page` | actualizar página (hace commit git) |
-| `get_page_history` | historial git de una página |
+| `create_page` | crear página + commit git |
+| `update_page` | actualizar página + commit git |
+| `get_page_history` | historial git |
 
-Con esto cualquier agente puede consultar tus runbooks en contexto desde
-cualquier repo, o capturar decisiones y notas mientras trabajas.
-
-Probar a mano (el `initialize` no requiere auth y devuelve la versión desplegada):
+Probar sin auth (devuelve la versión desplegada):
 
 ```bash
 curl -s -X POST https://doction.danilocloud.me/api/mcp \
@@ -166,19 +136,14 @@ curl -s -X POST https://doction.danilocloud.me/api/mcp \
 
 ```bash
 uv sync --dev
-uv run uvicorn app.main:app --reload   # dev server :8000
+uv run uvicorn app.main:app --reload   # dev :8000
 make test           # pytest
 make lint           # ruff check
-make test-image     # build + smoke-test /health, borra imagen si pasa
+make test-image     # build + smoke-test /health
 ```
 
-**CI/CD = push a `main`.** GitHub Actions corre lint + tests dentro de la imagen
-(`docker build --target test`) y publica `ghcr.io/dny1020/doction` (amd64 + arm64),
-tagueada con la versión de `pyproject.toml` y `latest`. Los PRs solo corren el
-gate de tests.
+**Push a `main`** → GitHub Actions corre lint + tests en imagen (`docker build --target test`)
+y publica `ghcr.io/dny1020/doction:{version}+latest` (amd64 + arm64).
 
-El servidor (una Raspberry Pi) se actualiza solo: un systemd timer hace
-`docker compose pull` cada 5 minutos y recrea el contenedor únicamente si el
-digest cambió, con health check y rollback por pin de versión. Detalles y setup
-en [`deploy/`](deploy/README.md) — pull-based: el servidor no expone nada hacia
-afuera ni necesita runners.
+La Raspberry Pi se actualiza sola: un systemd timer hace `docker compose pull` cada 5 minutos
+y recrea el contenedor solo si el digest cambió. Detalles en [`deploy/`](deploy/README.md).

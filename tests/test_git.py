@@ -124,7 +124,6 @@ def _get_uid_wid() -> tuple[int, int]:
     user = db_module.get_user_by_email("u@test.com")
     assert user is not None
     uid = int(user["id"])
-    ws = db_module.default_workspace(uid)
-    assert ws is not None
+    ws = db_module.ensure_default_workspace(uid)
     wid = int(ws["id"])
     return uid, wid

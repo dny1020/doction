@@ -1,5 +1,3 @@
-"""Markdown -> HTML rendering for doction."""
-
 from __future__ import annotations
 
 from markdown_it import MarkdownIt

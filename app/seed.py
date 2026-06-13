@@ -1,5 +1,3 @@
-"""Seed initial content so a fresh instance is never empty."""
-
 from __future__ import annotations
 
 WELCOME = """\

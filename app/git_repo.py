@@ -1,4 +1,4 @@
-"""Git-based page versioning for doction — transparent to users."""
+"""Versionado de páginas con git — silencioso, nunca bloquea un guardado."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def commit_page(
         logger.warning("git add failed: %s", result.stderr)
         return None
 
-    # Nothing staged → return last commit SHA for this file if available
+    # Sin cambios staged → devuelve el último SHA conocido del archivo.
     diff = subprocess.run(
         ["git", "-C", str(pages), "diff", "--cached", "--quiet"],
         capture_output=True,

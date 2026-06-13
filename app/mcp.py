@@ -1,8 +1,6 @@
-"""Native MCP server — JSON-RPC 2.0 over streamable HTTP at POST /api/mcp.
+"""Servidor MCP nativo: JSON-RPC 2.0 en POST /api/mcp, sin SDK.
 
-No SDK, no extra deps: tools wrap the existing db/git_repo functions and auth
-rides on the same Bearer JWT the REST API uses (resolved by the middleware in
-app.main). Stateless mode: plain JSON responses, no SSE, no sessions.
+Auth Bearer del middleware de app.main; modo stateless (JSON plano, sin SSE).
 """
 
 from __future__ import annotations
@@ -249,7 +247,7 @@ def _call_tool(request: Request, msg_id: Any, params: dict) -> dict:
 
 
 def _handle_message(request: Request, msg: Any) -> dict | None:
-    """Handle one JSON-RPC message; None means no response (notification)."""
+    """Despacha un mensaje JSON-RPC; None si es notificación (sin id)."""
     if not isinstance(msg, dict) or msg.get("jsonrpc") != "2.0" or "method" not in msg:
         return _error(msg.get("id") if isinstance(msg, dict) else None, -32600, "Invalid Request")
     method = msg["method"]

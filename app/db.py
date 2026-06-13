@@ -1,5 +1,3 @@
-"""SQLite storage with FTS5 full-text search for doction pages and workspaces."""
-
 from __future__ import annotations
 
 import os
@@ -198,7 +196,7 @@ def _backfill_page_workspaces(conn: sqlite3.Connection) -> None:
 
 
 def init_db() -> None:
-    """Create core tables, workspace support, FTS index, and sync triggers."""
+    """Crea tablas, índice FTS5 y triggers de sincronización. Idempotente."""
     with connect() as conn:
         conn.executescript(
             """
@@ -283,7 +281,7 @@ def unique_slug(
     workspace_id: int,
     ignore_id: int | None = None,
 ) -> str:
-    """Return a slug unique inside one workspace, appending -2, -3, ... on collision."""
+    """Slug único en el workspace; en colisión agrega -2, -3, …"""
     candidate = base
     suffix = 1
     while True:
@@ -330,14 +328,6 @@ def get_workspace_by_slug(user_id: int, slug: str) -> sqlite3.Row | None:
         return conn.execute(
             "SELECT id, slug, name FROM workspaces WHERE user_id = ? AND slug = ?",
             (user_id, slug),
-        ).fetchone()
-
-
-def default_workspace(user_id: int) -> sqlite3.Row | None:
-    with connect() as conn:
-        return conn.execute(
-            "SELECT id, slug, name FROM workspaces WHERE user_id = ? ORDER BY id LIMIT 1",
-            (user_id,),
         ).fetchone()
 
 
@@ -388,7 +378,7 @@ def claim_unowned_pages(user_id: int, workspace_id: int) -> int:
 
 
 def list_pages_tree(user_id: int, workspace_id: int) -> list[dict]:
-    """Return all pages as a DFS-ordered flat list with a depth field for sidebar tree rendering."""
+    """Lista plana en orden DFS con campo depth para renderizar el árbol en la sidebar."""
     with connect() as conn:
         rows = conn.execute(
             "SELECT id, slug, title, parent_id FROM pages "
@@ -504,7 +494,7 @@ def create_page(
 
 
 def update_page(user_id: int, workspace_id: int, slug: str, title: str, content: str) -> str | None:
-    """Update a page while keeping its slug stable; returns slug, or None if missing."""
+    """Actualiza una página manteniendo el slug estable; devuelve slug o None si no existe."""
     title = title.strip() or "Untitled"
     with connect() as conn:
         row = conn.execute(
@@ -540,7 +530,7 @@ def list_child_pages(user_id: int, workspace_id: int, parent_id: int) -> list[sq
 
 
 def _fts_query(raw: str) -> str:
-    """Turn arbitrary user input into a safe FTS5 prefix query."""
+    """Convierte input de usuario en una consulta FTS5 de prefijos segura."""
     terms = re.findall(r"[\w]+", raw, flags=re.UNICODE)
     if not terms:
         return ""
@@ -615,7 +605,7 @@ def revoke_api_token(user_id: int, token_id: int) -> bool:
 
 
 def resolve_api_token(token_hash: str) -> int | None:
-    """Return the owning user_id and touch last_used_at; None if unknown."""
+    """Devuelve el user_id propietario y actualiza last_used_at; None si no existe."""
     with connect() as conn:
         row = conn.execute(
             "SELECT id, user_id FROM api_tokens WHERE token_hash = ?",

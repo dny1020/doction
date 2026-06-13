@@ -1,5 +1,3 @@
-"""doction — FastAPI + HTMX markdown wiki."""
-
 from __future__ import annotations
 
 import logging
@@ -32,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 SESSION_MAX_AGE = 60 * 60 * 24 * 7
 WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
-# Enable behind TLS (nginx); off by default so local http dev keeps working.
+# Activo solo detrás de TLS; por defecto apagado para que dev http no requiera configuración.
 SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "yes"}
 
 
@@ -93,7 +91,7 @@ def api_create_token(request: Request, body: _ApiTokenIn):
     uid = _api_user(request)
     token = generate_api_token()
     token_id = db.create_api_token(uid, body.name, hash_api_token(token))
-    # The plaintext token is returned once and never stored.
+    # El plaintext se devuelve una sola vez; nunca se almacena.
     return {"id": token_id, "name": body.name.strip() or "token", "token": token}
 
 

@@ -1,5 +1,3 @@
-"""Password hashing and API token (PAT) helpers for doction."""
-
 from __future__ import annotations
 
 import hashlib
@@ -26,7 +24,7 @@ def generate_api_token() -> str:
 
 
 def hash_api_token(token: str) -> str:
-    # High-entropy random secret: plain SHA-256 is enough (no salt/stretching needed).
+    # El token es aleatorio de alta entropía: SHA-256 sin sal es suficiente.
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
