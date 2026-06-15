@@ -266,6 +266,12 @@ def init_db() -> None:
         if "git_commit" not in page_cols:
             conn.execute("ALTER TABLE pages ADD COLUMN git_commit TEXT")
 
+        user_cols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+        if "display_name" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
+        if "avatar_color" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN avatar_color TEXT")
+
 
 def slugify(text: str) -> str:
     normalized = unicodedata.normalize("NFKD", text)
@@ -314,6 +320,21 @@ def get_user_by_id(user_id: int) -> sqlite3.Row | None:
         return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
 
 
+def update_user_profile(user_id: int, display_name: str | None, avatar_color: str | None) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE users SET display_name = ?, avatar_color = ? WHERE id = ?",
+            (display_name or None, avatar_color or None, user_id),
+        )
+
+
+def update_user_password(user_id: int, password_hash: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (password_hash, user_id),
+        )
+
 
 def list_workspaces(user_id: int) -> list[sqlite3.Row]:
     with connect() as conn:
@@ -341,6 +362,41 @@ def create_workspace(user_id: int, name: str) -> str:
             (user_id, slug, name, _now()),
         )
         return slug
+
+
+def rename_workspace(user_id: int, slug: str, name: str) -> bool:
+    name = name.strip()
+    if not name:
+        return False
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE workspaces SET name = ? WHERE user_id = ? AND slug = ?",
+            (name, user_id, slug),
+        )
+        return cur.rowcount > 0
+
+
+def delete_workspace(user_id: int, slug: str) -> bool:
+    """Borra el workspace y sus páginas. No borra el último que quede.
+
+    Las páginas se borran explícitamente (no por cascada) para que los triggers
+    del índice FTS se disparen y no queden entradas huérfanas en la búsqueda.
+    """
+    with connect() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) AS n FROM workspaces WHERE user_id = ?", (user_id,)
+        ).fetchone()["n"]
+        if count <= 1:
+            return False
+        ws = conn.execute(
+            "SELECT id FROM workspaces WHERE user_id = ? AND slug = ?",
+            (user_id, slug),
+        ).fetchone()
+        if ws is None:
+            return False
+        conn.execute("DELETE FROM pages WHERE workspace_id = ?", (ws["id"],))
+        conn.execute("DELETE FROM workspaces WHERE id = ?", (ws["id"],))
+        return True
 
 
 def ensure_default_workspace(user_id: int) -> sqlite3.Row:
@@ -420,6 +476,31 @@ def get_page(slug: str, user_id: int, workspace_id: int) -> sqlite3.Row | None:
             """,
             (slug, user_id, workspace_id),
         ).fetchone()
+
+
+def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[dict]:
+    """Cadena de ancestros desde la raíz hasta el padre directo (sin incluir la página)."""
+    chain: list[dict] = []
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT parent_id FROM pages WHERE id = ? AND user_id = ? AND workspace_id = ?",
+            (page_id, user_id, workspace_id),
+        ).fetchone()
+        parent_id = row["parent_id"] if row else None
+        seen: set[int] = set()
+        while parent_id is not None and parent_id not in seen:
+            seen.add(parent_id)
+            parent = conn.execute(
+                "SELECT id, slug, title, parent_id FROM pages "
+                "WHERE id = ? AND user_id = ? AND workspace_id = ?",
+                (parent_id, user_id, workspace_id),
+            ).fetchone()
+            if parent is None:
+                break
+            chain.append({"slug": parent["slug"], "title": parent["title"]})
+            parent_id = parent["parent_id"]
+    chain.reverse()
+    return chain
 
 
 def latest_page(user_id: int, workspace_id: int) -> sqlite3.Row | None:

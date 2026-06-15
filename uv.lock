@@ -64,7 +64,7 @@ wheels = [
 
 [[package]]
 name = "doction"
-version = "0.7"
+version = "0.8"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },

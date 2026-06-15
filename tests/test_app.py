@@ -248,3 +248,171 @@ def test_api_workspaces(client):
 def test_api_requires_auth(client):
     r = client.get("/api/pages")
     assert r.status_code == 401
+
+
+# === Settings: profile, password, workspaces ================================
+
+def test_settings_requires_auth(client):
+    r = client.get("/settings", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == "/login"
+
+
+def test_settings_page_renders(client):
+    _register(client)
+    r = client.get("/settings")
+    assert r.status_code == 200
+    assert "Settings" in r.text
+    assert "Contraseña" in r.text
+
+
+def test_profile_update(client):
+    _register(client)
+    r = client.post(
+        "/settings/profile",
+        data={"display_name": "Danilo", "avatar_color": "#4a7fc0"},
+    )
+    assert r.status_code == 200  # redirect to /settings followed
+    assert "Perfil actualizado" in r.text
+
+    home = client.get("/")
+    assert 'title="Danilo"' in home.text
+    assert "#4a7fc0" in home.text
+
+
+def test_profile_rejects_unknown_color(client):
+    _register(client)
+    client.post("/settings/profile", data={"display_name": "X", "avatar_color": "#000000"})
+    home = client.get("/")
+    # The bogus color is dropped, so the avatar falls back to the JS hash (no data-color).
+    assert "data-color=" not in home.text
+
+
+def test_password_change(client):
+    _register(client, password="password123")
+    r = client.post(
+        "/settings/password",
+        data={
+            "current_password": "password123",
+            "new_password": "newpassword456",
+            "confirm_password": "newpassword456",
+        },
+    )
+    assert r.status_code == 200
+    assert "Contraseña actualizada" in r.text
+
+    client.post("/logout")
+    bad = client.post(
+        "/login", data={"email": "user@example.com", "password": "password123"}
+    )
+    assert bad.status_code == 400
+    assert "Invalid credentials" in bad.text
+
+    good = client.post(
+        "/login", data={"email": "user@example.com", "password": "newpassword456"}
+    )
+    assert good.status_code == 200
+    assert "Invalid credentials" not in good.text
+
+
+def test_password_change_wrong_current(client):
+    _register(client, password="password123")
+    r = client.post(
+        "/settings/password",
+        data={
+            "current_password": "WRONG",
+            "new_password": "newpassword456",
+            "confirm_password": "newpassword456",
+        },
+    )
+    assert "La contraseña actual es incorrecta" in r.text
+
+    # Password is unchanged: the original still works.
+    client.post("/logout")
+    good = client.post(
+        "/login", data={"email": "user@example.com", "password": "password123"}
+    )
+    assert good.status_code == 200
+
+
+def test_password_change_too_short(client):
+    _register(client, password="password123")
+    r = client.post(
+        "/settings/password",
+        data={
+            "current_password": "password123",
+            "new_password": "short",
+            "confirm_password": "short",
+        },
+    )
+    assert "8+ caracteres" in r.text
+
+
+def test_password_change_mismatch(client):
+    _register(client, password="password123")
+    r = client.post(
+        "/settings/password",
+        data={
+            "current_password": "password123",
+            "new_password": "newpassword456",
+            "confirm_password": "different456",
+        },
+    )
+    assert "no coinciden" in r.text
+
+
+def test_workspace_rename(client):
+    _register(client)
+    r = client.post("/workspaces/personal/rename", data={"name": "Personal Renombrado"})
+    assert r.status_code == 200
+    assert "Workspace renombrado" in r.text
+    assert "Personal Renombrado" in client.get("/settings").text
+
+
+def test_workspace_delete(client):
+    _register(client)
+    client.post("/workspaces", data={"name": "Work"})  # second workspace, now active
+    r = client.post("/workspaces/personal/delete")
+    assert r.status_code == 200
+    assert "Workspace eliminado" in r.text
+    settings = client.get("/settings").text
+    assert "Work" in settings
+    assert "Personal" not in settings
+
+
+def test_cannot_delete_last_workspace(client):
+    _register(client)
+    r = client.post("/workspaces/personal/delete")
+    assert "No puedes eliminar tu único workspace" in r.text
+    # Still there.
+    assert "Personal" in client.get("/settings").text
+
+
+def test_user_columns_added_on_legacy_db(tmp_path, monkeypatch):
+    """init_db adds display_name/avatar_color to an existing users table."""
+    import sqlite3
+
+    dbfile = tmp_path / "legacy.db"
+    monkeypatch.setenv("DATABASE_PATH", str(dbfile))
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key-test-secret-key-32")
+
+    import app.db as db_module
+
+    importlib.reload(db_module)
+
+    conn = sqlite3.connect(dbfile)
+    conn.executescript(
+        "CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, created_at TEXT NOT NULL);"
+    )
+    conn.commit()
+    conn.close()
+
+    db_module.init_db()
+
+    cols = {
+        row[1]
+        for row in sqlite3.connect(dbfile).execute("PRAGMA table_info(users)")
+    }
+    assert "display_name" in cols
+    assert "avatar_color" in cols

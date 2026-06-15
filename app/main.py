@@ -33,6 +33,12 @@ WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
 # Activo solo detrás de TLS; por defecto apagado para que dev http no requiera configuración.
 SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "yes"}
 
+# Paleta de colores para el avatar (debe coincidir con el fallback JS en base.html).
+AVATAR_COLORS = [
+    "#c0604a", "#4a7fc0", "#4aab6e", "#8b5fc0",
+    "#c0914a", "#4aabc0", "#c05473", "#7a9c4a",
+]
+
 
 # ── REST API ─────────────────────────────────────────────────────────────────
 
@@ -316,6 +322,8 @@ def _anonymous_context(request: Request) -> dict[str, object]:
         "workspaces": [],
         "active_workspace": None,
         "user_email": request.state.user_email,
+        "user_display_name": getattr(request.state, "user_display_name", None),
+        "user_avatar_color": getattr(request.state, "user_avatar_color", None),
     }
 
 
@@ -329,6 +337,8 @@ def _authed_context(request: Request, user_id: int) -> dict[str, object]:
         "workspaces": getattr(request.state, "workspaces", []),
         "active_workspace": workspace,
         "user_email": request.state.user_email,
+        "user_display_name": getattr(request.state, "user_display_name", None),
+        "user_avatar_color": getattr(request.state, "user_avatar_color", None),
     }
 
 
@@ -380,6 +390,7 @@ async def home(request: Request) -> Response:
             {**context, "active_slug": None},
         )
     children = db.list_child_pages(user_id, workspace_id, int(page["id"]))
+    breadcrumbs = db.get_ancestors(int(page["id"]), user_id, workspace_id)
     return templates.TemplateResponse(
         request,
         "page.html",
@@ -388,6 +399,7 @@ async def home(request: Request) -> Response:
             "page": page,
             "rendered": render_markdown(page["content"]),
             "children": children,
+            "breadcrumbs": breadcrumbs,
             "active_slug": page["slug"],
         },
     )
@@ -458,6 +470,7 @@ async def read_page(request: Request, slug: str) -> Response:
     if page is None:
         return _not_found(request, slug)
     children = db.list_child_pages(user_id, workspace_id, int(page["id"]))
+    breadcrumbs = db.get_ancestors(int(page["id"]), user_id, workspace_id)
     return templates.TemplateResponse(
         request,
         "page.html",
@@ -466,6 +479,7 @@ async def read_page(request: Request, slug: str) -> Response:
             "page": page,
             "rendered": render_markdown(page["content"]),
             "children": children,
+            "breadcrumbs": breadcrumbs,
             "active_slug": slug,
         },
     )
@@ -658,6 +672,105 @@ async def switch_workspace(request: Request, slug: str, next_url: str = "/") -> 
     return response
 
 
+_SETTINGS_MESSAGES = {
+    "profile":    ("ok",    "Perfil actualizado."),
+    "password":   ("ok",    "Contraseña actualizada."),
+    "ws_renamed": ("ok",    "Workspace renombrado."),
+    "ws_deleted": ("ok",    "Workspace eliminado."),
+    "pw_current": ("error", "La contraseña actual es incorrecta."),
+    "pw_match":   ("error", "Las contraseñas nuevas no coinciden."),
+    "pw_len":     ("error", "La nueva contraseña debe tener 8+ caracteres."),
+    "ws_last":    ("error", "No puedes eliminar tu único workspace."),
+    "ws_name":    ("error", "El nombre del workspace no puede estar vacío."),
+}
+
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request, m: str | None = None) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    user = db.get_user_by_id(user_id)
+    tone, message = _SETTINGS_MESSAGES.get(m or "", (None, None))
+    return templates.TemplateResponse(
+        request,
+        "settings.html",
+        {
+            **_authed_context(request, user_id),
+            "active_slug": None,
+            "avatar_colors": AVATAR_COLORS,
+            "profile_name": (user["display_name"] if user else "") or "",
+            "current_color": (user["avatar_color"] if user else "") or "",
+            "flash_tone": tone,
+            "flash_msg": message,
+        },
+    )
+
+
+@app.post("/settings/profile")
+async def update_profile(
+    request: Request,
+    display_name: str = Form(""),
+    avatar_color: str = Form(""),
+) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    name = display_name.strip()[:40]
+    color = avatar_color if avatar_color in AVATAR_COLORS else None
+    db.update_user_profile(user_id, name or None, color)
+    return RedirectResponse("/settings?m=profile", status_code=HTTP_303_SEE_OTHER)
+
+
+@app.post("/settings/password")
+async def update_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    user = db.get_user_by_id(user_id)
+    if user is None or not _verify_password(current_password, user["password_hash"]):
+        return RedirectResponse("/settings?m=pw_current", status_code=HTTP_303_SEE_OTHER)
+    if len(new_password) < 8:
+        return RedirectResponse("/settings?m=pw_len", status_code=HTTP_303_SEE_OTHER)
+    if new_password != confirm_password:
+        return RedirectResponse("/settings?m=pw_match", status_code=HTTP_303_SEE_OTHER)
+    db.update_user_password(user_id, _hash_password(new_password))
+    return RedirectResponse("/settings?m=password", status_code=HTTP_303_SEE_OTHER)
+
+
+@app.post("/workspaces/{slug}/rename")
+async def rename_workspace_route(request: Request, slug: str, name: str = Form(...)) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    ok = db.rename_workspace(user_id, slug, name)
+    return RedirectResponse(
+        f"/settings?m={'ws_renamed' if ok else 'ws_name'}", status_code=HTTP_303_SEE_OTHER
+    )
+
+
+@app.post("/workspaces/{slug}/delete")
+async def delete_workspace_route(request: Request, slug: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    ok = db.delete_workspace(user_id, slug)
+    response = RedirectResponse(
+        f"/settings?m={'ws_deleted' if ok else 'ws_last'}", status_code=HTTP_303_SEE_OTHER
+    )
+    # Si se borró el workspace activo, mover la cookie a uno que quede.
+    if ok and request.cookies.get("workspace") == slug:
+        remaining = db.list_workspaces(user_id)
+        if remaining:
+            _ws_cookie(response, remaining[0]["slug"])
+    return response
+
+
 @app.post("/logout")
 async def logout(request: Request) -> RedirectResponse:
     request.state.workspace = None
@@ -671,6 +784,8 @@ async def logout(request: Request) -> RedirectResponse:
 async def attach_user(request: Request, call_next):
     request.state.user_id = None
     request.state.user_email = None
+    request.state.user_display_name = None
+    request.state.user_avatar_color = None
     request.state.workspaces = []
     request.state.workspace = None
 
@@ -690,6 +805,8 @@ async def attach_user(request: Request, call_next):
             user_id = int(user["id"])
             request.state.user_id = user_id
             request.state.user_email = user["email"]
+            request.state.user_display_name = user["display_name"]
+            request.state.user_avatar_color = user["avatar_color"]
 
             db.ensure_default_workspace(user_id)
             workspaces = db.list_workspaces(user_id)

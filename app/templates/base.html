@@ -48,18 +48,18 @@
       <div class="workspace-wrap">
         <div class="workspace-head">
           <span class="workspace-label">Workspace</span>
-          <span class="workspace-current">
-            {{ active_workspace.name if active_workspace else "—" }}
-          </span>
           <button class="workspace-add-toggle" type="button"
                   onclick="toggleWsForm()" title="New workspace"
                   aria-label="New workspace">+</button>
         </div>
-        <div class="workspace-list">
+        <div class="workspace-list" role="list">
           {% for ws in workspaces %}
-          <a href="/workspaces/switch/{{ ws.slug }}?next_url={{ request.url.path }}"
-             class="workspace-link {% if active_workspace and ws.slug == active_workspace.slug %}active{% endif %}">
-            {{ ws.name }}
+          <a role="listitem"
+             href="/workspaces/switch/{{ ws.slug }}?next_url={{ request.url.path }}"
+             class="workspace-link {% if active_workspace and ws.slug == active_workspace.slug %}active{% endif %}"
+             {% if active_workspace and ws.slug == active_workspace.slug %}aria-current="true"{% endif %}>
+            <span class="workspace-link-name">{{ ws.name }}</span>
+            <i data-lucide="check" class="workspace-link-check lucide" width="14" height="14"></i>
           </a>
           {% endfor %}
         </div>
@@ -107,14 +107,22 @@
           <div class="avatar-wrap">
             <button class="avatar" id="user-avatar" type="button"
                     onclick="toggleAvatarMenu()" aria-haspopup="true"
-                    aria-expanded="false" title="{{ user_email }}">
-              {{ user_email[0] | upper }}
+                    aria-expanded="false" title="{{ user_display_name or user_email }}"
+                    {% if user_avatar_color %}data-color="{{ user_avatar_color }}"
+                    style="background: {{ user_avatar_color }}"{% endif %}>
+              {{ (user_display_name or user_email)[0] | upper }}
             </button>
             <div class="avatar-menu" id="avatar-menu" aria-hidden="true">
+              {% if user_display_name %}<div class="avatar-menu-name">{{ user_display_name }}</div>{% endif %}
               <div class="avatar-menu-email">{{ user_email }}</div>
               <div class="avatar-menu-divider"></div>
+              <a class="avatar-menu-item" href="/settings">
+                <i data-lucide="settings" class="lucide" width="14" height="14"></i> Settings
+              </a>
               <form method="post" action="/logout">
-                <button class="avatar-menu-item" type="submit">Log out</button>
+                <button class="avatar-menu-item" type="submit">
+                  <i data-lucide="log-out" class="lucide" width="14" height="14"></i> Log out
+                </button>
               </form>
             </div>
           </div>
@@ -133,6 +141,25 @@
         {% block content %}{% endblock %}
       </div>
     </main>
+  </div>
+
+  <div class="shortcuts-overlay" id="shortcuts-overlay" aria-hidden="true"
+       onclick="if (event.target === this) toggleShortcuts()">
+    <div class="shortcuts-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div class="shortcuts-head">
+        <span class="shortcuts-title">Keyboard shortcuts</span>
+        <button class="shortcuts-close" type="button" onclick="toggleShortcuts()"
+                aria-label="Close">&times;</button>
+      </div>
+      <ul class="shortcuts-list">
+        <li><span>Toggle sidebar</span><span><kbd>[</kbd> <kbd>]</kbd></span></li>
+        <li><span>Focus search</span><span><kbd>/</kbd></span></li>
+        <li><span>Edit current page</span><span><kbd>e</kbd></span></li>
+        <li><span>New page</span><span><kbd>n</kbd></span></li>
+        <li><span>This help</span><span><kbd>?</kbd></span></li>
+        <li><span>Close / collapse</span><span><kbd>Esc</kbd></span></li>
+      </ul>
+    </div>
   </div>
 
   <script>
@@ -167,6 +194,13 @@
       if (btn) btn.setAttribute('aria-expanded', String(open));
     }
 
+    function toggleShortcuts() {
+      var ov = document.getElementById('shortcuts-overlay');
+      if (!ov) return;
+      var open = ov.classList.toggle('open');
+      ov.setAttribute('aria-hidden', String(!open));
+    }
+
     function toggleWsForm() {
       var form = document.getElementById('ws-form');
       if (!form) return;
@@ -190,11 +224,11 @@
 
     (function () {
       var avatar = document.getElementById('user-avatar');
-      if (!avatar) return;
+      if (!avatar || avatar.hasAttribute('data-color')) return;  /* color elegido en perfil gana */
       var palette = ['#c0604a','#4a7fc0','#4aab6e','#8b5fc0','#c0914a','#4aabc0','#c05473','#7a9c4a'];
-      var email = avatar.getAttribute('title') || '';
+      var seed = avatar.getAttribute('title') || '';
       var h = 0;
-      for (var i = 0; i < email.length; i++) h = (h * 31 + email.charCodeAt(i)) & 0xfffffff;
+      for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xfffffff;
       avatar.style.background = palette[h % palette.length];
     })();
 
@@ -216,6 +250,11 @@
       if (event.defaultPrevented) return;
       var t = event.target;
       if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+
+      /* ? → keyboard shortcuts help; Esc closes it first */
+      var ov = document.getElementById('shortcuts-overlay');
+      if (event.key === '?') { event.preventDefault(); toggleShortcuts(); return; }
+      if (event.key === 'Escape' && ov && ov.classList.contains('open')) { toggleShortcuts(); return; }
 
       if (event.key === '[' || event.key === ']') toggleSidebar();
       if (event.key === 'Escape' && !document.documentElement.classList.contains('sidebar-collapsed')) {

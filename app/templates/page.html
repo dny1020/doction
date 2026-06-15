@@ -5,6 +5,15 @@
 
   <article class="page">
     <header class="page-header">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="/">Inicio</a>
+        {% for crumb in breadcrumbs %}
+        <span class="crumb-sep" aria-hidden="true">›</span>
+        <a href="/pages/{{ crumb.slug }}">{{ crumb.title }}</a>
+        {% endfor %}
+        <span class="crumb-sep" aria-hidden="true">›</span>
+        <span class="crumb-current">{{ page.title }}</span>
+      </nav>
       <h1>{{ page.title }}</h1>
       <div class="page-actions">
         <a class="btn" href="/pages/{{ page.slug }}/edit">Edit</a>
@@ -16,10 +25,6 @@
       </div>
       <p class="meta">
         Updated {{ page.updated_at[:10] }}
-        {% if page.parent_slug %}
-        <span>•</span>
-        <span>In <a href="/pages/{{ page.parent_slug }}">{{ page.parent_title }}</a></span>
-        {% endif %}
       </p>
     </header>
 
@@ -61,28 +66,68 @@
 <script>
 (function () {
   var prose = document.querySelector('.prose');
-  var nav   = document.getElementById('toc-nav');
-  var wrap  = document.getElementById('page-wrap');
-  if (!prose || !nav || !wrap) return;
+  if (!prose) return;
 
+  /* IDs + anchor links on headings — funciona con cualquier número de encabezados. */
   var hs = Array.from(prose.querySelectorAll('h1, h2, h3'));
-  if (hs.length < 2) return;
-
   var used = {};
+  var items = [];
   hs.forEach(function (h) {
-    var base = h.textContent.trim().toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'heading';
+    var text = h.textContent.trim();
+    var base = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'heading';
     var id = base;
     if (id in used) { used[id]++; id = base + '-' + used[id]; } else { used[id] = 0; }
     h.id = id;
+    items.push({ id: id, text: text, tag: h.tagName.toLowerCase() });
 
-    var a = document.createElement('a');
-    a.href = '#' + id;
-    a.textContent = h.textContent;
-    a.className = 'toc-item toc-' + h.tagName.toLowerCase();
-    nav.appendChild(a);
+    var anchor = document.createElement('a');
+    anchor.href = '#' + id;
+    anchor.className = 'heading-anchor';
+    anchor.setAttribute('aria-label', 'Enlace a esta sección');
+    anchor.textContent = '#';
+    h.appendChild(anchor);
   });
 
+  /* Botón de copiar en cada bloque de código. */
+  function copyIcon(name) {
+    return '<i data-lucide="' + name + '" class="lucide" width="15" height="15"></i>';
+  }
+  prose.querySelectorAll('pre').forEach(function (pre) {
+    pre.classList.add('has-copy');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'code-copy';
+    btn.setAttribute('aria-label', 'Copiar código');
+    btn.innerHTML = copyIcon('copy');
+    btn.addEventListener('click', function () {
+      var code = pre.querySelector('code');
+      navigator.clipboard.writeText((code || pre).innerText).then(function () {
+        btn.classList.add('copied');
+        btn.innerHTML = copyIcon('check');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        setTimeout(function () {
+          btn.classList.remove('copied');
+          btn.innerHTML = copyIcon('copy');
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  /* Tabla de contenidos — solo con 2+ encabezados. */
+  var nav  = document.getElementById('toc-nav');
+  var wrap = document.getElementById('page-wrap');
+  if (!nav || !wrap || items.length < 2) return;
+
+  items.forEach(function (it) {
+    var a = document.createElement('a');
+    a.href = '#' + it.id;
+    a.textContent = it.text;
+    a.className = 'toc-item toc-' + it.tag;
+    nav.appendChild(a);
+  });
   wrap.classList.add('has-toc');
 
   if (!('IntersectionObserver' in window)) return;
