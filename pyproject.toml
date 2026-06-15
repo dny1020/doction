@@ -29,6 +29,10 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI usa estos como valores por defecto de parámetros (patrón estándar).
+extend-immutable-calls = ["fastapi.File", "fastapi.Form"]
+
 [tool.pytest.ini_options]
 addopts = "-q"
 pythonpath = ["."]

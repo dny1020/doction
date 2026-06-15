@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -7,8 +8,14 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import jwt
-from fastapi import APIRouter, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -38,6 +45,24 @@ AVATAR_COLORS = [
     "#c0604a", "#4a7fc0", "#4aab6e", "#8b5fc0",
     "#c0914a", "#4aabc0", "#c05473", "#7a9c4a",
 ]
+
+# Imágenes embebibles en documentos. Validamos por content-type + magic bytes.
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+_IMAGE_SIGNATURES = {
+    "image/png":  (b"\x89PNG\r\n\x1a\n", ".png"),
+    "image/jpeg": (b"\xff\xd8\xff", ".jpg"),
+    "image/gif":  (b"GIF8", ".gif"),
+}
+
+
+def _image_extension(content_type: str | None, data: bytes) -> str | None:
+    """Devuelve la extensión si content-type y magic bytes concuerdan, si no None."""
+    sig = _IMAGE_SIGNATURES.get(content_type or "")
+    if sig is not None and data.startswith(sig[0]):
+        return sig[1]
+    if content_type == "image/webp" and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return ".webp"
+    return None
 
 
 # ── REST API ─────────────────────────────────────────────────────────────────
@@ -267,6 +292,12 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="doction", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+# Imágenes subidas (pegadas/arrastradas en el editor) viven junto a la BD, no en la imagen.
+UPLOADS_DIR = db.db_path().parent / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+
 app.include_router(api_router)
 app.include_router(mcp.router)
 
@@ -556,6 +587,26 @@ async def preview(request: Request, content: str = Form("")) -> Response:
     if isinstance(user_id, Response):
         return HTMLResponse("", status_code=401)
     return HTMLResponse(render_markdown(content))
+
+
+@app.post("/api/uploads")
+async def upload_image(request: Request, file: UploadFile = File(...)) -> Response:
+    """Recibe una imagen (pegada/arrastrada en el editor), la guarda con nombre
+    derivado de su hash y devuelve la URL para insertarla como markdown."""
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        return JSONResponse({"error": "file too large"}, status_code=413)
+    ext = _image_extension(file.content_type, data)
+    if ext is None:
+        return JSONResponse({"error": "unsupported image type"}, status_code=400)
+    name = hashlib.sha256(data).hexdigest()[:32] + ext
+    dest = UPLOADS_DIR / name
+    if not dest.exists():
+        dest.write_bytes(data)
+    return JSONResponse({"url": f"/uploads/{name}"})
 
 
 @app.get("/login", response_class=HTMLResponse)

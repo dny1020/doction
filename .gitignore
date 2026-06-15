@@ -8,6 +8,7 @@ __pycache__/
 .ruff_cache/
 data/
 pages/
+uploads/
 jobs_output.log
 .env
 CLAUDE.md

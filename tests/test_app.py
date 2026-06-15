@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import importlib
 import os
 import tempfile
@@ -386,6 +387,40 @@ def test_cannot_delete_last_workspace(client):
     assert "No puedes eliminar tu único workspace" in r.text
     # Still there.
     assert "Personal" in client.get("/settings").text
+
+
+_TINY_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+)
+
+
+def test_image_upload_and_serve(client):
+    _register(client)
+    r = client.post("/api/uploads", files={"file": ("shot.png", _TINY_PNG, "image/png")})
+    assert r.status_code == 200
+    url = r.json()["url"]
+    assert url.startswith("/uploads/") and url.endswith(".png")
+    served = client.get(url)
+    assert served.status_code == 200
+    assert served.content == _TINY_PNG
+
+
+def test_image_upload_rejects_non_image(client):
+    _register(client)
+    r = client.post("/api/uploads", files={"file": ("notes.txt", b"hello world", "text/plain")})
+    assert r.status_code == 400
+
+
+def test_image_upload_rejects_spoofed_content_type(client):
+    _register(client)
+    # Dice ser png pero los bytes no lo son → rechazado por magic bytes.
+    r = client.post("/api/uploads", files={"file": ("x.png", b"not a real png", "image/png")})
+    assert r.status_code == 400
+
+
+def test_image_upload_requires_auth(client):
+    r = client.post("/api/uploads", files={"file": ("shot.png", _TINY_PNG, "image/png")})
+    assert r.status_code == 401
 
 
 def test_user_columns_added_on_legacy_db(tmp_path, monkeypatch):

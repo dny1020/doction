@@ -46,29 +46,36 @@
 
       {% if user_email %}
       <div class="workspace-wrap">
-        <div class="workspace-head">
-          <span class="workspace-label">Workspace</span>
-          <button class="workspace-add-toggle" type="button"
-                  onclick="toggleWsForm()" title="New workspace"
-                  aria-label="New workspace">+</button>
+        <div class="ws-select" id="ws-select">
+          <button class="ws-trigger" type="button" onclick="toggleWsMenu()"
+                  aria-haspopup="listbox" aria-expanded="false">
+            <span class="ws-trigger-label">{{ active_workspace.name if active_workspace else "—" }}</span>
+            <i data-lucide="chevrons-up-down" class="ws-trigger-icon lucide" width="15" height="15"></i>
+          </button>
+          <div class="ws-menu" id="ws-menu" role="listbox" aria-hidden="true">
+            <div class="ws-menu-list">
+              {% for ws in workspaces %}
+              <a role="option"
+                 href="/workspaces/switch/{{ ws.slug }}?next_url={{ request.url.path }}"
+                 class="ws-option {% if active_workspace and ws.slug == active_workspace.slug %}active{% endif %}"
+                 {% if active_workspace and ws.slug == active_workspace.slug %}aria-selected="true"{% endif %}>
+                <span class="ws-option-name">{{ ws.name }}</span>
+                <i data-lucide="check" class="ws-option-check lucide" width="14" height="14"></i>
+              </a>
+              {% endfor %}
+            </div>
+            <div class="ws-menu-divider"></div>
+            <button class="ws-menu-new" type="button" onclick="toggleWsForm()">
+              <i data-lucide="plus" class="lucide" width="14" height="14"></i> New workspace
+            </button>
+            <form class="workspace-form" id="ws-form" method="post" action="/workspaces"
+                  style="display:none">
+              <input class="workspace-input" type="text" name="name"
+                     placeholder="New workspace…" required>
+              <button class="workspace-add" type="submit">Add</button>
+            </form>
+          </div>
         </div>
-        <div class="workspace-list" role="list">
-          {% for ws in workspaces %}
-          <a role="listitem"
-             href="/workspaces/switch/{{ ws.slug }}?next_url={{ request.url.path }}"
-             class="workspace-link {% if active_workspace and ws.slug == active_workspace.slug %}active{% endif %}"
-             {% if active_workspace and ws.slug == active_workspace.slug %}aria-current="true"{% endif %}>
-            <span class="workspace-link-name">{{ ws.name }}</span>
-            <i data-lucide="check" class="workspace-link-check lucide" width="14" height="14"></i>
-          </a>
-          {% endfor %}
-        </div>
-        <form class="workspace-form" id="ws-form" method="post" action="/workspaces"
-              style="display:none">
-          <input class="workspace-input" type="text" name="name"
-                 placeholder="New workspace…" required autofocus>
-          <button class="workspace-add" type="submit">Add</button>
-        </form>
       </div>
       <div class="search-wrap">
         <div class="search-field">
@@ -201,6 +208,15 @@
       ov.setAttribute('aria-hidden', String(!open));
     }
 
+    function toggleWsMenu() {
+      var menu = document.getElementById('ws-menu');
+      var trigger = document.querySelector('.ws-trigger');
+      if (!menu) return;
+      var open = menu.classList.toggle('open');
+      menu.setAttribute('aria-hidden', String(!open));
+      if (trigger) trigger.setAttribute('aria-expanded', String(open));
+    }
+
     function toggleWsForm() {
       var form = document.getElementById('ws-form');
       if (!form) return;
@@ -220,6 +236,17 @@
           if (btn) btn.setAttribute('aria-expanded', 'false');
         }
       }
+
+      var wsSelect = document.getElementById('ws-select');
+      if (wsSelect && !wsSelect.contains(e.target)) {
+        var wsMenu = document.getElementById('ws-menu');
+        if (wsMenu && wsMenu.classList.contains('open')) {
+          wsMenu.classList.remove('open');
+          wsMenu.setAttribute('aria-hidden', 'true');
+          var trigger = wsSelect.querySelector('.ws-trigger');
+          if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        }
+      }
     });
 
     (function () {
@@ -230,6 +257,62 @@
       var h = 0;
       for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xfffffff;
       avatar.style.background = palette[h % palette.length];
+    })();
+
+    /* Pegar (Ctrl+V) o arrastrar imágenes en el editor → subida + markdown. */
+    (function () {
+      var ta = document.querySelector('.editor-textarea');
+      if (!ta) return;
+
+      function refreshPreview() {
+        if (typeof htmx !== 'undefined') htmx.trigger(ta, 'keyup');
+        else ta.dispatchEvent(new Event('keyup', { bubbles: true }));
+      }
+      function insertAtCursor(text) {
+        var s = ta.selectionStart, e = ta.selectionEnd;
+        ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+        ta.selectionStart = ta.selectionEnd = s + text.length;
+      }
+      function replaceOnce(find, repl) {
+        var i = ta.value.indexOf(find);
+        if (i === -1) return;
+        ta.value = ta.value.slice(0, i) + repl + ta.value.slice(i + find.length);
+      }
+      function uploadImage(blob) {
+        var token = '![subiendo imagen…](' + Date.now() + ')';
+        insertAtCursor(token);
+        refreshPreview();
+        var fd = new FormData();
+        fd.append('file', blob, blob.name || 'pasted.png');
+        fetch('/api/uploads', { method: 'POST', body: fd, credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+          .then(function (data) { replaceOnce(token, '![](' + data.url + ')'); refreshPreview(); })
+          .catch(function () {
+            replaceOnce(token, '');
+            refreshPreview();
+            alert('No se pudo subir la imagen.');
+          });
+      }
+
+      ta.addEventListener('paste', function (ev) {
+        var items = (ev.clipboardData && ev.clipboardData.items) || [];
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].type && items[i].type.indexOf('image/') === 0) {
+            var blob = items[i].getAsFile();
+            if (blob) { ev.preventDefault(); uploadImage(blob); }
+          }
+        }
+      });
+      ta.addEventListener('dragover', function (ev) {
+        if (ev.dataTransfer) ev.preventDefault();
+      });
+      ta.addEventListener('drop', function (ev) {
+        var files = (ev.dataTransfer && ev.dataTransfer.files) || [];
+        var imgs = [];
+        for (var i = 0; i < files.length; i++)
+          if (files[i].type.indexOf('image/') === 0) imgs.push(files[i]);
+        if (imgs.length) { ev.preventDefault(); imgs.forEach(uploadImage); }
+      });
     })();
 
     syncSidebarAria();
