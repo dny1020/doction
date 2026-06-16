@@ -94,16 +94,21 @@ def get_page_history(ws_slug: str, page_slug: str, limit: int = 50) -> list[dict
     rel_path = f"{ws_slug}/{page_slug}.md"
     result = subprocess.run(
         ["git", "-C", str(pages), "log", f"--max-count={limit}",
-         "--follow", "--format=%H|%ai|%s", "--", rel_path],
+         "--follow", "--format=%H|%ai|%an|%s", "--", rel_path],
         capture_output=True, text=True,
     )
     if result.returncode != 0 or not result.stdout.strip():
         return []
     history = []
     for line in result.stdout.strip().splitlines():
-        parts = line.split("|", 2)
-        if len(parts) == 3:
-            history.append({"sha": parts[0][:7], "timestamp": parts[1], "message": parts[2]})
+        parts = line.split("|", 3)
+        if len(parts) == 4:
+            history.append({
+                "sha": parts[0][:7],
+                "timestamp": parts[1],
+                "author": parts[2],
+                "message": parts[3],
+            })
     return history
 
 

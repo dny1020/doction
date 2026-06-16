@@ -45,6 +45,14 @@ _EN: dict[str, str] = {
     "new_short": "+ New",
     "on_this_page": "On this page",
     "confirm_delete_page": "Delete",  # prefijo: Delete "Title"?
+    # Historial / versiones
+    "history": "History",
+    "no_history": "No versions yet.",
+    "view": "View",
+    "restore": "Restore",
+    "confirm_restore": "Restore this version? Current content will be saved as a new version.",
+    "viewing_old_version": "You are viewing a past version of this page.",
+    "back_to_history": "Back to history",
     # Editor
     "title": "Title",
     "cancel": "Cancel",
@@ -138,6 +146,13 @@ _ES: dict[str, str] = {
     "new_short": "+ Nueva",
     "on_this_page": "En esta página",
     "confirm_delete_page": "Eliminar",
+    "history": "Historial",
+    "no_history": "Aún no hay versiones.",
+    "view": "Ver",
+    "restore": "Restaurar",
+    "confirm_restore": "¿Restaurar esta versión? La actual se guardará como una versión nueva.",
+    "viewing_old_version": "Estás viendo una versión anterior de esta página.",
+    "back_to_history": "Volver al historial",
     "title": "Título",
     "cancel": "Cancelar",
     "save": "Guardar",

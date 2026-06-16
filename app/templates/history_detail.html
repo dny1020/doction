@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }} @ {{ sha }} — doction{% endblock %}
+{% block content %}
+<div class="page-wrap" id="page-wrap">
+
+  <article class="page">
+    <header class="page-header">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="/">{{ t.home }}</a>
+        <span class="crumb-sep" aria-hidden="true">›</span>
+        <a href="/pages/{{ page.slug }}">{{ page.title }}</a>
+        <span class="crumb-sep" aria-hidden="true">›</span>
+        <a href="/pages/{{ page.slug }}/history">{{ t.history }}</a>
+        <span class="crumb-sep" aria-hidden="true">›</span>
+        <span class="crumb-current">{{ sha }}</span>
+      </nav>
+      <h1>{{ page.title }}</h1>
+      <div class="version-banner">
+        <span>{{ t.viewing_old_version }} <code>{{ sha }}</code></span>
+        <div class="page-actions">
+          <a class="btn btn-sm" href="/pages/{{ page.slug }}/history">{{ t.back_to_history }}</a>
+          <form method="post" action="/pages/{{ page.slug }}/restore/{{ sha }}"
+                onsubmit="return confirm('{{ t.confirm_restore }}');">
+            <button class="btn btn-sm btn-primary" type="submit">{{ t.restore }}</button>
+          </form>
+        </div>
+      </div>
+    </header>
+
+    <div class="prose">{{ rendered | safe }}</div>
+  </article>
+
+</div>
+{% endblock %}

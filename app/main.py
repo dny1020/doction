@@ -550,6 +550,83 @@ async def read_page(request: Request, slug: str) -> Response:
     )
 
 
+@app.get("/pages/{slug}/history", response_class=HTMLResponse)
+async def page_history(request: Request, slug: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.get_page(slug, user_id, workspace_id)
+    if page is None:
+        return _not_found(request, slug)
+    ws = db.get_workspace_by_id(workspace_id)
+    ws_slug = ws["slug"] if ws else "default"
+    history = git_repo.get_page_history(ws_slug, slug)
+    return templates.TemplateResponse(
+        request,
+        "history.html",
+        {
+            **_authed_context(request, user_id),
+            "page": page,
+            "history": history,
+            "active_slug": slug,
+        },
+    )
+
+
+@app.get("/pages/{slug}/history/{sha}", response_class=HTMLResponse)
+async def page_history_detail(request: Request, slug: str, sha: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.get_page(slug, user_id, workspace_id)
+    if page is None:
+        return _not_found(request, slug)
+    ws = db.get_workspace_by_id(workspace_id)
+    ws_slug = ws["slug"] if ws else "default"
+    content = git_repo.get_page_at_commit(ws_slug, slug, sha)
+    if content is None:
+        return _not_found(request, slug)
+    return templates.TemplateResponse(
+        request,
+        "history_detail.html",
+        {
+            **_authed_context(request, user_id),
+            "page": page,
+            "sha": sha,
+            "rendered": render_markdown(content),
+            "active_slug": slug,
+        },
+    )
+
+
+@app.post("/pages/{slug}/restore/{sha}")
+async def restore_page(request: Request, slug: str, sha: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.get_page(slug, user_id, workspace_id)
+    if page is None:
+        return _not_found(request, slug)
+    ws = db.get_workspace_by_id(workspace_id)
+    ws_slug = ws["slug"] if ws else "default"
+    content = git_repo.get_page_at_commit(ws_slug, slug, sha)
+    if content is None:
+        return _not_found(request, slug)
+    title = page["title"]
+    new_slug = db.update_page(user_id, workspace_id, slug, title, content)
+    effective_slug = new_slug or slug
+    author = getattr(request.state, "user_email", None) or "user"
+    new_sha = git_repo.commit_page(
+        ws_slug, effective_slug, content, author, f"Restore {sha}: {title}"
+    )
+    if new_sha:
+        db.set_page_git_commit(user_id, workspace_id, effective_slug, new_sha)
+    return RedirectResponse(f"/pages/{effective_slug}", status_code=HTTP_303_SEE_OTHER)
+
+
 @app.get("/pages/{slug}/edit", response_class=HTMLResponse)
 async def edit_page_form(request: Request, slug: str) -> Response:
     user_id = _require_user(request)

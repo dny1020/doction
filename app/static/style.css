@@ -873,6 +873,80 @@ a { color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 
+/* === History ============================================================== */
+.history-list {
+  list-style: none;
+  margin: var(--sp-5) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-main { min-width: 0; }
+
+.history-msg {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-author { color: var(--fg-2); }
+.history-sep { color: var(--fg-3); }
+.history-sha {
+  font-family: var(--font-mono, monospace);
+  color: var(--fg-3);
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+.history-actions form { margin: 0; }
+
+.version-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+}
+.version-banner code {
+  font-family: var(--font-mono, monospace);
+  color: var(--fg-1);
+}
+
 /* === Buttons ============================================================== */
 .btn {
   display: inline-flex;
