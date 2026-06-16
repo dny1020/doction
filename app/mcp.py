@@ -18,7 +18,7 @@ from app import db, embeddings, git_repo
 
 logger = logging.getLogger(__name__)
 
-SERVER_INFO = {"name": "doction", "version": "0.9"}
+SERVER_INFO = {"name": "doction", "version": "0.10"}
 PROTOCOL_VERSIONS = {"2024-11-05", "2025-03-26", "2025-06-18"}
 DEFAULT_PROTOCOL = "2025-03-26"
 
@@ -53,7 +53,18 @@ def _git_commit(user_id: int, ws: sqlite3.Row, slug: str, title: str, content: s
 
 
 def _tool_list_workspaces(user_id: int, args: dict) -> Any:
-    return [{"slug": w["slug"], "name": w["name"]} for w in db.list_workspaces(user_id)]
+    return [
+        {"slug": w["slug"], "name": w["name"], "role": w["role"]}
+        for w in db.list_workspaces(user_id)
+    ]
+
+
+def _tool_list_members(user_id: int, args: dict) -> Any:
+    ws = _workspace(user_id, args)
+    return [
+        {"email": m["email"], "display_name": m["display_name"], "role": m["role"]}
+        for m in db.list_workspace_members(int(ws["id"]))
+    ]
 
 
 def _tool_list_pages(user_id: int, args: dict) -> Any:
@@ -170,8 +181,13 @@ _WORKSPACE_PROP = {
 TOOLS: list[dict] = [
     {
         "name": "list_workspaces",
-        "description": "List the user's workspaces.",
+        "description": "List the user's workspaces (slug, name, role).",
         "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "list_members",
+        "description": "List the members of a workspace (email, display name, role).",
+        "inputSchema": {"type": "object", "properties": {**_WORKSPACE_PROP}},
     },
     {
         "name": "list_pages",
@@ -227,7 +243,7 @@ TOOLS: list[dict] = [
     },
     {
         "name": "get_page_history",
-        "description": "Git commit history for a page (sha, timestamp, message).",
+        "description": "Git commit history for a page (sha, timestamp, author, message).",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -310,6 +326,7 @@ TOOLS: list[dict] = [
 
 TOOL_HANDLERS: dict[str, Callable[[int, dict], Any]] = {
     "list_workspaces": _tool_list_workspaces,
+    "list_members": _tool_list_members,
     "list_pages": _tool_list_pages,
     "get_page": _tool_get_page,
     "search_pages": _tool_search_pages,
