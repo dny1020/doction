@@ -21,7 +21,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
 
-from app import db, git_repo, mcp, seed
+from app import db, git_repo, i18n, mcp, seed
 from app.auth import (
     TOKEN_PREFIX,
     generate_api_token,
@@ -37,6 +37,7 @@ BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 SESSION_MAX_AGE = 60 * 60 * 24 * 7
 WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
+LANG_MAX_AGE = 60 * 60 * 24 * 365
 # Activo solo detrás de TLS; por defecto apagado para que dev http no requiera configuración.
 SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "yes"}
 
@@ -347,6 +348,15 @@ def _require_workspace_id(request: Request, user_id: int) -> int:
     return int(workspace["id"])
 
 
+def _lang(request: Request) -> str:
+    return getattr(request.state, "lang", i18n.DEFAULT_LANG)
+
+
+def _i18n(request: Request) -> dict[str, object]:
+    lang = _lang(request)
+    return {"lang": lang, "t": i18n.get_catalog(lang)}
+
+
 def _anonymous_context(request: Request) -> dict[str, object]:
     return {
         "pages": [],
@@ -355,6 +365,7 @@ def _anonymous_context(request: Request) -> dict[str, object]:
         "user_email": request.state.user_email,
         "user_display_name": getattr(request.state, "user_display_name", None),
         "user_avatar_color": getattr(request.state, "user_avatar_color", None),
+        **_i18n(request),
     }
 
 
@@ -370,6 +381,7 @@ def _authed_context(request: Request, user_id: int) -> dict[str, object]:
         "user_email": request.state.user_email,
         "user_display_name": getattr(request.state, "user_display_name", None),
         "user_avatar_color": getattr(request.state, "user_avatar_color", None),
+        **_i18n(request),
     }
 
 
@@ -377,6 +389,13 @@ def _ws_cookie(response: Response, slug: str) -> None:
     response.set_cookie(
         "workspace", slug,
         httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=WORKSPACE_MAX_AGE,
+    )
+
+
+def _lang_cookie(response: Response, lang: str) -> None:
+    response.set_cookie(
+        "lang", lang,
+        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=LANG_MAX_AGE,
     )
 
 
@@ -570,14 +589,14 @@ async def search(request: Request, q: str = "") -> Response:
         return templates.TemplateResponse(
             request,
             "partials/search_results.html",
-            {"results": [], "query": ""},
+            {"results": [], "query": "", **_i18n(request)},
         )
     workspace_id = _require_workspace_id(request, user_id)
     results = db.search_pages(user_id, workspace_id, q) if q.strip() else []
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
-        {"results": results, "query": q},
+        {"results": results, "query": q, **_i18n(request)},
     )
 
 
@@ -630,7 +649,7 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
             {
                 **_anonymous_context(request),
                 "active_slug": None,
-                "error": "Invalid credentials.",
+                "error": i18n.get_catalog(_lang(request))["err_invalid_credentials"],
             },
             status_code=400,
         )
@@ -661,24 +680,25 @@ async def register_form(request: Request) -> Response:
 @app.post("/register")
 async def register(request: Request, email: str = Form(...), password: str = Form(...)) -> Response:
     email = email.strip().lower()
+    cat = i18n.get_catalog(_lang(request))
     if not email or "@" not in email:
         return templates.TemplateResponse(
             request, "register.html",
-            {**_anonymous_context(request), "active_slug": None, "error": "Enter a valid email."},
+            {**_anonymous_context(request), "active_slug": None, "error": cat["err_valid_email"]},
             status_code=400,
         )
     if len(password) < 8:
         return templates.TemplateResponse(
             request, "register.html",
             {**_anonymous_context(request), "active_slug": None,
-             "error": "Password must be 8+ chars."},
+             "error": cat["err_password_min"]},
             status_code=400,
         )
     if db.get_user_by_email(email) is not None:
         return templates.TemplateResponse(
             request, "register.html",
             {**_anonymous_context(request), "active_slug": None,
-             "error": "Email already registered."},
+             "error": cat["err_email_registered"]},
             status_code=400,
         )
 
@@ -696,6 +716,16 @@ async def register(request: Request, email: str = Form(...), password: str = For
         httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=SESSION_MAX_AGE,
     )
     _ws_cookie(response, workspace["slug"])
+    return response
+
+
+@app.get("/lang/{code}")
+async def switch_language(request: Request, code: str, next_url: str = "/") -> Response:
+    """Cambia el idioma (cookie). Público: funciona también en login/registro."""
+    target = _safe_next(next_url)
+    response = RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
+    if code in i18n.LANGS:
+        _lang_cookie(response, code)
     return response
 
 
@@ -723,16 +753,17 @@ async def switch_workspace(request: Request, slug: str, next_url: str = "/") -> 
     return response
 
 
+# code → (tono, clave de traducción). El texto se resuelve según el idioma activo.
 _SETTINGS_MESSAGES = {
-    "profile":    ("ok",    "Perfil actualizado."),
-    "password":   ("ok",    "Contraseña actualizada."),
-    "ws_renamed": ("ok",    "Workspace renombrado."),
-    "ws_deleted": ("ok",    "Workspace eliminado."),
-    "pw_current": ("error", "La contraseña actual es incorrecta."),
-    "pw_match":   ("error", "Las contraseñas nuevas no coinciden."),
-    "pw_len":     ("error", "La nueva contraseña debe tener 8+ caracteres."),
-    "ws_last":    ("error", "No puedes eliminar tu único workspace."),
-    "ws_name":    ("error", "El nombre del workspace no puede estar vacío."),
+    "profile":    ("ok",    "msg_profile"),
+    "password":   ("ok",    "msg_password"),
+    "ws_renamed": ("ok",    "msg_ws_renamed"),
+    "ws_deleted": ("ok",    "msg_ws_deleted"),
+    "pw_current": ("error", "msg_pw_current"),
+    "pw_match":   ("error", "msg_pw_match"),
+    "pw_len":     ("error", "msg_pw_len"),
+    "ws_last":    ("error", "msg_ws_last"),
+    "ws_name":    ("error", "msg_ws_name"),
 }
 
 
@@ -742,7 +773,8 @@ async def settings_page(request: Request, m: str | None = None) -> Response:
     if isinstance(user_id, Response):
         return user_id
     user = db.get_user_by_id(user_id)
-    tone, message = _SETTINGS_MESSAGES.get(m or "", (None, None))
+    tone, msg_key = _SETTINGS_MESSAGES.get(m or "", (None, None))
+    message = i18n.get_catalog(_lang(request))[msg_key] if msg_key else None
     return templates.TemplateResponse(
         request,
         "settings.html",
@@ -839,6 +871,9 @@ async def attach_user(request: Request, call_next):
     request.state.user_avatar_color = None
     request.state.workspaces = []
     request.state.workspace = None
+    request.state.lang = i18n.resolve_lang(
+        request.cookies.get("lang"), request.headers.get("accept-language")
+    )
 
     user_id = _get_user_id(request)
     if user_id is None:

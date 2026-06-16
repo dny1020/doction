@@ -264,7 +264,7 @@ def test_settings_page_renders(client):
     r = client.get("/settings")
     assert r.status_code == 200
     assert "Settings" in r.text
-    assert "Contraseña" in r.text
+    assert "Password" in r.text
 
 
 def test_profile_update(client):
@@ -274,7 +274,7 @@ def test_profile_update(client):
         data={"display_name": "Danilo", "avatar_color": "#4a7fc0"},
     )
     assert r.status_code == 200  # redirect to /settings followed
-    assert "Perfil actualizado" in r.text
+    assert "Profile updated" in r.text
 
     home = client.get("/")
     assert 'title="Danilo"' in home.text
@@ -300,7 +300,7 @@ def test_password_change(client):
         },
     )
     assert r.status_code == 200
-    assert "Contraseña actualizada" in r.text
+    assert "Password updated" in r.text
 
     client.post("/logout")
     bad = client.post(
@@ -326,7 +326,7 @@ def test_password_change_wrong_current(client):
             "confirm_password": "newpassword456",
         },
     )
-    assert "La contraseña actual es incorrecta" in r.text
+    assert "Your current password is incorrect" in r.text
 
     # Password is unchanged: the original still works.
     client.post("/logout")
@@ -346,7 +346,7 @@ def test_password_change_too_short(client):
             "confirm_password": "short",
         },
     )
-    assert "8+ caracteres" in r.text
+    assert "8+ characters" in r.text
 
 
 def test_password_change_mismatch(client):
@@ -359,14 +359,14 @@ def test_password_change_mismatch(client):
             "confirm_password": "different456",
         },
     )
-    assert "no coinciden" in r.text
+    assert "match" in r.text  # "The new passwords don't match." (apóstrofo escapado en HTML)
 
 
 def test_workspace_rename(client):
     _register(client)
     r = client.post("/workspaces/personal/rename", data={"name": "Personal Renombrado"})
     assert r.status_code == 200
-    assert "Workspace renombrado" in r.text
+    assert "Workspace renamed" in r.text
     assert "Personal Renombrado" in client.get("/settings").text
 
 
@@ -375,7 +375,7 @@ def test_workspace_delete(client):
     client.post("/workspaces", data={"name": "Work"})  # second workspace, now active
     r = client.post("/workspaces/personal/delete")
     assert r.status_code == 200
-    assert "Workspace eliminado" in r.text
+    assert "Workspace deleted" in r.text
     settings = client.get("/settings").text
     assert "Work" in settings
     assert "Personal" not in settings
@@ -384,7 +384,7 @@ def test_workspace_delete(client):
 def test_cannot_delete_last_workspace(client):
     _register(client)
     r = client.post("/workspaces/personal/delete")
-    assert "No puedes eliminar tu único workspace" in r.text
+    assert "delete your only workspace" in r.text  # apóstrofo escapado en HTML
     # Still there.
     assert "Personal" in client.get("/settings").text
 
@@ -451,3 +451,49 @@ def test_user_columns_added_on_legacy_db(tmp_path, monkeypatch):
     }
     assert "display_name" in cols
     assert "avatar_color" in cols
+
+
+# === i18n (language switch EN/ES) ==========================================
+
+def test_default_language_is_english(client):
+    r = client.get("/login")
+    assert r.status_code == 200
+    assert "Log in to access your notes." in r.text
+
+
+def test_login_has_lang_and_theme_controls(client):
+    r = client.get("/login")
+    assert "auth-controls" in r.text
+    assert "lang-switch" in r.text
+    assert "/lang/es?" in r.text and "/lang/en?" in r.text
+    assert "theme-toggle" in r.text  # toggle de modo claro/oscuro en el login
+
+
+def test_switch_language_to_spanish(client):
+    r = client.get("/lang/es")  # 303 → cookie 'lang=es', followed
+    assert r.status_code == 200
+    login = client.get("/login")
+    assert "Inicia sesión para acceder a tus notas." in login.text
+    # El switch marca ES como activo.
+    assert 'lang-opt active"' in login.text or "active" in login.text
+
+
+def test_accept_language_header_defaults_spanish(client):
+    r = client.get("/login", headers={"accept-language": "es-ES,es;q=0.9"})
+    assert "Inicia sesión para acceder a tus notas." in r.text
+
+
+def test_settings_in_spanish(client):
+    _register(client)
+    client.get("/lang/es")
+    s = client.get("/settings")
+    assert "Configuración" in s.text
+    assert "Perfil" in s.text
+    assert "Cambiar contraseña" in s.text
+
+
+def test_invalid_language_code_ignored(client):
+    r = client.get("/lang/fr", follow_redirects=False)
+    assert r.status_code == 303
+    # No setea cookie para un idioma no soportado → sigue en inglés.
+    assert "lang=fr" not in r.headers.get("set-cookie", "")

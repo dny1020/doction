@@ -1,22 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Log in — doction{% endblock %}
+{% block title %}{{ t.log_in }} — doction{% endblock %}
 {% block body_class %}no-sidebar{% endblock %}
 {% block content %}
 <div class="auth">
+  <div class="auth-controls">
+    <div class="lang-switch" role="group" aria-label="{{ t.language }}">
+      <a class="lang-opt {% if lang == 'en' %}active{% endif %}"
+         href="/lang/en?next_url={{ request.url.path }}">EN</a>
+      <a class="lang-opt {% if lang == 'es' %}active{% endif %}"
+         href="/lang/es?next_url={{ request.url.path }}">ES</a>
+    </div>
+    <button class="theme-toggle" type="button" onclick="toggleTheme()"
+            title="{{ t.toggle_theme }}" aria-label="{{ t.toggle_theme }}">
+      <span class="theme-icon-moon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </span>
+      <span class="theme-icon-sun" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </span>
+    </button>
+  </div>
   <div class="auth-card">
     <h1 class="auth-brand">DOCTION</h1>
-    <p class="muted">Log in to access your notes.</p>
+    <p class="muted">{{ t.login_subtitle }}</p>
     {% if error %}
     <div class="auth-error">{{ error }}</div>
     {% endif %}
     <form method="post" action="/login">
-      <label class="auth-label" for="email">Email</label>
+      <label class="auth-label" for="email">{{ t.email }}</label>
       <input class="auth-input" id="email" type="email" name="email" required autofocus>
-      <label class="auth-label" for="password">Password</label>
+      <label class="auth-label" for="password">{{ t.password }}</label>
       <input class="auth-input" id="password" type="password" name="password" required>
-      <button class="btn btn-primary auth-submit" type="submit">Log in</button>
+      <button class="btn btn-primary auth-submit" type="submit">{{ t.log_in }}</button>
     </form>
-    <p class="auth-switch">New here? <a href="/register">Create an account</a></p>
+    <p class="auth-switch">{{ t.login_switch_q }} <a href="/register">{{ t.create_an_account }}</a></p>
   </div>
 </div>
 {% endblock %}

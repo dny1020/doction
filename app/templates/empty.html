@@ -2,8 +2,8 @@
 {% block title %}doction{% endblock %}
 {% block content %}
 <div class="placeholder">
-  <h1>Nothing here yet</h1>
-  <p class="muted">Your wiki is empty. Create your first page to get started.</p>
-  <a class="btn btn-primary" href="/new">+ New page</a>
+  <h1>{{ t.empty_title }}</h1>
+  <p class="muted">{{ t.empty_desc }}</p>
+  <a class="btn btn-primary" href="/new">+ {{ t.new_page }}</a>
 </div>
 {% endblock %}

@@ -9,8 +9,8 @@
     {% endfor %}
   </ul>
   {% else %}
-  <p class="muted no-results">No matches for "{{ query }}"</p>
+  <p class="muted no-results">{{ t.no_matches }} "{{ query }}"</p>
   {% endif %}
 {% else %}
-  <p class="muted no-results">Start typing to search.</p>
+  <p class="muted no-results">{{ t.start_typing_search }}</p>
 {% endif %}

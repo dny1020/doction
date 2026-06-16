@@ -4,14 +4,14 @@
 <form class="editor" method="post" action="/pages/{{ page.slug }}">
   <div class="editor-bar">
     <input class="title-input" type="text" name="title" value="{{ page.title }}"
-           placeholder="Title" required>
+           placeholder="{{ t.title }}" required>
     <div class="editor-actions">
-      <a class="btn" href="/pages/{{ page.slug }}">Cancel</a>
-      <button class="btn btn-primary" type="submit">Save</button>
+      <a class="btn" href="/pages/{{ page.slug }}">{{ t.cancel }}</a>
+      <button class="btn btn-primary" type="submit">{{ t.save }}</button>
     </div>
   </div>
   <div class="editor-split">
-    <textarea class="editor-textarea" name="content" placeholder="Write markdown…"
+    <textarea class="editor-textarea" name="content" placeholder="{{ t.write_markdown }}"
               hx-post="/preview"
               hx-trigger="keyup changed delay:250ms"
               hx-target="#preview"

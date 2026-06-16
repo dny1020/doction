@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Not found — doction{% endblock %}
+{% block title %}{{ t.nf_title }} — doction{% endblock %}
 {% block content %}
 <div class="placeholder">
-  <h1>Page not found</h1>
-  <p class="muted">No page exists at <code>{{ slug }}</code>.</p>
+  <h1>{{ t.nf_title }}</h1>
+  <p class="muted">{{ t.nf_desc }} <code>{{ slug }}</code>.</p>
   <div class="page-actions" style="justify-content:center; margin-top: 1rem;">
-    <a class="btn btn-primary" href="/new?slug={{ slug }}">Create this page</a>
-    <a class="btn" href="/">Back home</a>
+    <a class="btn btn-primary" href="/new?slug={{ slug }}">{{ t.create_this_page }}</a>
+    <a class="btn" href="/">{{ t.back_home }}</a>
   </div>
 </div>
 {% endblock %}

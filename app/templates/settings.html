@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Settings — doction{% endblock %}
+{% block title %}{{ t.settings }} — doction{% endblock %}
 {% block content %}
 <div class="settings">
-  <h1 class="settings-h1">Settings</h1>
+  <h1 class="settings-h1">{{ t.settings }}</h1>
 
   {% if flash_msg %}
   <div class="settings-flash settings-flash--{{ flash_tone }}">{{ flash_msg }}</div>
   {% endif %}
 
   <section class="settings-card">
-    <h2 class="settings-card-title">Perfil</h2>
-    <p class="settings-card-desc">Tu nombre y el color de tu avatar.</p>
+    <h2 class="settings-card-title">{{ t.profile }}</h2>
+    <p class="settings-card-desc">{{ t.profile_desc }}</p>
     <form method="post" action="/settings/profile" class="settings-form">
       <div class="profile-row">
         <div class="profile-preview" id="profile-preview" data-email="{{ user_email }}"
@@ -18,18 +18,18 @@
           {{ (profile_name or user_email)[0] | upper }}
         </div>
         <div class="profile-fields">
-          <label class="settings-label" for="display_name">Nombre</label>
+          <label class="settings-label" for="display_name">{{ t.name }}</label>
           <input class="settings-input" id="display_name" type="text" name="display_name"
                  maxlength="40" value="{{ profile_name }}" placeholder="{{ user_email }}"
                  autocomplete="nickname">
         </div>
       </div>
 
-      <label class="settings-label">Color del avatar</label>
+      <label class="settings-label">{{ t.avatar_color }}</label>
       <div class="color-swatches">
         <label class="swatch swatch--auto {% if not current_color %}selected{% endif %}">
           <input type="radio" name="avatar_color" value="" {% if not current_color %}checked{% endif %}>
-          <span class="swatch-dot swatch-dot--auto" title="Auto">A</span>
+          <span class="swatch-dot swatch-dot--auto" title="{{ t.auto }}">A</span>
         </label>
         {% for color in avatar_colors %}
         <label class="swatch {% if current_color == color %}selected{% endif %}">
@@ -41,47 +41,47 @@
       </div>
 
       <div class="settings-actions">
-        <button class="btn btn-primary" type="submit">Guardar perfil</button>
+        <button class="btn btn-primary" type="submit">{{ t.save_profile }}</button>
       </div>
     </form>
   </section>
 
   <section class="settings-card">
-    <h2 class="settings-card-title">Contraseña</h2>
-    <p class="settings-card-desc">Mínimo 8 caracteres.</p>
+    <h2 class="settings-card-title">{{ t.password }}</h2>
+    <p class="settings-card-desc">{{ t.password_desc }}</p>
     <form method="post" action="/settings/password" class="settings-form">
-      <label class="settings-label" for="current_password">Contraseña actual</label>
+      <label class="settings-label" for="current_password">{{ t.current_password }}</label>
       <input class="settings-input" id="current_password" type="password"
              name="current_password" autocomplete="current-password" required>
-      <label class="settings-label" for="new_password">Nueva contraseña</label>
+      <label class="settings-label" for="new_password">{{ t.new_password }}</label>
       <input class="settings-input" id="new_password" type="password"
              name="new_password" autocomplete="new-password" minlength="8" required>
-      <label class="settings-label" for="confirm_password">Repetir nueva contraseña</label>
+      <label class="settings-label" for="confirm_password">{{ t.repeat_new_password }}</label>
       <input class="settings-input" id="confirm_password" type="password"
              name="confirm_password" autocomplete="new-password" minlength="8" required>
       <div class="settings-actions">
-        <button class="btn btn-primary" type="submit">Cambiar contraseña</button>
+        <button class="btn btn-primary" type="submit">{{ t.change_password }}</button>
       </div>
     </form>
   </section>
 
   <section class="settings-card">
-    <h2 class="settings-card-title">Workspaces</h2>
-    <p class="settings-card-desc">Renombra o elimina tus workspaces. Eliminar borra todas sus páginas.</p>
+    <h2 class="settings-card-title">{{ t.workspaces }}</h2>
+    <p class="settings-card-desc">{{ t.workspaces_desc }}</p>
     <ul class="ws-manage">
       {% for ws in workspaces %}
       <li class="ws-manage-row">
         <form method="post" action="/workspaces/{{ ws.slug }}/rename" class="ws-rename">
           <input class="settings-input" type="text" name="name" value="{{ ws.name }}"
                  maxlength="60" required>
-          <button class="btn" type="submit">Renombrar</button>
+          <button class="btn" type="submit">{{ t.rename }}</button>
         </form>
         <form method="post" action="/workspaces/{{ ws.slug }}/delete" class="ws-delete"
-              onsubmit="return confirm('Eliminar el workspace &quot;{{ ws.name }}&quot; y todas sus páginas?');">
+              onsubmit="return confirm('{{ t.confirm_delete_ws_a }} &quot;{{ ws.name }}&quot; {{ t.confirm_delete_ws_b }}');">
           <button class="btn btn-danger" type="submit"
                   {% if workspaces|length <= 1 %}disabled
-                  title="No puedes eliminar tu único workspace"{% endif %}>
-            Eliminar
+                  title="{{ t.cannot_delete_only_ws }}"{% endif %}>
+            {{ t.delete }}
           </button>
         </form>
       </li>

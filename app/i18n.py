@@ -1,0 +1,211 @@
+"""Catálogo de traducciones EN/ES, sin dependencias.
+
+El idioma se resuelve por cookie `lang`; si no hay, se intenta por Accept-Language.
+ES se construye como overrides sobre EN, así que cualquier clave faltante en ES
+cae de vuelta al inglés automáticamente.
+"""
+
+from __future__ import annotations
+
+DEFAULT_LANG = "en"
+LANGS = ("en", "es")
+
+_EN: dict[str, str] = {
+    # Sidebar / menús
+    "new_workspace": "New workspace",
+    "add": "Add",
+    "search_placeholder": "Search  (/)",
+    "pages": "Pages",
+    "new_page": "New page",
+    "no_pages_yet": "No pages yet",
+    "settings": "Settings",
+    "log_out": "Log out",
+    "log_in": "Log in",
+    "create_account": "Create account",
+    "toggle_theme": "Toggle theme",
+    "show_sidebar": "Show sidebar",
+    "hide_sidebar": "Hide sidebar",
+    "language": "Language",
+    # Atajos
+    "shortcuts_title": "Keyboard shortcuts",
+    "sc_toggle_sidebar": "Toggle sidebar",
+    "sc_focus_search": "Focus search",
+    "sc_edit": "Edit current page",
+    "sc_new_page": "New page",
+    "sc_help": "This help",
+    "sc_close": "Close / collapse",
+    "close": "Close",
+    # Vista de página
+    "home": "Home",
+    "edit": "Edit",
+    "new_subpage": "New subpage",
+    "delete": "Delete",
+    "updated": "Updated",
+    "subpages": "Subpages",
+    "new_short": "+ New",
+    "on_this_page": "On this page",
+    "confirm_delete_page": "Delete",  # prefijo: Delete "Title"?
+    # Editor
+    "title": "Title",
+    "cancel": "Cancel",
+    "save": "Save",
+    "create": "Create",
+    "write_markdown": "Write markdown…",
+    "preview_hint": "Start typing to see preview.",
+    "parent": "Parent:",
+    # Estado vacío / 404
+    "empty_title": "Nothing here yet",
+    "empty_desc": "Your wiki is empty. Create your first page to get started.",
+    "nf_title": "Page not found",
+    "nf_desc": "No page exists at",
+    "create_this_page": "Create this page",
+    "back_home": "Back home",
+    # Búsqueda
+    "no_matches": "No matches for",
+    "start_typing_search": "Start typing to search.",
+    # Login / registro
+    "login_subtitle": "Log in to access your notes.",
+    "email": "Email",
+    "password": "Password",
+    "login_switch_q": "New here?",
+    "create_an_account": "Create an account",
+    "register_subtitle": "Start your private knowledge base.",
+    "register_switch_q": "Have an account?",
+    # Settings
+    "profile": "Profile",
+    "profile_desc": "Your name and avatar color.",
+    "name": "Name",
+    "avatar_color": "Avatar color",
+    "auto": "Auto",
+    "save_profile": "Save profile",
+    "password_desc": "Minimum 8 characters.",
+    "current_password": "Current password",
+    "new_password": "New password",
+    "repeat_new_password": "Repeat new password",
+    "change_password": "Change password",
+    "workspaces": "Workspaces",
+    "workspaces_desc": "Rename or delete your workspaces. Deleting removes all its pages.",
+    "rename": "Rename",
+    "cannot_delete_only_ws": "You can't delete your only workspace",
+    "confirm_delete_ws_a": "Delete the workspace",
+    "confirm_delete_ws_b": "and all its pages?",
+    # Mensajes flash de settings
+    "msg_profile": "Profile updated.",
+    "msg_password": "Password updated.",
+    "msg_ws_renamed": "Workspace renamed.",
+    "msg_ws_deleted": "Workspace deleted.",
+    "msg_pw_current": "Your current password is incorrect.",
+    "msg_pw_match": "The new passwords don't match.",
+    "msg_pw_len": "The new password must be 8+ characters.",
+    "msg_ws_last": "You can't delete your only workspace.",
+    "msg_ws_name": "The workspace name can't be empty.",
+    # Errores de auth
+    "err_invalid_credentials": "Invalid credentials.",
+    "err_valid_email": "Enter a valid email.",
+    "err_password_min": "Password must be 8+ chars.",
+    "err_email_registered": "Email already registered.",
+}
+
+_ES: dict[str, str] = {
+    "new_workspace": "Nuevo workspace",
+    "add": "Agregar",
+    "search_placeholder": "Buscar  (/)",
+    "pages": "Páginas",
+    "new_page": "Nueva página",
+    "no_pages_yet": "Aún no hay páginas",
+    "settings": "Configuración",
+    "log_out": "Cerrar sesión",
+    "log_in": "Iniciar sesión",
+    "create_account": "Crear cuenta",
+    "toggle_theme": "Cambiar tema",
+    "show_sidebar": "Mostrar barra lateral",
+    "hide_sidebar": "Ocultar barra lateral",
+    "language": "Idioma",
+    "shortcuts_title": "Atajos de teclado",
+    "sc_toggle_sidebar": "Mostrar/ocultar barra lateral",
+    "sc_focus_search": "Ir a buscar",
+    "sc_edit": "Editar página actual",
+    "sc_new_page": "Nueva página",
+    "sc_help": "Esta ayuda",
+    "sc_close": "Cerrar / colapsar",
+    "close": "Cerrar",
+    "home": "Inicio",
+    "edit": "Editar",
+    "new_subpage": "Nueva subpágina",
+    "delete": "Eliminar",
+    "updated": "Actualizado",
+    "subpages": "Subpáginas",
+    "new_short": "+ Nueva",
+    "on_this_page": "En esta página",
+    "confirm_delete_page": "Eliminar",
+    "title": "Título",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "create": "Crear",
+    "write_markdown": "Escribe markdown…",
+    "preview_hint": "Empieza a escribir para ver la vista previa.",
+    "parent": "Padre:",
+    "empty_title": "Aún no hay nada",
+    "empty_desc": "Tu wiki está vacío. Crea tu primera página para empezar.",
+    "nf_title": "Página no encontrada",
+    "nf_desc": "No existe ninguna página en",
+    "create_this_page": "Crear esta página",
+    "back_home": "Volver al inicio",
+    "no_matches": "Sin resultados para",
+    "start_typing_search": "Empieza a escribir para buscar.",
+    "login_subtitle": "Inicia sesión para acceder a tus notas.",
+    "email": "Correo",
+    "password": "Contraseña",
+    "login_switch_q": "¿Primera vez?",
+    "create_an_account": "Crea una cuenta",
+    "register_subtitle": "Empieza tu base de conocimiento privada.",
+    "register_switch_q": "¿Ya tienes cuenta?",
+    "profile": "Perfil",
+    "profile_desc": "Tu nombre y el color de tu avatar.",
+    "name": "Nombre",
+    "avatar_color": "Color del avatar",
+    "auto": "Auto",
+    "save_profile": "Guardar perfil",
+    "password_desc": "Mínimo 8 caracteres.",
+    "current_password": "Contraseña actual",
+    "new_password": "Nueva contraseña",
+    "repeat_new_password": "Repetir nueva contraseña",
+    "change_password": "Cambiar contraseña",
+    "workspaces": "Workspaces",
+    "workspaces_desc": "Renombra o elimina tus workspaces. Eliminar borra todas sus páginas.",
+    "rename": "Renombrar",
+    "cannot_delete_only_ws": "No puedes eliminar tu único workspace",
+    "confirm_delete_ws_a": "Eliminar el workspace",
+    "confirm_delete_ws_b": "y todas sus páginas?",
+    "msg_profile": "Perfil actualizado.",
+    "msg_password": "Contraseña actualizada.",
+    "msg_ws_renamed": "Workspace renombrado.",
+    "msg_ws_deleted": "Workspace eliminado.",
+    "msg_pw_current": "La contraseña actual es incorrecta.",
+    "msg_pw_match": "Las contraseñas nuevas no coinciden.",
+    "msg_pw_len": "La nueva contraseña debe tener 8+ caracteres.",
+    "msg_ws_last": "No puedes eliminar tu único workspace.",
+    "msg_ws_name": "El nombre del workspace no puede estar vacío.",
+    "err_invalid_credentials": "Credenciales inválidas.",
+    "err_valid_email": "Ingresa un correo válido.",
+    "err_password_min": "La contraseña debe tener 8+ caracteres.",
+    "err_email_registered": "Ese correo ya está registrado.",
+}
+
+_CATALOGS: dict[str, dict[str, str]] = {
+    "en": _EN,
+    "es": {**_EN, **_ES},
+}
+
+
+def get_catalog(lang: str) -> dict[str, str]:
+    return _CATALOGS.get(lang, _EN)
+
+
+def resolve_lang(cookie_value: str | None, accept_language: str | None) -> str:
+    """Cookie manda; si no hay, intenta Accept-Language; por defecto inglés."""
+    if cookie_value in LANGS:
+        return cookie_value
+    if accept_language and accept_language.strip().lower().startswith("es"):
+        return "es"
+    return DEFAULT_LANG

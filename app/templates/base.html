@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang | default('en') }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -25,7 +25,7 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <button class="sidebar-toggle sidebar-toggle--show" type="button"
-          aria-label="Show sidebar" title="Show sidebar"
+          aria-label="{{ t.show_sidebar }}" title="{{ t.show_sidebar }}"
           aria-expanded="false" onclick="toggleSidebar()">
     <i data-lucide="panel-left-open" class="lucide"></i>
   </button>
@@ -38,7 +38,7 @@
           Doction
         </a>
         <button class="sidebar-toggle sidebar-toggle--hide" type="button"
-                aria-label="Hide sidebar" title="Hide sidebar"
+                aria-label="{{ t.hide_sidebar }}" title="{{ t.hide_sidebar }}"
                 aria-expanded="true" onclick="toggleSidebar()">
           <i data-lucide="panel-left-close" class="lucide"></i>
         </button>
@@ -66,13 +66,13 @@
             </div>
             <div class="ws-menu-divider"></div>
             <button class="ws-menu-new" type="button" onclick="toggleWsForm()">
-              <i data-lucide="plus" class="lucide" width="14" height="14"></i> New workspace
+              <i data-lucide="plus" class="lucide" width="14" height="14"></i> {{ t.new_workspace }}
             </button>
             <form class="workspace-form" id="ws-form" method="post" action="/workspaces"
                   style="display:none">
               <input class="workspace-input" type="text" name="name"
-                     placeholder="New workspace…" required>
-              <button class="workspace-add" type="submit">Add</button>
+                     placeholder="{{ t.new_workspace }}…" required>
+              <button class="workspace-add" type="submit">{{ t.add }}</button>
             </form>
           </div>
         </div>
@@ -84,7 +84,7 @@
             id="sidebar-search"
             type="search"
             name="q"
-            placeholder="Search  (/)"
+            placeholder="{{ t.search_placeholder }}"
             autocomplete="off"
             hx-get="/search"
             hx-trigger="keyup changed delay:200ms, search"
@@ -93,17 +93,17 @@
         </div>
         <div id="search-results"></div>
       </div>
-      <div class="sidebar-eyebrow">Pages</div>
+      <div class="sidebar-eyebrow">{{ t.pages }}</div>
       <nav class="page-list">
         {% include "partials/sidebar_list.html" %}
       </nav>
       <div class="sidebar-foot">
         <a class="new-btn" href="/new">
-          <i data-lucide="plus" class="lucide" width="15" height="15"></i> New page
+          <i data-lucide="plus" class="lucide" width="15" height="15"></i> {{ t.new_page }}
         </a>
         <div class="sidebar-user">
           <button class="theme-toggle" type="button" onclick="toggleTheme()"
-                  title="Toggle theme" aria-label="Toggle theme">
+                  title="{{ t.toggle_theme }}" aria-label="{{ t.toggle_theme }}">
             <span class="theme-icon-moon" aria-hidden="true">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             </span>
@@ -123,12 +123,22 @@
               {% if user_display_name %}<div class="avatar-menu-name">{{ user_display_name }}</div>{% endif %}
               <div class="avatar-menu-email">{{ user_email }}</div>
               <div class="avatar-menu-divider"></div>
+              <div class="avatar-menu-lang">
+                <span class="avatar-menu-lang-label">{{ t.language }}</span>
+                <div class="lang-switch" role="group" aria-label="{{ t.language }}">
+                  <a class="lang-opt {% if lang == 'en' %}active{% endif %}"
+                     href="/lang/en?next_url={{ request.url.path }}">EN</a>
+                  <a class="lang-opt {% if lang == 'es' %}active{% endif %}"
+                     href="/lang/es?next_url={{ request.url.path }}">ES</a>
+                </div>
+              </div>
+              <div class="avatar-menu-divider"></div>
               <a class="avatar-menu-item" href="/settings">
-                <i data-lucide="settings" class="lucide" width="14" height="14"></i> Settings
+                <i data-lucide="settings" class="lucide" width="14" height="14"></i> {{ t.settings }}
               </a>
               <form method="post" action="/logout">
                 <button class="avatar-menu-item" type="submit">
-                  <i data-lucide="log-out" class="lucide" width="14" height="14"></i> Log out
+                  <i data-lucide="log-out" class="lucide" width="14" height="14"></i> {{ t.log_out }}
                 </button>
               </form>
             </div>
@@ -137,8 +147,8 @@
       </div>
       {% else %}
       <div class="auth-links">
-        <a class="btn" href="/login">Log in</a>
-        <a class="btn btn-primary" href="/register">Create account</a>
+        <a class="btn" href="/login">{{ t.log_in }}</a>
+        <a class="btn btn-primary" href="/register">{{ t.create_account }}</a>
       </div>
       {% endif %}
     </aside>
@@ -152,19 +162,19 @@
 
   <div class="shortcuts-overlay" id="shortcuts-overlay" aria-hidden="true"
        onclick="if (event.target === this) toggleShortcuts()">
-    <div class="shortcuts-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+    <div class="shortcuts-modal" role="dialog" aria-modal="true" aria-label="{{ t.shortcuts_title }}">
       <div class="shortcuts-head">
-        <span class="shortcuts-title">Keyboard shortcuts</span>
+        <span class="shortcuts-title">{{ t.shortcuts_title }}</span>
         <button class="shortcuts-close" type="button" onclick="toggleShortcuts()"
-                aria-label="Close">&times;</button>
+                aria-label="{{ t.close }}">&times;</button>
       </div>
       <ul class="shortcuts-list">
-        <li><span>Toggle sidebar</span><span><kbd>[</kbd> <kbd>]</kbd></span></li>
-        <li><span>Focus search</span><span><kbd>/</kbd></span></li>
-        <li><span>Edit current page</span><span><kbd>e</kbd></span></li>
-        <li><span>New page</span><span><kbd>n</kbd></span></li>
-        <li><span>This help</span><span><kbd>?</kbd></span></li>
-        <li><span>Close / collapse</span><span><kbd>Esc</kbd></span></li>
+        <li><span>{{ t.sc_toggle_sidebar }}</span><span><kbd>[</kbd> <kbd>]</kbd></span></li>
+        <li><span>{{ t.sc_focus_search }}</span><span><kbd>/</kbd></span></li>
+        <li><span>{{ t.sc_edit }}</span><span><kbd>e</kbd></span></li>
+        <li><span>{{ t.sc_new_page }}</span><span><kbd>n</kbd></span></li>
+        <li><span>{{ t.sc_help }}</span><span><kbd>?</kbd></span></li>
+        <li><span>{{ t.sc_close }}</span><span><kbd>Esc</kbd></span></li>
       </ul>
     </div>
   </div>
