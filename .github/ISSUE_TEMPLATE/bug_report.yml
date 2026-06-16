@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a problem with doction
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / image
+      description: doction version or image digest (e.g. ghcr.io/dny1020/doction:0.9).
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: How you run doction (docker run / compose), reverse proxy, SEMANTIC_SEARCH on/off, OS/arch.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant container logs (redact secrets).
+      render: shell

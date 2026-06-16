@@ -5,56 +5,99 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 [![GHCR](https://img.shields.io/badge/ghcr.io-dny1020%2Fdoction-blue?logo=docker)](https://github.com/dny1020/doction/pkgs/container/doction)
 
-Wiki personal markdown-first y knowledge base para agentes. Captura rápida desde
-la terminal, búsqueda FTS5, historial git por página, API REST y servidor MCP nativo
-— todo en un contenedor con SQLite.
+A self-hosted, markdown-first wiki and knowledge base built for humans **and** AI agents.
+Markdown pages with per-page git history, full-text search (FTS5) plus optional local
+semantic search, a REST API, and a **native MCP server** to plug agents in. Everything runs
+in a single container backed by SQLite — no external services, no API keys.
 
-**Live:** https://doction.danilocloud.me
+> **Why doction?** Unix-style and self-contained. Your notes are plain markdown in a git
+> repo; search runs locally; agents talk to it over a standard MCP interface. doction does
+> *retrieval* — the language model lives in your agent, not here.
+
+![doction — page view with sidebar, tags and git-tracked markdown](docs/assets/ui.png)
 
 ---
 
-## Levantar la app
+## Features
 
-Sin clonar nada (amd64 + arm64):
+- **Markdown-first** — pages, workspaces, `[[wikilinks]]`, `#tags`, and YAML frontmatter.
+- **Full-text search** — SQLite FTS5/BM25, zero external dependencies.
+- **Local semantic search** (opt-in) — ONNX embeddings (MiniLM) baked into the image:
+  `sgrep` (meaning-based search) and `rag` (retrieval with provenance). Fully offline, no
+  API keys; gracefully degrades to FTS5 when disabled.
+- **Per-page git history** — every save is a commit; browse diffs and previous versions.
+- **REST API** + **native MCP server** (JSON-RPC 2.0, 12 tools) for agents.
+- **Self-contained** — one container, SQLite, starts with zero configuration.
+
+## How it works
+
+```
+            ┌──────────────────────────── doction (single container) ──────────────────────┐
+  Browser ──┤  FastAPI + HTMX (UI)                                                          │
+  curl    ──┤  REST  /api/*          SQLite (pages, FTS5, tags, links, chunks)              │
+  Agent   ──┤  MCP   /api/mcp        git repo (one commit per save)                         │
+            │                        embeddings worker (async, opt-in) ─┐ MiniLM ONNX       │
+            └───────────────────────────────────────────────────────────┴───────────────────┘
+```
+
+On every save, doction commits the page to git and extracts its metadata (frontmatter,
+tags, wikilinks) into indexed tables. When semantic search is enabled, a background worker
+chunks and embeds the page without blocking the app. doction handles **retrieval**; text
+generation (summaries, RAG answers) is done by the agent connected over MCP — there is no
+LLM inside doction.
+
+---
+
+## Quick start
+
+No clone required (multi-arch image, amd64 + arm64):
 
 ```bash
 docker run -d --name doction -p 8000:8000 \
   -e SECRET_KEY=$(openssl rand -hex 32) \
   -v doction-data:/data \
   ghcr.io/dny1020/doction:latest
-# abre http://localhost:8000 y registra el primer usuario
+# open http://localhost:8000 and register the first user
 ```
 
-O desde el repo (build local):
+Or from source (local build):
 
 ```bash
-cp .env.example .env   # editar SECRET_KEY
+cp .env.example .env   # edit SECRET_KEY
 docker compose up
 ```
 
-| Variable | Descripción |
-|---|---|
-| `DATABASE_PATH` | Ruta al SQLite. En Docker: `/data/doction.db` |
-| `SECRET_KEY` | Clave para firmar JWT. Cambiar en producción. |
-| `SECURE_COOKIES` | `1` detrás de TLS (nginx). Apagado por defecto. |
+### Configuration
+
+| Variable | Description | Default |
+|---|---|---|
+| `SECRET_KEY` | Key used to sign JWTs. **Change in production.** | insecure dev value |
+| `DATABASE_PATH` | Path to the SQLite file. | `/data/doction.db` |
+| `SECURE_COOKIES` | `1` when behind TLS (reverse proxy). | off |
+| `SEMANTIC_SEARCH` | `1` enables local semantic search (`sgrep` / `rag`). | off |
+
+> The embedding model (~22 MB) ships inside the image. It is only loaded into RAM when
+> `SEMANTIC_SEARCH=1`; when off, it costs nothing.
 
 ---
 
-## API REST
+## REST API
 
-### Autenticación
+### Authentication
 
 ```bash
-# JWT (7 días)
-TOKEN=$(curl -s -X POST https://doction.danilocloud.me/api/token \
+DOCTION=http://localhost:8000
+
+# JWT (valid 7 days)
+TOKEN=$(curl -s -X POST $DOCTION/api/token \
   -H "Content-Type: application/json" \
   -d '{"email":"you@example.com","password":"yourpass"}' | jq -r .token)
 
-# PAT de larga vida (el plaintext se muestra UNA sola vez)
-curl -s -X POST https://doction.danilocloud.me/api/tokens \
+# Long-lived PAT (the plaintext is shown ONCE)
+curl -s -X POST $DOCTION/api/tokens \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"mi-laptop"}'
-# → {"id": 1, "name": "mi-laptop", "token": "doction_..."}
+  -d '{"name":"my-laptop"}'
+# → {"id": 1, "name": "my-laptop", "token": "doction_..."}
 
 export TOKEN=doction_...
 ```
@@ -62,88 +105,121 @@ export TOKEN=doction_...
 ### Endpoints
 
 ```
-POST   /api/token                        JWT (7 días)
-POST   /api/tokens                       crear PAT
-GET    /api/tokens                       listar PATs
-DELETE /api/tokens/{id}                  revocar PAT
+POST   /api/token                        JWT (7 days)
+POST   /api/tokens                       create PAT
+GET    /api/tokens                       list PATs
+DELETE /api/tokens/{id}                  revoke PAT
 
-GET    /api/workspaces                   listar workspaces
-POST   /api/workspaces                   crear workspace
-GET    /api/pages                        árbol de páginas
-GET    /api/pages/{slug}                 leer página (JSON)
-GET    /api/pages/{slug}/raw             markdown crudo
-POST   /api/pages                        crear página
-PUT    /api/pages/{slug}                 actualizar página
-DELETE /api/pages/{slug}                 eliminar página
-GET    /api/search?q=...                 búsqueda FTS5
-GET    /api/pages/{slug}/history         historial git
-GET    /api/pages/{slug}/history/{sha}   contenido en un commit
+GET    /api/workspaces                   list workspaces
+POST   /api/workspaces                   create workspace
+GET    /api/pages                        page tree
+GET    /api/pages/{slug}                 read page (JSON)
+GET    /api/pages/{slug}/raw             raw markdown
+POST   /api/pages                        create page
+PUT    /api/pages/{slug}                 update page
+DELETE /api/pages/{slug}                 delete page
+GET    /api/search?q=...                 full-text search (FTS5)
+GET    /api/search?q=...&mode=semantic   semantic search (sgrep)
+GET    /api/pages/{slug}/history         git history
+GET    /api/pages/{slug}/history/{sha}   content at a commit
 POST   /api/mcp                          MCP (JSON-RPC 2.0)
 GET    /health                           health check
 ```
 
-Todas las rutas de páginas aceptan `?ws=<slug>` para elegir workspace.
+All page routes accept `?ws=<slug>` to select a workspace.
 
-### Ejemplos
+### Examples
 
 ```bash
-# crear página desde archivo markdown
-curl -s -X POST https://doction.danilocloud.me/api/pages \
+# create a page from a markdown file
+curl -s -X POST $DOCTION/api/pages \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d "$(jq -n --arg t 'K8s Runbook' --rawfile c runbook.md '{title:$t,content:$c}')"
 
-# buscar
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://doction.danilocloud.me/api/search?q=kamailio" | jq
+# search
+curl -s -H "Authorization: Bearer $TOKEN" "$DOCTION/api/search?q=kamailio" | jq
 
-# historial git
+# git history
 curl -s -H "Authorization: Bearer $TOKEN" \
-  https://doction.danilocloud.me/api/pages/k8s-runbook/history | jq
+  "$DOCTION/api/pages/k8s-runbook/history" | jq
 ```
 
 ---
 
-## MCP — conectar agentes
+## MCP — connecting agents
 
-Servidor MCP nativo (JSON-RPC 2.0, stateless, sin SDK). Usa un PAT como Bearer:
+Native MCP server (JSON-RPC 2.0, stateless, no SDK). Use a PAT as the Bearer token:
 
 ```bash
-claude mcp add --transport http doction https://doction.danilocloud.me/api/mcp \
+claude mcp add --transport http doction $DOCTION/api/mcp \
   --header "Authorization: Bearer doction_..."
 ```
 
-| Tool | Qué hace |
-|---|---|
-| `list_workspaces` | listar workspaces |
-| `list_pages` | árbol de páginas |
-| `get_page` | leer página (markdown + metadata) |
-| `search_pages` | búsqueda FTS5 |
-| `create_page` | crear página + commit git |
-| `update_page` | actualizar página + commit git |
-| `get_page_history` | historial git |
+Once connected, the agent sees all 12 tools:
 
-Probar sin auth (devuelve la versión desplegada):
+![doction MCP server connected inside an agent — 12 tools, authenticated](docs/assets/mcp.png)
+
+| Tool | What it does |
+|---|---|
+| `list_workspaces` | list workspaces |
+| `list_pages` | page tree |
+| `get_page` | read a page (markdown + metadata) |
+| `search_pages` | full-text search (FTS5/BM25) |
+| `create_page` | create a page + git commit |
+| `update_page` | update a page + git commit |
+| `get_page_history` | a page's git history |
+| `extract` | structured query by frontmatter `type:` / tags (no LLM) |
+| `list_backlinks` | pages linking here via `[[wikilink]]` |
+| `related_pages` | neighbor pages by shared tags (knowledge graph) |
+| `sgrep` | semantic search blended with keyword boost |
+| `rag` | top-k chunks with provenance for the agent to synthesize |
+
+`initialize` and `tools/list` are open; `tools/call` requires a Bearer token. Probe the
+deployed version without auth:
 
 ```bash
-curl -s -X POST https://doction.danilocloud.me/api/mcp \
+curl -s -X POST $DOCTION/api/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | jq
 ```
 
 ---
 
-## Desarrollo y deploy
+## Development
 
 ```bash
 uv sync --dev
-uv run uvicorn app.main:app --reload   # dev :8000
+uv run uvicorn app.main:app --reload   # dev server on :8000
 make test           # pytest
 make lint           # ruff check
 make test-image     # build + smoke-test /health
 ```
 
-**Push a `main`** → GitHub Actions corre lint + tests en imagen (`docker build --target test`)
-y publica `ghcr.io/dny1020/doction:{version}+latest` (amd64 + arm64).
+Stack: FastAPI + Jinja2/HTMX (HTMX vendored), SQLite FTS5 (no ORM), markdown-it-py, and
+ONNX embeddings via onnxruntime + tokenizers. See [CONTRIBUTING.md](CONTRIBUTING.md) to
+get started.
 
-La Raspberry Pi se actualiza sola: un systemd timer hace `docker compose pull` cada 5 minutos
-y recrea el contenedor solo si el digest cambió. Detalles en [`deploy/`](deploy/README.md).
+## Deployment
+
+A new image is published on every push to `main`: GitHub Actions runs lint + tests inside
+the image (`docker build --target test`) and pushes `ghcr.io/dny1020/doction:{version}` and
+`:latest` (amd64 + arm64).
+
+For production, run the container behind a TLS-terminating reverse proxy:
+
+```bash
+docker run -d --name doction --restart unless-stopped -p 127.0.0.1:8000:8000 \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  -e SECURE_COOKIES=1 \
+  -e SEMANTIC_SEARCH=1 \
+  -v /srv/doction:/data \
+  ghcr.io/dny1020/doction:latest
+```
+
+Terminate TLS in nginx/Caddy/Traefik pointing at `http://127.0.0.1:8000`. All state lives
+in the `/data` volume (SQLite + git repo) — back that up and you're done. An opinionated
+pull-based deploy example (`docker compose` + systemd) lives in [`deploy/`](deploy/).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
