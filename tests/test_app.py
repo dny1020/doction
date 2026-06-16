@@ -463,7 +463,7 @@ def test_default_language_is_english(client):
 
 def test_login_has_lang_and_theme_controls(client):
     r = client.get("/login")
-    assert "auth-controls" in r.text
+    assert "app-controls" in r.text  # cluster fijo abajo-izquierda
     assert "lang-switch" in r.text
     assert "/lang/es?" in r.text and "/lang/en?" in r.text
     assert "theme-toggle" in r.text  # toggle de modo claro/oscuro en el login

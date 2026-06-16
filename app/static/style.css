@@ -1445,20 +1445,19 @@ kbd {
 .lang-opt:hover { background: var(--surface-hover); color: var(--fg-1); }
 .lang-opt.active { background: var(--accent-soft); color: var(--accent-press); }
 
-/* Fila de idioma dentro del menú del avatar */
-.avatar-menu-lang {
+/* Cluster tema+idioma: en el footer del sidebar (logueado) y fijo abajo-izquierda
+   en login/registro (sin sidebar). Misma posición en ambos casos. */
+.sidebar-controls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-4);
 }
-.avatar-menu-lang-label { font-size: var(--text-sm); color: var(--fg-2); }
-
-/* Controles de login/registro (idioma + tema) */
-.auth-controls {
+.app-controls {
+  position: fixed;
+  left: var(--sp-4);
+  bottom: var(--sp-4);
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-5);
+  gap: var(--sp-2);
+  z-index: 50;
 }
