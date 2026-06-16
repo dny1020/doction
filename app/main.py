@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import hashlib
 import logging
 import os
@@ -21,7 +23,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
 
-from app import db, git_repo, i18n, mcp, seed
+from app import db, embeddings, git_repo, i18n, mcp, seed
 from app.auth import (
     TOKEN_PREFIX,
     generate_api_token,
@@ -251,11 +253,13 @@ def api_delete_page(request: Request, slug: str):
 
 
 @api_router.get("/search")
-def api_search(request: Request, q: str = ""):
+def api_search(request: Request, q: str = "", mode: str = "keyword"):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     if not q.strip():
         return []
+    if mode == "semantic":
+        return embeddings.semantic_search(uid, wid, q)
     results = db.search_pages(uid, wid, q)
     return [
         {"slug": r["slug"], "title": r["title"], "snippet": r["snippet"]}
@@ -288,7 +292,18 @@ async def lifespan(_: FastAPI):
     db.init_db()
     git_repo.ensure_repo()
     logger.info("doction ready — db: %s", db.db_path())
+
+    embed_task: asyncio.Task | None = None
+    if embeddings.semantic_enabled():
+        embed_task = asyncio.create_task(embeddings.enrichment_worker())
+        logger.info("semantic search ON — embedding worker running")
+
     yield
+
+    if embed_task is not None:
+        embed_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await embed_task
 
 
 app = FastAPI(title="doction", lifespan=lifespan)

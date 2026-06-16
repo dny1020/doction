@@ -1,6 +1,6 @@
 [project]
 name = "doction"
-version = "0.8"
+version = "0.9"
 description = "Minimalist, markdown-first DevOps knowledge system"
 requires-python = ">=3.13"
 dependencies = [
@@ -10,6 +10,11 @@ dependencies = [
     "markdown-it-py>=3.0",
     "PyJWT>=2.8",
     "python-multipart>=0.0.18",
+    # Búsqueda semántica local (opt-in vía SEMANTIC_SEARCH): modelo ONNX en el
+    # contenedor, sin servicios externos. numpy entra de la mano de onnxruntime.
+    "onnxruntime>=1.20",
+    "tokenizers>=0.21",
+    "numpy>=2.1",
 ]
 
 [dependency-groups]

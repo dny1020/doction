@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import sqlite3
 import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
+
+from app import meta
 
 DEFAULT_DB_PATH = "doction.db"
 DEFAULT_WORKSPACE_NAME = "Personal"
@@ -195,6 +198,85 @@ def _backfill_page_workspaces(conn: sqlite3.Connection) -> None:
     )
 
 
+def _ensure_intel_tables(conn: sqlite3.Connection) -> None:
+    """Tablas de "markdown como API": frontmatter, tags y grafo de enlaces.
+
+    Se crean tras el posible rebuild de `pages` para que las FK apunten a la tabla
+    final. Son derivadas del contenido: se reconstruyen en cada save.
+    """
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS page_meta (
+            page_id          INTEGER PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE,
+            type             TEXT,
+            frontmatter_json TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE TABLE IF NOT EXISTS page_tags (
+            page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+            tag     TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS page_tags_tag_idx ON page_tags(tag);
+        CREATE INDEX IF NOT EXISTS page_tags_page_idx ON page_tags(page_id);
+
+        CREATE TABLE IF NOT EXISTS page_links (
+            src_page_id  INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+            dst_slug     TEXT NOT NULL,
+            workspace_id INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS page_links_dst_idx ON page_links(workspace_id, dst_slug);
+        CREATE INDEX IF NOT EXISTS page_links_src_idx ON page_links(src_page_id);
+
+        CREATE TABLE IF NOT EXISTS page_chunks (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            page_id      INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+            workspace_id INTEGER NOT NULL,
+            ord          INTEGER NOT NULL,
+            text         TEXT NOT NULL,
+            vector       BLOB NOT NULL,
+            model        TEXT NOT NULL,
+            created_at   TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS page_chunks_ws_idx ON page_chunks(workspace_id);
+        CREATE INDEX IF NOT EXISTS page_chunks_page_idx ON page_chunks(page_id);
+        """
+    )
+
+
+def _index_page_meta(
+    conn: sqlite3.Connection, page_id: int, workspace_id: int, content: str
+) -> None:
+    """Reconstruye frontmatter/tags/enlaces de una página. Idempotente por page_id."""
+    fm, _ = meta.parse_frontmatter(content)
+    conn.execute("DELETE FROM page_meta WHERE page_id = ?", (page_id,))
+    conn.execute(
+        "INSERT INTO page_meta (page_id, type, frontmatter_json) VALUES (?, ?, ?)",
+        (page_id, meta.page_type(content), json.dumps(fm, ensure_ascii=False)),
+    )
+
+    conn.execute("DELETE FROM page_tags WHERE page_id = ?", (page_id,))
+    conn.executemany(
+        "INSERT INTO page_tags (page_id, tag) VALUES (?, ?)",
+        [(page_id, tag) for tag in meta.extract_tags(content)],
+    )
+
+    conn.execute("DELETE FROM page_links WHERE src_page_id = ?", (page_id,))
+    seen: set[str] = set()
+    edges: list[tuple[int, str, int]] = []
+    for target in meta.extract_links(content):
+        dst = slugify(target)
+        if dst not in seen:
+            seen.add(dst)
+            edges.append((page_id, dst, workspace_id))
+    conn.executemany(
+        "INSERT INTO page_links (src_page_id, dst_slug, workspace_id) VALUES (?, ?, ?)",
+        edges,
+    )
+
+    # El contenido cambió: marcar para reembedding (lo procesa el worker async).
+    conn.execute("UPDATE pages SET embed_dirty = 1 WHERE id = ?", (page_id,))
+
+
 def init_db() -> None:
     """Crea tablas, índice FTS5 y triggers de sincronización. Idempotente."""
     with connect() as conn:
@@ -265,12 +347,17 @@ def init_db() -> None:
         page_cols = {r["name"] for r in conn.execute("PRAGMA table_info(pages)")}
         if "git_commit" not in page_cols:
             conn.execute("ALTER TABLE pages ADD COLUMN git_commit TEXT")
+        if "embed_dirty" not in page_cols:
+            # Default 1 ⇒ páginas existentes se reindexan al activar SEMANTIC_SEARCH.
+            conn.execute("ALTER TABLE pages ADD COLUMN embed_dirty INTEGER NOT NULL DEFAULT 1")
 
         user_cols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
         if "display_name" not in user_cols:
             conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
         if "avatar_color" not in user_cols:
             conn.execute("ALTER TABLE users ADD COLUMN avatar_color TEXT")
+
+        _ensure_intel_tables(conn)
 
 
 def slugify(text: str) -> str:
@@ -562,7 +649,7 @@ def create_page(
             workspace_id=workspace_id,
         )
         slug = unique_slug(conn, base_slug, workspace_id=workspace_id)
-        conn.execute(
+        cur = conn.execute(
             """
             INSERT INTO pages (
                 user_id, workspace_id, parent_id, slug, title, content, created_at, updated_at
@@ -571,6 +658,7 @@ def create_page(
             """,
             (user_id, workspace_id, parent_id, slug, title, content, now, now),
         )
+        _index_page_meta(conn, int(cur.lastrowid), workspace_id, content)
         return slug
 
 
@@ -588,6 +676,7 @@ def update_page(user_id: int, workspace_id: int, slug: str, title: str, content:
             "UPDATE pages SET title = ?, content = ?, updated_at = ? WHERE id = ?",
             (title, content, _now(), row["id"]),
         )
+        _index_page_meta(conn, int(row["id"]), workspace_id, content)
         return slug
 
 
@@ -639,6 +728,165 @@ def search_pages(
             LIMIT ?
             """,
             (match, user_id, workspace_id, limit),
+        ).fetchall()
+
+
+def _page_tags(conn: sqlite3.Connection, page_id: int) -> list[str]:
+    rows = conn.execute(
+        "SELECT tag FROM page_tags WHERE page_id = ? ORDER BY rowid", (page_id,)
+    ).fetchall()
+    return [r["tag"] for r in rows]
+
+
+def get_page_meta(user_id: int, workspace_id: int, slug: str) -> dict | None:
+    """Frontmatter + tags de una página, o None si no existe."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id FROM pages WHERE slug = ? AND user_id = ? AND workspace_id = ?",
+            (slug, user_id, workspace_id),
+        ).fetchone()
+        if row is None:
+            return None
+        meta_row = conn.execute(
+            "SELECT type, frontmatter_json FROM page_meta WHERE page_id = ?", (row["id"],)
+        ).fetchone()
+        fm = json.loads(meta_row["frontmatter_json"]) if meta_row else {}
+        return {
+            "slug": slug,
+            "type": meta_row["type"] if meta_row else None,
+            "tags": _page_tags(conn, int(row["id"])),
+            "frontmatter": fm,
+        }
+
+
+def extract_pages(
+    user_id: int,
+    workspace_id: int,
+    *,
+    page_type: str | None = None,
+    tag: str | None = None,
+    limit: int = 200,
+) -> list[dict]:
+    """Filtra páginas por `type` y/o `tag` del frontmatter; estructura sin LLM."""
+    joins = ""
+    params: list = []
+    if tag:
+        joins = "JOIN page_tags t ON t.page_id = p.id AND t.tag = ?"
+        params.append(meta.normalize_tag(tag))
+    where = ["p.user_id = ?", "p.workspace_id = ?"]
+    params.extend([user_id, workspace_id])
+    if page_type:
+        where.append("m.type = ?")
+        params.append(page_type)
+    params.append(limit)
+    sql = f"""
+        SELECT p.id, p.slug, p.title, p.updated_at,
+               m.type AS type, m.frontmatter_json
+        FROM pages p
+        LEFT JOIN page_meta m ON m.page_id = p.id
+        {joins}
+        WHERE {" AND ".join(where)}
+        ORDER BY p.updated_at DESC
+        LIMIT ?
+    """
+    with connect() as conn:
+        rows = conn.execute(sql, params).fetchall()
+        return [
+            {
+                "slug": r["slug"],
+                "title": r["title"],
+                "type": r["type"],
+                "tags": _page_tags(conn, int(r["id"])),
+                "frontmatter": json.loads(r["frontmatter_json"] or "{}"),
+                "updated_at": r["updated_at"],
+            }
+            for r in rows
+        ]
+
+
+def backlinks(user_id: int, workspace_id: int, slug: str) -> list[dict]:
+    """Páginas que enlazan a `slug` vía wikilink [[slug]]."""
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT p.slug, p.title
+            FROM page_links l
+            JOIN pages p ON p.id = l.src_page_id
+            WHERE l.workspace_id = ? AND l.dst_slug = ? AND p.user_id = ?
+            ORDER BY p.title
+            """,
+            (workspace_id, slug, user_id),
+        ).fetchall()
+        return [{"slug": r["slug"], "title": r["title"]} for r in rows]
+
+
+def related_pages(user_id: int, workspace_id: int, slug: str, limit: int = 10) -> list[dict] | None:
+    """Vecinos por solape de tags (desc), o None si la página no existe."""
+    with connect() as conn:
+        page = conn.execute(
+            "SELECT id FROM pages WHERE slug = ? AND user_id = ? AND workspace_id = ?",
+            (slug, user_id, workspace_id),
+        ).fetchone()
+        if page is None:
+            return None
+        rows = conn.execute(
+            """
+            SELECT p.slug, p.title, COUNT(*) AS shared
+            FROM page_tags t1
+            JOIN page_tags t2 ON t2.tag = t1.tag AND t2.page_id != t1.page_id
+            JOIN pages p ON p.id = t2.page_id
+            WHERE t1.page_id = ? AND p.user_id = ? AND p.workspace_id = ?
+            GROUP BY p.id
+            ORDER BY shared DESC, p.updated_at DESC
+            LIMIT ?
+            """,
+            (int(page["id"]), user_id, workspace_id, limit),
+        ).fetchall()
+        return [
+            {"slug": r["slug"], "title": r["title"], "shared_tags": int(r["shared"])}
+            for r in rows
+        ]
+
+
+def pages_to_embed(limit: int = 10) -> list[sqlite3.Row]:
+    """Páginas marcadas como sucias (embed_dirty=1) pendientes de embedding."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, workspace_id, content FROM pages "
+            "WHERE embed_dirty = 1 AND workspace_id IS NOT NULL ORDER BY id LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+
+def store_page_chunks(
+    page_id: int,
+    workspace_id: int,
+    chunks: list[tuple[int, str, bytes]],
+    model: str,
+) -> None:
+    """Reemplaza los chunks/vectores de una página y limpia embed_dirty (atómico)."""
+    now = _now()
+    with connect() as conn:
+        conn.execute("DELETE FROM page_chunks WHERE page_id = ?", (page_id,))
+        conn.executemany(
+            "INSERT INTO page_chunks (page_id, workspace_id, ord, text, vector, model, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [(page_id, workspace_id, ord_, text, vec, model, now) for ord_, text, vec in chunks],
+        )
+        conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = ?", (page_id,))
+
+
+def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[sqlite3.Row]:
+    """Chunks + vectores de un workspace para la búsqueda semántica (KNN en memoria)."""
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT c.page_id, c.ord, c.text, c.vector, p.slug, p.title
+            FROM page_chunks c
+            JOIN pages p ON p.id = c.page_id
+            WHERE c.workspace_id = ? AND p.user_id = ?
+            """,
+            (workspace_id, user_id),
         ).fetchall()
 
 

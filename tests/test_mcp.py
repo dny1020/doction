@@ -89,6 +89,8 @@ def test_tools_list(client):
     assert tools == {
         "list_workspaces", "list_pages", "get_page", "search_pages",
         "create_page", "update_page", "get_page_history",
+        "extract", "list_backlinks", "related_pages",
+        "sgrep", "rag",
     }
     for tool in r.json()["result"]["tools"]:
         assert tool["inputSchema"]["type"] == "object"

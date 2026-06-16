@@ -12,3 +12,4 @@ uploads/
 jobs_output.log
 .env
 CLAUDE.md
+models/

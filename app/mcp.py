@@ -14,11 +14,11 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
-from app import db, git_repo
+from app import db, embeddings, git_repo
 
 logger = logging.getLogger(__name__)
 
-SERVER_INFO = {"name": "doction", "version": "0.8"}
+SERVER_INFO = {"name": "doction", "version": "0.9"}
 PROTOCOL_VERSIONS = {"2024-11-05", "2025-03-26", "2025-06-18"}
 DEFAULT_PROTOCOL = "2025-03-26"
 
@@ -119,6 +119,47 @@ def _tool_get_page_history(user_id: int, args: dict) -> Any:
     return git_repo.get_page_history(ws["slug"], slug, limit=limit)
 
 
+def _tool_extract(user_id: int, args: dict) -> Any:
+    ws = _workspace(user_id, args)
+    return db.extract_pages(
+        user_id,
+        int(ws["id"]),
+        page_type=(args.get("type") or None),
+        tag=(args.get("tag") or None),
+    )
+
+
+def _tool_list_backlinks(user_id: int, args: dict) -> Any:
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    if db.get_page(slug, user_id, int(ws["id"])) is None:
+        raise ValueError(f"Page not found: {slug}")
+    return db.backlinks(user_id, int(ws["id"]), slug)
+
+
+def _tool_related_pages(user_id: int, args: dict) -> Any:
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    related = db.related_pages(user_id, int(ws["id"]), slug)
+    if related is None:
+        raise ValueError(f"Page not found: {slug}")
+    return related
+
+
+def _tool_sgrep(user_id: int, args: dict) -> Any:
+    query = _require(args, "query")
+    ws = _workspace(user_id, args)
+    limit = int(args.get("limit") or 10)
+    return embeddings.semantic_search(user_id, int(ws["id"]), query, k=limit)
+
+
+def _tool_rag(user_id: int, args: dict) -> Any:
+    query = _require(args, "query")
+    ws = _workspace(user_id, args)
+    limit = int(args.get("limit") or 6)
+    return embeddings.rag_context(user_id, int(ws["id"]), query, k=limit)
+
+
 _WORKSPACE_PROP = {
     "workspace": {
         "type": "string",
@@ -197,6 +238,74 @@ TOOLS: list[dict] = [
             "required": ["slug"],
         },
     },
+    {
+        "name": "extract",
+        "description": (
+            "Structured query over page frontmatter/tags (no LLM). Filter a workspace "
+            "by `type` (e.g. decision, runbook) and/or `tag`; returns slug, title, type, "
+            "tags and frontmatter."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "description": "Filter by frontmatter `type:`."},
+                "tag": {"type": "string", "description": "Filter by tag (frontmatter or #tag)."},
+                **_WORKSPACE_PROP,
+            },
+        },
+    },
+    {
+        "name": "list_backlinks",
+        "description": "Pages that link to this page via [[wikilink]] (incoming edges).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"slug": {"type": "string"}, **_WORKSPACE_PROP},
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "related_pages",
+        "description": "Neighbor pages ranked by shared-tag overlap (knowledge graph).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"slug": {"type": "string"}, **_WORKSPACE_PROP},
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "sgrep",
+        "description": (
+            "Semantic grep: meaning-based search (local embeddings) blended with BM25 "
+            "keyword boost. Returns slug, title, score, matched chunk. Degrades to "
+            "full-text search when semantic search is disabled or not yet indexed."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Natural-language query."},
+                "limit": {"type": "integer", "default": 10},
+                **_WORKSPACE_PROP,
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "rag",
+        "description": (
+            "Retrieval pipe: returns the top-k most relevant chunks with provenance "
+            "(slug, ord, score, text) for the agent to synthesize an answer. Does NOT "
+            "generate text itself."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "limit": {"type": "integer", "default": 6},
+                **_WORKSPACE_PROP,
+            },
+            "required": ["query"],
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Callable[[int, dict], Any]] = {
@@ -207,6 +316,11 @@ TOOL_HANDLERS: dict[str, Callable[[int, dict], Any]] = {
     "create_page": _tool_create_page,
     "update_page": _tool_update_page,
     "get_page_history": _tool_get_page_history,
+    "extract": _tool_extract,
+    "list_backlinks": _tool_list_backlinks,
+    "related_pages": _tool_related_pages,
+    "sgrep": _tool_sgrep,
+    "rag": _tool_rag,
 }
 
 
