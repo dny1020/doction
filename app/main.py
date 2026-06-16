@@ -95,6 +95,11 @@ class _ApiTokenIn(BaseModel):
     name: str = "token"
 
 
+class _MemberIn(BaseModel):
+    email: str
+    role: str = "member"
+
+
 api_router = APIRouter(prefix="/api")
 
 
@@ -153,6 +158,56 @@ def api_create_workspace(request: Request, body: _WorkspaceIn):
     uid = _api_user(request)
     slug = db.create_workspace(uid, body.name)
     return {"slug": slug, "name": body.name.strip() or "Workspace"}
+
+
+def _api_owned_workspace(request: Request, uid: int, slug: str) -> dict:
+    """Resuelve el workspace por slug exigiendo que el usuario sea owner."""
+    ws = db.get_workspace_by_slug(uid, slug)
+    if ws is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    if ws["role"] != "owner":
+        raise HTTPException(status_code=403, detail="Owner role required")
+    return dict(ws)
+
+
+@api_router.get("/workspaces/{slug}/members")
+def api_list_members(request: Request, slug: str):
+    uid = _api_user(request)
+    ws = db.get_workspace_by_slug(uid, slug)
+    if ws is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    return [
+        {
+            "user_id": m["user_id"],
+            "email": m["email"],
+            "display_name": m["display_name"],
+            "role": m["role"],
+        }
+        for m in db.list_workspace_members(int(ws["id"]))
+    ]
+
+
+@api_router.post("/workspaces/{slug}/members", status_code=201)
+def api_add_member(request: Request, slug: str, body: _MemberIn):
+    uid = _api_user(request)
+    ws = _api_owned_workspace(request, uid, slug)
+    target = db.get_user_by_email(body.email.strip().lower())
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if db.get_member_role(int(target["id"]), int(ws["id"])) is not None:
+        raise HTTPException(status_code=409, detail="Already a member")
+    db.add_workspace_member(int(ws["id"]), int(target["id"]), "member")
+    return {"workspace": slug, "user_id": int(target["id"]), "role": "member"}
+
+
+@api_router.delete("/workspaces/{slug}/members/{member_id}", status_code=204)
+def api_remove_member(request: Request, slug: str, member_id: int):
+    uid = _api_user(request)
+    ws = _api_owned_workspace(request, uid, slug)
+    if db.get_member_role(member_id, int(ws["id"])) == "owner":
+        raise HTTPException(status_code=400, detail="Cannot remove the owner")
+    if not db.remove_workspace_member(int(ws["id"]), member_id):
+        raise HTTPException(status_code=404, detail="Member not found")
 
 
 @api_router.get("/pages")
@@ -550,6 +605,83 @@ async def read_page(request: Request, slug: str) -> Response:
     )
 
 
+@app.get("/pages/{slug}/history", response_class=HTMLResponse)
+async def page_history(request: Request, slug: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.get_page(slug, user_id, workspace_id)
+    if page is None:
+        return _not_found(request, slug)
+    ws = db.get_workspace_by_id(workspace_id)
+    ws_slug = ws["slug"] if ws else "default"
+    history = git_repo.get_page_history(ws_slug, slug)
+    return templates.TemplateResponse(
+        request,
+        "history.html",
+        {
+            **_authed_context(request, user_id),
+            "page": page,
+            "history": history,
+            "active_slug": slug,
+        },
+    )
+
+
+@app.get("/pages/{slug}/history/{sha}", response_class=HTMLResponse)
+async def page_history_detail(request: Request, slug: str, sha: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.get_page(slug, user_id, workspace_id)
+    if page is None:
+        return _not_found(request, slug)
+    ws = db.get_workspace_by_id(workspace_id)
+    ws_slug = ws["slug"] if ws else "default"
+    content = git_repo.get_page_at_commit(ws_slug, slug, sha)
+    if content is None:
+        return _not_found(request, slug)
+    return templates.TemplateResponse(
+        request,
+        "history_detail.html",
+        {
+            **_authed_context(request, user_id),
+            "page": page,
+            "sha": sha,
+            "rendered": render_markdown(content),
+            "active_slug": slug,
+        },
+    )
+
+
+@app.post("/pages/{slug}/restore/{sha}")
+async def restore_page(request: Request, slug: str, sha: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.get_page(slug, user_id, workspace_id)
+    if page is None:
+        return _not_found(request, slug)
+    ws = db.get_workspace_by_id(workspace_id)
+    ws_slug = ws["slug"] if ws else "default"
+    content = git_repo.get_page_at_commit(ws_slug, slug, sha)
+    if content is None:
+        return _not_found(request, slug)
+    title = page["title"]
+    new_slug = db.update_page(user_id, workspace_id, slug, title, content)
+    effective_slug = new_slug or slug
+    author = getattr(request.state, "user_email", None) or "user"
+    new_sha = git_repo.commit_page(
+        ws_slug, effective_slug, content, author, f"Restore {sha}: {title}"
+    )
+    if new_sha:
+        db.set_page_git_commit(user_id, workspace_id, effective_slug, new_sha)
+    return RedirectResponse(f"/pages/{effective_slug}", status_code=HTTP_303_SEE_OTHER)
+
+
 @app.get("/pages/{slug}/edit", response_class=HTMLResponse)
 async def edit_page_form(request: Request, slug: str) -> Response:
     user_id = _require_user(request)
@@ -779,6 +911,11 @@ _SETTINGS_MESSAGES = {
     "pw_len":     ("error", "msg_pw_len"),
     "ws_last":    ("error", "msg_ws_last"),
     "ws_name":    ("error", "msg_ws_name"),
+    "member_added":   ("ok",    "msg_member_added"),
+    "member_removed": ("ok",    "msg_member_removed"),
+    "member_404":     ("error", "err_user_not_found"),
+    "member_dup":     ("error", "err_already_member"),
+    "not_owner":      ("error", "err_not_owner"),
 }
 
 
@@ -790,6 +927,19 @@ async def settings_page(request: Request, m: str | None = None) -> Response:
     user = db.get_user_by_id(user_id)
     tone, msg_key = _SETTINGS_MESSAGES.get(m or "", (None, None))
     message = i18n.get_catalog(_lang(request))[msg_key] if msg_key else None
+    workspaces = getattr(request.state, "workspaces", [])
+    ws_list = [
+        {
+            "slug": w["slug"],
+            "name": w["name"],
+            "role": w["role"],
+            "members": (
+                db.list_workspace_members(int(w["id"])) if w["role"] == "owner" else []
+            ),
+        }
+        for w in workspaces
+    ]
+    owned_count = sum(1 for w in workspaces if w["role"] == "owner")
     return templates.TemplateResponse(
         request,
         "settings.html",
@@ -799,6 +949,8 @@ async def settings_page(request: Request, m: str | None = None) -> Response:
             "avatar_colors": AVATAR_COLORS,
             "profile_name": (user["display_name"] if user else "") or "",
             "current_color": (user["avatar_color"] if user else "") or "",
+            "ws_list": ws_list,
+            "owned_count": owned_count,
             "flash_tone": tone,
             "flash_msg": message,
         },
@@ -841,11 +993,21 @@ async def update_password(
     return RedirectResponse("/settings?m=password", status_code=HTTP_303_SEE_OTHER)
 
 
+def _owned_workspace(user_id: int, slug: str):
+    """Workspace resuelto por slug solo si el usuario es su owner; si no, None."""
+    ws = db.get_workspace_by_slug(user_id, slug)
+    if ws is None or ws["role"] != "owner":
+        return None
+    return ws
+
+
 @app.post("/workspaces/{slug}/rename")
 async def rename_workspace_route(request: Request, slug: str, name: str = Form(...)) -> Response:
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
+    if _owned_workspace(user_id, slug) is None:
+        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
     ok = db.rename_workspace(user_id, slug, name)
     return RedirectResponse(
         f"/settings?m={'ws_renamed' if ok else 'ws_name'}", status_code=HTTP_303_SEE_OTHER
@@ -857,6 +1019,8 @@ async def delete_workspace_route(request: Request, slug: str) -> Response:
     user_id = _require_user(request)
     if isinstance(user_id, Response):
         return user_id
+    if _owned_workspace(user_id, slug) is None:
+        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
     ok = db.delete_workspace(user_id, slug)
     response = RedirectResponse(
         f"/settings?m={'ws_deleted' if ok else 'ws_last'}", status_code=HTTP_303_SEE_OTHER
@@ -867,6 +1031,39 @@ async def delete_workspace_route(request: Request, slug: str) -> Response:
         if remaining:
             _ws_cookie(response, remaining[0]["slug"])
     return response
+
+
+@app.post("/workspaces/{slug}/members")
+async def add_member_route(
+    request: Request, slug: str, email: str = Form(...), role: str = Form("member")
+) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    ws = _owned_workspace(user_id, slug)
+    if ws is None:
+        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
+    target = db.get_user_by_email(email.strip().lower())
+    if target is None:
+        return RedirectResponse("/settings?m=member_404", status_code=HTTP_303_SEE_OTHER)
+    if db.get_member_role(int(target["id"]), int(ws["id"])) is not None:
+        return RedirectResponse("/settings?m=member_dup", status_code=HTTP_303_SEE_OTHER)
+    db.add_workspace_member(int(ws["id"]), int(target["id"]), "member")
+    return RedirectResponse("/settings?m=member_added", status_code=HTTP_303_SEE_OTHER)
+
+
+@app.post("/workspaces/{slug}/members/{member_id}/remove")
+async def remove_member_route(request: Request, slug: str, member_id: int) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    ws = _owned_workspace(user_id, slug)
+    if ws is None:
+        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
+    if db.get_member_role(member_id, int(ws["id"])) == "owner":
+        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
+    db.remove_workspace_member(int(ws["id"]), member_id)
+    return RedirectResponse("/settings?m=member_removed", status_code=HTTP_303_SEE_OTHER)
 
 
 @app.post("/logout")

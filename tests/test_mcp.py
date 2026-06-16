@@ -87,7 +87,7 @@ def test_tools_list(client):
     r = _rpc(client, "tools/list")
     tools = {t["name"] for t in r.json()["result"]["tools"]}
     assert tools == {
-        "list_workspaces", "list_pages", "get_page", "search_pages",
+        "list_workspaces", "list_members", "list_pages", "get_page", "search_pages",
         "create_page", "update_page", "get_page_history",
         "extract", "list_backlinks", "related_pages",
         "sgrep", "rag",

@@ -18,6 +18,7 @@
       <div class="page-actions">
         <a class="btn" href="/pages/{{ page.slug }}/edit">{{ t.edit }}</a>
         <a class="btn" href="/new?parent={{ page.slug }}">{{ t.new_subpage }}</a>
+        <a class="btn" href="/pages/{{ page.slug }}/history">{{ t.history }}</a>
         <form method="post" action="/pages/{{ page.slug }}/delete"
               onsubmit="return confirm('{{ t.confirm_delete_page }} &quot;{{ page.title }}&quot;?');">
           <button class="btn btn-danger" type="submit">{{ t.delete }}</button>
@@ -25,6 +26,10 @@
       </div>
       <p class="meta">
         {{ t.updated }} {{ page.updated_at[:10] }}
+        {% if page.updated_by_name or page.updated_by_email %}
+        <span class="crumb-sep" aria-hidden="true">·</span>
+        {{ t.by }} {{ page.updated_by_name or page.updated_by_email }}
+        {% endif %}
       </p>
     </header>
 

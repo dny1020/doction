@@ -69,21 +69,52 @@
     <h2 class="settings-card-title">{{ t.workspaces }}</h2>
     <p class="settings-card-desc">{{ t.workspaces_desc }}</p>
     <ul class="ws-manage">
-      {% for ws in workspaces %}
-      <li class="ws-manage-row">
-        <form method="post" action="/workspaces/{{ ws.slug }}/rename" class="ws-rename">
-          <input class="settings-input" type="text" name="name" value="{{ ws.name }}"
-                 maxlength="60" required>
-          <button class="btn" type="submit">{{ t.rename }}</button>
-        </form>
-        <form method="post" action="/workspaces/{{ ws.slug }}/delete" class="ws-delete"
-              onsubmit="return confirm('{{ t.confirm_delete_ws_a }} &quot;{{ ws.name }}&quot; {{ t.confirm_delete_ws_b }}');">
-          <button class="btn btn-danger" type="submit"
-                  {% if workspaces|length <= 1 %}disabled
-                  title="{{ t.cannot_delete_only_ws }}"{% endif %}>
-            {{ t.delete }}
-          </button>
-        </form>
+      {% for ws in ws_list %}
+      <li class="ws-manage-item">
+        {% if ws.role == 'owner' %}
+        <div class="ws-manage-row">
+          <form method="post" action="/workspaces/{{ ws.slug }}/rename" class="ws-rename">
+            <input class="settings-input" type="text" name="name" value="{{ ws.name }}"
+                   maxlength="60" required>
+            <button class="btn" type="submit">{{ t.rename }}</button>
+          </form>
+          <form method="post" action="/workspaces/{{ ws.slug }}/delete" class="ws-delete"
+                onsubmit="return confirm('{{ t.confirm_delete_ws_a }} &quot;{{ ws.name }}&quot; {{ t.confirm_delete_ws_b }}');">
+            <button class="btn btn-danger" type="submit"
+                    {% if owned_count <= 1 %}disabled
+                    title="{{ t.cannot_delete_only_ws }}"{% endif %}>
+              {{ t.delete }}
+            </button>
+          </form>
+        </div>
+        <div class="ws-members">
+          <span class="ws-members-label">{{ t.members }}</span>
+          <ul class="member-list">
+            {% for m in ws.members %}
+            <li class="member-row">
+              <span class="member-id">{{ m.display_name or m.email }}</span>
+              <span class="member-role">{{ t[m.role] }}</span>
+              {% if m.role != 'owner' %}
+              <form method="post"
+                    action="/workspaces/{{ ws.slug }}/members/{{ m.user_id }}/remove">
+                <button class="btn btn-sm btn-danger" type="submit">{{ t.remove }}</button>
+              </form>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          <form method="post" action="/workspaces/{{ ws.slug }}/members" class="member-add">
+            <input class="settings-input" type="email" name="email"
+                   placeholder="{{ t.member_email_ph }}" required>
+            <button class="btn" type="submit">{{ t.add_member }}</button>
+          </form>
+        </div>
+        {% else %}
+        <div class="ws-manage-row">
+          <span class="ws-name-static">{{ ws.name }}</span>
+          <span class="member-role">{{ t.member }}</span>
+        </div>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>
