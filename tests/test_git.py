@@ -157,6 +157,38 @@ def test_history_returns_empty_for_unknown_slug(client):
     assert r.status_code == 404
 
 
+def test_history_diff_returns_unified_diff(client):
+    token = _register_and_token(client)
+    slug = client.post(
+        "/api/pages", json={"title": "Diff Test", "content": "line one"}, headers=_headers(token)
+    ).json()["slug"]
+    client.put(f"/api/pages/{slug}", json={"content": "line one changed"}, headers=_headers(token))
+
+    latest_sha = client.get(
+        f"/api/pages/{slug}/history", headers=_headers(token)
+    ).json()[0]["sha"]
+    r = client.get(f"/api/pages/{slug}/history/{latest_sha}/diff", headers=_headers(token))
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert "line one changed" in diff
+    assert "@@" in diff
+
+
+def test_history_diff_root_commit_is_full_add(client):
+    token = _register_and_token(client)
+    slug = client.post(
+        "/api/pages",
+        json={"title": "Root Diff", "content": "original line"},
+        headers=_headers(token),
+    ).json()["slug"]
+    client.put(f"/api/pages/{slug}", json={"content": "v2"}, headers=_headers(token))
+
+    first_sha = client.get(f"/api/pages/{slug}/history", headers=_headers(token)).json()[-1]["sha"]
+    r = client.get(f"/api/pages/{slug}/history/{first_sha}/diff", headers=_headers(token))
+    assert r.status_code == 200
+    assert "original line" in r.json()["diff"]
+
+
 def _get_uid_wid() -> tuple[int, int]:
     import app.db as db_module
     user = db_module.get_user_by_email("u@test.com")

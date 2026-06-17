@@ -124,3 +124,18 @@ def get_page_at_commit(ws_slug: str, page_slug: str, sha: str) -> str | None:
     if result.returncode != 0:
         return None
     return result.stdout
+
+
+def diff_page(ws_slug: str, page_slug: str, sha: str) -> str | None:
+    """Diff unificado que introdujo `sha` en la página. `git show` maneja el commit raíz."""
+    pages = _pages_dir()
+    if not (pages / ".git").exists():
+        return None
+    rel_path = f"{ws_slug}/{page_slug}.md"
+    result = subprocess.run(
+        ["git", "-C", str(pages), "show", "--format=", "--no-color", sha, "--", rel_path],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout

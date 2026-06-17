@@ -33,6 +33,7 @@
           </div>
         </div>
         <div class="history-actions">
+          <a class="btn btn-sm" href="/pages/{{ page.slug }}/history/{{ c.sha }}/diff">{{ t.diff }}</a>
           <a class="btn btn-sm" href="/pages/{{ page.slug }}/history/{{ c.sha }}">{{ t.view }}</a>
           {% if not loop.first %}
           <form method="post" action="/pages/{{ page.slug }}/restore/{{ c.sha }}"
