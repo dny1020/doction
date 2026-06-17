@@ -256,6 +256,21 @@ def api_page_at_commit(request: Request, slug: str, sha: str):
     return {"slug": slug, "sha": sha, "content": content}
 
 
+@api_router.get("/pages/{slug}/history/{sha}/diff")
+def api_page_diff(request: Request, slug: str, sha: str):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    page = db.get_page(slug, uid, wid)
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    ws = db.get_workspace_by_id(wid)
+    ws_slug = ws["slug"] if ws else "unknown"
+    diff = git_repo.diff_page(ws_slug, slug, sha)
+    if diff is None:
+        raise HTTPException(status_code=404, detail="Commit not found")
+    return {"slug": slug, "sha": sha, "diff": diff}
+
+
 @api_router.get("/pages/{slug}/raw", response_class=PlainTextResponse)
 def api_get_page_raw(request: Request, slug: str):
     uid = _api_user(request)
@@ -520,6 +535,8 @@ async def home(request: Request) -> Response:
             "rendered": render_markdown(page["content"]),
             "children": children,
             "breadcrumbs": breadcrumbs,
+            "backlinks": db.backlinks(user_id, workspace_id, page["slug"]),
+            "related": db.related_pages(user_id, workspace_id, page["slug"]) or [],
             "active_slug": page["slug"],
         },
     )
@@ -600,6 +617,8 @@ async def read_page(request: Request, slug: str) -> Response:
             "rendered": render_markdown(page["content"]),
             "children": children,
             "breadcrumbs": breadcrumbs,
+            "backlinks": db.backlinks(user_id, workspace_id, slug),
+            "related": db.related_pages(user_id, workspace_id, slug) or [],
             "active_slug": slug,
         },
     )
@@ -651,6 +670,33 @@ async def page_history_detail(request: Request, slug: str, sha: str) -> Response
             "page": page,
             "sha": sha,
             "rendered": render_markdown(content),
+            "active_slug": slug,
+        },
+    )
+
+
+@app.get("/pages/{slug}/history/{sha}/diff", response_class=HTMLResponse)
+async def page_history_diff(request: Request, slug: str, sha: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    page = db.get_page(slug, user_id, workspace_id)
+    if page is None:
+        return _not_found(request, slug)
+    ws = db.get_workspace_by_id(workspace_id)
+    ws_slug = ws["slug"] if ws else "default"
+    diff = git_repo.diff_page(ws_slug, slug, sha)
+    if diff is None:
+        return _not_found(request, slug)
+    return templates.TemplateResponse(
+        request,
+        "history_diff.html",
+        {
+            **_authed_context(request, user_id),
+            "page": page,
+            "sha": sha,
+            "diff": diff,
             "active_slug": slug,
         },
     )

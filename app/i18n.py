@@ -44,6 +44,9 @@ _EN: dict[str, str] = {
     "subpages": "Subpages",
     "new_short": "+ New",
     "on_this_page": "On this page",
+    "referenced_by": "Referenced by",
+    "related": "Related",
+    "diff": "Diff",
     "confirm_delete_page": "Delete",  # prefijo: Delete "Title"?
     # Historial / versiones
     "history": "History",
@@ -159,6 +162,9 @@ _ES: dict[str, str] = {
     "subpages": "Subpáginas",
     "new_short": "+ Nueva",
     "on_this_page": "En esta página",
+    "referenced_by": "Referenciada por",
+    "related": "Relacionadas",
+    "diff": "Cambios",
     "confirm_delete_page": "Eliminar",
     "history": "Historial",
     "no_history": "Aún no hay versiones.",

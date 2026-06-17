@@ -873,6 +873,56 @@ a { color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 
+/* === Relations (backlinks / related) ===================================== */
+.relations {
+  margin-top: var(--sp-7);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--sp-5);
+}
+.relations-group .subpages-eyebrow { display: block; margin-bottom: var(--sp-3); }
+.relations-list { list-style: none; margin: 0; padding: 0; }
+.relations-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+  font-size: var(--text-sm);
+}
+.relations-list a { color: var(--fg-1); text-decoration: none; }
+.relations-list a:hover { color: var(--accent); }
+.relations-meta {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Diff ================================================================= */
+.diff {
+  margin-top: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  background: var(--surface);
+}
+.diff-line {
+  display: block;
+  white-space: pre;
+  padding: 0 var(--sp-3);
+  min-height: 1.5em;
+  color: var(--fg-2);
+}
+.diff-add { background: var(--ok-soft, rgba(74, 171, 110, 0.14)); color: var(--fg-1); }
+.diff-del { background: var(--danger-soft, rgba(192, 84, 74, 0.14)); color: var(--fg-1); }
+.diff-hunk { color: var(--accent); background: var(--surface-hover); }
+.diff-meta { color: var(--fg-3); }
+
 /* === History ============================================================== */
 .history-list {
   list-style: none;
@@ -1042,6 +1092,28 @@ a { color: inherit; }
   overflow-x: auto;
 }
 .prose pre code { background: none; border: none; padding: 0; font-size: var(--text-sm); line-height: 1.6; }
+
+/* Mermaid: el bloque se reemplaza por <div class="mermaid"> y lo renderiza prose.js. */
+.prose .mermaid {
+  margin: var(--sp-4) 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+/* highlight.js — tema propio sobre la paleta de la app (sirve en claro y oscuro). */
+.hljs { color: var(--fg-1); background: transparent; }
+.hljs-comment, .hljs-quote { color: var(--fg-3); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section { color: #8b5fc0; }
+.hljs-string, .hljs-attr, .hljs-meta .hljs-string { color: #4aab6e; }
+.hljs-number, .hljs-symbol, .hljs-bullet { color: #c0914a; }
+.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-title.class_ { color: #4a7fc0; }
+.hljs-variable, .hljs-template-variable, .hljs-attribute { color: #c0604a; }
+.hljs-meta, .hljs-tag { color: var(--fg-3); }
+.hljs-deletion { color: var(--danger); }
+.hljs-addition { color: #4aab6e; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 600; }
+.hljs-link { color: var(--accent); }
 
 /* Botón de copiar código (aparece al hover del bloque). */
 .code-copy {

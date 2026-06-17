@@ -59,6 +59,34 @@
       </div>
     </section>
     {% endif %}
+
+    {% if backlinks or related %}
+    <section class="relations">
+      {% if backlinks %}
+      <div class="relations-group">
+        <span class="subpages-eyebrow">{{ t.referenced_by }}</span>
+        <ul class="relations-list">
+          {% for b in backlinks %}
+          <li><a href="/pages/{{ b.slug }}">{{ b.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% if related %}
+      <div class="relations-group">
+        <span class="subpages-eyebrow">{{ t.related }}</span>
+        <ul class="relations-list">
+          {% for r in related %}
+          <li>
+            <a href="/pages/{{ r.slug }}">{{ r.title }}</a>
+            <span class="relations-meta">{{ r.shared_tags }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
   </article>
 
   <aside class="toc" id="toc" aria-label="{{ t.on_this_page }}">
@@ -145,4 +173,5 @@
   hs.forEach(function (h) { io.observe(h); });
 })();
 </script>
+<script src="/static/prose.js" defer></script>
 {% endblock %}
