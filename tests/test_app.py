@@ -39,7 +39,10 @@ def client():
 def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["db"] == "ok"
+    assert "version" in body
 
 
 def _register(client, email: str = "user@example.com", password: str = "password123"):

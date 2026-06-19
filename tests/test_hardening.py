@@ -1,0 +1,104 @@
+"""Tests for the Phase 1 'trust foundation': security headers, XSS escaping,
+login rate limiting, and the styled 500 handler."""
+
+from __future__ import annotations
+
+import importlib
+import os
+import tempfile
+
+import pytest
+from fastapi.testclient import TestClient
+
+
+@pytest.fixture()
+def main_module():
+    """Fresh app + temp database per test."""
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    os.environ["DATABASE_PATH"] = tmp.name
+    os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
+
+    import app.db as db_module
+    import app.main as m
+
+    importlib.reload(db_module)
+    importlib.reload(m)
+    yield m
+
+    for suffix in ("", "-wal", "-shm"):
+        try:
+            os.remove(tmp.name + suffix)
+        except OSError:
+            pass
+
+
+@pytest.fixture()
+def client(main_module):
+    with TestClient(main_module.app) as c:
+        yield c
+
+
+def test_security_headers_present(client):
+    r = client.get("/login")
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["x-frame-options"] == "DENY"
+    assert "content-security-policy" in r.headers
+    # HSTS solo cuando SECURE_COOKIES está activo (no en este test).
+    assert "strict-transport-security" not in r.headers
+
+
+def test_raw_html_is_escaped(client):
+    """Un <script> en una página no debe renderizarse como HTML ejecutable."""
+    client.post("/register", data={"email": "x@example.com", "password": "password123"})
+    client.post(
+        "/pages",
+        data={"title": "Evil", "content": "<script>alert(1)</script>\n\nhi"},
+    )
+    page = client.get("/pages/evil")
+    assert page.status_code == 200
+    assert "<script>alert(1)</script>" not in page.text
+    assert "&lt;script&gt;" in page.text
+
+
+def test_render_markdown_escapes_html():
+    from app.markdown import render_markdown
+
+    out = render_markdown("<script>alert(1)</script>")
+    assert "<script>" not in out
+
+
+def test_login_rate_limited(client):
+    client.post("/register", data={"email": "rl@example.com", "password": "password123"})
+    # 5 intentos fallidos permitidos; el 6º se bloquea con 429.
+    for _ in range(5):
+        r = client.post("/login", data={"email": "rl@example.com", "password": "wrong"})
+        assert r.status_code == 400
+    blocked = client.post("/login", data={"email": "rl@example.com", "password": "wrong"})
+    assert blocked.status_code == 429
+    # Incluso con la contraseña correcta sigue bloqueado durante la ventana.
+    correct = client.post("/login", data={"email": "rl@example.com", "password": "password123"})
+    assert correct.status_code == 429
+
+
+def test_unhandled_exception_renders_500(main_module):
+    @main_module.app.get("/_boom")
+    async def _boom():
+        raise RuntimeError("kaboom")
+
+    with TestClient(main_module.app, raise_server_exceptions=False) as c:
+        r = c.get("/_boom")
+        assert r.status_code == 500
+        assert "kaboom" not in r.text  # sin filtrar el traceback
+        assert "<html" in r.text.lower()
+
+
+def test_api_unhandled_exception_returns_json(main_module):
+    @main_module.app.get("/api/_boom")
+    async def _boom():
+        raise RuntimeError("kaboom")
+
+    with TestClient(main_module.app, raise_server_exceptions=False) as c:
+        r = c.get("/api/_boom")
+        assert r.status_code == 500
+        assert r.json() == {"detail": "Internal server error"}

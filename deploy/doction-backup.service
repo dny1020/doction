@@ -1,0 +1,8 @@
+[Unit]
+Description=doction backup (snapshot de /data)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/doction/backup.sh

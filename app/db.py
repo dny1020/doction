@@ -403,6 +403,9 @@ def init_db() -> None:
         if "updated_by" not in page_cols:
             # Último editor (FK a users); se muestra como "editado por" en la cabecera.
             conn.execute("ALTER TABLE pages ADD COLUMN updated_by INTEGER REFERENCES users(id)")
+        if "deleted_at" not in page_cols:
+            # Soft-delete: NULL = viva; un timestamp = en la papelera (recuperable).
+            conn.execute("ALTER TABLE pages ADD COLUMN deleted_at TEXT")
 
         user_cols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
         if "display_name" not in user_cols:
@@ -655,7 +658,7 @@ def list_pages_tree(user_id: int, workspace_id: int) -> list[dict]:
     with connect() as conn:
         rows = conn.execute(
             "SELECT id, slug, title, parent_id FROM pages "
-            "WHERE workspace_id = ? ORDER BY created_at, id",
+            "WHERE workspace_id = ? AND deleted_at IS NULL ORDER BY created_at, id",
             (workspace_id,),
         ).fetchall()
 
@@ -692,7 +695,7 @@ def get_page(slug: str, user_id: int, workspace_id: int) -> sqlite3.Row | None:
             FROM pages p
             LEFT JOIN pages parent ON parent.id = p.parent_id
             LEFT JOIN users editor ON editor.id = p.updated_by
-            WHERE p.slug = ? AND p.workspace_id = ?
+            WHERE p.slug = ? AND p.workspace_id = ? AND p.deleted_at IS NULL
             """,
             (slug, workspace_id),
         ).fetchone()
@@ -712,7 +715,7 @@ def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[dict]:
             seen.add(parent_id)
             parent = conn.execute(
                 "SELECT id, slug, title, parent_id FROM pages "
-                "WHERE id = ? AND workspace_id = ?",
+                "WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL",
                 (parent_id, workspace_id),
             ).fetchone()
             if parent is None:
@@ -732,7 +735,7 @@ def latest_page(user_id: int, workspace_id: int) -> sqlite3.Row | None:
             FROM pages p
             LEFT JOIN pages parent ON parent.id = p.parent_id
             LEFT JOIN users editor ON editor.id = p.updated_by
-            WHERE p.workspace_id = ?
+            WHERE p.workspace_id = ? AND p.deleted_at IS NULL
             ORDER BY p.updated_at DESC
             LIMIT 1
             """,
@@ -751,7 +754,7 @@ def _resolve_parent_id(
     if not parent_slug:
         return None
     row = conn.execute(
-        "SELECT id FROM pages WHERE slug = ? AND workspace_id = ?",
+        "SELECT id FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NULL",
         (parent_slug, workspace_id),
     ).fetchone()
     if row is None:
@@ -803,7 +806,7 @@ def update_page(user_id: int, workspace_id: int, slug: str, title: str, content:
     title = title.strip() or "Untitled"
     with connect() as conn:
         row = conn.execute(
-            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ?",
+            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NULL",
             (slug, workspace_id),
         ).fetchone()
         if row is None:
@@ -817,19 +820,68 @@ def update_page(user_id: int, workspace_id: int, slug: str, title: str, content:
 
 
 def delete_page(user_id: int, workspace_id: int, slug: str) -> bool:
+    """Soft-delete: mueve la página a la papelera (deleted_at = now). Recuperable.
+
+    No se borra el archivo del repo git ni los datos derivados: solo se marca para que
+    deje de aparecer en listados, búsqueda y enlaces. El contenido sigue en la fila."""
     with connect() as conn:
         cur = conn.execute(
-            "DELETE FROM pages WHERE slug = ? AND workspace_id = ?",
+            "UPDATE pages SET deleted_at = ? WHERE slug = ? AND workspace_id = ? "
+            "AND deleted_at IS NULL",
+            (_now(), slug, workspace_id),
+        )
+        return cur.rowcount > 0
+
+
+def list_deleted_pages(user_id: int, workspace_id: int) -> list[sqlite3.Row]:
+    """Páginas en la papelera del workspace, más recientes primero."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT slug, title, deleted_at FROM pages "
+            "WHERE workspace_id = ? AND deleted_at IS NOT NULL "
+            "ORDER BY deleted_at DESC",
+            (workspace_id,),
+        ).fetchall()
+
+
+def restore_page(user_id: int, workspace_id: int, slug: str) -> bool:
+    """Saca una página de la papelera (deleted_at = NULL)."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE pages SET deleted_at = NULL WHERE slug = ? AND workspace_id = ? "
+            "AND deleted_at IS NOT NULL",
             (slug, workspace_id),
         )
         return cur.rowcount > 0
+
+
+def purge_page(user_id: int, workspace_id: int, slug: str) -> bool:
+    """Borra definitivamente una página que ya está en la papelera (hard delete).
+
+    El CASCADE limpia meta/tags/links/chunks y el trigger pages_ad limpia el índice FTS."""
+    with connect() as conn:
+        cur = conn.execute(
+            "DELETE FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NOT NULL",
+            (slug, workspace_id),
+        )
+        return cur.rowcount > 0
+
+
+def pages_for_export(workspace_id: int) -> list[sqlite3.Row]:
+    """Páginas vivas de un workspace (slug + contenido) para exportar a markdown."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT slug, title, content FROM pages "
+            "WHERE workspace_id = ? AND deleted_at IS NULL ORDER BY slug",
+            (workspace_id,),
+        ).fetchall()
 
 
 def list_child_pages(user_id: int, workspace_id: int, parent_id: int) -> list[sqlite3.Row]:
     with connect() as conn:
         return conn.execute(
             "SELECT slug, title, updated_at FROM pages "
-            "WHERE workspace_id = ? AND parent_id = ? "
+            "WHERE workspace_id = ? AND parent_id = ? AND deleted_at IS NULL "
             "ORDER BY updated_at DESC",
             (workspace_id, parent_id),
         ).fetchall()
@@ -859,7 +911,7 @@ def search_pages(
                    snippet(pages_fts, 1, '<mark>', '</mark>', '…', 12) AS snippet
             FROM pages_fts
             JOIN pages p ON p.id = pages_fts.rowid
-            WHERE pages_fts MATCH ? AND p.workspace_id = ?
+            WHERE pages_fts MATCH ? AND p.workspace_id = ? AND p.deleted_at IS NULL
             ORDER BY rank
             LIMIT ?
             """,
@@ -878,7 +930,7 @@ def get_page_meta(user_id: int, workspace_id: int, slug: str) -> dict | None:
     """Frontmatter + tags de una página, o None si no existe."""
     with connect() as conn:
         row = conn.execute(
-            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ?",
+            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NULL",
             (slug, workspace_id),
         ).fetchone()
         if row is None:
@@ -909,7 +961,7 @@ def extract_pages(
     if tag:
         joins = "JOIN page_tags t ON t.page_id = p.id AND t.tag = ?"
         params.append(meta.normalize_tag(tag))
-    where = ["p.workspace_id = ?"]
+    where = ["p.workspace_id = ?", "p.deleted_at IS NULL"]
     params.append(workspace_id)
     if page_type:
         where.append("m.type = ?")
@@ -948,7 +1000,7 @@ def backlinks(user_id: int, workspace_id: int, slug: str) -> list[dict]:
             SELECT DISTINCT p.slug, p.title
             FROM page_links l
             JOIN pages p ON p.id = l.src_page_id
-            WHERE l.workspace_id = ? AND l.dst_slug = ?
+            WHERE l.workspace_id = ? AND l.dst_slug = ? AND p.deleted_at IS NULL
             ORDER BY p.title
             """,
             (workspace_id, slug),
@@ -960,7 +1012,7 @@ def related_pages(user_id: int, workspace_id: int, slug: str, limit: int = 10) -
     """Vecinos por solape de tags (desc), o None si la página no existe."""
     with connect() as conn:
         page = conn.execute(
-            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ?",
+            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NULL",
             (slug, workspace_id),
         ).fetchone()
         if page is None:
@@ -971,7 +1023,7 @@ def related_pages(user_id: int, workspace_id: int, slug: str, limit: int = 10) -
             FROM page_tags t1
             JOIN page_tags t2 ON t2.tag = t1.tag AND t2.page_id != t1.page_id
             JOIN pages p ON p.id = t2.page_id
-            WHERE t1.page_id = ? AND p.workspace_id = ?
+            WHERE t1.page_id = ? AND p.workspace_id = ? AND p.deleted_at IS NULL
             GROUP BY p.id
             ORDER BY shared DESC, p.updated_at DESC
             LIMIT ?
@@ -989,7 +1041,8 @@ def pages_to_embed(limit: int = 10) -> list[sqlite3.Row]:
     with connect() as conn:
         return conn.execute(
             "SELECT id, workspace_id, content FROM pages "
-            "WHERE embed_dirty = 1 AND workspace_id IS NOT NULL ORDER BY id LIMIT ?",
+            "WHERE embed_dirty = 1 AND workspace_id IS NOT NULL AND deleted_at IS NULL "
+            "ORDER BY id LIMIT ?",
             (limit,),
         ).fetchall()
 
@@ -1020,7 +1073,7 @@ def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[sqlite3.Row
             SELECT c.page_id, c.ord, c.text, c.vector, p.slug, p.title
             FROM page_chunks c
             JOIN pages p ON p.id = c.page_id
-            WHERE c.workspace_id = ?
+            WHERE c.workspace_id = ? AND p.deleted_at IS NULL
             """,
             (workspace_id,),
         ).fetchall()

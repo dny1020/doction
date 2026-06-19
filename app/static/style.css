@@ -1270,6 +1270,9 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   margin: 0 0 var(--sp-2);
 }
 .placeholder .btn { margin-top: var(--sp-4); }
+/* Estado de error (500): se diferencia del placeholder neutro con el acento de peligro. */
+.placeholder--error { margin-top: var(--sp-7); }
+.placeholder--error h1 { color: var(--danger); }
 
 /* === Auth ================================================================= */
 .auth {

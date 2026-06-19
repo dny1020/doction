@@ -1,4 +1,4 @@
-.PHONY: test lint test-image
+.PHONY: test lint test-image backup
 
 IMAGE := doction-test-$(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 
@@ -7,6 +7,12 @@ test:
 
 lint:
 	uv run ruff check .
+
+# Snapshot local de los datos (BD + pages/ + uploads/) en ./backups. En la Pi lo corre
+# el systemd timer doction-backup.timer apuntando a /mnt/ssd/doction.
+backup:
+	DOCTION_DATA=$(PWD) DOCTION_BACKUP_DIR=$(PWD)/backups \
+	  DATABASE_PATH="$${DATABASE_PATH:-$(PWD)/doction.db}" bash deploy/backup.sh
 
 test-image:
 	docker build -t $(IMAGE) .

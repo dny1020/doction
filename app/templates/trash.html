@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ t.trash }} — doction{% endblock %}
+{% block content %}
+<div class="settings">
+  <h1 class="settings-h1">{{ t.trash }}</h1>
+  <p class="settings-card-desc">{{ t.trash_desc }}</p>
+
+  {% if deleted %}
+  <ul class="ws-manage">
+    {% for p in deleted %}
+    <li class="ws-manage-item">
+      <div class="ws-manage-row">
+        <span class="ws-name-static">{{ p.title }}</span>
+        <span class="member-role">{{ p.deleted_at[:10] }}</span>
+        <form method="post" action="/trash/{{ p.slug }}/restore">
+          <button class="btn" type="submit">{{ t.restore }}</button>
+        </form>
+        <form method="post" action="/trash/{{ p.slug }}/purge"
+              onsubmit="return confirm('{{ t.confirm_purge }}');">
+          <button class="btn btn-danger" type="submit">{{ t.delete_forever }}</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="placeholder">
+    <h1>{{ t.trash_empty }}</h1>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

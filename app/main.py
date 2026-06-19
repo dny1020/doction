@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import io
 import logging
 import os
+import zipfile
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -42,6 +44,25 @@ WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
 LANG_MAX_AGE = 60 * 60 * 24 * 365
 # Activo solo detrás de TLS; por defecto apagado para que dev http no requiera configuración.
 SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "yes"}
+
+# Cabeceras de seguridad fijadas en cada respuesta (defensa en profundidad).
+# CSP pragmática: 'unsafe-inline' en script-src sigue siendo necesario porque base.html
+# tiene JS inline y handlers onclick, y Lucide carga desde unpkg. El XSS real ya queda
+# tapado al renderizar CommonMark plano (markdown.py html=False); la CSP es capa extra.
+# Endurecer a futuro: vendorizar Lucide + externalizar el JS inline para quitar 'unsafe-inline'.
+_CSP = (
+    "default-src 'self'; "
+    "img-src 'self' data:; "
+    "style-src 'self' 'unsafe-inline'; "
+    "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+)
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "same-origin",
+    "Content-Security-Policy": _CSP,
+}
 
 # Paleta de colores para el avatar (debe coincidir con el fallback JS en base.html).
 AVATAR_COLORS = [
@@ -210,6 +231,24 @@ def api_remove_member(request: Request, slug: str, member_id: int):
         raise HTTPException(status_code=404, detail="Member not found")
 
 
+@api_router.get("/workspaces/{slug}/export")
+def api_export_workspace(request: Request, slug: str) -> Response:
+    """Descarga el workspace como zip de archivos markdown (una página por .md)."""
+    uid = _api_user(request)
+    ws = db.get_workspace_by_slug(uid, slug)
+    if ws is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for page in db.pages_for_export(int(ws["id"])):
+            zf.writestr(f"{slug}/{page['slug']}.md", page["content"])
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{slug}.zip"'},
+    )
+
+
 @api_router.get("/pages")
 def api_list_pages(request: Request):
     uid = _api_user(request)
@@ -356,6 +395,12 @@ def _commit_page(
 async def lifespan(_: FastAPI):
     secret_key = os.environ.get("SECRET_KEY")
     if not secret_key:
+        if SECURE_COOKIES:
+            # SECURE_COOKIES=1 es señal de producción (tras TLS): no arrancar con clave insegura.
+            raise RuntimeError(
+                "SECRET_KEY must be set when SECURE_COOKIES is enabled — refusing to start "
+                "with the insecure dev default in production"
+            )
         secret_key = "dev-secret-key"
         logger.warning("SECRET_KEY not set — using insecure dev default, do not use in production")
     app.state.secret_key = secret_key
@@ -386,6 +431,25 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 app.include_router(api_router)
 app.include_router(mcp.router)
+
+
+@app.exception_handler(Exception)
+async def unhandled_error(request: Request, exc: Exception) -> Response:
+    """Cualquier excepción no capturada → página 500 con estilo, sin filtrar el traceback.
+
+    Las peticiones de API/MCP reciben JSON; el resto, la página HTML.
+    """
+    logger.exception("unhandled error on %s %s", request.method, request.url.path)
+    path = request.url.path
+    if path.startswith("/api"):
+        return JSONResponse({"detail": "Internal server error"}, status_code=500)
+    lang = getattr(request.state, "lang", i18n.DEFAULT_LANG)
+    return templates.TemplateResponse(
+        request,
+        "500.html",
+        {"t": i18n.get_catalog(lang), "lang": lang},
+        status_code=500,
+    )
 
 
 def _encode_token(user_id: int) -> str:
@@ -506,8 +570,19 @@ def _not_found(request: Request, slug: str) -> HTMLResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health() -> Response:
+    """Liveness + readiness: comprueba que la BD responde. 503 si no."""
+    version = mcp.SERVER_INFO["version"]
+    try:
+        with db.connect() as conn:
+            conn.execute("SELECT 1")
+    except Exception:
+        logger.exception("health check failed: db unreachable")
+        return JSONResponse(
+            {"status": "error", "db": "unreachable", "version": version},
+            status_code=503,
+        )
+    return JSONResponse({"status": "ok", "db": "ok", "version": version})
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -775,6 +850,44 @@ async def remove_page(request: Request, slug: str) -> Response:
     return RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
 
 
+@app.get("/trash", response_class=HTMLResponse)
+async def trash_view(request: Request) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    return templates.TemplateResponse(
+        request,
+        "trash.html",
+        {
+            **_authed_context(request, user_id),
+            "deleted": db.list_deleted_pages(user_id, workspace_id),
+            "active_slug": None,
+        },
+    )
+
+
+@app.post("/trash/{slug}/restore")
+async def restore_trashed_page(request: Request, slug: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    if db.restore_page(user_id, workspace_id, slug):
+        return RedirectResponse(f"/pages/{slug}", status_code=HTTP_303_SEE_OTHER)
+    return RedirectResponse("/trash", status_code=HTTP_303_SEE_OTHER)
+
+
+@app.post("/trash/{slug}/purge")
+async def purge_trashed_page(request: Request, slug: str) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    workspace_id = _require_workspace_id(request, user_id)
+    db.purge_page(user_id, workspace_id, slug)
+    return RedirectResponse("/trash", status_code=HTTP_303_SEE_OTHER)
+
+
 @app.get("/search", response_class=HTMLResponse)
 async def search(request: Request, q: str = "") -> Response:
     user_id = _require_user(request)
@@ -821,6 +934,32 @@ async def upload_image(request: Request, file: UploadFile = File(...)) -> Respon
     return JSONResponse({"url": f"/uploads/{name}"})
 
 
+# Rate-limit de login en memoria. Single-instance ⇒ basta; se resetea al reiniciar.
+# Clave por (ip, email) con ventana deslizante.
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_WINDOW = timedelta(minutes=5)
+_login_attempts: dict[str, list[datetime]] = {}
+
+
+def _login_too_many(key: str) -> bool:
+    now = datetime.now(UTC)
+    cutoff = now - _LOGIN_WINDOW
+    recent = [t for t in _login_attempts.get(key, []) if t > cutoff]
+    if recent:
+        _login_attempts[key] = recent
+    else:
+        _login_attempts.pop(key, None)
+    return len(recent) >= _LOGIN_MAX_ATTEMPTS
+
+
+def _login_record_failure(key: str) -> None:
+    _login_attempts.setdefault(key, []).append(datetime.now(UTC))
+
+
+def _login_clear(key: str) -> None:
+    _login_attempts.pop(key, None)
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request) -> Response:
     if getattr(request.state, "user_id", None) is not None:
@@ -834,19 +973,35 @@ async def login_form(request: Request) -> Response:
 
 @app.post("/login")
 async def login(request: Request, email: str = Form(...), password: str = Form(...)) -> Response:
-    user = db.get_user_by_email(email.strip().lower())
+    email = email.strip().lower()
+    cat = i18n.get_catalog(_lang(request))
+    ip = request.client.host if request.client else "?"
+    key = f"{ip}:{email}"
+
+    if _login_too_many(key):
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {**_anonymous_context(request), "active_slug": None,
+             "error": cat["err_too_many_attempts"]},
+            status_code=429,
+        )
+
+    user = db.get_user_by_email(email)
     if user is None or not _verify_password(password, user["password_hash"]):
+        _login_record_failure(key)
         return templates.TemplateResponse(
             request,
             "login.html",
             {
                 **_anonymous_context(request),
                 "active_slug": None,
-                "error": i18n.get_catalog(_lang(request))["err_invalid_credentials"],
+                "error": cat["err_invalid_credentials"],
             },
             status_code=400,
         )
 
+    _login_clear(key)
     user_id = int(user["id"])
     workspace = db.ensure_default_workspace(user_id)
     token = _encode_token(user_id)
@@ -1169,5 +1324,13 @@ async def attach_user(request: Request, call_next):
     workspace = getattr(request.state, "workspace", None)
     if workspace is not None and request.cookies.get("workspace") != workspace["slug"]:
         _ws_cookie(response, workspace["slug"])
+
+    for header, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(header, value)
+    # HSTS solo tras TLS (señal de producción), nunca en dev http.
+    if SECURE_COOKIES:
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+        )
 
     return response

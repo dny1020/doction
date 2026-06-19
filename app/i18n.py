@@ -71,6 +71,14 @@ _EN: dict[str, str] = {
     "nf_desc": "No page exists at",
     "create_this_page": "Create this page",
     "back_home": "Back home",
+    "error_title": "Something went wrong",
+    "error_desc": "An unexpected error occurred. It has been logged — please try again.",
+    "trash": "Trash",
+    "trash_desc": "Deleted pages stay here. Restore them, or delete them permanently.",
+    "trash_empty": "Trash is empty",
+    "delete_forever": "Delete forever",
+    "confirm_purge": "Delete this page permanently? This cannot be undone.",
+    "export": "Export",
     # Búsqueda
     "no_matches": "No matches for",
     "start_typing_search": "Start typing to search.",
@@ -129,6 +137,7 @@ _EN: dict[str, str] = {
     "err_valid_email": "Enter a valid email.",
     "err_password_min": "Password must be 8+ chars.",
     "err_email_registered": "Email already registered.",
+    "err_too_many_attempts": "Too many login attempts. Try again in a few minutes.",
 }
 
 _ES: dict[str, str] = {
@@ -186,6 +195,14 @@ _ES: dict[str, str] = {
     "nf_desc": "No existe ninguna página en",
     "create_this_page": "Crear esta página",
     "back_home": "Volver al inicio",
+    "error_title": "Algo salió mal",
+    "error_desc": "Ocurrió un error inesperado. Quedó registrado — inténtalo de nuevo.",
+    "trash": "Papelera",
+    "trash_desc": "Las páginas eliminadas quedan aquí. Restáuralas o bórralas definitivamente.",
+    "trash_empty": "La papelera está vacía",
+    "delete_forever": "Borrar definitivamente",
+    "confirm_purge": "¿Borrar esta página para siempre? No se puede deshacer.",
+    "export": "Exportar",
     "no_matches": "Sin resultados para",
     "start_typing_search": "Empieza a escribir para buscar.",
     "login_subtitle": "Inicia sesión para acceder a tus notas.",
@@ -238,6 +255,7 @@ _ES: dict[str, str] = {
     "err_valid_email": "Ingresa un correo válido.",
     "err_password_min": "La contraseña debe tener 8+ caracteres.",
     "err_email_registered": "Ese correo ya está registrado.",
+    "err_too_many_attempts": "Demasiados intentos de inicio de sesión. Prueba en unos minutos.",
 }
 
 _CATALOGS: dict[str, dict[str, str]] = {
