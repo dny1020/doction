@@ -20,7 +20,7 @@
         <a class="btn" href="/new?parent={{ page.slug }}">{{ t.new_subpage }}</a>
         <a class="btn" href="/pages/{{ page.slug }}/history">{{ t.history }}</a>
         <form method="post" action="/pages/{{ page.slug }}/delete"
-              onsubmit="return confirm('{{ t.confirm_delete_page }} &quot;{{ page.title }}&quot;?');">
+              data-confirm="{{ t.confirm_delete_page }} &quot;{{ page.title }}&quot;?">
           <button class="btn btn-danger" type="submit">{{ t.delete }}</button>
         </form>
       </div>
@@ -33,7 +33,7 @@
       </p>
     </header>
 
-    <div class="prose">{{ rendered | safe }}</div>
+    <div class="prose" data-copied="{{ t.copied }}">{{ rendered | safe }}</div>
 
     {% if children %}
     <section class="subpages">
@@ -137,6 +137,7 @@
       navigator.clipboard.writeText((code || pre).innerText).then(function () {
         btn.classList.add('copied');
         btn.innerHTML = copyIcon('check');
+        if (window.toast) toast(prose.getAttribute('data-copied') || 'Copied', 'ok');
         if (typeof lucide !== 'undefined') lucide.createIcons();
         setTimeout(function () {
           btn.classList.remove('copied');

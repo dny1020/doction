@@ -13,3 +13,5 @@ jobs_output.log
 .env
 CLAUDE.md
 models/
+*.txt
+important.md

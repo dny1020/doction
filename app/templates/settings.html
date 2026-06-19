@@ -66,6 +66,51 @@
   </section>
 
   <section class="settings-card">
+    <h2 class="settings-card-title">{{ t.api_tokens }}</h2>
+    <p class="settings-card-desc">{{ t.api_tokens_desc }}</p>
+
+    {% if new_token %}
+    <div class="token-reveal">
+      <p class="token-reveal-label">{{ t.token_shown_once }}</p>
+      <div class="token-reveal-row">
+        <code class="token-value" id="new-token">{{ new_token }}</code>
+        <button class="btn btn-sm" type="button"
+                onclick="navigator.clipboard.writeText(document.getElementById('new-token').textContent).then(function(){ if(window.toast) toast('{{ t.copied }}','ok'); })">
+          {{ t.copy }}
+        </button>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if api_tokens %}
+    <ul class="token-list">
+      {% for tok in api_tokens %}
+      <li class="token-row">
+        <div class="token-info">
+          <span class="token-name">{{ tok.name }}</span>
+          <span class="token-meta">
+            {{ t.created }} {{ tok.created_at[:10] }}
+            <span class="crumb-sep" aria-hidden="true">·</span>
+            {% if tok.last_used_at %}{{ t.last_used }} {{ tok.last_used_at[:10] }}{% else %}{{ t.token_never_used }}{% endif %}
+          </span>
+        </div>
+        <form method="post" action="/settings/tokens/{{ tok.id }}/delete"
+              data-confirm="{{ t.confirm_revoke_token }}">
+          <button class="btn btn-sm btn-danger" type="submit">{{ t.revoke }}</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="post" action="/settings/tokens" class="token-add">
+      <input class="settings-input" type="text" name="name" maxlength="60"
+             placeholder="{{ t.token_name_ph }}">
+      <button class="btn btn-primary" type="submit">{{ t.create_token }}</button>
+    </form>
+  </section>
+
+  <section class="settings-card">
     <h2 class="settings-card-title">{{ t.workspaces }}</h2>
     <p class="settings-card-desc">{{ t.workspaces_desc }}</p>
     <ul class="ws-manage">
@@ -80,7 +125,7 @@
           </form>
           <a class="btn" href="/api/workspaces/{{ ws.slug }}/export">{{ t.export }}</a>
           <form method="post" action="/workspaces/{{ ws.slug }}/delete" class="ws-delete"
-                onsubmit="return confirm('{{ t.confirm_delete_ws_a }} &quot;{{ ws.name }}&quot; {{ t.confirm_delete_ws_b }}');">
+                data-confirm="{{ t.confirm_delete_ws_a }} &quot;{{ ws.name }}&quot; {{ t.confirm_delete_ws_b }}">
             <button class="btn btn-danger" type="submit"
                     {% if owned_count <= 1 %}disabled
                     title="{{ t.cannot_delete_only_ws }}"{% endif %}>

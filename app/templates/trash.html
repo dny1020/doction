@@ -16,7 +16,7 @@
           <button class="btn" type="submit">{{ t.restore }}</button>
         </form>
         <form method="post" action="/trash/{{ p.slug }}/purge"
-              onsubmit="return confirm('{{ t.confirm_purge }}');">
+              data-confirm="{{ t.confirm_purge }}">
           <button class="btn btn-danger" type="submit">{{ t.delete_forever }}</button>
         </form>
       </div>

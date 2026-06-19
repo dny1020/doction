@@ -98,3 +98,21 @@ def test_export_returns_zip_of_live_pages(client):
 
 def test_export_unknown_workspace_404(client):
     assert client.get("/api/workspaces/nope/export").status_code == 404
+
+
+def test_api_token_ui_create_and_revoke(client):
+    # Crear: la respuesta muestra el token en claro una sola vez.
+    r = client.post("/settings/tokens", data={"name": "laptop"})
+    assert r.status_code == 200
+    assert "doction_" in r.text
+    assert "laptop" in r.text
+
+    # Al recargar settings ya no se muestra el secreto, pero sí el token en la lista.
+    s = client.get("/settings")
+    assert "laptop" in s.text
+    assert "doction_" not in s.text
+
+    # Revocar por id.
+    tid = client.get("/api/tokens").json()[0]["id"]
+    client.post(f"/settings/tokens/{tid}/delete")
+    assert client.get("/api/tokens").json() == []

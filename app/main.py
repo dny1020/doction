@@ -1117,17 +1117,19 @@ _SETTINGS_MESSAGES = {
     "member_404":     ("error", "err_user_not_found"),
     "member_dup":     ("error", "err_already_member"),
     "not_owner":      ("error", "err_not_owner"),
+    "token_revoked":  ("ok",    "msg_token_revoked"),
 }
 
 
-@app.get("/settings", response_class=HTMLResponse)
-async def settings_page(request: Request, m: str | None = None) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
+def _render_settings(
+    request: Request,
+    user_id: int,
+    *,
+    new_token: str | None = None,
+    message: str | None = None,
+    tone: str | None = None,
+) -> Response:
     user = db.get_user_by_id(user_id)
-    tone, msg_key = _SETTINGS_MESSAGES.get(m or "", (None, None))
-    message = i18n.get_catalog(_lang(request))[msg_key] if msg_key else None
     workspaces = getattr(request.state, "workspaces", [])
     ws_list = [
         {
@@ -1152,10 +1154,46 @@ async def settings_page(request: Request, m: str | None = None) -> Response:
             "current_color": (user["avatar_color"] if user else "") or "",
             "ws_list": ws_list,
             "owned_count": owned_count,
+            "api_tokens": db.list_api_tokens(user_id),
+            "new_token": new_token,
             "flash_tone": tone,
             "flash_msg": message,
         },
     )
+
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request, m: str | None = None) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    tone, msg_key = _SETTINGS_MESSAGES.get(m or "", (None, None))
+    message = i18n.get_catalog(_lang(request))[msg_key] if msg_key else None
+    return _render_settings(request, user_id, message=message, tone=tone)
+
+
+@app.post("/settings/tokens")
+async def create_token_web(request: Request, name: str = Form("")) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    token = generate_api_token()
+    db.create_api_token(user_id, name, hash_api_token(token))
+    cat = i18n.get_catalog(_lang(request))
+    # Render directo (no redirect) para mostrar el token en claro una sola vez sin
+    # que viaje por la URL ni quede en el historial.
+    return _render_settings(
+        request, user_id, new_token=token, message=cat["msg_token_created"], tone="ok"
+    )
+
+
+@app.post("/settings/tokens/{token_id}/delete")
+async def revoke_token_web(request: Request, token_id: int) -> Response:
+    user_id = _require_user(request)
+    if isinstance(user_id, Response):
+        return user_id
+    db.revoke_api_token(user_id, token_id)
+    return RedirectResponse("/settings?m=token_revoked", status_code=HTTP_303_SEE_OTHER)
 
 
 @app.post("/settings/profile")

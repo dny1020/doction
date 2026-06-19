@@ -22,8 +22,10 @@
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.min.js" defer></script>
+  <script src="/static/ui.js" defer></script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#content">{{ t.skip_to_content }}</a>
   <button class="sidebar-toggle sidebar-toggle--show" type="button"
           aria-label="{{ t.show_sidebar }}" title="{{ t.show_sidebar }}"
           aria-expanded="false" onclick="toggleSidebar()">
@@ -89,9 +91,10 @@
             hx-get="/search"
             hx-trigger="keyup changed delay:200ms, search"
             hx-target="#search-results"
+            hx-indicator="#search-results"
             hx-swap="innerHTML">
         </div>
-        <div id="search-results"></div>
+        <div id="search-results" role="status" aria-live="polite"></div>
       </div>
       <div class="sidebar-eyebrow">{{ t.pages }}</div>
       <nav class="page-list">
@@ -140,12 +143,33 @@
       {% endif %}
     </aside>
 
-    <main class="content">
+    <main class="content" id="content" tabindex="-1">
       <div class="content-body">
         {% block content %}{% endblock %}
       </div>
     </main>
   </div>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+  <dialog class="confirm-dialog" id="confirm-dialog" aria-labelledby="confirm-dialog-msg">
+    <p class="confirm-dialog-msg" id="confirm-dialog-msg"></p>
+    <div class="confirm-dialog-actions">
+      <button class="btn" type="button" value="cancel"
+              onclick="this.closest('dialog').close()">{{ t.cancel }}</button>
+      <button class="btn btn-danger" type="button" id="confirm-dialog-ok">{{ t.confirm_action }}</button>
+    </div>
+  </dialog>
+
+  {% if user_email %}
+  <div class="palette" id="palette" aria-hidden="true" data-empty="{{ t.palette_empty }}">
+    <div class="palette-box" role="dialog" aria-modal="true" aria-label="{{ t.sc_command_palette }}">
+      <input class="palette-input" id="palette-input" type="text" autocomplete="off"
+             placeholder="{{ t.palette_placeholder }}">
+      <ul class="palette-list" id="palette-list"></ul>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="shortcuts-overlay" id="shortcuts-overlay" aria-hidden="true"
        onclick="if (event.target === this) toggleShortcuts()">
@@ -158,6 +182,7 @@
       <ul class="shortcuts-list">
         <li><span>{{ t.sc_toggle_sidebar }}</span><span><kbd>[</kbd> <kbd>]</kbd></span></li>
         <li><span>{{ t.sc_focus_search }}</span><span><kbd>/</kbd></span></li>
+        <li><span>{{ t.sc_command_palette }}</span><span><kbd>⌘</kbd> <kbd>K</kbd></span></li>
         <li><span>{{ t.sc_edit }}</span><span><kbd>e</kbd></span></li>
         <li><span>{{ t.sc_new_page }}</span><span><kbd>n</kbd></span></li>
         <li><span>{{ t.sc_help }}</span><span><kbd>?</kbd></span></li>
@@ -276,18 +301,22 @@
         ta.value = ta.value.slice(0, i) + repl + ta.value.slice(i + find.length);
       }
       function uploadImage(blob) {
-        var token = '![subiendo imagen…](' + Date.now() + ')';
+        var token = '![' + (ta.dataset.msgUploading || 'uploading…') + '](' + Date.now() + ')';
         insertAtCursor(token);
         refreshPreview();
         var fd = new FormData();
         fd.append('file', blob, blob.name || 'pasted.png');
         fetch('/api/uploads', { method: 'POST', body: fd, credentials: 'same-origin' })
           .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
-          .then(function (data) { replaceOnce(token, '![](' + data.url + ')'); refreshPreview(); })
+          .then(function (data) {
+            replaceOnce(token, '![](' + data.url + ')');
+            refreshPreview();
+            if (window.toast) toast(ta.dataset.msgUploadOk || 'Image uploaded', 'ok');
+          })
           .catch(function () {
             replaceOnce(token, '');
             refreshPreview();
-            alert('No se pudo subir la imagen.');
+            if (window.toast) toast(ta.dataset.msgUploadError || 'Upload failed', 'error');
           });
       }
 
