@@ -160,6 +160,7 @@ _EN: dict[str, str] = {
     "err_password_min": "Password must be 8+ chars.",
     "err_email_registered": "Email already registered.",
     "err_too_many_attempts": "Too many login attempts. Try again in a few minutes.",
+    "err_registration_closed": "Registration is closed on this instance.",
 }
 
 _ES: dict[str, str] = {
@@ -300,6 +301,7 @@ _ES: dict[str, str] = {
     "err_password_min": "La contraseña debe tener 8+ caracteres.",
     "err_email_registered": "Ese correo ya está registrado.",
     "err_too_many_attempts": "Demasiados intentos de inicio de sesión. Prueba en unos minutos.",
+    "err_registration_closed": "El registro está cerrado en esta instancia.",
 }
 
 _CATALOGS: dict[str, dict[str, str]] = {

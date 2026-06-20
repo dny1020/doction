@@ -26,6 +26,7 @@ RUN uv sync --frozen
 
 COPY app ./app
 COPY tests ./tests
+COPY scripts ./scripts
 
 RUN uv run ruff check . && uv run python -m pytest tests -q
 

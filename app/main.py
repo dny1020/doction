@@ -44,6 +44,10 @@ WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
 LANG_MAX_AGE = 60 * 60 * 24 * 365
 # Activo solo detrás de TLS; por defecto apagado para que dev http no requiera configuración.
 SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "yes"}
+# Cierra el registro web en instancias públicas. El primer usuario (bootstrap de primer
+# arranque) siempre puede crearse para no dejar la instancia inaccesible; los demás se
+# dan de alta con scripts/create_user.py.
+DISABLE_REGISTRATION = os.environ.get("DISABLE_REGISTRATION", "").lower() in {"1", "true", "yes"}
 
 # Cabeceras de seguridad fijadas en cada respuesta (defensa en profundidad).
 # CSP pragmática: 'unsafe-inline' en script-src sigue siendo necesario porque base.html
@@ -514,8 +518,15 @@ def _anonymous_context(request: Request) -> dict[str, object]:
         "user_email": request.state.user_email,
         "user_display_name": getattr(request.state, "user_display_name", None),
         "user_avatar_color": getattr(request.state, "user_avatar_color", None),
+        "registration_open": _registration_open(),
         **_i18n(request),
     }
+
+
+def _registration_open() -> bool:
+    """El registro web puede cerrarse con DISABLE_REGISTRATION; aun así el primer usuario
+    siempre puede crearse (bootstrap de primer arranque), o la instancia quedaría inaccesible."""
+    return not DISABLE_REGISTRATION or not db.has_users()
 
 
 def _authed_context(request: Request, user_id: int) -> dict[str, object]:
@@ -1021,6 +1032,8 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
 async def register_form(request: Request) -> Response:
     if getattr(request.state, "user_id", None) is not None:
         return RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
+    if not _registration_open():
+        return RedirectResponse("/login", status_code=HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
         request,
         "register.html",
@@ -1032,6 +1045,13 @@ async def register_form(request: Request) -> Response:
 async def register(request: Request, email: str = Form(...), password: str = Form(...)) -> Response:
     email = email.strip().lower()
     cat = i18n.get_catalog(_lang(request))
+    if not _registration_open():
+        return templates.TemplateResponse(
+            request, "login.html",
+            {**_anonymous_context(request), "active_slug": None,
+             "error": cat["err_registration_closed"]},
+            status_code=403,
+        )
     if not email or "@" not in email:
         return templates.TemplateResponse(
             request, "register.html",
@@ -1053,10 +1073,14 @@ async def register(request: Request, email: str = Form(...), password: str = For
             status_code=400,
         )
 
+    first_user = not db.has_users()
     user_id = db.create_user(email, _hash_password(password))
     workspace = db.ensure_default_workspace(user_id)
     workspace_id = int(workspace["id"])
-    db.claim_unowned_pages(user_id, workspace_id)
+    # Solo el primer usuario adopta páginas huérfanas (migración legacy); evita que un
+    # registrante posterior absorba páginas sin dueño.
+    if first_user:
+        db.claim_unowned_pages(user_id, workspace_id)
     for title, content in seed.SEED_PAGES:
         db.create_page(user_id, workspace_id, title, content)
 

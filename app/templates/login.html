@@ -16,7 +16,9 @@
       <input class="auth-input" id="password" type="password" name="password" required>
       <button class="btn btn-primary auth-submit" type="submit">{{ t.log_in }}</button>
     </form>
+    {% if registration_open %}
     <p class="auth-switch">{{ t.login_switch_q }} <a href="/register">{{ t.create_an_account }}</a></p>
+    {% endif %}
   </div>
 </div>
 <div class="app-controls">{% include "partials/controls.html" %}</div>
