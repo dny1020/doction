@@ -49,6 +49,7 @@ RUN mkdir -p /app/models \
     && echo "${TOKENIZER_SHA256}  /app/models/tokenizer.json" | sha256sum -c -
 
 COPY app ./app
+COPY scripts ./scripts
 RUN mkdir -p /data
 
 EXPOSE 8000

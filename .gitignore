@@ -13,6 +13,7 @@ uploads/
 jobs_output.log
 .env
 CLAUDE.md
+.claude/
 models/
 *.txt
 important.md

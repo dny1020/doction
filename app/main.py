@@ -587,9 +587,12 @@ async def health() -> Response:
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
+    if getattr(request.state, "user_id", None) is None:
+        # Primer arranque (instancia recién autoalojada, sin usuarios): llevar directo a
+        # crear la cuenta en vez de a login.
+        target = "/login" if db.has_users() else "/register"
+        return RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
+    user_id = int(request.state.user_id)
     workspace_id = _require_workspace_id(request, user_id)
     page = db.latest_page(user_id, workspace_id)
     context = _authed_context(request, user_id)

@@ -1565,31 +1565,36 @@ kbd {
 .swatch.selected .swatch-dot { border-color: var(--fg-1); }
 .swatch input:focus-visible + .swatch-dot { box-shadow: 0 0 0 3px var(--accent-ring); }
 
-.ws-manage { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.ws-manage { list-style: none; margin: 0; padding: 0; }
 .ws-manage-row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .ws-rename { display: flex; gap: var(--sp-2); flex: 1; min-width: 220px; margin: 0; }
 .ws-rename .settings-input { flex: 1; }
 .ws-delete { margin: 0; }
 
-.ws-manage-item {
+/* Cada workspace es una fila colapsable (<details>) → escala a muchos sin saturar. */
+.ws-item { border-bottom: 1px solid var(--border); }
+.ws-manage > li:last-child .ws-item { border-bottom: none; }
+.ws-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0;
+  cursor: pointer;
+  list-style: none;
+}
+.ws-summary::-webkit-details-marker { display: none; }
+.ws-summary-name { flex: 1; font-weight: 500; color: var(--fg-1); }
+.ws-summary:hover .ws-summary-name { color: var(--accent); }
+.ws-summary-count { font-size: var(--text-xs); color: var(--fg-3); }
+.ws-chevron { color: var(--fg-3); transition: transform var(--dur-fast) var(--ease); }
+.ws-item[open] .ws-chevron { transform: rotate(180deg); }
+.ws-body {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  padding-bottom: var(--sp-3);
-  border-bottom: 1px solid var(--border);
+  padding: 0 0 var(--sp-4) var(--sp-3);
 }
-.ws-manage-item:last-child { border-bottom: none; padding-bottom: 0; }
-.ws-name-static { font-weight: 500; color: var(--fg-1); }
 .ws-members { padding-left: var(--sp-3); border-left: 2px solid var(--border); }
-.ws-members-label {
-  display: block;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--fg-3);
-  margin-bottom: var(--sp-2);
-}
 .member-list { list-style: none; margin: 0 0 var(--sp-2); padding: 0; }
 .member-row {
   display: flex;

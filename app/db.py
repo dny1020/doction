@@ -453,6 +453,12 @@ def create_user(email: str, password_hash: str) -> int:
         return int(cur.lastrowid)
 
 
+def has_users() -> bool:
+    """True si ya existe al menos un usuario (para el flujo de primer arranque)."""
+    with connect() as conn:
+        return conn.execute("SELECT 1 FROM users LIMIT 1").fetchone() is not None
+
+
 def get_user_by_email(email: str) -> sqlite3.Row | None:
     with connect() as conn:
         return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
