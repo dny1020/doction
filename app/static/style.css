@@ -1300,7 +1300,9 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   color: var(--fg-1);
 }
 
-.auth-brand {
+/* Scoped above `.auth-card h1` so the brand wordmark keeps its tracked accent
+   treatment instead of inheriting the plain ink heading style (register's h1). */
+.auth-card .auth-brand {
   font-family: var(--font-sans);
   font-size: var(--text-xl);
   font-weight: 700;
