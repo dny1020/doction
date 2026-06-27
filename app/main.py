@@ -14,6 +14,7 @@ from pathlib import Path
 import jwt
 from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import (
+    FileResponse,
     HTMLResponse,
     JSONResponse,
     PlainTextResponse,
@@ -385,6 +386,137 @@ def api_search(request: Request, q: str = "", mode: str = "keyword"):
     ]
 
 
+# ── SPA (React) — bootstrap + auth por JSON ──────────────────────────────────
+# Estos endpoints alimentan el frontend React (carpeta frontend/). Usan la misma
+# cookie de sesión httponly que el sitio Jinja; la SPA llama con
+# `fetch(..., {credentials: 'same-origin'})`, así que la cookie viaja sola.
+
+def _workspace_brief(ws) -> dict:
+    """Forma mínima de un workspace para el frontend."""
+    return {"slug": ws.slug, "name": ws.name, "role": ws.role}
+
+
+def _me_payload(user_id: int, active_slug: str | None) -> dict:
+    """Datos del usuario actual + sus workspaces para arrancar la SPA."""
+    user = db.get_user_by_id(user_id)
+    workspaces = db.list_workspaces(user_id)
+    active = None
+    for w in workspaces:
+        if w.slug == active_slug:
+            active = w
+    if active is None and workspaces:
+        active = workspaces[0]
+    return {
+        "email": user.email if user else None,
+        "display_name": user.display_name if user else None,
+        "avatar_color": user.avatar_color if user else None,
+        "workspaces": [_workspace_brief(w) for w in workspaces],
+        "active_workspace": _workspace_brief(active) if active else None,
+        "registration_open": _registration_open(),
+    }
+
+
+@api_router.get("/me")
+def api_me(request: Request):
+    user_id = _api_user(request)  # lanza 401 si no hay sesión
+    active = getattr(request.state, "workspace", None)
+    return _me_payload(user_id, active.slug if active else None)
+
+
+@api_router.post("/auth/login")
+def api_login(request: Request, body: _TokenIn) -> Response:
+    email = body.email.strip().lower()
+    ip = request.client.host if request.client else "?"
+    key = f"{ip}:{email}"
+    if _login_too_many(key):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+    user = db.get_user_by_email(email)
+    if user is None or not _verify_password(body.password, user.password_hash):
+        _login_record_failure(key)
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    _login_clear(key)
+    user_id = int(user.id)
+    workspace = db.ensure_default_workspace(user_id)
+    response = JSONResponse(_me_payload(user_id, workspace.slug))
+    _issue_session(response, user_id, workspace.slug)
+    return response
+
+
+@api_router.post("/auth/register", status_code=201)
+def api_register(body: _TokenIn) -> Response:
+    email = body.email.strip().lower()
+    if not _registration_open():
+        raise HTTPException(status_code=403, detail="Registration is closed")
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Enter a valid email")
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if db.get_user_by_email(email) is not None:
+        raise HTTPException(status_code=409, detail="That email is already registered")
+    first_user = not db.has_users()
+    user_id = db.create_user(email, _hash_password(body.password))
+    workspace = db.ensure_default_workspace(user_id)
+    workspace_id = int(workspace.id)
+    if first_user:
+        db.claim_unowned_pages(user_id, workspace_id)
+    for title, content in seed.SEED_PAGES:
+        db.create_page(user_id, workspace_id, title, content)
+    response = JSONResponse(_me_payload(user_id, workspace.slug), status_code=201)
+    _issue_session(response, user_id, workspace.slug)
+    return response
+
+
+@api_router.post("/auth/logout")
+def api_logout() -> Response:
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("session")
+    response.delete_cookie("workspace")
+    return response
+
+
+@api_router.post("/workspaces/{slug}/switch")
+def api_switch_workspace(request: Request, slug: str) -> Response:
+    uid = _api_user(request)
+    ws = db.get_workspace_by_slug(uid, slug)
+    if ws is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    response = JSONResponse(_workspace_brief(ws))
+    _ws_cookie(response, ws.slug)
+    return response
+
+
+@api_router.get("/pages/{slug}/view")
+def api_page_view(request: Request, slug: str):
+    """Todo lo que la vista de lectura de la SPA necesita en una sola llamada."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    page = db.get_page(slug, uid, wid)
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    breadcrumbs = db.get_ancestors(int(page.id), uid, wid)
+    children = db.list_child_pages(uid, wid, int(page.id))
+    related = db.related_pages(uid, wid, slug) or []
+    return {
+        "slug": page.slug,
+        "title": page.title,
+        "content": page.content,
+        "parent_slug": page.parent_slug,
+        "updated_at": page.updated_at,
+        "updated_by_email": page.updated_by_email,
+        "updated_by_name": page.updated_by_name,
+        "breadcrumbs": [{"slug": c.slug, "title": c.title} for c in breadcrumbs],
+        "children": [
+            {"slug": c.slug, "title": c.title, "updated_at": c.updated_at} for c in children
+        ],
+        "backlinks": [
+            {"slug": b.slug, "title": b.title} for b in db.backlinks(uid, wid, slug)
+        ],
+        "related": [
+            {"slug": r.slug, "title": r.title, "shared_tags": r.shared_tags} for r in related
+        ],
+    }
+
+
 def _commit_page(
     request: Request, uid: int, wid: int, slug: str, title: str, content: str
 ) -> None:
@@ -443,6 +575,32 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 app.include_router(api_router)
 app.include_router(mcp.router)
+
+# La SPA de React (carpeta frontend/) se construye en static/app/ y se sirve bajo /app.
+SPA_DIR = BASE_DIR / "static" / "app"
+
+
+@app.get("/app")
+@app.get("/app/{full_path:path}")
+async def serve_spa(full_path: str = "") -> Response:
+    """Sirve la SPA de React.
+
+    Devuelve el archivo pedido si existe (assets como /app/assets/...); en caso
+    contrario devuelve index.html, para que al recargar una ruta del lado cliente
+    (p. ej. /app/p/mi-pagina) React Router la resuelva.
+    """
+    if full_path:
+        candidate = (SPA_DIR / full_path).resolve()
+        # Evita salir de SPA_DIR (path traversal) y solo sirve archivos reales.
+        if SPA_DIR.resolve() in candidate.parents and candidate.is_file():
+            return FileResponse(candidate)
+    index = SPA_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+    raise HTTPException(
+        status_code=404,
+        detail="SPA not built. Run: cd frontend && npm install && npm run build",
+    )
 
 
 @app.exception_handler(Exception)
@@ -558,6 +716,19 @@ def _ws_cookie(response: Response, slug: str) -> None:
         "workspace", slug,
         httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=WORKSPACE_MAX_AGE,
     )
+
+
+def _issue_session(response: Response, user_id: int, ws_slug: str | None = None) -> None:
+    """Fija la cookie de sesión (httponly, JWT) y, si se da, la del workspace activo.
+
+    Lo comparten el login/registro web (form) y los endpoints JSON de la SPA.
+    """
+    response.set_cookie(
+        "session", _encode_token(user_id),
+        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=SESSION_MAX_AGE,
+    )
+    if ws_slug:
+        _ws_cookie(response, ws_slug)
 
 
 def _lang_cookie(response: Response, lang: str) -> None:
@@ -1026,13 +1197,8 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
     _login_clear(key)
     user_id = int(user.id)
     workspace = db.ensure_default_workspace(user_id)
-    token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie(
-        "session", token,
-        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=SESSION_MAX_AGE,
-    )
-    _ws_cookie(response, workspace.slug)
+    _issue_session(response, user_id, workspace.slug)
     return response
 
 
@@ -1092,13 +1258,8 @@ async def register(request: Request, email: str = Form(...), password: str = For
     for title, content in seed.SEED_PAGES:
         db.create_page(user_id, workspace_id, title, content)
 
-    token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    response.set_cookie(
-        "session", token,
-        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=SESSION_MAX_AGE,
-    )
-    _ws_cookie(response, workspace.slug)
+    _issue_session(response, user_id, workspace.slug)
     return response
 
 

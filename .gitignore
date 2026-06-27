@@ -17,3 +17,9 @@ CLAUDE.md
 models/
 *.txt
 important.md
+
+# Frontend React (Vite): dependencias y artefactos de build.
+# El bundle (app/static/app) lo genera `npm run build` o el stage `web` de Docker.
+frontend/node_modules/
+frontend/dist/
+app/static/app/

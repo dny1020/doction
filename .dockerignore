@@ -12,3 +12,8 @@ data/
 *.md
 !init.md
 CLAUDE.md
+
+# El bundle de la SPA lo genera el stage `web`, no el contexto local.
+frontend/node_modules/
+frontend/dist/
+app/static/app/

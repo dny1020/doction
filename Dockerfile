@@ -30,6 +30,17 @@ COPY scripts ./scripts
 
 RUN uv run ruff check . && uv run python -m pytest tests -q
 
+# Frontend React (Vite): construye la SPA. Node entra SOLO en este stage de build;
+# el runtime sigue siendo una imagen de solo Python. El bundle sale en
+# /build/app/static/app (por el outDir de vite.config.js: ../app/static/app).
+FROM node:20-slim AS web
+
+WORKDIR /build/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM base AS runtime
 
 RUN uv sync --frozen --no-dev && uv cache clean
@@ -51,6 +62,8 @@ RUN mkdir -p /app/models \
 
 COPY app ./app
 COPY scripts ./scripts
+# Bundle de la SPA construido en el stage `web` → servido por FastAPI en /app.
+COPY --from=web /build/app/static/app ./app/static/app
 RUN mkdir -p /data
 
 EXPOSE 8000
