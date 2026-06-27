@@ -65,7 +65,9 @@ class _OnnxEmbedder:
         self._tok.enable_truncation(max_length=MAX_TOKENS)
         self._tok.enable_padding()
         self._sess = ort.InferenceSession(MODEL_PATH, providers=["CPUExecutionProvider"])
-        self._inputs = {i.name for i in self._sess.get_inputs()}
+        self._inputs = set()
+        for model_input in self._sess.get_inputs():
+            self._inputs.add(model_input.name)
 
     def encode(self, texts: list[str]) -> np.ndarray:
         if not texts:
@@ -147,7 +149,7 @@ def drain_pending(limit: int = 1000) -> int:
         if not pending:
             break
         for row in pending:
-            reindex_page(int(row["id"]), int(row["workspace_id"]), row["content"] or "")
+            reindex_page(int(row.id), int(row.workspace_id), row.content or "")
             done += 1
     return done
 
@@ -163,14 +165,19 @@ def _clean(snippet: str) -> str:
     return _MARK_RE.sub("", snippet or "")
 
 
+def _result_score(result: dict) -> float:
+    """Clave de ordenación: la puntuación de un resultado de búsqueda."""
+    return result["score"]
+
+
 def _fts_results(user_id: int, workspace_id: int, query: str, k: int) -> list[dict]:
     rows = db.search_pages(user_id, workspace_id, query, limit=k)
     return [
         {
-            "slug": r["slug"],
-            "title": r["title"],
+            "slug": r.slug,
+            "title": r.title,
             "score": None,
-            "chunk": _clean(r["snippet"]),
+            "chunk": _clean(r.snippet),
             "keyword_match": True,
             "via": "fts",
         }
@@ -202,33 +209,34 @@ def semantic_search(
         return _fts_results(user_id, workspace_id, query, k)
 
     qvec = get_embedder().encode([query])[0]
-    mat = np.stack([_from_blob(r["vector"]) for r in rows])
+    mat = np.stack([_from_blob(r.vector) for r in rows])
     scores = mat @ qvec  # coseno (todo normalizado)
 
     best: dict[int, dict] = {}
     for idx, row in enumerate(rows):
-        pid = int(row["page_id"])
+        pid = int(row.page_id)
         score = float(scores[idx])
         if pid not in best or score > best[pid]["score"]:
             best[pid] = {
-                "slug": row["slug"],
-                "title": row["title"],
+                "slug": row.slug,
+                "title": row.title,
                 "score": score,
-                "chunk": row["text"],
-                "ord": int(row["ord"]),
+                "chunk": row.text,
+                "ord": int(row.ord),
             }
 
     results = list(best.values())
     keyword_slugs: set[str] = set()
     if keyword_boost:
-        keyword_slugs = {r["slug"] for r in db.search_pages(user_id, workspace_id, query)}
+        for hit in db.search_pages(user_id, workspace_id, query):
+            keyword_slugs.add(hit.slug)
     for r in results:
         r["keyword_match"] = r["slug"] in keyword_slugs
         if r["keyword_match"]:
             r["score"] += KEYWORD_BOOST
         r["via"] = "semantic"
 
-    results.sort(key=lambda r: r["score"], reverse=True)
+    results.sort(key=_result_score, reverse=True)
     out = results[:k]
     for r in out:
         r["score"] = round(r["score"], 4)
@@ -249,16 +257,16 @@ def rag_context(user_id: int, workspace_id: int, query: str, *, k: int = 6) -> d
         rows = db.workspace_chunk_vectors(user_id, workspace_id)
         if rows:
             qvec = get_embedder().encode([query])[0]
-            mat = np.stack([_from_blob(r["vector"]) for r in rows])
+            mat = np.stack([_from_blob(r.vector) for r in rows])
             scores = mat @ qvec
             order = np.argsort(-scores)[:k]
             chunks = [
                 {
-                    "slug": rows[i]["slug"],
-                    "title": rows[i]["title"],
-                    "ord": int(rows[i]["ord"]),
+                    "slug": rows[i].slug,
+                    "title": rows[i].title,
+                    "ord": int(rows[i].ord),
                     "score": round(float(scores[i]), 4),
-                    "text": rows[i]["text"],
+                    "text": rows[i].text,
                 }
                 for i in order
             ]
@@ -267,11 +275,11 @@ def rag_context(user_id: int, workspace_id: int, query: str, *, k: int = 6) -> d
     rows = db.search_pages(user_id, workspace_id, query, limit=k)
     chunks = [
         {
-            "slug": r["slug"],
-            "title": r["title"],
+            "slug": r.slug,
+            "title": r.title,
             "ord": None,
             "score": None,
-            "text": _clean(r["snippet"]),
+            "text": _clean(r.snippet),
         }
         for r in rows
     ]
@@ -293,7 +301,7 @@ async def enrichment_worker(*, interval: float = 2.0, batch: int = 5) -> None:
                 continue
             for row in pending:
                 await asyncio.to_thread(
-                    reindex_page, int(row["id"]), int(row["workspace_id"]), row["content"] or ""
+                    reindex_page, int(row.id), int(row.workspace_id), row.content or ""
                 )
         except asyncio.CancelledError:
             logger.info("embedding worker detenido")

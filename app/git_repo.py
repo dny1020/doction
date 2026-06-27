@@ -7,6 +7,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from app.models import HistoryEntry
+
 logger = logging.getLogger(__name__)
 
 
@@ -87,7 +89,7 @@ def commit_page(
     return sha.stdout.strip() or None
 
 
-def get_page_history(ws_slug: str, page_slug: str, limit: int = 50) -> list[dict]:
+def get_page_history(ws_slug: str, page_slug: str, limit: int = 50) -> list[HistoryEntry]:
     pages = _pages_dir()
     if not (pages / ".git").exists():
         return []
@@ -103,12 +105,14 @@ def get_page_history(ws_slug: str, page_slug: str, limit: int = 50) -> list[dict
     for line in result.stdout.strip().splitlines():
         parts = line.split("|", 3)
         if len(parts) == 4:
-            history.append({
-                "sha": parts[0][:7],
-                "timestamp": parts[1],
-                "author": parts[2],
-                "message": parts[3],
-            })
+            history.append(
+                HistoryEntry(
+                    sha=parts[0][:7],
+                    timestamp=parts[1],
+                    author=parts[2],
+                    message=parts[3],
+                )
+            )
     return history
 
 

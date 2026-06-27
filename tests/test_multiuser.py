@@ -87,10 +87,10 @@ def test_member_sees_and_edits_shared_workspace(client):
     assert hist[0]["author"] == "b@test.com"
 
     import app.db as db_module
-    a_uid = int(db_module.get_user_by_email("a@test.com")["id"])
-    wid = int(db_module.get_workspace_by_slug(a_uid, a_slug)["id"])
+    a_uid = int(db_module.get_user_by_email("a@test.com").id)
+    wid = int(db_module.get_workspace_by_slug(a_uid, a_slug).id)
     page = db_module.get_page(page_slug, a_uid, wid)
-    assert page["updated_by_email"] == "b@test.com"
+    assert page.updated_by_email == "b@test.com"
 
 
 def test_member_cannot_manage_workspace(client):

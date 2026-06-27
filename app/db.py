@@ -9,6 +9,21 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app import meta
+from app.models import (
+    ApiToken,
+    ChunkVector,
+    EmbedTarget,
+    ExtractedPage,
+    Member,
+    Page,
+    PageMeta,
+    PageNode,
+    PageRef,
+    RelatedPage,
+    SearchHit,
+    User,
+    Workspace,
+)
 
 DEFAULT_DB_PATH = "doction.db"
 DEFAULT_WORKSPACE_NAME = "Personal"
@@ -31,6 +46,59 @@ def connect() -> sqlite3.Connection:
 
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+# ── Conversión de filas a dataclasses ────────────────────────────────────────
+# Cada consulta devuelve un `sqlite3.Row`, que funciona como un diccionario. Estas
+# funciones lo pasan a un dato con nombre (las clases de app/models.py). Pasamos la
+# fila a un dict y usamos `.get(...)` para que, si una consulta no seleccionó cierta
+# columna, ese campo quede en None en vez de provocar un error.
+
+def _to_user(row: sqlite3.Row) -> User:
+    d = dict(row)
+    return User(
+        id=d["id"],
+        email=d["email"],
+        password_hash=d["password_hash"],
+        created_at=d["created_at"],
+        display_name=d.get("display_name"),
+        avatar_color=d.get("avatar_color"),
+    )
+
+
+def _to_workspace(row: sqlite3.Row) -> Workspace:
+    d = dict(row)
+    return Workspace(
+        id=d["id"],
+        slug=d["slug"],
+        name=d["name"],
+        role=d.get("role"),
+        user_id=d.get("user_id"),
+        created_at=d.get("created_at"),
+    )
+
+
+def _to_page(row: sqlite3.Row) -> Page:
+    d = dict(row)
+    return Page(
+        id=d.get("id"),
+        slug=d.get("slug", ""),
+        title=d.get("title", ""),
+        content=d.get("content", ""),
+        user_id=d.get("user_id"),
+        workspace_id=d.get("workspace_id"),
+        parent_id=d.get("parent_id"),
+        created_at=d.get("created_at"),
+        updated_at=d.get("updated_at"),
+        git_commit=d.get("git_commit"),
+        embed_dirty=d.get("embed_dirty"),
+        updated_by=d.get("updated_by"),
+        deleted_at=d.get("deleted_at"),
+        parent_slug=d.get("parent_slug"),
+        parent_title=d.get("parent_title"),
+        updated_by_email=d.get("updated_by_email"),
+        updated_by_name=d.get("updated_by_name"),
+    )
 
 
 def _unique_index_present(conn: sqlite3.Connection, table: str, columns: list[str]) -> bool:
@@ -88,7 +156,9 @@ def _ensure_pages_fts(conn: sqlite3.Connection) -> None:
 
 
 def _rebuild_pages_schema(conn: sqlite3.Connection) -> None:
-    old_columns = {row["name"] for row in conn.execute("PRAGMA table_info(pages)")}
+    old_columns = set()
+    for row in conn.execute("PRAGMA table_info(pages)"):
+        old_columns.add(row["name"])
     select_user_id = "user_id" if "user_id" in old_columns else "NULL AS user_id"
     select_workspace_id = (
         "workspace_id" if "workspace_id" in old_columns else "NULL AS workspace_id"
@@ -371,7 +441,9 @@ def init_db() -> None:
             "ON workspace_members(user_id)"
         )
 
-        page_columns = {row["name"] for row in conn.execute("PRAGMA table_info(pages)")}
+        page_columns = set()
+        for row in conn.execute("PRAGMA table_info(pages)"):
+            page_columns.add(row["name"])
         needs_rebuild = (
             "user_id" not in page_columns
             or "workspace_id" not in page_columns
@@ -394,7 +466,9 @@ def init_db() -> None:
         )
         _backfill_page_workspaces(conn)
 
-        page_cols = {r["name"] for r in conn.execute("PRAGMA table_info(pages)")}
+        page_cols = set()
+        for r in conn.execute("PRAGMA table_info(pages)"):
+            page_cols.add(r["name"])
         if "git_commit" not in page_cols:
             conn.execute("ALTER TABLE pages ADD COLUMN git_commit TEXT")
         if "embed_dirty" not in page_cols:
@@ -407,7 +481,9 @@ def init_db() -> None:
             # Soft-delete: NULL = viva; un timestamp = en la papelera (recuperable).
             conn.execute("ALTER TABLE pages ADD COLUMN deleted_at TEXT")
 
-        user_cols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+        user_cols = set()
+        for r in conn.execute("PRAGMA table_info(users)"):
+            user_cols.add(r["name"])
         if "display_name" not in user_cols:
             conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
         if "avatar_color" not in user_cols:
@@ -459,14 +535,16 @@ def has_users() -> bool:
         return conn.execute("SELECT 1 FROM users LIMIT 1").fetchone() is not None
 
 
-def get_user_by_email(email: str) -> sqlite3.Row | None:
+def get_user_by_email(email: str) -> User | None:
     with connect() as conn:
-        return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        return _to_user(row) if row else None
 
 
-def get_user_by_id(user_id: int) -> sqlite3.Row | None:
+def get_user_by_id(user_id: int) -> User | None:
     with connect() as conn:
-        return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        return _to_user(row) if row else None
 
 
 def update_user_profile(user_id: int, display_name: str | None, avatar_color: str | None) -> None:
@@ -485,10 +563,10 @@ def update_user_password(user_id: int, password_hash: str) -> None:
         )
 
 
-def list_workspaces(user_id: int) -> list[sqlite3.Row]:
+def list_workspaces(user_id: int) -> list[Workspace]:
     """Workspaces de los que el usuario es miembro (propios y compartidos), con su rol."""
     with connect() as conn:
-        return conn.execute(
+        rows = conn.execute(
             """
             SELECT w.id, w.slug, w.name, m.role
             FROM workspaces w
@@ -498,12 +576,13 @@ def list_workspaces(user_id: int) -> list[sqlite3.Row]:
             """,
             (user_id,),
         ).fetchall()
+        return [_to_workspace(row) for row in rows]
 
 
-def get_workspace_by_slug(user_id: int, slug: str) -> sqlite3.Row | None:
+def get_workspace_by_slug(user_id: int, slug: str) -> Workspace | None:
     """Resuelve un workspace por slug solo si el usuario es miembro."""
     with connect() as conn:
-        return conn.execute(
+        row = conn.execute(
             """
             SELECT w.id, w.slug, w.name, m.role
             FROM workspaces w
@@ -512,6 +591,7 @@ def get_workspace_by_slug(user_id: int, slug: str) -> sqlite3.Row | None:
             """,
             (user_id, slug),
         ).fetchone()
+        return _to_workspace(row) if row else None
 
 
 def create_workspace(user_id: int, name: str) -> str:
@@ -605,9 +685,9 @@ def count_workspace_owners(workspace_id: int) -> int:
         ).fetchone()["n"]
 
 
-def list_workspace_members(workspace_id: int) -> list[sqlite3.Row]:
+def list_workspace_members(workspace_id: int) -> list[Member]:
     with connect() as conn:
-        return conn.execute(
+        rows = conn.execute(
             """
             SELECT u.id AS user_id, u.email, u.display_name, m.role, m.created_at
             FROM workspace_members m
@@ -617,9 +697,21 @@ def list_workspace_members(workspace_id: int) -> list[sqlite3.Row]:
             """,
             (workspace_id,),
         ).fetchall()
+        members = []
+        for row in rows:
+            members.append(
+                Member(
+                    user_id=row["user_id"],
+                    email=row["email"],
+                    display_name=row["display_name"],
+                    role=row["role"],
+                    created_at=row["created_at"],
+                )
+            )
+        return members
 
 
-def ensure_default_workspace(user_id: int) -> sqlite3.Row:
+def ensure_default_workspace(user_id: int) -> Workspace:
     with connect() as conn:
         workspace = conn.execute(
             "SELECT id, slug, name FROM workspaces WHERE user_id = ? ORDER BY id LIMIT 1",
@@ -647,7 +739,7 @@ def ensure_default_workspace(user_id: int) -> sqlite3.Row:
             "UPDATE pages SET workspace_id = ? WHERE user_id = ? AND workspace_id IS NULL",
             (workspace["id"], user_id),
         )
-        return workspace
+        return _to_workspace(workspace)
 
 
 def claim_unowned_pages(user_id: int, workspace_id: int) -> int:
@@ -659,7 +751,7 @@ def claim_unowned_pages(user_id: int, workspace_id: int) -> int:
         return cur.rowcount
 
 
-def list_pages_tree(user_id: int, workspace_id: int) -> list[dict]:
+def list_pages_tree(user_id: int, workspace_id: int) -> list[PageNode]:
     """Lista plana en orden DFS con campo depth para renderizar el árbol en la sidebar."""
     with connect() as conn:
         rows = conn.execute(
@@ -668,7 +760,9 @@ def list_pages_tree(user_id: int, workspace_id: int) -> list[dict]:
             (workspace_id,),
         ).fetchall()
 
-    by_id = {r["id"]: r for r in rows}
+    by_id = {}
+    for r in rows:
+        by_id[r["id"]] = r
     children: dict[int, list] = {}
     roots = []
     for r in rows:
@@ -678,10 +772,10 @@ def list_pages_tree(user_id: int, workspace_id: int) -> list[dict]:
         else:
             children.setdefault(int(pid), []).append(r)
 
-    result: list[dict] = []
+    result: list[PageNode] = []
 
     def _dfs(node, depth: int) -> None:
-        result.append({"slug": node["slug"], "title": node["title"], "depth": depth})
+        result.append(PageNode(slug=node["slug"], title=node["title"], depth=depth))
         for child in children.get(int(node["id"]), []):
             _dfs(child, depth + 1)
 
@@ -691,10 +785,10 @@ def list_pages_tree(user_id: int, workspace_id: int) -> list[dict]:
     return result
 
 
-def get_page(slug: str, user_id: int, workspace_id: int) -> sqlite3.Row | None:
+def get_page(slug: str, user_id: int, workspace_id: int) -> Page | None:
     # El acceso lo garantiza la membresía al resolver el workspace; aquí basta workspace_id.
     with connect() as conn:
-        return conn.execute(
+        row = conn.execute(
             """
             SELECT p.*, parent.slug AS parent_slug, parent.title AS parent_title,
                    editor.email AS updated_by_email, editor.display_name AS updated_by_name
@@ -705,11 +799,12 @@ def get_page(slug: str, user_id: int, workspace_id: int) -> sqlite3.Row | None:
             """,
             (slug, workspace_id),
         ).fetchone()
+        return _to_page(row) if row else None
 
 
-def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[dict]:
+def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[PageRef]:
     """Cadena de ancestros desde la raíz hasta el padre directo (sin incluir la página)."""
-    chain: list[dict] = []
+    chain: list[PageRef] = []
     with connect() as conn:
         row = conn.execute(
             "SELECT parent_id FROM pages WHERE id = ? AND workspace_id = ?",
@@ -726,15 +821,15 @@ def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[dict]:
             ).fetchone()
             if parent is None:
                 break
-            chain.append({"slug": parent["slug"], "title": parent["title"]})
+            chain.append(PageRef(slug=parent["slug"], title=parent["title"]))
             parent_id = parent["parent_id"]
     chain.reverse()
     return chain
 
 
-def latest_page(user_id: int, workspace_id: int) -> sqlite3.Row | None:
+def latest_page(user_id: int, workspace_id: int) -> Page | None:
     with connect() as conn:
-        return conn.execute(
+        row = conn.execute(
             """
             SELECT p.*, parent.slug AS parent_slug, parent.title AS parent_title,
                    editor.email AS updated_by_email, editor.display_name AS updated_by_name
@@ -747,6 +842,7 @@ def latest_page(user_id: int, workspace_id: int) -> sqlite3.Row | None:
             """,
             (workspace_id,),
         ).fetchone()
+        return _to_page(row) if row else None
 
 
 def _resolve_parent_id(
@@ -839,15 +935,19 @@ def delete_page(user_id: int, workspace_id: int, slug: str) -> bool:
         return cur.rowcount > 0
 
 
-def list_deleted_pages(user_id: int, workspace_id: int) -> list[sqlite3.Row]:
-    """Páginas en la papelera del workspace, más recientes primero."""
+def list_deleted_pages(user_id: int, workspace_id: int) -> list[Page]:
+    """Páginas en la papelera del workspace, más recientes primero.
+
+    Cada Page trae solo slug, title y deleted_at (lo que se muestra en la papelera).
+    """
     with connect() as conn:
-        return conn.execute(
+        rows = conn.execute(
             "SELECT slug, title, deleted_at FROM pages "
             "WHERE workspace_id = ? AND deleted_at IS NOT NULL "
             "ORDER BY deleted_at DESC",
             (workspace_id,),
         ).fetchall()
+        return [_to_page(row) for row in rows]
 
 
 def restore_page(user_id: int, workspace_id: int, slug: str) -> bool:
@@ -873,24 +973,26 @@ def purge_page(user_id: int, workspace_id: int, slug: str) -> bool:
         return cur.rowcount > 0
 
 
-def pages_for_export(workspace_id: int) -> list[sqlite3.Row]:
-    """Páginas vivas de un workspace (slug + contenido) para exportar a markdown."""
+def pages_for_export(workspace_id: int) -> list[Page]:
+    """Páginas vivas de un workspace (slug, title, content) para exportar a markdown."""
     with connect() as conn:
-        return conn.execute(
+        rows = conn.execute(
             "SELECT slug, title, content FROM pages "
             "WHERE workspace_id = ? AND deleted_at IS NULL ORDER BY slug",
             (workspace_id,),
         ).fetchall()
+        return [_to_page(row) for row in rows]
 
 
-def list_child_pages(user_id: int, workspace_id: int, parent_id: int) -> list[sqlite3.Row]:
+def list_child_pages(user_id: int, workspace_id: int, parent_id: int) -> list[Page]:
     with connect() as conn:
-        return conn.execute(
+        rows = conn.execute(
             "SELECT slug, title, updated_at FROM pages "
             "WHERE workspace_id = ? AND parent_id = ? AND deleted_at IS NULL "
             "ORDER BY updated_at DESC",
             (workspace_id, parent_id),
         ).fetchall()
+        return [_to_page(row) for row in rows]
 
 
 def _fts_query(raw: str) -> str:
@@ -906,12 +1008,12 @@ def search_pages(
     workspace_id: int,
     query: str,
     limit: int = 20,
-) -> list[sqlite3.Row]:
+) -> list[SearchHit]:
     match = _fts_query(query)
     if not match:
         return []
     with connect() as conn:
-        return conn.execute(
+        rows = conn.execute(
             """
             SELECT p.slug, p.title,
                    snippet(pages_fts, 1, '<mark>', '</mark>', '…', 12) AS snippet
@@ -923,6 +1025,10 @@ def search_pages(
             """,
             (match, workspace_id, limit),
         ).fetchall()
+        return [
+            SearchHit(slug=row["slug"], title=row["title"], snippet=row["snippet"])
+            for row in rows
+        ]
 
 
 def _page_tags(conn: sqlite3.Connection, page_id: int) -> list[str]:
@@ -932,7 +1038,7 @@ def _page_tags(conn: sqlite3.Connection, page_id: int) -> list[str]:
     return [r["tag"] for r in rows]
 
 
-def get_page_meta(user_id: int, workspace_id: int, slug: str) -> dict | None:
+def get_page_meta(user_id: int, workspace_id: int, slug: str) -> PageMeta | None:
     """Frontmatter + tags de una página, o None si no existe."""
     with connect() as conn:
         row = conn.execute(
@@ -945,12 +1051,12 @@ def get_page_meta(user_id: int, workspace_id: int, slug: str) -> dict | None:
             "SELECT type, frontmatter_json FROM page_meta WHERE page_id = ?", (row["id"],)
         ).fetchone()
         fm = json.loads(meta_row["frontmatter_json"]) if meta_row else {}
-        return {
-            "slug": slug,
-            "type": meta_row["type"] if meta_row else None,
-            "tags": _page_tags(conn, int(row["id"])),
-            "frontmatter": fm,
-        }
+        return PageMeta(
+            slug=slug,
+            type=meta_row["type"] if meta_row else None,
+            tags=_page_tags(conn, int(row["id"])),
+            frontmatter=fm,
+        )
 
 
 def extract_pages(
@@ -960,7 +1066,7 @@ def extract_pages(
     page_type: str | None = None,
     tag: str | None = None,
     limit: int = 200,
-) -> list[dict]:
+) -> list[ExtractedPage]:
     """Filtra páginas por `type` y/o `tag` del frontmatter; estructura sin LLM."""
     joins = ""
     params: list = []
@@ -986,19 +1092,19 @@ def extract_pages(
     with connect() as conn:
         rows = conn.execute(sql, params).fetchall()
         return [
-            {
-                "slug": r["slug"],
-                "title": r["title"],
-                "type": r["type"],
-                "tags": _page_tags(conn, int(r["id"])),
-                "frontmatter": json.loads(r["frontmatter_json"] or "{}"),
-                "updated_at": r["updated_at"],
-            }
+            ExtractedPage(
+                slug=r["slug"],
+                title=r["title"],
+                type=r["type"],
+                tags=_page_tags(conn, int(r["id"])),
+                frontmatter=json.loads(r["frontmatter_json"] or "{}"),
+                updated_at=r["updated_at"],
+            )
             for r in rows
         ]
 
 
-def backlinks(user_id: int, workspace_id: int, slug: str) -> list[dict]:
+def backlinks(user_id: int, workspace_id: int, slug: str) -> list[PageRef]:
     """Páginas que enlazan a `slug` vía wikilink [[slug]]."""
     with connect() as conn:
         rows = conn.execute(
@@ -1011,10 +1117,12 @@ def backlinks(user_id: int, workspace_id: int, slug: str) -> list[dict]:
             """,
             (workspace_id, slug),
         ).fetchall()
-        return [{"slug": r["slug"], "title": r["title"]} for r in rows]
+        return [PageRef(slug=r["slug"], title=r["title"]) for r in rows]
 
 
-def related_pages(user_id: int, workspace_id: int, slug: str, limit: int = 10) -> list[dict] | None:
+def related_pages(
+    user_id: int, workspace_id: int, slug: str, limit: int = 10
+) -> list[RelatedPage] | None:
     """Vecinos por solape de tags (desc), o None si la página no existe."""
     with connect() as conn:
         page = conn.execute(
@@ -1037,20 +1145,24 @@ def related_pages(user_id: int, workspace_id: int, slug: str, limit: int = 10) -
             (int(page["id"]), workspace_id, limit),
         ).fetchall()
         return [
-            {"slug": r["slug"], "title": r["title"], "shared_tags": int(r["shared"])}
+            RelatedPage(slug=r["slug"], title=r["title"], shared_tags=int(r["shared"]))
             for r in rows
         ]
 
 
-def pages_to_embed(limit: int = 10) -> list[sqlite3.Row]:
+def pages_to_embed(limit: int = 10) -> list[EmbedTarget]:
     """Páginas marcadas como sucias (embed_dirty=1) pendientes de embedding."""
     with connect() as conn:
-        return conn.execute(
+        rows = conn.execute(
             "SELECT id, workspace_id, content FROM pages "
             "WHERE embed_dirty = 1 AND workspace_id IS NOT NULL AND deleted_at IS NULL "
             "ORDER BY id LIMIT ?",
             (limit,),
         ).fetchall()
+        return [
+            EmbedTarget(id=r["id"], workspace_id=r["workspace_id"], content=r["content"])
+            for r in rows
+        ]
 
 
 def store_page_chunks(
@@ -1071,10 +1183,10 @@ def store_page_chunks(
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = ?", (page_id,))
 
 
-def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[sqlite3.Row]:
+def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[ChunkVector]:
     """Chunks + vectores de un workspace para la búsqueda semántica (KNN en memoria)."""
     with connect() as conn:
-        return conn.execute(
+        rows = conn.execute(
             """
             SELECT c.page_id, c.ord, c.text, c.vector, p.slug, p.title
             FROM page_chunks c
@@ -1083,14 +1195,26 @@ def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[sqlite3.Row
             """,
             (workspace_id,),
         ).fetchall()
+        return [
+            ChunkVector(
+                page_id=r["page_id"],
+                ord=r["ord"],
+                text=r["text"],
+                vector=r["vector"],
+                slug=r["slug"],
+                title=r["title"],
+            )
+            for r in rows
+        ]
 
 
-def get_workspace_by_id(workspace_id: int) -> sqlite3.Row | None:
+def get_workspace_by_id(workspace_id: int) -> Workspace | None:
     with connect() as conn:
-        return conn.execute(
+        row = conn.execute(
             "SELECT id, slug, name FROM workspaces WHERE id = ?",
             (workspace_id,),
         ).fetchone()
+        return _to_workspace(row) if row else None
 
 
 def set_page_git_commit(user_id: int, workspace_id: int, slug: str, sha: str) -> None:
@@ -1110,13 +1234,22 @@ def create_api_token(user_id: int, name: str, token_hash: str) -> int:
         return int(cur.lastrowid)
 
 
-def list_api_tokens(user_id: int) -> list[sqlite3.Row]:
+def list_api_tokens(user_id: int) -> list[ApiToken]:
     with connect() as conn:
-        return conn.execute(
+        rows = conn.execute(
             "SELECT id, name, created_at, last_used_at FROM api_tokens "
             "WHERE user_id = ? ORDER BY created_at, id",
             (user_id,),
         ).fetchall()
+        return [
+            ApiToken(
+                id=r["id"],
+                name=r["name"],
+                created_at=r["created_at"],
+                last_used_at=r["last_used_at"],
+            )
+            for r in rows
+        ]
 
 
 def revoke_api_token(user_id: int, token_id: int) -> bool:

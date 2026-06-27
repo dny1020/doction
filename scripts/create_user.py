@@ -47,8 +47,8 @@ def main() -> int:
     workspace = db.ensure_default_workspace(user_id)
     if not args.no_seed:
         for title, content in seed.SEED_PAGES:
-            db.create_page(user_id, int(workspace["id"]), title, content)
-    print(f"ok: usuario {email} creado (id={user_id}, workspace='{workspace['slug']}')")
+            db.create_page(user_id, int(workspace.id), title, content)
+    print(f"ok: usuario {email} creado (id={user_id}, workspace='{workspace.slug}')")
     return 0
 
 

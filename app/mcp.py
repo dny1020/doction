@@ -5,16 +5,15 @@ Auth Bearer del middleware de app.main; modo stateless (JSON plano, sin SSE).
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
-import sqlite3
-from collections.abc import Callable
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
 from app import db, embeddings, git_repo
+from app.models import Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ router = APIRouter(prefix="/api")
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 
-def _workspace(user_id: int, args: dict) -> sqlite3.Row:
+def _workspace(user_id: int, args: dict) -> Workspace:
     slug = (args.get("workspace") or "").strip()
     if slug:
         ws = db.get_workspace_by_slug(user_id, slug)
@@ -44,63 +43,64 @@ def _require(args: dict, key: str) -> str:
     return value.strip()
 
 
-def _git_commit(user_id: int, ws: sqlite3.Row, slug: str, title: str, content: str) -> None:
+def _git_commit(user_id: int, ws: Workspace, slug: str, title: str, content: str) -> None:
     user = db.get_user_by_id(user_id)
-    author = user["email"] if user else "user"
-    sha = git_repo.commit_page(ws["slug"], slug, content, author, f"Save: {title}")
+    author = user.email if user else "user"
+    sha = git_repo.commit_page(ws.slug, slug, content, author, f"Save: {title}")
     if sha:
-        db.set_page_git_commit(user_id, int(ws["id"]), slug, sha)
+        db.set_page_git_commit(user_id, int(ws.id), slug, sha)
 
 
-def _tool_list_workspaces(user_id: int, args: dict) -> Any:
+def _tool_list_workspaces(user_id: int, args: dict) -> list[dict]:
     return [
-        {"slug": w["slug"], "name": w["name"], "role": w["role"]}
+        {"slug": w.slug, "name": w.name, "role": w.role}
         for w in db.list_workspaces(user_id)
     ]
 
 
-def _tool_list_members(user_id: int, args: dict) -> Any:
+def _tool_list_members(user_id: int, args: dict) -> list[dict]:
     ws = _workspace(user_id, args)
     return [
-        {"email": m["email"], "display_name": m["display_name"], "role": m["role"]}
-        for m in db.list_workspace_members(int(ws["id"]))
+        {"email": m.email, "display_name": m.display_name, "role": m.role}
+        for m in db.list_workspace_members(int(ws.id))
     ]
 
 
-def _tool_list_pages(user_id: int, args: dict) -> Any:
+def _tool_list_pages(user_id: int, args: dict) -> list[dict]:
     ws = _workspace(user_id, args)
-    return db.list_pages_tree(user_id, int(ws["id"]))
+    nodes = db.list_pages_tree(user_id, int(ws.id))
+    return [dataclasses.asdict(node) for node in nodes]
 
 
-def _tool_get_page(user_id: int, args: dict) -> Any:
+def _tool_get_page(user_id: int, args: dict) -> dict:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    page = db.get_page(slug, user_id, int(ws["id"]))
+    page = db.get_page(slug, user_id, int(ws.id))
     if page is None:
         raise ValueError(f"Page not found: {slug}")
     return {
-        "slug": page["slug"],
-        "title": page["title"],
-        "content": page["content"],
-        "parent_slug": page["parent_slug"],
-        "created_at": page["created_at"],
-        "updated_at": page["updated_at"],
+        "slug": page.slug,
+        "title": page.title,
+        "content": page.content,
+        "parent_slug": page.parent_slug,
+        "created_at": page.created_at,
+        "updated_at": page.updated_at,
     }
 
 
-def _tool_search_pages(user_id: int, args: dict) -> Any:
+def _tool_search_pages(user_id: int, args: dict) -> list[dict]:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
-    results = db.search_pages(user_id, int(ws["id"]), query)
-    return [{"slug": r["slug"], "title": r["title"], "snippet": r["snippet"]} for r in results]
+    results = db.search_pages(user_id, int(ws.id), query)
+    return [{"slug": r.slug, "title": r.title, "snippet": r.snippet} for r in results]
 
 
-def _tool_create_page(user_id: int, args: dict) -> Any:
+def _tool_create_page(user_id: int, args: dict) -> dict:
     title = _require(args, "title")
     content = args.get("content") or ""
     ws = _workspace(user_id, args)
     slug = db.create_page(
-        user_id, int(ws["id"]), title, content,
+        user_id, int(ws.id), title, content,
         parent_slug=args.get("parent_slug") or None,
         requested_slug=args.get("slug") or None,
     )
@@ -108,67 +108,69 @@ def _tool_create_page(user_id: int, args: dict) -> Any:
     return {"slug": slug, "title": title}
 
 
-def _tool_update_page(user_id: int, args: dict) -> Any:
+def _tool_update_page(user_id: int, args: dict) -> dict:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    page = db.get_page(slug, user_id, int(ws["id"]))
+    page = db.get_page(slug, user_id, int(ws.id))
     if page is None:
         raise ValueError(f"Page not found: {slug}")
-    title = args.get("title") if args.get("title") is not None else page["title"]
-    content = args.get("content") if args.get("content") is not None else page["content"]
-    db.update_page(user_id, int(ws["id"]), slug, title, content)
+    title = args.get("title") if args.get("title") is not None else page.title
+    content = args.get("content") if args.get("content") is not None else page.content
+    db.update_page(user_id, int(ws.id), slug, title, content)
     _git_commit(user_id, ws, slug, title, content)
     return {"slug": slug, "title": title, "updated": True}
 
 
-def _tool_get_page_history(user_id: int, args: dict) -> Any:
+def _tool_get_page_history(user_id: int, args: dict) -> list[dict]:
     slug = _require(args, "slug")
     limit = int(args.get("limit") or 50)
     ws = _workspace(user_id, args)
-    if db.get_page(slug, user_id, int(ws["id"])) is None:
+    if db.get_page(slug, user_id, int(ws.id)) is None:
         raise ValueError(f"Page not found: {slug}")
-    return git_repo.get_page_history(ws["slug"], slug, limit=limit)
+    history = git_repo.get_page_history(ws.slug, slug, limit=limit)
+    return [dataclasses.asdict(entry) for entry in history]
 
 
-def _tool_extract(user_id: int, args: dict) -> Any:
+def _tool_extract(user_id: int, args: dict) -> list[dict]:
     ws = _workspace(user_id, args)
-    return db.extract_pages(
+    pages = db.extract_pages(
         user_id,
-        int(ws["id"]),
+        int(ws.id),
         page_type=(args.get("type") or None),
         tag=(args.get("tag") or None),
     )
+    return [dataclasses.asdict(page) for page in pages]
 
 
-def _tool_list_backlinks(user_id: int, args: dict) -> Any:
+def _tool_list_backlinks(user_id: int, args: dict) -> list[dict]:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    if db.get_page(slug, user_id, int(ws["id"])) is None:
+    if db.get_page(slug, user_id, int(ws.id)) is None:
         raise ValueError(f"Page not found: {slug}")
-    return db.backlinks(user_id, int(ws["id"]), slug)
+    return [dataclasses.asdict(ref) for ref in db.backlinks(user_id, int(ws.id), slug)]
 
 
-def _tool_related_pages(user_id: int, args: dict) -> Any:
+def _tool_related_pages(user_id: int, args: dict) -> list[dict]:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    related = db.related_pages(user_id, int(ws["id"]), slug)
+    related = db.related_pages(user_id, int(ws.id), slug)
     if related is None:
         raise ValueError(f"Page not found: {slug}")
-    return related
+    return [dataclasses.asdict(page) for page in related]
 
 
-def _tool_sgrep(user_id: int, args: dict) -> Any:
+def _tool_sgrep(user_id: int, args: dict) -> list[dict]:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     limit = int(args.get("limit") or 10)
-    return embeddings.semantic_search(user_id, int(ws["id"]), query, k=limit)
+    return embeddings.semantic_search(user_id, int(ws.id), query, k=limit)
 
 
-def _tool_rag(user_id: int, args: dict) -> Any:
+def _tool_rag(user_id: int, args: dict) -> dict:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     limit = int(args.get("limit") or 6)
-    return embeddings.rag_context(user_id, int(ws["id"]), query, k=limit)
+    return embeddings.rag_context(user_id, int(ws.id), query, k=limit)
 
 
 _WORKSPACE_PROP = {
@@ -324,7 +326,9 @@ TOOLS: list[dict] = [
     },
 ]
 
-TOOL_HANDLERS: dict[str, Callable[[int, dict], Any]] = {
+# Nombre de la tool → función que la implementa. Cada función recibe
+# (user_id, args) y devuelve un dict o una lista de dicts listos para JSON.
+TOOL_HANDLERS = {
     "list_workspaces": _tool_list_workspaces,
     "list_members": _tool_list_members,
     "list_pages": _tool_list_pages,
@@ -343,15 +347,15 @@ TOOL_HANDLERS: dict[str, Callable[[int, dict], Any]] = {
 
 # ── JSON-RPC dispatch ────────────────────────────────────────────────────────
 
-def _result(msg_id: Any, result: dict | list) -> dict:
+def _result(msg_id: str | int | None, result: dict | list) -> dict:
     return {"jsonrpc": "2.0", "id": msg_id, "result": result}
 
 
-def _error(msg_id: Any, code: int, message: str) -> dict:
+def _error(msg_id: str | int | None, code: int, message: str) -> dict:
     return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
 
 
-def _tool_text(data: Any, *, is_error: bool = False) -> dict:
+def _tool_text(data: dict | list | str, *, is_error: bool = False) -> dict:
     text = data if isinstance(data, str) else json.dumps(data, ensure_ascii=False, indent=2)
     result: dict = {"content": [{"type": "text", "text": text}]}
     if is_error:
@@ -359,7 +363,7 @@ def _tool_text(data: Any, *, is_error: bool = False) -> dict:
     return result
 
 
-def _call_tool(request: Request, msg_id: Any, params: dict) -> dict:
+def _call_tool(request: Request, msg_id: str | int | None, params: dict) -> dict:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -377,7 +381,7 @@ def _call_tool(request: Request, msg_id: Any, params: dict) -> dict:
         return _result(msg_id, _tool_text(f"Tool {name} failed unexpectedly", is_error=True))
 
 
-def _handle_message(request: Request, msg: Any) -> dict | None:
+def _handle_message(request: Request, msg) -> dict | None:
     """Despacha un mensaje JSON-RPC; None si es notificación (sin id)."""
     if not isinstance(msg, dict) or msg.get("jsonrpc") != "2.0" or "method" not in msg:
         return _error(msg.get("id") if isinstance(msg, dict) else None, -32600, "Invalid Request")
@@ -415,7 +419,11 @@ async def mcp_endpoint(request: Request) -> Response:
     if not messages:
         return JSONResponse(_error(None, -32600, "Invalid Request"), status_code=400)
 
-    responses = [r for m in messages if (r := _handle_message(request, m)) is not None]
+    responses = []
+    for message in messages:
+        response = _handle_message(request, message)
+        if response is not None:
+            responses.append(response)
     if not responses:
         return Response(status_code=202)
     return JSONResponse(responses if isinstance(body, list) else responses[0])

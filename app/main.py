@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
+import dataclasses
 import hashlib
 import io
 import logging
@@ -34,6 +34,7 @@ from app.auth import (
 from app.auth import hash_password as _hash_password
 from app.auth import verify_password as _verify_password
 from app.markdown import render_markdown
+from app.models import Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -139,15 +140,15 @@ def _api_workspace(request: Request, user_id: int) -> int:
     ws = getattr(request.state, "workspace", None)
     if ws is None:
         ws = db.ensure_default_workspace(user_id)
-    return int(ws["id"])
+    return int(ws.id)
 
 
 @api_router.post("/token")
 def api_token(body: _TokenIn):
     user = db.get_user_by_email(body.email.strip().lower())
-    if user is None or not _verify_password(body.password, user["password_hash"]):
+    if user is None or not _verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"token": _encode_token(int(user["id"])), "token_type": "bearer"}
+    return {"token": _encode_token(int(user.id)), "token_type": "bearer"}
 
 
 @api_router.post("/tokens", status_code=201)
@@ -162,7 +163,7 @@ def api_create_token(request: Request, body: _ApiTokenIn):
 @api_router.get("/tokens")
 def api_list_tokens(request: Request):
     uid = _api_user(request)
-    return [dict(t) for t in db.list_api_tokens(uid)]
+    return [dataclasses.asdict(t) for t in db.list_api_tokens(uid)]
 
 
 @api_router.delete("/tokens/{token_id}", status_code=204)
@@ -175,7 +176,11 @@ def api_revoke_token(request: Request, token_id: int):
 @api_router.get("/workspaces")
 def api_list_workspaces(request: Request):
     uid = _api_user(request)
-    return [dict(w) for w in db.list_workspaces(uid)]
+    # Construimos el dict a mano para devolver solo estos campos (no user_id, etc.).
+    return [
+        {"id": w.id, "slug": w.slug, "name": w.name, "role": w.role}
+        for w in db.list_workspaces(uid)
+    ]
 
 
 @api_router.post("/workspaces", status_code=201)
@@ -185,14 +190,14 @@ def api_create_workspace(request: Request, body: _WorkspaceIn):
     return {"slug": slug, "name": body.name.strip() or "Workspace"}
 
 
-def _api_owned_workspace(request: Request, uid: int, slug: str) -> dict:
+def _api_owned_workspace(request: Request, uid: int, slug: str) -> Workspace:
     """Resuelve el workspace por slug exigiendo que el usuario sea owner."""
     ws = db.get_workspace_by_slug(uid, slug)
     if ws is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
-    if ws["role"] != "owner":
+    if ws.role != "owner":
         raise HTTPException(status_code=403, detail="Owner role required")
-    return dict(ws)
+    return ws
 
 
 @api_router.get("/workspaces/{slug}/members")
@@ -203,12 +208,12 @@ def api_list_members(request: Request, slug: str):
         raise HTTPException(status_code=404, detail="Workspace not found")
     return [
         {
-            "user_id": m["user_id"],
-            "email": m["email"],
-            "display_name": m["display_name"],
-            "role": m["role"],
+            "user_id": m.user_id,
+            "email": m.email,
+            "display_name": m.display_name,
+            "role": m.role,
         }
-        for m in db.list_workspace_members(int(ws["id"]))
+        for m in db.list_workspace_members(int(ws.id))
     ]
 
 
@@ -219,19 +224,19 @@ def api_add_member(request: Request, slug: str, body: _MemberIn):
     target = db.get_user_by_email(body.email.strip().lower())
     if target is None:
         raise HTTPException(status_code=404, detail="User not found")
-    if db.get_member_role(int(target["id"]), int(ws["id"])) is not None:
+    if db.get_member_role(int(target.id), int(ws.id)) is not None:
         raise HTTPException(status_code=409, detail="Already a member")
-    db.add_workspace_member(int(ws["id"]), int(target["id"]), "member")
-    return {"workspace": slug, "user_id": int(target["id"]), "role": "member"}
+    db.add_workspace_member(int(ws.id), int(target.id), "member")
+    return {"workspace": slug, "user_id": int(target.id), "role": "member"}
 
 
 @api_router.delete("/workspaces/{slug}/members/{member_id}", status_code=204)
 def api_remove_member(request: Request, slug: str, member_id: int):
     uid = _api_user(request)
     ws = _api_owned_workspace(request, uid, slug)
-    if db.get_member_role(member_id, int(ws["id"])) == "owner":
+    if db.get_member_role(member_id, int(ws.id)) == "owner":
         raise HTTPException(status_code=400, detail="Cannot remove the owner")
-    if not db.remove_workspace_member(int(ws["id"]), member_id):
+    if not db.remove_workspace_member(int(ws.id), member_id):
         raise HTTPException(status_code=404, detail="Member not found")
 
 
@@ -244,8 +249,8 @@ def api_export_workspace(request: Request, slug: str) -> Response:
         raise HTTPException(status_code=404, detail="Workspace not found")
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for page in db.pages_for_export(int(ws["id"])):
-            zf.writestr(f"{slug}/{page['slug']}.md", page["content"])
+        for page in db.pages_for_export(int(ws.id)):
+            zf.writestr(f"{slug}/{page.slug}.md", page.content)
     return Response(
         content=buf.getvalue(),
         media_type="application/zip",
@@ -280,7 +285,7 @@ def api_page_history(request: Request, slug: str, limit: int = 50):
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     ws = db.get_workspace_by_id(wid)
-    ws_slug = ws["slug"] if ws else "unknown"
+    ws_slug = ws.slug if ws else "unknown"
     return git_repo.get_page_history(ws_slug, slug, limit=limit)
 
 
@@ -292,7 +297,7 @@ def api_page_at_commit(request: Request, slug: str, sha: str):
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     ws = db.get_workspace_by_id(wid)
-    ws_slug = ws["slug"] if ws else "unknown"
+    ws_slug = ws.slug if ws else "unknown"
     content = git_repo.get_page_at_commit(ws_slug, slug, sha)
     if content is None:
         raise HTTPException(status_code=404, detail="Commit not found")
@@ -307,7 +312,7 @@ def api_page_diff(request: Request, slug: str, sha: str):
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     ws = db.get_workspace_by_id(wid)
-    ws_slug = ws["slug"] if ws else "unknown"
+    ws_slug = ws.slug if ws else "unknown"
     diff = git_repo.diff_page(ws_slug, slug, sha)
     if diff is None:
         raise HTTPException(status_code=404, detail="Commit not found")
@@ -321,7 +326,7 @@ def api_get_page_raw(request: Request, slug: str):
     page = db.get_page(slug, uid, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    return page["content"]
+    return page.content
 
 
 @api_router.get("/pages/{slug}")
@@ -331,15 +336,15 @@ def api_get_page(request: Request, slug: str):
     page = db.get_page(slug, uid, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    children = db.list_child_pages(uid, wid, int(page["id"]))
+    children = db.list_child_pages(uid, wid, int(page.id))
     return {
-        "slug": page["slug"],
-        "title": page["title"],
-        "content": page["content"],
-        "parent_slug": page["parent_slug"],
-        "children": [{"slug": c["slug"], "title": c["title"]} for c in children],
-        "created_at": page["created_at"],
-        "updated_at": page["updated_at"],
+        "slug": page.slug,
+        "title": page.title,
+        "content": page.content,
+        "parent_slug": page.parent_slug,
+        "children": [{"slug": c.slug, "title": c.title} for c in children],
+        "created_at": page.created_at,
+        "updated_at": page.updated_at,
     }
 
 
@@ -350,8 +355,8 @@ def api_update_page(request: Request, slug: str, body: _PagePatch):
     page = db.get_page(slug, uid, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    new_title = body.title if body.title is not None else page["title"]
-    new_content = body.content if body.content is not None else page["content"]
+    new_title = body.title if body.title is not None else page.title
+    new_content = body.content if body.content is not None else page.content
     db.update_page(uid, wid, slug, new_title, new_content)
     _commit_page(request, uid, wid, slug, new_title, new_content)
     return {"slug": slug, "title": new_title, "updated": True}
@@ -375,7 +380,7 @@ def api_search(request: Request, q: str = "", mode: str = "keyword"):
         return embeddings.semantic_search(uid, wid, q)
     results = db.search_pages(uid, wid, q)
     return [
-        {"slug": r["slug"], "title": r["title"], "snippet": r["snippet"]}
+        {"slug": r.slug, "title": r.title, "snippet": r.snippet}
         for r in results
     ]
 
@@ -385,10 +390,10 @@ def _commit_page(
 ) -> None:
     ws = getattr(request.state, "workspace", None)
     if ws:
-        ws_slug = ws["slug"]
+        ws_slug = ws.slug
     else:
         _ws = db.get_workspace_by_id(wid)
-        ws_slug = _ws["slug"] if _ws else "default"
+        ws_slug = _ws.slug if _ws else "default"
     author = getattr(request.state, "user_email", None) or "user"
     sha = git_repo.commit_page(ws_slug, slug, content, author, f"Save: {title}")
     if sha:
@@ -421,8 +426,11 @@ async def lifespan(_: FastAPI):
 
     if embed_task is not None:
         embed_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
+        try:
             await embed_task
+        except asyncio.CancelledError:
+            # Cancelar la tarea lanza esta excepción a propósito; la ignoramos.
+            pass
 
 
 app = FastAPI(title="doction", lifespan=lifespan)
@@ -498,7 +506,7 @@ def _require_workspace_id(request: Request, user_id: int) -> int:
         workspace = db.ensure_default_workspace(user_id)
         request.state.workspaces = db.list_workspaces(user_id)
         request.state.workspace = workspace
-    return int(workspace["id"])
+    return int(workspace.id)
 
 
 def _lang(request: Request) -> str:
@@ -533,7 +541,7 @@ def _authed_context(request: Request, user_id: int) -> dict[str, object]:
     workspace = getattr(request.state, "workspace", None)
     pages = []
     if workspace is not None:
-        pages = db.list_pages_tree(user_id, int(workspace["id"]))
+        pages = db.list_pages_tree(user_id, int(workspace.id))
     return {
         "pages": pages,
         "workspaces": getattr(request.state, "workspaces", []),
@@ -613,20 +621,20 @@ async def home(request: Request) -> Response:
             "empty.html",
             {**context, "active_slug": None},
         )
-    children = db.list_child_pages(user_id, workspace_id, int(page["id"]))
-    breadcrumbs = db.get_ancestors(int(page["id"]), user_id, workspace_id)
+    children = db.list_child_pages(user_id, workspace_id, int(page.id))
+    breadcrumbs = db.get_ancestors(int(page.id), user_id, workspace_id)
     return templates.TemplateResponse(
         request,
         "page.html",
         {
             **context,
             "page": page,
-            "rendered": render_markdown(page["content"]),
+            "rendered": render_markdown(page.content),
             "children": children,
             "breadcrumbs": breadcrumbs,
-            "backlinks": db.backlinks(user_id, workspace_id, page["slug"]),
-            "related": db.related_pages(user_id, workspace_id, page["slug"]) or [],
-            "active_slug": page["slug"],
+            "backlinks": db.backlinks(user_id, workspace_id, page.slug),
+            "related": db.related_pages(user_id, workspace_id, page.slug) or [],
+            "active_slug": page.slug,
         },
     )
 
@@ -695,15 +703,15 @@ async def read_page(request: Request, slug: str) -> Response:
     page = db.get_page(slug, user_id, workspace_id)
     if page is None:
         return _not_found(request, slug)
-    children = db.list_child_pages(user_id, workspace_id, int(page["id"]))
-    breadcrumbs = db.get_ancestors(int(page["id"]), user_id, workspace_id)
+    children = db.list_child_pages(user_id, workspace_id, int(page.id))
+    breadcrumbs = db.get_ancestors(int(page.id), user_id, workspace_id)
     return templates.TemplateResponse(
         request,
         "page.html",
         {
             **_authed_context(request, user_id),
             "page": page,
-            "rendered": render_markdown(page["content"]),
+            "rendered": render_markdown(page.content),
             "children": children,
             "breadcrumbs": breadcrumbs,
             "backlinks": db.backlinks(user_id, workspace_id, slug),
@@ -723,7 +731,7 @@ async def page_history(request: Request, slug: str) -> Response:
     if page is None:
         return _not_found(request, slug)
     ws = db.get_workspace_by_id(workspace_id)
-    ws_slug = ws["slug"] if ws else "default"
+    ws_slug = ws.slug if ws else "default"
     history = git_repo.get_page_history(ws_slug, slug)
     return templates.TemplateResponse(
         request,
@@ -747,7 +755,7 @@ async def page_history_detail(request: Request, slug: str, sha: str) -> Response
     if page is None:
         return _not_found(request, slug)
     ws = db.get_workspace_by_id(workspace_id)
-    ws_slug = ws["slug"] if ws else "default"
+    ws_slug = ws.slug if ws else "default"
     content = git_repo.get_page_at_commit(ws_slug, slug, sha)
     if content is None:
         return _not_found(request, slug)
@@ -774,7 +782,7 @@ async def page_history_diff(request: Request, slug: str, sha: str) -> Response:
     if page is None:
         return _not_found(request, slug)
     ws = db.get_workspace_by_id(workspace_id)
-    ws_slug = ws["slug"] if ws else "default"
+    ws_slug = ws.slug if ws else "default"
     diff = git_repo.diff_page(ws_slug, slug, sha)
     if diff is None:
         return _not_found(request, slug)
@@ -801,11 +809,11 @@ async def restore_page(request: Request, slug: str, sha: str) -> Response:
     if page is None:
         return _not_found(request, slug)
     ws = db.get_workspace_by_id(workspace_id)
-    ws_slug = ws["slug"] if ws else "default"
+    ws_slug = ws.slug if ws else "default"
     content = git_repo.get_page_at_commit(ws_slug, slug, sha)
     if content is None:
         return _not_found(request, slug)
-    title = page["title"]
+    title = page.title
     new_slug = db.update_page(user_id, workspace_id, slug, title, content)
     effective_slug = new_slug or slug
     author = getattr(request.state, "user_email", None) or "user"
@@ -1002,7 +1010,7 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
         )
 
     user = db.get_user_by_email(email)
-    if user is None or not _verify_password(password, user["password_hash"]):
+    if user is None or not _verify_password(password, user.password_hash):
         _login_record_failure(key)
         return templates.TemplateResponse(
             request,
@@ -1016,7 +1024,7 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
         )
 
     _login_clear(key)
-    user_id = int(user["id"])
+    user_id = int(user.id)
     workspace = db.ensure_default_workspace(user_id)
     token = _encode_token(user_id)
     response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
@@ -1024,7 +1032,7 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
         "session", token,
         httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=SESSION_MAX_AGE,
     )
-    _ws_cookie(response, workspace["slug"])
+    _ws_cookie(response, workspace.slug)
     return response
 
 
@@ -1076,7 +1084,7 @@ async def register(request: Request, email: str = Form(...), password: str = For
     first_user = not db.has_users()
     user_id = db.create_user(email, _hash_password(password))
     workspace = db.ensure_default_workspace(user_id)
-    workspace_id = int(workspace["id"])
+    workspace_id = int(workspace.id)
     # Solo el primer usuario adopta páginas huérfanas (migración legacy); evita que un
     # registrante posterior absorba páginas sin dueño.
     if first_user:
@@ -1090,7 +1098,7 @@ async def register(request: Request, email: str = Form(...), password: str = For
         "session", token,
         httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=SESSION_MAX_AGE,
     )
-    _ws_cookie(response, workspace["slug"])
+    _ws_cookie(response, workspace.slug)
     return response
 
 
@@ -1124,7 +1132,7 @@ async def switch_workspace(request: Request, slug: str, next_url: str = "/") -> 
     target = _safe_next(next_url)
     response = RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
     if workspace is not None:
-        _ws_cookie(response, workspace["slug"])
+        _ws_cookie(response, workspace.slug)
     return response
 
 
@@ -1160,16 +1168,19 @@ def _render_settings(
     workspaces = getattr(request.state, "workspaces", [])
     ws_list = [
         {
-            "slug": w["slug"],
-            "name": w["name"],
-            "role": w["role"],
+            "slug": w.slug,
+            "name": w.name,
+            "role": w.role,
             "members": (
-                db.list_workspace_members(int(w["id"])) if w["role"] == "owner" else []
+                db.list_workspace_members(int(w.id)) if w.role == "owner" else []
             ),
         }
         for w in workspaces
     ]
-    owned_count = sum(1 for w in workspaces if w["role"] == "owner")
+    owned_count = 0
+    for w in workspaces:
+        if w.role == "owner":
+            owned_count += 1
     return templates.TemplateResponse(
         request,
         "settings.html",
@@ -1177,8 +1188,8 @@ def _render_settings(
             **_authed_context(request, user_id),
             "active_slug": None,
             "avatar_colors": AVATAR_COLORS,
-            "profile_name": (user["display_name"] if user else "") or "",
-            "current_color": (user["avatar_color"] if user else "") or "",
+            "profile_name": (user.display_name if user else "") or "",
+            "current_color": (user.avatar_color if user else "") or "",
             "ws_list": ws_list,
             "owned_count": owned_count,
             "api_tokens": db.list_api_tokens(user_id),
@@ -1249,7 +1260,7 @@ async def update_password(
     if isinstance(user_id, Response):
         return user_id
     user = db.get_user_by_id(user_id)
-    if user is None or not _verify_password(current_password, user["password_hash"]):
+    if user is None or not _verify_password(current_password, user.password_hash):
         return RedirectResponse("/settings?m=pw_current", status_code=HTTP_303_SEE_OTHER)
     if len(new_password) < 8:
         return RedirectResponse("/settings?m=pw_len", status_code=HTTP_303_SEE_OTHER)
@@ -1259,10 +1270,10 @@ async def update_password(
     return RedirectResponse("/settings?m=password", status_code=HTTP_303_SEE_OTHER)
 
 
-def _owned_workspace(user_id: int, slug: str):
+def _owned_workspace(user_id: int, slug: str) -> Workspace | None:
     """Workspace resuelto por slug solo si el usuario es su owner; si no, None."""
     ws = db.get_workspace_by_slug(user_id, slug)
-    if ws is None or ws["role"] != "owner":
+    if ws is None or ws.role != "owner":
         return None
     return ws
 
@@ -1295,7 +1306,7 @@ async def delete_workspace_route(request: Request, slug: str) -> Response:
     if ok and request.cookies.get("workspace") == slug:
         remaining = db.list_workspaces(user_id)
         if remaining:
-            _ws_cookie(response, remaining[0]["slug"])
+            _ws_cookie(response, remaining[0].slug)
     return response
 
 
@@ -1312,9 +1323,9 @@ async def add_member_route(
     target = db.get_user_by_email(email.strip().lower())
     if target is None:
         return RedirectResponse("/settings?m=member_404", status_code=HTTP_303_SEE_OTHER)
-    if db.get_member_role(int(target["id"]), int(ws["id"])) is not None:
+    if db.get_member_role(int(target.id), int(ws.id)) is not None:
         return RedirectResponse("/settings?m=member_dup", status_code=HTTP_303_SEE_OTHER)
-    db.add_workspace_member(int(ws["id"]), int(target["id"]), "member")
+    db.add_workspace_member(int(ws.id), int(target.id), "member")
     return RedirectResponse("/settings?m=member_added", status_code=HTTP_303_SEE_OTHER)
 
 
@@ -1326,9 +1337,9 @@ async def remove_member_route(request: Request, slug: str, member_id: int) -> Re
     ws = _owned_workspace(user_id, slug)
     if ws is None:
         return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
-    if db.get_member_role(member_id, int(ws["id"])) == "owner":
+    if db.get_member_role(member_id, int(ws.id)) == "owner":
         return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
-    db.remove_workspace_member(int(ws["id"]), member_id)
+    db.remove_workspace_member(int(ws.id), member_id)
     return RedirectResponse("/settings?m=member_removed", status_code=HTTP_303_SEE_OTHER)
 
 
@@ -1366,11 +1377,11 @@ async def attach_user(request: Request, call_next):
     if user_id is not None:
         user = db.get_user_by_id(user_id)
         if user is not None:
-            user_id = int(user["id"])
+            user_id = int(user.id)
             request.state.user_id = user_id
-            request.state.user_email = user["email"]
-            request.state.user_display_name = user["display_name"]
-            request.state.user_avatar_color = user["avatar_color"]
+            request.state.user_email = user.email
+            request.state.user_display_name = user.display_name
+            request.state.user_avatar_color = user.avatar_color
 
             db.ensure_default_workspace(user_id)
             workspaces = db.list_workspaces(user_id)
@@ -1379,7 +1390,10 @@ async def attach_user(request: Request, call_next):
             requested_slug = request.query_params.get("ws") or request.cookies.get("workspace")
             workspace = None
             if requested_slug:
-                workspace = next((ws for ws in workspaces if ws["slug"] == requested_slug), None)
+                for ws in workspaces:
+                    if ws.slug == requested_slug:
+                        workspace = ws
+                        break
             if workspace is None and workspaces:
                 workspace = workspaces[0]
             request.state.workspace = workspace
@@ -1387,8 +1401,8 @@ async def attach_user(request: Request, call_next):
     response = await call_next(request)
 
     workspace = getattr(request.state, "workspace", None)
-    if workspace is not None and request.cookies.get("workspace") != workspace["slug"]:
-        _ws_cookie(response, workspace["slug"])
+    if workspace is not None and request.cookies.get("workspace") != workspace.slug:
+        _ws_cookie(response, workspace.slug)
 
     for header, value in SECURITY_HEADERS.items():
         response.headers.setdefault(header, value)

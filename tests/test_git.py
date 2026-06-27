@@ -52,8 +52,8 @@ def test_git_commit_stored_on_create(client):
     import app.db as db_module
     page = db_module.get_page(slug, *_get_uid_wid())
     assert page is not None
-    assert page["git_commit"] is not None
-    assert len(page["git_commit"]) == 7
+    assert page.git_commit is not None
+    assert len(page.git_commit) == 7
 
 
 def test_history_endpoint_returns_commits(client):
@@ -193,7 +193,7 @@ def _get_uid_wid() -> tuple[int, int]:
     import app.db as db_module
     user = db_module.get_user_by_email("u@test.com")
     assert user is not None
-    uid = int(user["id"])
+    uid = int(user.id)
     ws = db_module.ensure_default_workspace(uid)
-    wid = int(ws["id"])
+    wid = int(ws.id)
     return uid, wid

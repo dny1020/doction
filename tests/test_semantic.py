@@ -97,7 +97,7 @@ def test_update_marks_dirty_again(client):
     _drain()
     assert db.pages_to_embed() == []
     _call(client, token, "update_page", {"slug": created["slug"], "content": "second version"})
-    assert any(r["id"] for r in db.pages_to_embed())
+    assert any(r.id for r in db.pages_to_embed())
 
 
 def test_sgrep_ranks_by_meaning(client):
