@@ -48,13 +48,6 @@ def test_security_headers_present(client):
     assert "strict-transport-security" not in r.headers
 
 
-def test_render_markdown_escapes_html():
-    from app.markdown import render_markdown
-
-    out = render_markdown("<script>alert(1)</script>")
-    assert "<script>" not in out
-
-
 def test_login_rate_limited(client):
     client.post("/api/auth/register", json={"email": "rl@example.com", "password": "password123"})
     # 5 intentos fallidos permitidos (401); el 6º se bloquea con 429.

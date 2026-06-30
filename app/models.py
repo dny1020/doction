@@ -66,7 +66,7 @@ class ApiToken:
 class Page:
     """Una página de la wiki (tabla `pages`).
 
-    Las funciones `get_page`/`latest_page` la devuelven completa, incluidos los
+    La función `get_page` la devuelve completa, incluidos los
     campos extra de los JOIN (`parent_slug`, `updated_by_email`, …). Las listas
     cortas (papelera, exportación, subpáginas) rellenan solo unas columnas y dejan
     el resto en `None`.
@@ -84,7 +84,7 @@ class Page:
     embed_dirty: int | None = None
     updated_by: int | None = None
     deleted_at: str | None = None
-    # Columnas extra que añaden los JOIN de get_page/latest_page:
+    # Columnas extra que añaden los JOIN de get_page:
     parent_slug: str | None = None
     parent_title: str | None = None
     updated_by_email: str | None = None

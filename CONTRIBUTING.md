@@ -29,13 +29,14 @@ EMBED_STUB=1 SEMANTIC_SEARCH=1 uv run pytest tests/
 
 ## Project layout
 
-- `app/main.py` — FastAPI app, all routes (web + REST), auth middleware, lifespan.
+- `app/main.py` — FastAPI app, all routes (REST `/api` + MCP) + the `/app` SPA host, auth middleware, lifespan.
 - `app/db.py` — SQLite layer (no ORM): users, workspaces, pages, tokens, FTS5, chunks.
 - `app/mcp.py` — native MCP server (JSON-RPC 2.0) at `POST /api/mcp`.
 - `app/meta.py` — pure markdown parsers: frontmatter, tags, wikilinks, chunking.
 - `app/embeddings.py` — opt-in local semantic search (ONNX MiniLM).
 - `app/git_repo.py` — silent git commit on every page save.
-- `app/templates/` — Jinja2 + HTMX fragments.
+- `app/i18n.py` — EN/ES translation catalog, served to the SPA via `/api/i18n`.
+- `frontend/` — React SPA (Vite, plain JSX); built into `app/static/app/` and served at `/app`.
 
 ## Guidelines
 

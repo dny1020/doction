@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>doction</title>
     <script>
-      /* Aplica el tema guardado antes de pintar (evita el parpadeo). Igual que el base.html del sitio Jinja. */
+      /* Aplica el tema guardado antes de pintar, para evitar el parpadeo. */
       try {
         var t = localStorage.getItem('theme')
         if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'

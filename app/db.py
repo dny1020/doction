@@ -676,15 +676,6 @@ def remove_workspace_member(workspace_id: int, user_id: int) -> bool:
         return cur.rowcount > 0
 
 
-def count_workspace_owners(workspace_id: int) -> int:
-    with connect() as conn:
-        return conn.execute(
-            "SELECT COUNT(*) AS n FROM workspace_members "
-            "WHERE workspace_id = ? AND role = 'owner'",
-            (workspace_id,),
-        ).fetchone()["n"]
-
-
 def list_workspace_members(workspace_id: int) -> list[Member]:
     with connect() as conn:
         rows = conn.execute(
@@ -825,24 +816,6 @@ def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[PageRef
             parent_id = parent["parent_id"]
     chain.reverse()
     return chain
-
-
-def latest_page(user_id: int, workspace_id: int) -> Page | None:
-    with connect() as conn:
-        row = conn.execute(
-            """
-            SELECT p.*, parent.slug AS parent_slug, parent.title AS parent_title,
-                   editor.email AS updated_by_email, editor.display_name AS updated_by_name
-            FROM pages p
-            LEFT JOIN pages parent ON parent.id = p.parent_id
-            LEFT JOIN users editor ON editor.id = p.updated_by
-            WHERE p.workspace_id = ? AND p.deleted_at IS NULL
-            ORDER BY p.updated_at DESC
-            LIMIT 1
-            """,
-            (workspace_id,),
-        ).fetchone()
-        return _to_page(row) if row else None
 
 
 def _resolve_parent_id(

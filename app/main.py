@@ -408,7 +408,7 @@ def api_search(request: Request, q: str = "", mode: str = "keyword"):
 
 # ── SPA (React) — bootstrap + auth por JSON ──────────────────────────────────
 # Estos endpoints alimentan el frontend React (carpeta frontend/). Usan la misma
-# cookie de sesión httponly que el sitio Jinja; la SPA llama con
+# cookie de sesión httponly (compartida con REST/MCP); la SPA llama con
 # `fetch(..., {credentials: 'same-origin'})`, así que la cookie viaja sola.
 
 def _workspace_brief(ws) -> dict:
@@ -503,7 +503,7 @@ def api_i18n(request: Request):
 
 @api_router.post("/lang/{code}")
 def api_set_lang(code: str) -> Response:
-    """Cambia el idioma de la SPA fijando la misma cookie `lang` que usa el sitio Jinja."""
+    """Cambia el idioma de la SPA fijando la cookie `lang`."""
     if code not in i18n.LANGS:
         raise HTTPException(status_code=400, detail="Unsupported language")
     response = JSONResponse({"lang": code})

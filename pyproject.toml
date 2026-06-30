@@ -1,13 +1,11 @@
 [project]
 name = "doction"
-version = "0.13.0"
+version = "0.13.1"
 description = "Minimalist, markdown-first DevOps knowledge system"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
-    "jinja2>=3.1",
-    "markdown-it-py>=3.0",
     "PyJWT>=2.8",
     "python-multipart>=0.0.18",
     # Búsqueda semántica local (opt-in vía SEMANTIC_SEARCH): modelo ONNX en el

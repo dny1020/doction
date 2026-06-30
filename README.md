@@ -15,6 +15,7 @@ in a single container backed by SQLite — no external services, no API keys.
 > *retrieval* — the language model lives in your agent, not here.
 
 ![doction — page view with sidebar, tags and git-tracked markdown](docs/assets/ui.png)
+<!-- NOTE: this screenshot predates the React SPA (now served at /app); regenerate against the current UI. -->
 
 ---
 
@@ -26,14 +27,14 @@ in a single container backed by SQLite — no external services, no API keys.
   `sgrep` (meaning-based search) and `rag` (retrieval with provenance). Fully offline, no
   API keys; gracefully degrades to FTS5 when disabled.
 - **Per-page git history** — every save is a commit; browse diffs and previous versions.
-- **REST API** + **native MCP server** (JSON-RPC 2.0, 12 tools) for agents.
+- **REST API** + **native MCP server** (JSON-RPC 2.0, 13 tools) for agents.
 - **Self-contained** — one container, SQLite, starts with zero configuration.
 
 ## How it works
 
 ```
             ┌──────────────────────────── doction (single container) ──────────────────────┐
-  Browser ──┤  FastAPI + HTMX (UI)                                                          │
+  Browser ──┤  React SPA at /app                                                            │
   curl    ──┤  REST  /api/*          SQLite (pages, FTS5, tags, links, chunks)              │
   Agent   ──┤  MCP   /api/mcp        git repo (one commit per save)                         │
             │                        embeddings worker (async, opt-in) ─┐ MiniLM ONNX       │
@@ -155,13 +156,14 @@ claude mcp add --transport http doction $DOCTION/api/mcp \
   --header "Authorization: Bearer doction_..."
 ```
 
-Once connected, the agent sees all 12 tools:
+Once connected, the agent sees all 13 tools:
 
-![doction MCP server connected inside an agent — 12 tools, authenticated](docs/assets/mcp.png)
+![doction MCP server connected inside an agent — authenticated](docs/assets/mcp.png)
 
 | Tool | What it does |
 |---|---|
 | `list_workspaces` | list workspaces |
+| `list_members` | list members of a workspace |
 | `list_pages` | page tree |
 | `get_page` | read a page (markdown + metadata) |
 | `search_pages` | full-text search (FTS5/BM25) |
@@ -195,9 +197,9 @@ make lint           # ruff check
 make test-image     # build + smoke-test /health
 ```
 
-Stack: FastAPI + Jinja2/HTMX (HTMX vendored), SQLite FTS5 (no ORM), markdown-it-py, and
-ONNX embeddings via onnxruntime + tokenizers. See [CONTRIBUTING.md](CONTRIBUTING.md) to
-get started.
+Stack: FastAPI (REST + native MCP) serving a React SPA (Vite, built into the image at
+`/app`), SQLite FTS5 (no ORM), and ONNX embeddings via onnxruntime + tokenizers. See
+[CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 ## Deployment
 

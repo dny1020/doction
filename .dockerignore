@@ -10,7 +10,6 @@ __pycache__/
 .ruff_cache/
 data/
 *.md
-!init.md
 CLAUDE.md
 
 # El bundle de la SPA lo genera el stage `web`, no el contexto local.
