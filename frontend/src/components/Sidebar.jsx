@@ -1,14 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Check, ChevronsUpDown, LogOut, Moon, Plus, Search, Sun, Terminal, X } from 'lucide-react'
+import { Check, ChevronsUpDown, LogOut, Moon, Plus, Search, Settings, Sun, Terminal, Trash2, X } from 'lucide-react'
 import { useAuth } from '../auth.jsx'
+import { useI18n } from '../i18n.jsx'
 import { api } from '../api.js'
+import { avatarColor, avatarLetter } from '../avatar.js'
 import { getTheme, toggleTheme } from '../theme.js'
+import LanguageToggle from './LanguageToggle.jsx'
 
 // Barra lateral: marca, selector de workspace, búsqueda en vivo, árbol de páginas,
 // botón de nueva página y, abajo, el cambio de tema + el menú de usuario.
 export default function Sidebar({ pages }) {
   const { user, logout } = useAuth()
+  const { t } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -72,7 +76,7 @@ export default function Sidebar({ pages }) {
   }
 
   const active = user ? user.active_workspace : null
-  const avatarLetter = user ? (user.display_name || user.email || '?').charAt(0).toUpperCase() : '?'
+  const letter = user ? avatarLetter(user.display_name, user.email) : '?'
 
   return (
     <aside className="sidebar" aria-label="Sidebar">
@@ -114,7 +118,7 @@ export default function Sidebar({ pages }) {
           <Search className="lucide" size={15} />
           <input
             type="search"
-            placeholder="Search…"
+            placeholder={t('search_placeholder')}
             autoComplete="off"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -139,7 +143,7 @@ export default function Sidebar({ pages }) {
                 ))}
               </ul>
             ) : (
-              <p className="muted no-results">No pages match “{query}”.</p>
+              <p className="muted no-results">{t('no_matches')} “{query}”.</p>
             )}
           </div>
         )}
@@ -147,7 +151,7 @@ export default function Sidebar({ pages }) {
 
       {results === null && (
         <>
-          <div className="sidebar-eyebrow">Pages</div>
+          <div className="sidebar-eyebrow">{t('pages')}</div>
           <nav className="page-list">
             <ul>
               {pages.length > 0 ? (
@@ -163,7 +167,7 @@ export default function Sidebar({ pages }) {
                   </li>
                 ))
               ) : (
-                <li className="muted">No pages yet.</li>
+                <li className="muted">{t('no_pages_yet')}</li>
               )}
             </ul>
           </nav>
@@ -172,11 +176,12 @@ export default function Sidebar({ pages }) {
 
       <div className="sidebar-foot">
         <Link className="new-btn" to="/new">
-          <Plus className="lucide" size={15} /> New page
+          <Plus className="lucide" size={15} /> {t('new_page')}
         </Link>
         <div className="sidebar-user">
           <div className="sidebar-controls">
-            <button className="theme-toggle" type="button" onClick={onToggleTheme} title="Toggle theme">
+            <LanguageToggle />
+            <button className="theme-toggle" type="button" onClick={onToggleTheme} title={t('toggle_theme')}>
               {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             </button>
           </div>
@@ -186,16 +191,23 @@ export default function Sidebar({ pages }) {
               type="button"
               onClick={() => setMenuOpen(!menuOpen)}
               title={user ? user.email : ''}
-              style={user && user.avatar_color ? { background: user.avatar_color } : undefined}
+              style={user ? { background: avatarColor(user) } : undefined}
             >
-              {avatarLetter}
+              {letter}
             </button>
             <div className={'avatar-menu' + (menuOpen ? ' open' : '')}>
               {user && user.display_name && <div className="avatar-menu-name">{user.display_name}</div>}
               {user && <div className="avatar-menu-email">{user.email}</div>}
               <div className="avatar-menu-divider" />
+              <Link className="avatar-menu-item" to="/settings" onClick={() => setMenuOpen(false)}>
+                <Settings size={14} /> {t('settings')}
+              </Link>
+              <Link className="avatar-menu-item" to="/trash" onClick={() => setMenuOpen(false)}>
+                <Trash2 size={14} /> {t('trash')}
+              </Link>
+              <div className="avatar-menu-divider" />
               <button className="avatar-menu-item" type="button" onClick={onLogout}>
-                <LogOut size={14} /> Log out
+                <LogOut size={14} /> {t('log_out')}
               </button>
             </div>
           </div>

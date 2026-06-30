@@ -8,7 +8,7 @@ __pycache__/
 .ruff_cache/
 *.un~
 data/
-pages/
+/pages/
 uploads/
 jobs_output.log
 .env

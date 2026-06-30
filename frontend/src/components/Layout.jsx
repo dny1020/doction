@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { api } from '../api.js'
 import Sidebar from './Sidebar.jsx'
+import CommandPalette from './CommandPalette.jsx'
 
 // Shell de la app autenticada: barra lateral + contenido. Carga el árbol de
 // páginas una vez y lo comparte con las rutas hijas (vía el contexto del Outlet),
@@ -28,6 +29,7 @@ export default function Layout() {
           <Outlet context={{ pages, reloadPages }} />
         </div>
       </main>
+      <CommandPalette pages={pages} />
     </div>
   )
 }

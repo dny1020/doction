@@ -201,6 +201,30 @@ def _api_owned_workspace(request: Request, uid: int, slug: str) -> Workspace:
     return ws
 
 
+@api_router.put("/workspaces/{slug}")
+def api_rename_workspace(request: Request, slug: str, body: _WorkspaceIn):
+    uid = _api_user(request)
+    _api_owned_workspace(request, uid, slug)  # exige ser owner
+    if not db.rename_workspace(uid, slug, body.name):
+        raise HTTPException(status_code=400, detail="Enter a valid name")
+    return {"slug": slug, "name": body.name.strip()}
+
+
+@api_router.delete("/workspaces/{slug}")
+def api_delete_workspace(request: Request, slug: str) -> Response:
+    uid = _api_user(request)
+    _api_owned_workspace(request, uid, slug)  # exige ser owner
+    if not db.delete_workspace(uid, slug):
+        raise HTTPException(status_code=400, detail="Cannot delete your only workspace")
+    response = JSONResponse({"slug": slug, "ok": True})
+    # Si se borró el workspace activo, mover la cookie a uno que quede.
+    if request.cookies.get("workspace") == slug:
+        remaining = db.list_workspaces(uid)
+        if remaining:
+            _ws_cookie(response, remaining[0].slug)
+    return response
+
+
 @api_router.get("/workspaces/{slug}/members")
 def api_list_members(request: Request, slug: str):
     uid = _api_user(request)
@@ -474,6 +498,23 @@ def api_logout() -> Response:
     return response
 
 
+@api_router.get("/i18n")
+def api_i18n(request: Request):
+    """Catálogo de traducciones del idioma activo, para la SPA. Público (también en login)."""
+    lang = _lang(request)
+    return {"lang": lang, "langs": list(i18n.LANGS), "t": i18n.get_catalog(lang)}
+
+
+@api_router.post("/lang/{code}")
+def api_set_lang(code: str) -> Response:
+    """Cambia el idioma de la SPA fijando la misma cookie `lang` que usa el sitio Jinja."""
+    if code not in i18n.LANGS:
+        raise HTTPException(status_code=400, detail="Unsupported language")
+    response = JSONResponse({"lang": code})
+    _lang_cookie(response, code)
+    return response
+
+
 @api_router.post("/workspaces/{slug}/switch")
 def api_switch_workspace(request: Request, slug: str) -> Response:
     uid = _api_user(request)
@@ -515,6 +556,95 @@ def api_page_view(request: Request, slug: str):
             {"slug": r.slug, "title": r.title, "shared_tags": r.shared_tags} for r in related
         ],
     }
+
+
+# ── SPA fase 2: settings (perfil/contraseña), papelera, restaurar versión ────
+
+class _ProfileIn(BaseModel):
+    display_name: str = ""
+    avatar_color: str = ""
+
+
+class _PasswordIn(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: str
+
+
+@api_router.post("/settings/profile")
+def api_update_profile(request: Request, body: _ProfileIn):
+    uid = _api_user(request)
+    name = body.display_name.strip()[:40]
+    color = body.avatar_color if body.avatar_color in AVATAR_COLORS else None
+    db.update_user_profile(uid, name or None, color)
+    active = getattr(request.state, "workspace", None)
+    return _me_payload(uid, active.slug if active else None)
+
+
+@api_router.post("/settings/password")
+def api_update_password(request: Request, body: _PasswordIn):
+    uid = _api_user(request)
+    user = db.get_user_by_id(uid)
+    if user is None or not _verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    if body.new_password != body.confirm_password:
+        raise HTTPException(status_code=400, detail="New passwords do not match")
+    db.update_user_password(uid, _hash_password(body.new_password))
+    return {"ok": True}
+
+
+@api_router.get("/trash")
+def api_trash(request: Request):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    return [
+        {"slug": p.slug, "title": p.title, "deleted_at": p.deleted_at}
+        for p in db.list_deleted_pages(uid, wid)
+    ]
+
+
+@api_router.post("/trash/{slug}/restore")
+def api_trash_restore(request: Request, slug: str):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    if not db.restore_page(uid, wid, slug):
+        raise HTTPException(status_code=404, detail="Page not found in trash")
+    return {"slug": slug, "ok": True}
+
+
+@api_router.post("/trash/{slug}/purge", status_code=204)
+def api_trash_purge(request: Request, slug: str):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    if not db.purge_page(uid, wid, slug):
+        raise HTTPException(status_code=404, detail="Page not found in trash")
+
+
+@api_router.post("/pages/{slug}/restore/{sha}")
+def api_restore_version(request: Request, slug: str, sha: str):
+    """Restaura el contenido de una versión antigua (commit git) como nueva versión."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    page = db.get_page(slug, uid, wid)
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    ws = db.get_workspace_by_id(wid)
+    ws_slug = ws.slug if ws else "default"
+    content = git_repo.get_page_at_commit(ws_slug, slug, sha)
+    if content is None:
+        raise HTTPException(status_code=404, detail="Version not found")
+    title = page.title
+    new_slug = db.update_page(uid, wid, slug, title, content)
+    effective_slug = new_slug or slug
+    author = getattr(request.state, "user_email", None) or "user"
+    new_sha = git_repo.commit_page(
+        ws_slug, effective_slug, content, author, f"Restore {sha}: {title}"
+    )
+    if new_sha:
+        db.set_page_git_commit(uid, wid, effective_slug, new_sha)
+    return {"slug": effective_slug, "ok": True}
 
 
 def _commit_page(
