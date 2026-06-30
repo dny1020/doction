@@ -29,7 +29,7 @@ def client(tmp_path):
 
 
 def _token(client) -> str:
-    client.post("/register", data={"email": "u@test.com", "password": "password123"})
+    client.post("/api/auth/register", json={"email": "u@test.com", "password": "password123"})
     r = client.post("/api/token", json={"email": "u@test.com", "password": "password123"})
     return r.json()["token"]
 

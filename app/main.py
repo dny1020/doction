@@ -12,19 +12,17 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import jwt
-from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import (
     FileResponse,
-    HTMLResponse,
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
     Response,
 )
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from starlette.status import HTTP_303_SEE_OTHER, HTTP_404_NOT_FOUND
+from starlette.status import HTTP_303_SEE_OTHER
 
 from app import db, embeddings, git_repo, i18n, mcp, seed
 from app.auth import (
@@ -34,13 +32,11 @@ from app.auth import (
 )
 from app.auth import hash_password as _hash_password
 from app.auth import verify_password as _verify_password
-from app.markdown import render_markdown
 from app.models import Workspace
 
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 SESSION_MAX_AGE = 60 * 60 * 24 * 7
 WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
 LANG_MAX_AGE = 60 * 60 * 24 * 365
@@ -735,21 +731,9 @@ async def serve_spa(full_path: str = "") -> Response:
 
 @app.exception_handler(Exception)
 async def unhandled_error(request: Request, exc: Exception) -> Response:
-    """Cualquier excepción no capturada → página 500 con estilo, sin filtrar el traceback.
-
-    Las peticiones de API/MCP reciben JSON; el resto, la página HTML.
-    """
+    """Cualquier excepción no capturada → 500 JSON, sin filtrar el traceback."""
     logger.exception("unhandled error on %s %s", request.method, request.url.path)
-    path = request.url.path
-    if path.startswith("/api"):
-        return JSONResponse({"detail": "Internal server error"}, status_code=500)
-    lang = getattr(request.state, "lang", i18n.DEFAULT_LANG)
-    return templates.TemplateResponse(
-        request,
-        "500.html",
-        {"t": i18n.get_catalog(lang), "lang": lang},
-        status_code=500,
-    )
+    return JSONResponse({"detail": "Internal server error"}, status_code=500)
 
 
 def _encode_token(user_id: int) -> str:
@@ -781,64 +765,14 @@ def _get_user_id(request: Request) -> int | None:
     return _decode_token(token)
 
 
-def _require_user(request: Request) -> int | Response:
-    user_id = getattr(request.state, "user_id", None)
-    if user_id is None:
-        return RedirectResponse("/login", status_code=HTTP_303_SEE_OTHER)
-    return int(user_id)
-
-
-def _require_workspace_id(request: Request, user_id: int) -> int:
-    workspace = getattr(request.state, "workspace", None)
-    if workspace is None:
-        workspace = db.ensure_default_workspace(user_id)
-        request.state.workspaces = db.list_workspaces(user_id)
-        request.state.workspace = workspace
-    return int(workspace.id)
-
-
 def _lang(request: Request) -> str:
     return getattr(request.state, "lang", i18n.DEFAULT_LANG)
-
-
-def _i18n(request: Request) -> dict[str, object]:
-    lang = _lang(request)
-    return {"lang": lang, "t": i18n.get_catalog(lang)}
-
-
-def _anonymous_context(request: Request) -> dict[str, object]:
-    return {
-        "pages": [],
-        "workspaces": [],
-        "active_workspace": None,
-        "user_email": request.state.user_email,
-        "user_display_name": getattr(request.state, "user_display_name", None),
-        "user_avatar_color": getattr(request.state, "user_avatar_color", None),
-        "registration_open": _registration_open(),
-        **_i18n(request),
-    }
 
 
 def _registration_open() -> bool:
     """El registro web puede cerrarse con DISABLE_REGISTRATION; aun así el primer usuario
     siempre puede crearse (bootstrap de primer arranque), o la instancia quedaría inaccesible."""
     return not DISABLE_REGISTRATION or not db.has_users()
-
-
-def _authed_context(request: Request, user_id: int) -> dict[str, object]:
-    workspace = getattr(request.state, "workspace", None)
-    pages = []
-    if workspace is not None:
-        pages = db.list_pages_tree(user_id, int(workspace.id))
-    return {
-        "pages": pages,
-        "workspaces": getattr(request.state, "workspaces", []),
-        "active_workspace": workspace,
-        "user_email": request.state.user_email,
-        "user_display_name": getattr(request.state, "user_display_name", None),
-        "user_avatar_color": getattr(request.state, "user_avatar_color", None),
-        **_i18n(request),
-    }
 
 
 def _ws_cookie(response: Response, slug: str) -> None:
@@ -868,27 +802,6 @@ def _lang_cookie(response: Response, lang: str) -> None:
     )
 
 
-def _safe_next(path: str) -> str:
-    if not path.startswith("/") or path.startswith("//"):
-        return "/"
-    return path
-
-
-def _not_found(request: Request, slug: str) -> HTMLResponse:
-    user_id = getattr(request.state, "user_id", None)
-    if user_id is not None:
-        context = _authed_context(request, user_id)
-    else:
-        context = _anonymous_context(request)
-    context.update({"slug": slug})
-    return templates.TemplateResponse(
-        request,
-        "not_found.html",
-        context,
-        status_code=HTTP_404_NOT_FOUND,
-    )
-
-
 @app.get("/health")
 async def health() -> Response:
     """Liveness + readiness: comprueba que la BD responde. 503 si no."""
@@ -905,345 +818,27 @@ async def health() -> Response:
     return JSONResponse({"status": "ok", "db": "ok", "version": version})
 
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request) -> Response:
-    if getattr(request.state, "user_id", None) is None:
-        # Primer arranque (instancia recién autoalojada, sin usuarios): llevar directo a
-        # crear la cuenta en vez de a login.
-        target = "/login" if db.has_users() else "/register"
-        return RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
-    user_id = int(request.state.user_id)
-    workspace_id = _require_workspace_id(request, user_id)
-    page = db.latest_page(user_id, workspace_id)
-    context = _authed_context(request, user_id)
-    if page is None:
-        return templates.TemplateResponse(
-            request,
-            "empty.html",
-            {**context, "active_slug": None},
-        )
-    children = db.list_child_pages(user_id, workspace_id, int(page.id))
-    breadcrumbs = db.get_ancestors(int(page.id), user_id, workspace_id)
-    return templates.TemplateResponse(
-        request,
-        "page.html",
-        {
-            **context,
-            "page": page,
-            "rendered": render_markdown(page.content),
-            "children": children,
-            "breadcrumbs": breadcrumbs,
-            "backlinks": db.backlinks(user_id, workspace_id, page.slug),
-            "related": db.related_pages(user_id, workspace_id, page.slug) or [],
-            "active_slug": page.slug,
-        },
-    )
+@app.get("/")
+async def home() -> Response:
+    """El frontend es la SPA de React, servida en /app."""
+    return RedirectResponse("/app/", status_code=HTTP_303_SEE_OTHER)
 
 
-@app.get("/new", response_class=HTMLResponse)
-async def new_page_form(
-    request: Request,
-    parent: str = "",
-    title: str = "",
-    slug: str = "",
-) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-
-    parent_page = db.get_page(parent, user_id, workspace_id) if parent else None
-    prefill_slug = slug.strip()
-    prefill_title = title.strip()
-    if not prefill_title and prefill_slug:
-        prefill_title = prefill_slug.replace("-", " ").strip().title()
-
-    return templates.TemplateResponse(
-        request,
-        "new.html",
-        {
-            **_authed_context(request, user_id),
-            "active_slug": None,
-            "parent": parent_page,
-            "prefill_title": prefill_title,
-            "prefill_slug": prefill_slug,
-        },
-    )
+@app.get("/login")
+async def login_redirect() -> Response:
+    return RedirectResponse("/app/login", status_code=HTTP_303_SEE_OTHER)
 
 
-@app.post("/pages")
-async def create_page_authed(
-    request: Request,
-    title: str = Form(...),
-    content: str = Form(""),
-    parent_slug: str = Form(""),
-    slug: str = Form(""),
-) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    new_slug = db.create_page(
-        user_id,
-        workspace_id,
-        title,
-        content,
-        parent_slug=parent_slug or None,
-        requested_slug=slug or None,
-    )
-    _commit_page(request, user_id, workspace_id, new_slug, title, content)
-    return RedirectResponse(f"/pages/{new_slug}", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.get("/pages/{slug}", response_class=HTMLResponse)
-async def read_page(request: Request, slug: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    page = db.get_page(slug, user_id, workspace_id)
-    if page is None:
-        return _not_found(request, slug)
-    children = db.list_child_pages(user_id, workspace_id, int(page.id))
-    breadcrumbs = db.get_ancestors(int(page.id), user_id, workspace_id)
-    return templates.TemplateResponse(
-        request,
-        "page.html",
-        {
-            **_authed_context(request, user_id),
-            "page": page,
-            "rendered": render_markdown(page.content),
-            "children": children,
-            "breadcrumbs": breadcrumbs,
-            "backlinks": db.backlinks(user_id, workspace_id, slug),
-            "related": db.related_pages(user_id, workspace_id, slug) or [],
-            "active_slug": slug,
-        },
-    )
-
-
-@app.get("/pages/{slug}/history", response_class=HTMLResponse)
-async def page_history(request: Request, slug: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    page = db.get_page(slug, user_id, workspace_id)
-    if page is None:
-        return _not_found(request, slug)
-    ws = db.get_workspace_by_id(workspace_id)
-    ws_slug = ws.slug if ws else "default"
-    history = git_repo.get_page_history(ws_slug, slug)
-    return templates.TemplateResponse(
-        request,
-        "history.html",
-        {
-            **_authed_context(request, user_id),
-            "page": page,
-            "history": history,
-            "active_slug": slug,
-        },
-    )
-
-
-@app.get("/pages/{slug}/history/{sha}", response_class=HTMLResponse)
-async def page_history_detail(request: Request, slug: str, sha: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    page = db.get_page(slug, user_id, workspace_id)
-    if page is None:
-        return _not_found(request, slug)
-    ws = db.get_workspace_by_id(workspace_id)
-    ws_slug = ws.slug if ws else "default"
-    content = git_repo.get_page_at_commit(ws_slug, slug, sha)
-    if content is None:
-        return _not_found(request, slug)
-    return templates.TemplateResponse(
-        request,
-        "history_detail.html",
-        {
-            **_authed_context(request, user_id),
-            "page": page,
-            "sha": sha,
-            "rendered": render_markdown(content),
-            "active_slug": slug,
-        },
-    )
-
-
-@app.get("/pages/{slug}/history/{sha}/diff", response_class=HTMLResponse)
-async def page_history_diff(request: Request, slug: str, sha: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    page = db.get_page(slug, user_id, workspace_id)
-    if page is None:
-        return _not_found(request, slug)
-    ws = db.get_workspace_by_id(workspace_id)
-    ws_slug = ws.slug if ws else "default"
-    diff = git_repo.diff_page(ws_slug, slug, sha)
-    if diff is None:
-        return _not_found(request, slug)
-    return templates.TemplateResponse(
-        request,
-        "history_diff.html",
-        {
-            **_authed_context(request, user_id),
-            "page": page,
-            "sha": sha,
-            "diff": diff,
-            "active_slug": slug,
-        },
-    )
-
-
-@app.post("/pages/{slug}/restore/{sha}")
-async def restore_page(request: Request, slug: str, sha: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    page = db.get_page(slug, user_id, workspace_id)
-    if page is None:
-        return _not_found(request, slug)
-    ws = db.get_workspace_by_id(workspace_id)
-    ws_slug = ws.slug if ws else "default"
-    content = git_repo.get_page_at_commit(ws_slug, slug, sha)
-    if content is None:
-        return _not_found(request, slug)
-    title = page.title
-    new_slug = db.update_page(user_id, workspace_id, slug, title, content)
-    effective_slug = new_slug or slug
-    author = getattr(request.state, "user_email", None) or "user"
-    new_sha = git_repo.commit_page(
-        ws_slug, effective_slug, content, author, f"Restore {sha}: {title}"
-    )
-    if new_sha:
-        db.set_page_git_commit(user_id, workspace_id, effective_slug, new_sha)
-    return RedirectResponse(f"/pages/{effective_slug}", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.get("/pages/{slug}/edit", response_class=HTMLResponse)
-async def edit_page_form(request: Request, slug: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    page = db.get_page(slug, user_id, workspace_id)
-    if page is None:
-        return _not_found(request, slug)
-    return templates.TemplateResponse(
-        request,
-        "edit.html",
-        {
-            **_authed_context(request, user_id),
-            "page": page,
-            "active_slug": slug,
-        },
-    )
-
-
-@app.post("/pages/{slug}")
-async def update_page(
-    request: Request,
-    slug: str,
-    title: str = Form(...),
-    content: str = Form(""),
-) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    new_slug = db.update_page(user_id, workspace_id, slug, title, content)
-    effective_slug = new_slug or slug
-    _commit_page(request, user_id, workspace_id, effective_slug, title, content)
-    return RedirectResponse(f"/pages/{effective_slug}", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.post("/pages/{slug}/delete")
-async def remove_page(request: Request, slug: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    db.delete_page(user_id, workspace_id, slug)
-    return RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.get("/trash", response_class=HTMLResponse)
-async def trash_view(request: Request) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    return templates.TemplateResponse(
-        request,
-        "trash.html",
-        {
-            **_authed_context(request, user_id),
-            "deleted": db.list_deleted_pages(user_id, workspace_id),
-            "active_slug": None,
-        },
-    )
-
-
-@app.post("/trash/{slug}/restore")
-async def restore_trashed_page(request: Request, slug: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    if db.restore_page(user_id, workspace_id, slug):
-        return RedirectResponse(f"/pages/{slug}", status_code=HTTP_303_SEE_OTHER)
-    return RedirectResponse("/trash", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.post("/trash/{slug}/purge")
-async def purge_trashed_page(request: Request, slug: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace_id = _require_workspace_id(request, user_id)
-    db.purge_page(user_id, workspace_id, slug)
-    return RedirectResponse("/trash", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.get("/search", response_class=HTMLResponse)
-async def search(request: Request, q: str = "") -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return templates.TemplateResponse(
-            request,
-            "partials/search_results.html",
-            {"results": [], "query": "", **_i18n(request)},
-        )
-    workspace_id = _require_workspace_id(request, user_id)
-    results = db.search_pages(user_id, workspace_id, q) if q.strip() else []
-    return templates.TemplateResponse(
-        request,
-        "partials/search_results.html",
-        {"results": results, "query": q, **_i18n(request)},
-    )
-
-
-@app.post("/preview", response_class=HTMLResponse)
-async def preview(request: Request, content: str = Form("")) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return HTMLResponse("", status_code=401)
-    return HTMLResponse(render_markdown(content))
+@app.get("/register")
+async def register_redirect() -> Response:
+    return RedirectResponse("/app/register", status_code=HTTP_303_SEE_OTHER)
 
 
 @app.post("/api/uploads")
 async def upload_image(request: Request, file: UploadFile = File(...)) -> Response:
     """Recibe una imagen (pegada/arrastrada en el editor), la guarda con nombre
     derivado de su hash y devuelve la URL para insertarla como markdown."""
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    _api_user(request)  # lanza 401 si no hay sesión
     data = await file.read()
     if len(data) > MAX_UPLOAD_BYTES:
         return JSONResponse({"error": "file too large"}, status_code=413)
@@ -1281,366 +876,6 @@ def _login_record_failure(key: str) -> None:
 
 def _login_clear(key: str) -> None:
     _login_attempts.pop(key, None)
-
-
-@app.get("/login", response_class=HTMLResponse)
-async def login_form(request: Request) -> Response:
-    if getattr(request.state, "user_id", None) is not None:
-        return RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    return templates.TemplateResponse(
-        request,
-        "login.html",
-        {**_anonymous_context(request), "active_slug": None},
-    )
-
-
-@app.post("/login")
-async def login(request: Request, email: str = Form(...), password: str = Form(...)) -> Response:
-    email = email.strip().lower()
-    cat = i18n.get_catalog(_lang(request))
-    ip = request.client.host if request.client else "?"
-    key = f"{ip}:{email}"
-
-    if _login_too_many(key):
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {**_anonymous_context(request), "active_slug": None,
-             "error": cat["err_too_many_attempts"]},
-            status_code=429,
-        )
-
-    user = db.get_user_by_email(email)
-    if user is None or not _verify_password(password, user.password_hash):
-        _login_record_failure(key)
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {
-                **_anonymous_context(request),
-                "active_slug": None,
-                "error": cat["err_invalid_credentials"],
-            },
-            status_code=400,
-        )
-
-    _login_clear(key)
-    user_id = int(user.id)
-    workspace = db.ensure_default_workspace(user_id)
-    response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    _issue_session(response, user_id, workspace.slug)
-    return response
-
-
-@app.get("/register", response_class=HTMLResponse)
-async def register_form(request: Request) -> Response:
-    if getattr(request.state, "user_id", None) is not None:
-        return RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    if not _registration_open():
-        return RedirectResponse("/login", status_code=HTTP_303_SEE_OTHER)
-    return templates.TemplateResponse(
-        request,
-        "register.html",
-        {**_anonymous_context(request), "active_slug": None},
-    )
-
-
-@app.post("/register")
-async def register(request: Request, email: str = Form(...), password: str = Form(...)) -> Response:
-    email = email.strip().lower()
-    cat = i18n.get_catalog(_lang(request))
-    if not _registration_open():
-        return templates.TemplateResponse(
-            request, "login.html",
-            {**_anonymous_context(request), "active_slug": None,
-             "error": cat["err_registration_closed"]},
-            status_code=403,
-        )
-    if not email or "@" not in email:
-        return templates.TemplateResponse(
-            request, "register.html",
-            {**_anonymous_context(request), "active_slug": None, "error": cat["err_valid_email"]},
-            status_code=400,
-        )
-    if len(password) < 8:
-        return templates.TemplateResponse(
-            request, "register.html",
-            {**_anonymous_context(request), "active_slug": None,
-             "error": cat["err_password_min"]},
-            status_code=400,
-        )
-    if db.get_user_by_email(email) is not None:
-        return templates.TemplateResponse(
-            request, "register.html",
-            {**_anonymous_context(request), "active_slug": None,
-             "error": cat["err_email_registered"]},
-            status_code=400,
-        )
-
-    first_user = not db.has_users()
-    user_id = db.create_user(email, _hash_password(password))
-    workspace = db.ensure_default_workspace(user_id)
-    workspace_id = int(workspace.id)
-    # Solo el primer usuario adopta páginas huérfanas (migración legacy); evita que un
-    # registrante posterior absorba páginas sin dueño.
-    if first_user:
-        db.claim_unowned_pages(user_id, workspace_id)
-    for title, content in seed.SEED_PAGES:
-        db.create_page(user_id, workspace_id, title, content)
-
-    response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    _issue_session(response, user_id, workspace.slug)
-    return response
-
-
-@app.get("/lang/{code}")
-async def switch_language(request: Request, code: str, next_url: str = "/") -> Response:
-    """Cambia el idioma (cookie). Público: funciona también en login/registro."""
-    target = _safe_next(next_url)
-    response = RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
-    if code in i18n.LANGS:
-        _lang_cookie(response, code)
-    return response
-
-
-@app.post("/workspaces")
-async def create_workspace(request: Request, name: str = Form(...)) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    slug = db.create_workspace(user_id, name)
-    response = RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
-    _ws_cookie(response, slug)
-    return response
-
-
-@app.get("/workspaces/switch/{slug}")
-async def switch_workspace(request: Request, slug: str, next_url: str = "/") -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    workspace = db.get_workspace_by_slug(user_id, slug)
-    target = _safe_next(next_url)
-    response = RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
-    if workspace is not None:
-        _ws_cookie(response, workspace.slug)
-    return response
-
-
-# code → (tono, clave de traducción). El texto se resuelve según el idioma activo.
-_SETTINGS_MESSAGES = {
-    "profile":    ("ok",    "msg_profile"),
-    "password":   ("ok",    "msg_password"),
-    "ws_renamed": ("ok",    "msg_ws_renamed"),
-    "ws_deleted": ("ok",    "msg_ws_deleted"),
-    "pw_current": ("error", "msg_pw_current"),
-    "pw_match":   ("error", "msg_pw_match"),
-    "pw_len":     ("error", "msg_pw_len"),
-    "ws_last":    ("error", "msg_ws_last"),
-    "ws_name":    ("error", "msg_ws_name"),
-    "member_added":   ("ok",    "msg_member_added"),
-    "member_removed": ("ok",    "msg_member_removed"),
-    "member_404":     ("error", "err_user_not_found"),
-    "member_dup":     ("error", "err_already_member"),
-    "not_owner":      ("error", "err_not_owner"),
-    "token_revoked":  ("ok",    "msg_token_revoked"),
-}
-
-
-def _render_settings(
-    request: Request,
-    user_id: int,
-    *,
-    new_token: str | None = None,
-    message: str | None = None,
-    tone: str | None = None,
-) -> Response:
-    user = db.get_user_by_id(user_id)
-    workspaces = getattr(request.state, "workspaces", [])
-    ws_list = [
-        {
-            "slug": w.slug,
-            "name": w.name,
-            "role": w.role,
-            "members": (
-                db.list_workspace_members(int(w.id)) if w.role == "owner" else []
-            ),
-        }
-        for w in workspaces
-    ]
-    owned_count = 0
-    for w in workspaces:
-        if w.role == "owner":
-            owned_count += 1
-    return templates.TemplateResponse(
-        request,
-        "settings.html",
-        {
-            **_authed_context(request, user_id),
-            "active_slug": None,
-            "avatar_colors": AVATAR_COLORS,
-            "profile_name": (user.display_name if user else "") or "",
-            "current_color": (user.avatar_color if user else "") or "",
-            "ws_list": ws_list,
-            "owned_count": owned_count,
-            "api_tokens": db.list_api_tokens(user_id),
-            "new_token": new_token,
-            "flash_tone": tone,
-            "flash_msg": message,
-        },
-    )
-
-
-@app.get("/settings", response_class=HTMLResponse)
-async def settings_page(request: Request, m: str | None = None) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    tone, msg_key = _SETTINGS_MESSAGES.get(m or "", (None, None))
-    message = i18n.get_catalog(_lang(request))[msg_key] if msg_key else None
-    return _render_settings(request, user_id, message=message, tone=tone)
-
-
-@app.post("/settings/tokens")
-async def create_token_web(request: Request, name: str = Form("")) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    token = generate_api_token()
-    db.create_api_token(user_id, name, hash_api_token(token))
-    cat = i18n.get_catalog(_lang(request))
-    # Render directo (no redirect) para mostrar el token en claro una sola vez sin
-    # que viaje por la URL ni quede en el historial.
-    return _render_settings(
-        request, user_id, new_token=token, message=cat["msg_token_created"], tone="ok"
-    )
-
-
-@app.post("/settings/tokens/{token_id}/delete")
-async def revoke_token_web(request: Request, token_id: int) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    db.revoke_api_token(user_id, token_id)
-    return RedirectResponse("/settings?m=token_revoked", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.post("/settings/profile")
-async def update_profile(
-    request: Request,
-    display_name: str = Form(""),
-    avatar_color: str = Form(""),
-) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    name = display_name.strip()[:40]
-    color = avatar_color if avatar_color in AVATAR_COLORS else None
-    db.update_user_profile(user_id, name or None, color)
-    return RedirectResponse("/settings?m=profile", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.post("/settings/password")
-async def update_password(
-    request: Request,
-    current_password: str = Form(...),
-    new_password: str = Form(...),
-    confirm_password: str = Form(...),
-) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    user = db.get_user_by_id(user_id)
-    if user is None or not _verify_password(current_password, user.password_hash):
-        return RedirectResponse("/settings?m=pw_current", status_code=HTTP_303_SEE_OTHER)
-    if len(new_password) < 8:
-        return RedirectResponse("/settings?m=pw_len", status_code=HTTP_303_SEE_OTHER)
-    if new_password != confirm_password:
-        return RedirectResponse("/settings?m=pw_match", status_code=HTTP_303_SEE_OTHER)
-    db.update_user_password(user_id, _hash_password(new_password))
-    return RedirectResponse("/settings?m=password", status_code=HTTP_303_SEE_OTHER)
-
-
-def _owned_workspace(user_id: int, slug: str) -> Workspace | None:
-    """Workspace resuelto por slug solo si el usuario es su owner; si no, None."""
-    ws = db.get_workspace_by_slug(user_id, slug)
-    if ws is None or ws.role != "owner":
-        return None
-    return ws
-
-
-@app.post("/workspaces/{slug}/rename")
-async def rename_workspace_route(request: Request, slug: str, name: str = Form(...)) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    if _owned_workspace(user_id, slug) is None:
-        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
-    ok = db.rename_workspace(user_id, slug, name)
-    return RedirectResponse(
-        f"/settings?m={'ws_renamed' if ok else 'ws_name'}", status_code=HTTP_303_SEE_OTHER
-    )
-
-
-@app.post("/workspaces/{slug}/delete")
-async def delete_workspace_route(request: Request, slug: str) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    if _owned_workspace(user_id, slug) is None:
-        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
-    ok = db.delete_workspace(user_id, slug)
-    response = RedirectResponse(
-        f"/settings?m={'ws_deleted' if ok else 'ws_last'}", status_code=HTTP_303_SEE_OTHER
-    )
-    # Si se borró el workspace activo, mover la cookie a uno que quede.
-    if ok and request.cookies.get("workspace") == slug:
-        remaining = db.list_workspaces(user_id)
-        if remaining:
-            _ws_cookie(response, remaining[0].slug)
-    return response
-
-
-@app.post("/workspaces/{slug}/members")
-async def add_member_route(
-    request: Request, slug: str, email: str = Form(...), role: str = Form("member")
-) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    ws = _owned_workspace(user_id, slug)
-    if ws is None:
-        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
-    target = db.get_user_by_email(email.strip().lower())
-    if target is None:
-        return RedirectResponse("/settings?m=member_404", status_code=HTTP_303_SEE_OTHER)
-    if db.get_member_role(int(target.id), int(ws.id)) is not None:
-        return RedirectResponse("/settings?m=member_dup", status_code=HTTP_303_SEE_OTHER)
-    db.add_workspace_member(int(ws.id), int(target.id), "member")
-    return RedirectResponse("/settings?m=member_added", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.post("/workspaces/{slug}/members/{member_id}/remove")
-async def remove_member_route(request: Request, slug: str, member_id: int) -> Response:
-    user_id = _require_user(request)
-    if isinstance(user_id, Response):
-        return user_id
-    ws = _owned_workspace(user_id, slug)
-    if ws is None:
-        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
-    if db.get_member_role(member_id, int(ws.id)) == "owner":
-        return RedirectResponse("/settings?m=not_owner", status_code=HTTP_303_SEE_OTHER)
-    db.remove_workspace_member(int(ws.id), member_id)
-    return RedirectResponse("/settings?m=member_removed", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.post("/logout")
-async def logout(request: Request) -> RedirectResponse:
-    request.state.workspace = None
-    response = RedirectResponse("/login", status_code=HTTP_303_SEE_OTHER)
-    response.delete_cookie("session")
-    response.delete_cookie("workspace")
-    return response
 
 
 @app.middleware("http")

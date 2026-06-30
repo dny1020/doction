@@ -30,7 +30,7 @@ def client(tmp_path):
 
 
 def _register_and_token(client) -> str:
-    client.post("/register", data={"email": "u@test.com", "password": "password123"})
+    client.post("/api/auth/register", json={"email": "u@test.com", "password": "password123"})
     r = client.post("/api/token", json={"email": "u@test.com", "password": "password123"})
     return r.json()["token"]
 
@@ -80,42 +80,6 @@ def test_history_endpoint_returns_commits(client):
     assert "message" in history[0]
     # El autor del commit es el email del usuario que inició sesión.
     assert history[0]["author"] == "u@test.com"
-
-
-def test_web_history_page_renders(client):
-    token = _register_and_token(client)  # /register también deja la cookie de sesión
-    r = client.post(
-        "/api/pages",
-        json={"title": "Web History", "content": "v1"},
-        headers=_headers(token),
-    )
-    slug = r.json()["slug"]
-
-    r = client.get(f"/pages/{slug}/history")
-    assert r.status_code == 200
-    assert "u@test.com" in r.text
-
-
-def test_web_restore_reverts_content(client):
-    token = _register_and_token(client)
-    r = client.post(
-        "/api/pages",
-        json={"title": "Restore Web", "content": "original body"},
-        headers=_headers(token),
-    )
-    slug = r.json()["slug"]
-    first_sha = client.get(
-        f"/api/pages/{slug}/history", headers=_headers(token)
-    ).json()[0]["sha"]
-
-    client.put(f"/api/pages/{slug}", json={"content": "changed body"}, headers=_headers(token))
-
-    # Restaurar vía web (cookie de sesión); TestClient sigue el redirect 303.
-    r = client.post(f"/pages/{slug}/restore/{first_sha}")
-    assert r.status_code == 200
-
-    raw = client.get(f"/api/pages/{slug}/raw", headers=_headers(token))
-    assert "original body" in raw.text
 
 
 def test_history_at_commit_returns_old_content(client):

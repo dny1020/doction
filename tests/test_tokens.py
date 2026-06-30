@@ -29,7 +29,7 @@ def client(tmp_path):
 
 
 def _register_and_token(client, email: str = "u@test.com") -> str:
-    client.post("/register", data={"email": email, "password": "password123"})
+    client.post("/api/auth/register", json={"email": email, "password": "password123"})
     r = client.post("/api/token", json={"email": email, "password": "password123"})
     # Drop the session cookie so requests authenticate via Bearer header only.
     client.cookies.clear()

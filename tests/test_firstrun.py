@@ -32,22 +32,21 @@ def app_mod():
             pass
 
 
-def test_first_run_redirects_to_register(app_mod):
-    """Instancia recién autoalojada sin usuarios → la home lleva a crear la cuenta."""
+def test_root_redirects_to_spa(app_mod):
+    """La raíz lleva a la SPA de React (servida en /app)."""
     with TestClient(app_mod.app) as c:
         r = c.get("/", follow_redirects=False)
         assert r.status_code in (303, 307)
-        assert r.headers["location"] == "/register"
-        # /login sigue siendo página pública (muestra el formulario + enlace a registro).
-        assert c.get("/login", follow_redirects=False).status_code == 200
+        assert r.headers["location"] == "/app/"
 
 
-def test_login_shown_once_a_user_exists(app_mod):
+def test_registration_open_when_no_users(app_mod):
+    """Instancia recién autoalojada sin usuarios → el registro está abierto (bootstrap)."""
     with TestClient(app_mod.app) as c:
-        c.post("/register", data={"email": "a@b.com", "password": "password123"})
-        c.cookies.clear()  # desautenticar
-        assert c.get("/", follow_redirects=False).headers["location"] == "/login"
-        assert c.get("/login", follow_redirects=False).status_code == 200
+        r = c.post(
+            "/api/auth/register", json={"email": "first@example.com", "password": "password123"}
+        )
+        assert r.status_code == 201
 
 
 def test_create_user_script(app_mod):
@@ -64,8 +63,7 @@ def test_create_user_script(app_mod):
 
     with TestClient(app_mod.app) as c:
         r = c.post(
-            "/login",
-            data={"email": "cli@example.com", "password": "password123"},
-            follow_redirects=False,
+            "/api/auth/login",
+            json={"email": "cli@example.com", "password": "password123"},
         )
-        assert r.status_code == 303  # login correcto
+        assert r.status_code == 200  # login correcto

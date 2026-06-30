@@ -30,7 +30,7 @@ def client(tmp_path):
 def _register(client, email: str) -> None:
     # El registro inicia sesión (cookie); se limpia para no contaminar al siguiente usuario.
     client.cookies.clear()
-    client.post("/register", data={"email": email, "password": "password123"})
+    client.post("/api/auth/register", json={"email": email, "password": "password123"})
     client.cookies.clear()
 
 
