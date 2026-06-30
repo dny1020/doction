@@ -17,3 +17,9 @@ CLAUDE.md
 frontend/node_modules/
 frontend/dist/
 app/static/app/
+
+# Datos locales y artefactos regenerables — fuera del contexto/imagen.
+pages/
+uploads/
+graphify-out/
+.graphifyignore

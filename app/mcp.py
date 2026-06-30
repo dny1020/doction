@@ -17,7 +17,7 @@ from app.models import Workspace
 
 logger = logging.getLogger(__name__)
 
-SERVER_INFO = {"name": "doction", "version": "0.12.1"}
+SERVER_INFO = {"name": "doction", "version": "0.13.0"}
 PROTOCOL_VERSIONS = {"2024-11-05", "2025-03-26", "2025-06-18"}
 DEFAULT_PROTOCOL = "2025-03-26"
 

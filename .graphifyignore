@@ -1,0 +1,5 @@
+# Vendored / minified JS bundles — not doction source; they only add noise.
+app/static/vendor/
+*.min.js
+# Built SPA bundle (also gitignored)
+app/static/app/
