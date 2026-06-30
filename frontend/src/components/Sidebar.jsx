@@ -117,6 +117,7 @@ export default function Sidebar({ pages }) {
         <div className="search-field">
           <Search className="lucide" size={15} />
           <input
+            id="sidebar-search"
             type="search"
             placeholder={t('search_placeholder')}
             autoComplete="off"

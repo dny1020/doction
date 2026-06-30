@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { api } from '../api.js'
 import Sidebar from './Sidebar.jsx'
 import CommandPalette from './CommandPalette.jsx'
+import KeyboardShortcuts from './KeyboardShortcuts.jsx'
 
 // Shell de la app autenticada: barra lateral + contenido. Carga el árbol de
 // páginas una vez y lo comparte con las rutas hijas (vía el contexto del Outlet),
@@ -30,6 +31,7 @@ export default function Layout() {
         </div>
       </main>
       <CommandPalette pages={pages} />
+      <KeyboardShortcuts />
     </div>
   )
 }
