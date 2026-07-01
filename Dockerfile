@@ -5,6 +5,8 @@ ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     DATABASE_PATH=/data/doction.db \
+    LOG_DIR=/logs \
+    LOG_LEVEL=INFO \
     GIT_AUTHOR_NAME="doction" \
     GIT_AUTHOR_EMAIL="doction@localhost" \
     GIT_COMMITTER_NAME="doction" \
@@ -64,7 +66,7 @@ COPY app ./app
 COPY scripts ./scripts
 # Bundle de la SPA construido en el stage `web` → servido por FastAPI en /app.
 COPY --from=web /build/app/static/app ./app/static/app
-RUN mkdir -p /data
+RUN mkdir -p /data /logs
 
 EXPOSE 8000
 

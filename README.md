@@ -76,6 +76,8 @@ docker compose up
 | `DATABASE_PATH` | Path to the SQLite file. | `/data/doction.db` |
 | `SECURE_COOKIES` | `1` when behind TLS (reverse proxy). | off |
 | `SEMANTIC_SEARCH` | `1` enables local semantic search (`sgrep` / `rag`). | off |
+| `LOG_LEVEL` | Root logger level (`DEBUG`/`INFO`/`WARNING`/…). | `INFO` |
+| `LOG_DIR` | Directory for the rotated log file (also mirrored to stdout). | `/logs` |
 
 > The embedding model (~22 MB) ships inside the image. It is only loaded into RAM when
 > `SEMANTIC_SEARCH=1`; when off, it costs nothing.
@@ -215,11 +217,14 @@ docker run -d --name doction --restart unless-stopped -p 127.0.0.1:8000:8000 \
   -e SECURE_COOKIES=1 \
   -e SEMANTIC_SEARCH=1 \
   -v /srv/doction:/data \
+  -v /srv/doction-logs:/logs \
   ghcr.io/dny1020/doction:latest
 ```
 
 Terminate TLS in nginx/Caddy/Traefik pointing at `http://127.0.0.1:8000`. All state lives
-in the `/data` volume (SQLite + git repo) — back that up and you're done. An opinionated
+in the `/data` volume (SQLite + git repo) — back that up and you're done. Logs (console +
+rotated file) live in the separate `/logs` volume; they're diagnostic only, not part of
+the backup. An opinionated
 pull-based deploy example (`docker compose` + systemd) lives in [`infra/`](infra/).
 
 ## License

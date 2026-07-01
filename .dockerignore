@@ -1,6 +1,6 @@
 .git/
 .github/
-deploy/
+infra/
 .venv/
 __pycache__/
 *.db
@@ -9,6 +9,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 data/
+logs/
 *.md
 CLAUDE.md
 

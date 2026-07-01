@@ -71,3 +71,14 @@ Variables: `DOCTION_DATA` (def. `/mnt/ssd/doction`), `DOCTION_BACKUP_DIR`
 # para la app, restaura el snapshot y la vuelve a levantar (pide confirmación)
 sudo /opt/doction/restore.sh /mnt/ssd/doction-backups/20260618-033000
 ```
+
+## Logs
+
+`app/logging_config.py` manda a consola (`docker logs doction` / `journalctl` vía el
+driver de Docker) y a archivo rotado (10 MB × 5) en el volumen `/mnt/ssd/doction-logs`
+(montado como `/logs` en el contenedor, separado de `/data` — no forma parte del backup).
+Nivel controlable con `LOG_LEVEL` en `/opt/doction/.env` (`INFO` por defecto).
+
+```bash
+tail -f /mnt/ssd/doction-logs/doction.log
+```

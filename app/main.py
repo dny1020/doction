@@ -32,8 +32,10 @@ from app.auth import (
 )
 from app.auth import hash_password as _hash_password
 from app.auth import verify_password as _verify_password
+from app.logging_config import configure_logging
 from app.models import Workspace
 
+configure_logging()
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
