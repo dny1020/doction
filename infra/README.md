@@ -75,10 +75,13 @@ sudo /opt/doction/restore.sh /mnt/ssd/doction-backups/20260618-033000
 ## Logs
 
 `app/logging_config.py` manda a consola (`docker logs doction` / `journalctl` vía el
-driver de Docker) y a archivo rotado (10 MB × 5) en el volumen `/mnt/ssd/doction-logs`
-(montado como `/logs` en el contenedor, separado de `/data` — no forma parte del backup).
-Nivel controlable con `LOG_LEVEL` en `/opt/doction/.env` (`INFO` por defecto).
+driver de Docker) y a archivo rotado (10 MB × 5) en `/mnt/ssd/doction/logs` (montado
+como `/logs` en el contenedor). `backup.sh` solo empaqueta `pages/` y `uploads/`
+puntualmente, así que esta carpeta no entra en los backups aunque viva anidada bajo
+`/mnt/ssd/doction`. Nivel controlable con `LOG_LEVEL` en `/opt/doction/.env` (`INFO`
+por defecto).
 
 ```bash
-tail -f /mnt/ssd/doction-logs/doction.log
+mkdir -p /mnt/ssd/doction/logs   # una sola vez, si no existe
+tail -f /mnt/ssd/doction/logs/doction.log
 ```

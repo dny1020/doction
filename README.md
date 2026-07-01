@@ -217,7 +217,7 @@ docker run -d --name doction --restart unless-stopped -p 127.0.0.1:8000:8000 \
   -e SECURE_COOKIES=1 \
   -e SEMANTIC_SEARCH=1 \
   -v /srv/doction:/data \
-  -v /srv/doction-logs:/logs \
+  -v /srv/doction/logs:/logs \
   ghcr.io/dny1020/doction:latest
 ```
 

@@ -6,7 +6,7 @@ services:
     env_file: .env
     volumes:
       - /mnt/ssd/doction:/data
-      - /mnt/ssd/doction-logs:/logs
+      - /mnt/ssd/doction/logs:/logs
     networks:
       - proxy_net
 
