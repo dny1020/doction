@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { forwardRef, useEffect } from 'react'
 import { renderMarkdown } from '../markdown.js'
 import { enhanceProse } from '../prose.js'
 
@@ -6,12 +6,12 @@ import { enhanceProse } from '../prose.js'
 // (los estilos de lectura del design system). Es seguro porque markdown-it
 // va con html:false: nunca inserta HTML escrito por el usuario.
 // Tras pintar, mejora el contenido (resaltado de código + diagramas Mermaid).
-export default function Markdown({ text }) {
-  const ref = useRef(null)
-
+// El ref se reenvía al div .prose para que el Reader pueda generar el TOC
+// a partir de los headings ya pintados en el DOM.
+const Markdown = forwardRef(function Markdown({ text }, ref) {
   useEffect(() => {
     enhanceProse(ref.current)
-  }, [text])
+  }, [text, ref])
 
   return (
     <div
@@ -20,4 +20,6 @@ export default function Markdown({ text }) {
       dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }}
     />
   )
-}
+})
+
+export default Markdown

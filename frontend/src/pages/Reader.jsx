@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import Markdown from '../components/Markdown.jsx'
+import Toc from '../components/Toc.jsx'
 
 // Vista de lectura de una página. Pide /api/pages/{slug}/view, que trae el
 // contenido + migas + subpáginas + backlinks + relacionadas en una sola llamada.
@@ -13,6 +14,8 @@ export default function Reader() {
   const navigate = useNavigate()
   const [view, setView] = useState(null)
   const [error, setError] = useState(null)
+  const wrapRef = useRef(null)
+  const proseRef = useRef(null)
 
   useEffect(() => {
     if (!slug) return
@@ -57,7 +60,7 @@ export default function Reader() {
   const editor = view.updated_by_name || view.updated_by_email
 
   return (
-    <div className="page-wrap">
+    <div className="page-wrap" ref={wrapRef}>
       <article className="page">
         <header className="page-header">
           <nav className="breadcrumbs" aria-label="Breadcrumb">
@@ -91,7 +94,7 @@ export default function Reader() {
           </p>
         </header>
 
-        <Markdown text={view.content} />
+        <Markdown ref={proseRef} text={view.content} />
 
         {view.children.length > 0 && (
           <section className="subpages">
@@ -144,6 +147,8 @@ export default function Reader() {
           </section>
         )}
       </article>
+
+      <Toc proseRef={proseRef} wrapRef={wrapRef} content={view.content} />
     </div>
   )
 }

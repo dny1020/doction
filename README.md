@@ -220,7 +220,7 @@ docker run -d --name doction --restart unless-stopped -p 127.0.0.1:8000:8000 \
 
 Terminate TLS in nginx/Caddy/Traefik pointing at `http://127.0.0.1:8000`. All state lives
 in the `/data` volume (SQLite + git repo) — back that up and you're done. An opinionated
-pull-based deploy example (`docker compose` + systemd) lives in [`deploy/`](deploy/).
+pull-based deploy example (`docker compose` + systemd) lives in [`infra/`](infra/).
 
 ## License
 

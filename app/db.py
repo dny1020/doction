@@ -25,7 +25,7 @@ from app.models import (
     Workspace,
 )
 
-DEFAULT_DB_PATH = "doction.db"
+DEFAULT_DB_PATH = "data/doction.db"
 DEFAULT_WORKSPACE_NAME = "Personal"
 DEFAULT_WORKSPACE_SLUG = "personal"
 

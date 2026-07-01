@@ -11,8 +11,8 @@ lint:
 # Snapshot local de los datos (BD + pages/ + uploads/) en ./backups. En la Pi lo corre
 # el systemd timer doction-backup.timer apuntando a /mnt/ssd/doction.
 backup:
-	DOCTION_DATA=$(PWD) DOCTION_BACKUP_DIR=$(PWD)/backups \
-	  DATABASE_PATH="$${DATABASE_PATH:-$(PWD)/doction.db}" bash deploy/backup.sh
+	DOCTION_DATA=$(PWD)/data DOCTION_BACKUP_DIR=$(PWD)/backups \
+	  DATABASE_PATH="$${DATABASE_PATH:-$(PWD)/data/doction.db}" bash infra/backup.sh
 
 test-image:
 	docker build -t $(IMAGE) .

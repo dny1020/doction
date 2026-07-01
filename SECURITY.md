@@ -38,5 +38,5 @@ doction is self-hosted; deployment security is your responsibility. Recommended 
   long-lived, and can be revoked via `DELETE /api/tokens/{id}`.
 - Failed logins are rate-limited per (IP, email); repeated failures return `429`.
 - Back up the `/data` volume (SQLite + git repo + uploads); it holds all state. Use the
-  provided `deploy/backup.sh` (daily via `doction-backup.timer`) and `deploy/restore.sh` —
-  see `deploy/README.md`.
+  provided `infra/backup.sh` (daily via `doction-backup.timer`) and `infra/restore.sh` —
+  see `infra/README.md`.

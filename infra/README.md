@@ -7,8 +7,8 @@ La Pi hace pull cada 5 minutos vía systemd timer — sin puertos expuestos, sin
 
 ```bash
 # 1. copiar artefactos
-scp deploy/compose.yaml deploy/deploy.sh rpi:/opt/doction/
-scp deploy/doction-deploy.* rpi:/tmp/
+scp infra/compose.yaml infra/deploy.sh rpi:/opt/doction/
+scp infra/doction-deploy.* rpi:/tmp/
 
 ssh rpi
 chmod +x /opt/doction/deploy.sh
@@ -49,8 +49,8 @@ los últimos `DOCTION_BACKUP_KEEP` (7 por defecto).
 
 ```bash
 # setup (una sola vez)
-scp deploy/backup.sh deploy/restore.sh rpi:/opt/doction/
-scp deploy/doction-backup.* rpi:/tmp/
+scp infra/backup.sh infra/restore.sh rpi:/opt/doction/
+scp infra/doction-backup.* rpi:/tmp/
 ssh rpi
 chmod +x /opt/doction/backup.sh /opt/doction/restore.sh
 sudo mv /tmp/doction-backup.{service,timer} /etc/systemd/system/
