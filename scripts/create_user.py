@@ -2,11 +2,12 @@
 """Crea un usuario de doction desde la línea de comandos, sin pasar por el registro web.
 
 Útil para self-hosters que cierran el registro, o para automatizar el alta. Usa el mismo
-DATABASE_PATH que la app, así que apúntalo a la BD real.
+DATABASE_URL que la app, así que apúntalo a la BD real.
 
     # en un checkout local
     uv run python -m scripts.create_user alice@example.com
-    DATABASE_PATH=/mnt/ssd/doction/doction.db uv run python -m scripts.create_user bob@corp.io
+    DATABASE_URL=postgresql://doction:doction@localhost:5432/doction \\
+        uv run python -m scripts.create_user bob@corp.io
 
     # dentro del contenedor desplegado
     docker exec -it doction python -m scripts.create_user alice@example.com

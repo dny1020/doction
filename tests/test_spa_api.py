@@ -2,34 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
-import os
-
-import pytest
-from fastapi.testclient import TestClient
-
-
-@pytest.fixture()
-def client(tmp_path):
-    """App + base de datos temporal por test (la lifespan crea esquema + seed).
-
-    Usamos tmp_path para que el repo git de páginas (db_path().parent / "pages")
-    quede aislado por test, ya que los tests de historial/restaurar lo necesitan.
-    """
-    os.environ["DATABASE_PATH"] = str(tmp_path / "test.db")
-    os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
-
-    import app.db as db_module
-    import app.git_repo as git_module
-    import app.main as main_module
-
-    importlib.reload(db_module)
-    importlib.reload(git_module)
-    importlib.reload(main_module)
-
-    with TestClient(main_module.app) as c:
-        yield c
-
 
 def _register(client, email="user@example.com", password="password123"):
     return client.post("/api/auth/register", json={"email": email, "password": password})

@@ -675,7 +675,7 @@ async def lifespan(_: FastAPI):
     app.state.secret_key = secret_key
     db.init_db()
     git_repo.ensure_repo()
-    logger.info("doction ready — db: %s", db.db_path())
+    logger.info("doction ready — db: %s", db.masked_database_url())
 
     embed_task: asyncio.Task | None = None
     if embeddings.semantic_enabled():
@@ -691,13 +691,14 @@ async def lifespan(_: FastAPI):
         except asyncio.CancelledError:
             # Cancelar la tarea lanza esta excepción a propósito; la ignoramos.
             pass
+    db.reset_pool()
 
 
 app = FastAPI(title="doction", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # Imágenes subidas (pegadas/arrastradas en el editor) viven junto a la BD, no en la imagen.
-UPLOADS_DIR = db.db_path().parent / "uploads"
+UPLOADS_DIR = db.data_dir() / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 

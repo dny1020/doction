@@ -2,31 +2,7 @@
 
 from __future__ import annotations
 
-import importlib
-import os
 import unittest.mock as mock
-
-import pytest
-from fastapi.testclient import TestClient
-
-
-@pytest.fixture()
-def client(tmp_path):
-    """Fresh app + temp DB per test; git repo lands in tmp_path/pages/."""
-    db_file = tmp_path / "test.db"
-    os.environ["DATABASE_PATH"] = str(db_file)
-    os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
-
-    import app.db as db_module
-    import app.git_repo as git_module
-    import app.main as main_module
-
-    importlib.reload(db_module)
-    importlib.reload(git_module)
-    importlib.reload(main_module)
-
-    with TestClient(main_module.app) as c:
-        yield c
 
 
 def _register_and_token(client) -> str:

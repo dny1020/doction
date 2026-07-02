@@ -1,13 +1,32 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: doction-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: doction
+      POSTGRES_PASSWORD: doction
+      POSTGRES_DB: doction
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doction"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   doction:
     image: ghcr.io/dny1020/doction:latest
     build: .
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - ./data:/data
       - ./data/logs:/logs
     environment:
-      DATABASE_PATH: /data/doction.db
+      DATABASE_URL: postgresql://doction:doction@postgres:5432/doction
       SECRET_KEY: change-me
     restart: unless-stopped

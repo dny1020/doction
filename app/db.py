@@ -3,10 +3,14 @@ from __future__ import annotations
 import json
 import os
 import re
-import sqlite3
+import threading
 import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
+
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 
 from app import meta
 from app.models import (
@@ -25,23 +29,65 @@ from app.models import (
     Workspace,
 )
 
-DEFAULT_DB_PATH = "data/doction.db"
+DEFAULT_DATABASE_URL = "postgresql://doction:doction@localhost:5432/doction"
+DEFAULT_DATA_DIR = "data"
 DEFAULT_WORKSPACE_NAME = "Personal"
 DEFAULT_WORKSPACE_SLUG = "personal"
 
+_pool: ConnectionPool | None = None
+_pool_lock = threading.Lock()
 
-def db_path() -> Path:
-    return Path(os.environ.get("DATABASE_PATH", DEFAULT_DB_PATH))
+
+def database_url() -> str:
+    return os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
 
 
-def connect() -> sqlite3.Connection:
-    path = db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+def masked_database_url() -> str:
+    """`database_url()` sin credenciales — seguro para logs."""
+    parts = urlsplit(database_url())
+    if parts.password is None:
+        return urlunsplit(parts)
+    host = f"{parts.hostname or ''}"
+    if parts.port:
+        host += f":{parts.port}"
+    netloc = f"{parts.username}:***@{host}" if parts.username else f"***@{host}"
+    return urlunsplit(parts._replace(netloc=netloc))
+
+
+def data_dir() -> Path:
+    """Directorio para el repo git de páginas y los uploads (independiente de la BD)."""
+    d = Path(os.environ.get("DATA_DIR", DEFAULT_DATA_DIR))
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _get_pool() -> ConnectionPool:
+    global _pool
+    if _pool is None:
+        with _pool_lock:
+            if _pool is None:
+                _pool = ConnectionPool(
+                    database_url(),
+                    min_size=1,
+                    max_size=10,
+                    kwargs={"row_factory": dict_row},
+                    open=True,
+                )
+    return _pool
+
+
+def connect():
+    """Conexión del pool como context manager: commit al salir, rollback si hay excepción."""
+    return _get_pool().connection()
+
+
+def reset_pool() -> None:
+    """Cierra el pool actual; el próximo connect() crea uno nuevo. Solo para tests."""
+    global _pool
+    with _pool_lock:
+        if _pool is not None:
+            _pool.close()
+            _pool = None
 
 
 def _now() -> str:
@@ -49,163 +95,171 @@ def _now() -> str:
 
 
 # ── Conversión de filas a dataclasses ────────────────────────────────────────
-# Cada consulta devuelve un `sqlite3.Row`, que funciona como un diccionario. Estas
-# funciones lo pasan a un dato con nombre (las clases de app/models.py). Pasamos la
-# fila a un dict y usamos `.get(...)` para que, si una consulta no seleccionó cierta
-# columna, ese campo quede en None en vez de provocar un error.
+# Cada consulta devuelve un dict (row_factory=dict_row). Estas funciones lo pasan
+# a un dato con nombre (las clases de app/models.py), usando .get(...) para que si
+# una consulta no seleccionó cierta columna, ese campo quede en None.
 
-def _to_user(row: sqlite3.Row) -> User:
-    d = dict(row)
+def _to_user(row: dict) -> User:
     return User(
-        id=d["id"],
-        email=d["email"],
-        password_hash=d["password_hash"],
-        created_at=d["created_at"],
-        display_name=d.get("display_name"),
-        avatar_color=d.get("avatar_color"),
+        id=row["id"],
+        email=row["email"],
+        password_hash=row["password_hash"],
+        created_at=row["created_at"],
+        display_name=row.get("display_name"),
+        avatar_color=row.get("avatar_color"),
     )
 
 
-def _to_workspace(row: sqlite3.Row) -> Workspace:
-    d = dict(row)
+def _to_workspace(row: dict) -> Workspace:
     return Workspace(
-        id=d["id"],
-        slug=d["slug"],
-        name=d["name"],
-        role=d.get("role"),
-        user_id=d.get("user_id"),
-        created_at=d.get("created_at"),
+        id=row["id"],
+        slug=row["slug"],
+        name=row["name"],
+        role=row.get("role"),
+        user_id=row.get("user_id"),
+        created_at=row.get("created_at"),
     )
 
 
-def _to_page(row: sqlite3.Row) -> Page:
-    d = dict(row)
+def _to_page(row: dict) -> Page:
     return Page(
-        id=d.get("id"),
-        slug=d.get("slug", ""),
-        title=d.get("title", ""),
-        content=d.get("content", ""),
-        user_id=d.get("user_id"),
-        workspace_id=d.get("workspace_id"),
-        parent_id=d.get("parent_id"),
-        created_at=d.get("created_at"),
-        updated_at=d.get("updated_at"),
-        git_commit=d.get("git_commit"),
-        embed_dirty=d.get("embed_dirty"),
-        updated_by=d.get("updated_by"),
-        deleted_at=d.get("deleted_at"),
-        parent_slug=d.get("parent_slug"),
-        parent_title=d.get("parent_title"),
-        updated_by_email=d.get("updated_by_email"),
-        updated_by_name=d.get("updated_by_name"),
+        id=row.get("id"),
+        slug=row.get("slug", ""),
+        title=row.get("title", ""),
+        content=row.get("content", ""),
+        user_id=row.get("user_id"),
+        workspace_id=row.get("workspace_id"),
+        parent_id=row.get("parent_id"),
+        created_at=row.get("created_at"),
+        updated_at=row.get("updated_at"),
+        git_commit=row.get("git_commit"),
+        embed_dirty=row.get("embed_dirty"),
+        updated_by=row.get("updated_by"),
+        deleted_at=row.get("deleted_at"),
+        parent_slug=row.get("parent_slug"),
+        parent_title=row.get("parent_title"),
+        updated_by_email=row.get("updated_by_email"),
+        updated_by_name=row.get("updated_by_name"),
     )
 
 
-def _unique_index_present(conn: sqlite3.Connection, table: str, columns: list[str]) -> bool:
-    for idx in conn.execute(f"PRAGMA index_list({table})"):
-        if idx["unique"] != 1:
-            continue
-        idx_cols = [row["name"] for row in conn.execute(f"PRAGMA index_info({idx['name']})")]
-        if idx_cols == columns:
-            return True
-    return False
-
-
-def _legacy_slug_indexes_present(conn: sqlite3.Connection) -> bool:
-    return _unique_index_present(conn, "pages", ["slug"]) or _unique_index_present(
-        conn, "pages", ["user_id", "slug"]
+# ── Esquema ───────────────────────────────────────────────────────────────────
+# Esquema final directo (sin el historial de migraciones de la era SQLite: no hay
+# datos legacy que reconciliar porque una base Postgres nueva nace ya con esta forma
+# — ver scripts/migrate_sqlite_to_postgres.py para la migración única de datos
+# existentes). `search_vector` es una columna generada: Postgres la mantiene
+# sincronizada solo, sin triggers (a diferencia de los 3 triggers que requería FTS5).
+SCHEMA_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id            BIGSERIAL PRIMARY KEY,
+        email         TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        created_at    TEXT NOT NULL,
+        display_name  TEXT,
+        avatar_color  TEXT
     )
-
-
-def _ensure_pages_indexes(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS pages_workspace_slug_idx ON pages(workspace_id, slug)"
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS workspaces (
+        id         BIGSERIAL PRIMARY KEY,
+        user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        slug       TEXT NOT NULL UNIQUE,
+        name       TEXT NOT NULL,
+        created_at TEXT NOT NULL
     )
-    conn.execute("CREATE INDEX IF NOT EXISTS pages_user_idx ON pages(user_id)")
-    conn.execute("CREATE INDEX IF NOT EXISTS pages_parent_idx ON pages(parent_id)")
-
-
-def _ensure_pages_fts(conn: sqlite3.Connection) -> None:
-    conn.executescript(
-        """
-        CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
-            title,
-            content,
-            content='pages',
-            content_rowid='id'
-        );
-
-        CREATE TRIGGER IF NOT EXISTS pages_ai AFTER INSERT ON pages BEGIN
-            INSERT INTO pages_fts(rowid, title, content)
-            VALUES (new.id, new.title, new.content);
-        END;
-
-        CREATE TRIGGER IF NOT EXISTS pages_ad AFTER DELETE ON pages BEGIN
-            INSERT INTO pages_fts(pages_fts, rowid, title, content)
-            VALUES ('delete', old.id, old.title, old.content);
-        END;
-
-        CREATE TRIGGER IF NOT EXISTS pages_au AFTER UPDATE ON pages BEGIN
-            INSERT INTO pages_fts(pages_fts, rowid, title, content)
-            VALUES ('delete', old.id, old.title, old.content);
-            INSERT INTO pages_fts(rowid, title, content)
-            VALUES (new.id, new.title, new.content);
-        END;
-        """
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS workspace_members (
+        workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role         TEXT NOT NULL DEFAULT 'member',
+        created_at   TEXT NOT NULL,
+        PRIMARY KEY (workspace_id, user_id)
     )
-
-
-def _rebuild_pages_schema(conn: sqlite3.Connection) -> None:
-    old_columns = set()
-    for row in conn.execute("PRAGMA table_info(pages)"):
-        old_columns.add(row["name"])
-    select_user_id = "user_id" if "user_id" in old_columns else "NULL AS user_id"
-    select_workspace_id = (
-        "workspace_id" if "workspace_id" in old_columns else "NULL AS workspace_id"
+    """,
+    "CREATE INDEX IF NOT EXISTS workspace_members_user_idx ON workspace_members(user_id)",
+    """
+    CREATE TABLE IF NOT EXISTS api_tokens (
+        id           BIGSERIAL PRIMARY KEY,
+        user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name         TEXT NOT NULL,
+        token_hash   TEXT NOT NULL UNIQUE,
+        created_at   TEXT NOT NULL,
+        last_used_at TEXT
     )
-    select_parent_id = "parent_id" if "parent_id" in old_columns else "NULL AS parent_id"
-
-    conn.executescript(
-        """
-        DROP TRIGGER IF EXISTS pages_ai;
-        DROP TRIGGER IF EXISTS pages_ad;
-        DROP TRIGGER IF EXISTS pages_au;
-        DROP TABLE IF EXISTS pages_fts;
-        ALTER TABLE pages RENAME TO pages_old;
-
-        CREATE TABLE pages (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
-            parent_id    INTEGER REFERENCES pages(id)
-                         ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-            slug         TEXT NOT NULL,
-            title        TEXT NOT NULL,
-            content      TEXT NOT NULL,
-            created_at   TEXT NOT NULL,
-            updated_at   TEXT NOT NULL,
-            git_commit   TEXT
-        );
-        """
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS pages (
+        id            BIGSERIAL PRIMARY KEY,
+        user_id       BIGINT REFERENCES users(id) ON DELETE CASCADE,
+        workspace_id  BIGINT REFERENCES workspaces(id) ON DELETE CASCADE,
+        parent_id     BIGINT REFERENCES pages(id)
+                      ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
+        slug          TEXT NOT NULL,
+        title         TEXT NOT NULL,
+        content       TEXT NOT NULL,
+        created_at    TEXT NOT NULL,
+        updated_at    TEXT NOT NULL,
+        git_commit    TEXT,
+        embed_dirty   INTEGER NOT NULL DEFAULT 1,
+        updated_by    BIGINT REFERENCES users(id),
+        deleted_at    TEXT,
+        search_vector tsvector GENERATED ALWAYS AS (
+            setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+            setweight(to_tsvector('english', coalesce(content, '')), 'B')
+        ) STORED
     )
-    conn.execute(
-        f"""
-        INSERT INTO pages (
-            id, user_id, workspace_id, parent_id, slug, title, content, created_at, updated_at
-        )
-        SELECT id, {select_user_id}, {select_workspace_id}, {select_parent_id},
-               slug, title, content, created_at, updated_at
-        FROM pages_old
-        """
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS pages_workspace_slug_idx ON pages(workspace_id, slug)",
+    "CREATE INDEX IF NOT EXISTS pages_user_idx ON pages(user_id)",
+    "CREATE INDEX IF NOT EXISTS pages_parent_idx ON pages(parent_id)",
+    "CREATE INDEX IF NOT EXISTS pages_search_idx ON pages USING GIN(search_vector)",
+    """
+    CREATE TABLE IF NOT EXISTS page_meta (
+        page_id          BIGINT PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE,
+        type             TEXT,
+        frontmatter_json TEXT NOT NULL DEFAULT '{}'
     )
-    conn.execute("DROP TABLE pages_old")
-    _ensure_pages_indexes(conn)
-    _ensure_pages_fts(conn)
-    conn.execute("INSERT INTO pages_fts(pages_fts) VALUES('rebuild')")
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS page_tags (
+        id      BIGSERIAL PRIMARY KEY,
+        page_id BIGINT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+        tag     TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS page_tags_tag_idx ON page_tags(tag)",
+    "CREATE INDEX IF NOT EXISTS page_tags_page_idx ON page_tags(page_id)",
+    """
+    CREATE TABLE IF NOT EXISTS page_links (
+        id           BIGSERIAL PRIMARY KEY,
+        src_page_id  BIGINT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+        dst_slug     TEXT NOT NULL,
+        workspace_id BIGINT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS page_links_dst_idx ON page_links(workspace_id, dst_slug)",
+    "CREATE INDEX IF NOT EXISTS page_links_src_idx ON page_links(src_page_id)",
+    """
+    CREATE TABLE IF NOT EXISTS page_chunks (
+        id           BIGSERIAL PRIMARY KEY,
+        page_id      BIGINT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+        workspace_id BIGINT NOT NULL,
+        ord          INTEGER NOT NULL,
+        text         TEXT NOT NULL,
+        vector       BYTEA NOT NULL,
+        model        TEXT NOT NULL,
+        created_at   TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS page_chunks_ws_idx ON page_chunks(workspace_id)",
+    "CREATE INDEX IF NOT EXISTS page_chunks_page_idx ON page_chunks(page_id)",
+]
 
 
 def _unique_workspace_slug(
-    conn: sqlite3.Connection,
+    conn,
     base: str,
     *,
     ignore_id: int | None = None,
@@ -216,7 +270,7 @@ def _unique_workspace_slug(
     suffix = 1
     while True:
         row = conn.execute(
-            "SELECT id FROM workspaces WHERE slug = ?",
+            "SELECT id FROM workspaces WHERE slug = %s",
             (candidate,),
         ).fetchone()
         if row is None or row["id"] == ignore_id:
@@ -225,7 +279,7 @@ def _unique_workspace_slug(
         candidate = f"{base}-{suffix}"
 
 
-def _ensure_default_workspaces(conn: sqlite3.Connection) -> None:
+def _ensure_default_workspaces(conn) -> None:
     missing = conn.execute(
         """
         SELECT u.id
@@ -239,135 +293,41 @@ def _ensure_default_workspaces(conn: sqlite3.Connection) -> None:
         user_id = int(row["id"])
         slug = _unique_workspace_slug(conn, DEFAULT_WORKSPACE_SLUG)
         conn.execute(
-            "INSERT INTO workspaces (user_id, slug, name, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO workspaces (user_id, slug, name, created_at) VALUES (%s, %s, %s, %s)",
             (user_id, slug, DEFAULT_WORKSPACE_NAME, _now()),
         )
 
 
-def _dedupe_workspace_slugs(conn: sqlite3.Connection) -> None:
-    """Hace los slugs de workspace únicos a nivel global antes de imponer el índice único.
-
-    Datos pre-multiusuario podían tener varios "personal" (uno por usuario). Se conserva
-    el más antiguo y se renombran los demás a "personal-2", etc. Idempotente.
-    """
-    dupes = conn.execute(
-        "SELECT slug FROM workspaces GROUP BY slug HAVING COUNT(*) > 1"
-    ).fetchall()
-    for row in dupes:
-        rows = conn.execute(
-            "SELECT id FROM workspaces WHERE slug = ? ORDER BY id", (row["slug"],)
-        ).fetchall()
-        for ws in rows[1:]:
-            new_slug = _unique_workspace_slug(conn, row["slug"], ignore_id=int(ws["id"]))
-            conn.execute(
-                "UPDATE workspaces SET slug = ? WHERE id = ?", (new_slug, int(ws["id"]))
-            )
-
-
-def _ensure_member_owners(conn: sqlite3.Connection) -> None:
-    """Backfill: el creador de cada workspace es 'owner' en workspace_members.
-
-    Idempotente (INSERT OR IGNORE sobre la PK). Para workspaces creados antes de
-    existir la tabla de membresía.
-    """
+def _ensure_member_owners(conn) -> None:
+    """Backfill: el creador de cada workspace es 'owner' en workspace_members. Idempotente."""
     conn.execute(
         """
-        INSERT OR IGNORE INTO workspace_members (workspace_id, user_id, role, created_at)
-        SELECT w.id, w.user_id, 'owner', ?
+        INSERT INTO workspace_members (workspace_id, user_id, role, created_at)
+        SELECT w.id, w.user_id, 'owner', %s
         FROM workspaces w
+        ON CONFLICT (workspace_id, user_id) DO NOTHING
         """,
         (_now(),),
     )
 
 
-def _backfill_page_workspaces(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        UPDATE pages
-        SET workspace_id = (
-            SELECT w.id FROM workspaces w
-            WHERE w.user_id = pages.user_id
-            ORDER BY w.id ASC
-            LIMIT 1
-        )
-        WHERE workspace_id IS NULL AND user_id IS NOT NULL
-        """
-    )
-    conn.execute(
-        """
-        UPDATE pages
-        SET user_id = (
-            SELECT w.user_id FROM workspaces w
-            WHERE w.id = pages.workspace_id
-        )
-        WHERE user_id IS NULL AND workspace_id IS NOT NULL
-        """
-    )
-
-
-def _ensure_intel_tables(conn: sqlite3.Connection) -> None:
-    """Tablas de "markdown como API": frontmatter, tags y grafo de enlaces.
-
-    Se crean tras el posible rebuild de `pages` para que las FK apunten a la tabla
-    final. Son derivadas del contenido: se reconstruyen en cada save.
-    """
-    conn.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS page_meta (
-            page_id          INTEGER PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE,
-            type             TEXT,
-            frontmatter_json TEXT NOT NULL DEFAULT '{}'
-        );
-
-        CREATE TABLE IF NOT EXISTS page_tags (
-            page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
-            tag     TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS page_tags_tag_idx ON page_tags(tag);
-        CREATE INDEX IF NOT EXISTS page_tags_page_idx ON page_tags(page_id);
-
-        CREATE TABLE IF NOT EXISTS page_links (
-            src_page_id  INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
-            dst_slug     TEXT NOT NULL,
-            workspace_id INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS page_links_dst_idx ON page_links(workspace_id, dst_slug);
-        CREATE INDEX IF NOT EXISTS page_links_src_idx ON page_links(src_page_id);
-
-        CREATE TABLE IF NOT EXISTS page_chunks (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            page_id      INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
-            workspace_id INTEGER NOT NULL,
-            ord          INTEGER NOT NULL,
-            text         TEXT NOT NULL,
-            vector       BLOB NOT NULL,
-            model        TEXT NOT NULL,
-            created_at   TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS page_chunks_ws_idx ON page_chunks(workspace_id);
-        CREATE INDEX IF NOT EXISTS page_chunks_page_idx ON page_chunks(page_id);
-        """
-    )
-
-
-def _index_page_meta(
-    conn: sqlite3.Connection, page_id: int, workspace_id: int, content: str
-) -> None:
+def _index_page_meta(conn, page_id: int, workspace_id: int, content: str) -> None:
     """Reconstruye frontmatter/tags/enlaces de una página. Idempotente por page_id."""
     fm, _ = meta.parse_frontmatter(content)
-    conn.execute("DELETE FROM page_meta WHERE page_id = ?", (page_id,))
+    conn.execute("DELETE FROM page_meta WHERE page_id = %s", (page_id,))
     conn.execute(
-        "INSERT INTO page_meta (page_id, type, frontmatter_json) VALUES (?, ?, ?)",
+        "INSERT INTO page_meta (page_id, type, frontmatter_json) VALUES (%s, %s, %s)",
         (page_id, meta.page_type(content), json.dumps(fm, ensure_ascii=False)),
     )
 
-    conn.execute("DELETE FROM page_tags WHERE page_id = ?", (page_id,))
-    conn.executemany(
-        "INSERT INTO page_tags (page_id, tag) VALUES (?, ?)",
-        [(page_id, tag) for tag in meta.extract_tags(content)],
-    )
+    conn.execute("DELETE FROM page_tags WHERE page_id = %s", (page_id,))
+    tags = [(page_id, tag) for tag in meta.extract_tags(content)]
+    if tags:
+        conn.cursor().executemany(
+            "INSERT INTO page_tags (page_id, tag) VALUES (%s, %s)", tags
+        )
 
-    conn.execute("DELETE FROM page_links WHERE src_page_id = ?", (page_id,))
+    conn.execute("DELETE FROM page_links WHERE src_page_id = %s", (page_id,))
     seen: set[str] = set()
     edges: list[tuple[int, str, int]] = []
     for target in meta.extract_links(content):
@@ -375,121 +335,23 @@ def _index_page_meta(
         if dst not in seen:
             seen.add(dst)
             edges.append((page_id, dst, workspace_id))
-    conn.executemany(
-        "INSERT INTO page_links (src_page_id, dst_slug, workspace_id) VALUES (?, ?, ?)",
-        edges,
-    )
+    if edges:
+        conn.cursor().executemany(
+            "INSERT INTO page_links (src_page_id, dst_slug, workspace_id) VALUES (%s, %s, %s)",
+            edges,
+        )
 
     # El contenido cambió: marcar para reembedding (lo procesa el worker async).
-    conn.execute("UPDATE pages SET embed_dirty = 1 WHERE id = ?", (page_id,))
+    conn.execute("UPDATE pages SET embed_dirty = 1 WHERE id = %s", (page_id,))
 
 
 def init_db() -> None:
-    """Crea tablas, índice FTS5 y triggers de sincronización. Idempotente."""
+    """Crea el esquema (idempotente) y corre los backfills defensivos."""
     with connect() as conn:
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS users (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                email         TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL,
-                created_at    TEXT NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS workspaces (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                slug       TEXT NOT NULL,
-                name       TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS api_tokens (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                name         TEXT NOT NULL,
-                token_hash   TEXT NOT NULL UNIQUE,
-                created_at   TEXT NOT NULL,
-                last_used_at TEXT
-            );
-
-            CREATE TABLE IF NOT EXISTS workspace_members (
-                workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-                user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                role         TEXT NOT NULL DEFAULT 'member',
-                created_at   TEXT NOT NULL,
-                PRIMARY KEY (workspace_id, user_id)
-            );
-
-            CREATE TABLE IF NOT EXISTS pages (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
-                parent_id    INTEGER REFERENCES pages(id)
-                             ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-                slug         TEXT NOT NULL,
-                title        TEXT NOT NULL,
-                content      TEXT NOT NULL,
-                created_at   TEXT NOT NULL,
-                updated_at   TEXT NOT NULL
-            );
-            """
-        )
-
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS workspace_members_user_idx "
-            "ON workspace_members(user_id)"
-        )
-
-        page_columns = set()
-        for row in conn.execute("PRAGMA table_info(pages)"):
-            page_columns.add(row["name"])
-        needs_rebuild = (
-            "user_id" not in page_columns
-            or "workspace_id" not in page_columns
-            or "parent_id" not in page_columns
-            or _legacy_slug_indexes_present(conn)
-            or not _unique_index_present(conn, "pages", ["workspace_id", "slug"])
-        )
-
-        if needs_rebuild:
-            _rebuild_pages_schema(conn)
-        else:
-            _ensure_pages_indexes(conn)
-            _ensure_pages_fts(conn)
-
+        for stmt in SCHEMA_STATEMENTS:
+            conn.execute(stmt)
         _ensure_default_workspaces(conn)
         _ensure_member_owners(conn)
-        _dedupe_workspace_slugs(conn)
-        conn.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS workspaces_slug_idx ON workspaces(slug)"
-        )
-        _backfill_page_workspaces(conn)
-
-        page_cols = set()
-        for r in conn.execute("PRAGMA table_info(pages)"):
-            page_cols.add(r["name"])
-        if "git_commit" not in page_cols:
-            conn.execute("ALTER TABLE pages ADD COLUMN git_commit TEXT")
-        if "embed_dirty" not in page_cols:
-            # Default 1 ⇒ páginas existentes se reindexan al activar SEMANTIC_SEARCH.
-            conn.execute("ALTER TABLE pages ADD COLUMN embed_dirty INTEGER NOT NULL DEFAULT 1")
-        if "updated_by" not in page_cols:
-            # Último editor (FK a users); se muestra como "editado por" en la cabecera.
-            conn.execute("ALTER TABLE pages ADD COLUMN updated_by INTEGER REFERENCES users(id)")
-        if "deleted_at" not in page_cols:
-            # Soft-delete: NULL = viva; un timestamp = en la papelera (recuperable).
-            conn.execute("ALTER TABLE pages ADD COLUMN deleted_at TEXT")
-
-        user_cols = set()
-        for r in conn.execute("PRAGMA table_info(users)"):
-            user_cols.add(r["name"])
-        if "display_name" not in user_cols:
-            conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
-        if "avatar_color" not in user_cols:
-            conn.execute("ALTER TABLE users ADD COLUMN avatar_color TEXT")
-
-        _ensure_intel_tables(conn)
 
 
 def slugify(text: str) -> str:
@@ -500,7 +362,7 @@ def slugify(text: str) -> str:
 
 
 def unique_slug(
-    conn: sqlite3.Connection,
+    conn,
     base: str,
     *,
     workspace_id: int,
@@ -511,7 +373,7 @@ def unique_slug(
     suffix = 1
     while True:
         row = conn.execute(
-            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ?",
+            "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s",
             (candidate, workspace_id),
         ).fetchone()
         if row is None or row["id"] == ignore_id:
@@ -522,11 +384,12 @@ def unique_slug(
 
 def create_user(email: str, password_hash: str) -> int:
     with connect() as conn:
-        cur = conn.execute(
-            "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+        row = conn.execute(
+            "INSERT INTO users (email, password_hash, created_at) VALUES (%s, %s, %s) "
+            "RETURNING id",
             (email, password_hash, _now()),
-        )
-        return int(cur.lastrowid)
+        ).fetchone()
+        return int(row["id"])
 
 
 def has_users() -> bool:
@@ -537,20 +400,20 @@ def has_users() -> bool:
 
 def get_user_by_email(email: str) -> User | None:
     with connect() as conn:
-        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        row = conn.execute("SELECT * FROM users WHERE email = %s", (email,)).fetchone()
         return _to_user(row) if row else None
 
 
 def get_user_by_id(user_id: int) -> User | None:
     with connect() as conn:
-        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        row = conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone()
         return _to_user(row) if row else None
 
 
 def update_user_profile(user_id: int, display_name: str | None, avatar_color: str | None) -> None:
     with connect() as conn:
         conn.execute(
-            "UPDATE users SET display_name = ?, avatar_color = ? WHERE id = ?",
+            "UPDATE users SET display_name = %s, avatar_color = %s WHERE id = %s",
             (display_name or None, avatar_color or None, user_id),
         )
 
@@ -558,7 +421,7 @@ def update_user_profile(user_id: int, display_name: str | None, avatar_color: st
 def update_user_password(user_id: int, password_hash: str) -> None:
     with connect() as conn:
         conn.execute(
-            "UPDATE users SET password_hash = ? WHERE id = ?",
+            "UPDATE users SET password_hash = %s WHERE id = %s",
             (password_hash, user_id),
         )
 
@@ -571,7 +434,7 @@ def list_workspaces(user_id: int) -> list[Workspace]:
             SELECT w.id, w.slug, w.name, m.role
             FROM workspaces w
             JOIN workspace_members m ON m.workspace_id = w.id
-            WHERE m.user_id = ?
+            WHERE m.user_id = %s
             ORDER BY w.created_at, w.id
             """,
             (user_id,),
@@ -587,7 +450,7 @@ def get_workspace_by_slug(user_id: int, slug: str) -> Workspace | None:
             SELECT w.id, w.slug, w.name, m.role
             FROM workspaces w
             JOIN workspace_members m ON m.workspace_id = w.id
-            WHERE m.user_id = ? AND w.slug = ?
+            WHERE m.user_id = %s AND w.slug = %s
             """,
             (user_id, slug),
         ).fetchone()
@@ -600,14 +463,15 @@ def create_workspace(user_id: int, name: str) -> str:
     now = _now()
     with connect() as conn:
         slug = _unique_workspace_slug(conn, base)
-        cur = conn.execute(
-            "INSERT INTO workspaces (user_id, slug, name, created_at) VALUES (?, ?, ?, ?)",
+        row = conn.execute(
+            "INSERT INTO workspaces (user_id, slug, name, created_at) VALUES (%s, %s, %s, %s) "
+            "RETURNING id",
             (user_id, slug, name, now),
-        )
+        ).fetchone()
         conn.execute(
-            "INSERT OR IGNORE INTO workspace_members (workspace_id, user_id, role, created_at) "
-            "VALUES (?, ?, 'owner', ?)",
-            (int(cur.lastrowid), user_id, now),
+            "INSERT INTO workspace_members (workspace_id, user_id, role, created_at) "
+            "VALUES (%s, %s, 'owner', %s) ON CONFLICT (workspace_id, user_id) DO NOTHING",
+            (int(row["id"]), user_id, now),
         )
         return slug
 
@@ -618,32 +482,28 @@ def rename_workspace(user_id: int, slug: str, name: str) -> bool:
         return False
     with connect() as conn:
         cur = conn.execute(
-            "UPDATE workspaces SET name = ? WHERE user_id = ? AND slug = ?",
+            "UPDATE workspaces SET name = %s WHERE user_id = %s AND slug = %s",
             (name, user_id, slug),
         )
         return cur.rowcount > 0
 
 
 def delete_workspace(user_id: int, slug: str) -> bool:
-    """Borra el workspace y sus páginas. No borra el último que quede.
-
-    Las páginas se borran explícitamente (no por cascada) para que los triggers
-    del índice FTS se disparen y no queden entradas huérfanas en la búsqueda.
-    """
+    """Borra el workspace y sus páginas. No borra el último que quede."""
     with connect() as conn:
         count = conn.execute(
-            "SELECT COUNT(*) AS n FROM workspaces WHERE user_id = ?", (user_id,)
+            "SELECT COUNT(*) AS n FROM workspaces WHERE user_id = %s", (user_id,)
         ).fetchone()["n"]
         if count <= 1:
             return False
         ws = conn.execute(
-            "SELECT id FROM workspaces WHERE user_id = ? AND slug = ?",
+            "SELECT id FROM workspaces WHERE user_id = %s AND slug = %s",
             (user_id, slug),
         ).fetchone()
         if ws is None:
             return False
-        conn.execute("DELETE FROM pages WHERE workspace_id = ?", (ws["id"],))
-        conn.execute("DELETE FROM workspaces WHERE id = ?", (ws["id"],))
+        conn.execute("DELETE FROM pages WHERE workspace_id = %s", (ws["id"],))
+        conn.execute("DELETE FROM workspaces WHERE id = %s", (ws["id"],))
         return True
 
 
@@ -651,7 +511,7 @@ def get_member_role(user_id: int, workspace_id: int) -> str | None:
     """Rol del usuario en el workspace ('owner'|'member'), o None si no es miembro."""
     with connect() as conn:
         row = conn.execute(
-            "SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
+            "SELECT role FROM workspace_members WHERE workspace_id = %s AND user_id = %s",
             (workspace_id, user_id),
         ).fetchone()
         return row["role"] if row else None
@@ -661,8 +521,8 @@ def add_workspace_member(workspace_id: int, user_id: int, role: str = "member") 
     role = role if role in ("owner", "member") else "member"
     with connect() as conn:
         conn.execute(
-            "INSERT OR IGNORE INTO workspace_members (workspace_id, user_id, role, created_at) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO workspace_members (workspace_id, user_id, role, created_at) "
+            "VALUES (%s, %s, %s, %s) ON CONFLICT (workspace_id, user_id) DO NOTHING",
             (workspace_id, user_id, role, _now()),
         )
 
@@ -670,7 +530,7 @@ def add_workspace_member(workspace_id: int, user_id: int, role: str = "member") 
 def remove_workspace_member(workspace_id: int, user_id: int) -> bool:
     with connect() as conn:
         cur = conn.execute(
-            "DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
+            "DELETE FROM workspace_members WHERE workspace_id = %s AND user_id = %s",
             (workspace_id, user_id),
         )
         return cur.rowcount > 0
@@ -683,51 +543,50 @@ def list_workspace_members(workspace_id: int) -> list[Member]:
             SELECT u.id AS user_id, u.email, u.display_name, m.role, m.created_at
             FROM workspace_members m
             JOIN users u ON u.id = m.user_id
-            WHERE m.workspace_id = ?
+            WHERE m.workspace_id = %s
             ORDER BY (m.role = 'owner') DESC, m.created_at, u.id
             """,
             (workspace_id,),
         ).fetchall()
-        members = []
-        for row in rows:
-            members.append(
-                Member(
-                    user_id=row["user_id"],
-                    email=row["email"],
-                    display_name=row["display_name"],
-                    role=row["role"],
-                    created_at=row["created_at"],
-                )
+        return [
+            Member(
+                user_id=row["user_id"],
+                email=row["email"],
+                display_name=row["display_name"],
+                role=row["role"],
+                created_at=row["created_at"],
             )
-        return members
+            for row in rows
+        ]
 
 
 def ensure_default_workspace(user_id: int) -> Workspace:
     with connect() as conn:
         workspace = conn.execute(
-            "SELECT id, slug, name FROM workspaces WHERE user_id = ? ORDER BY id LIMIT 1",
+            "SELECT id, slug, name FROM workspaces WHERE user_id = %s ORDER BY id LIMIT 1",
             (user_id,),
         ).fetchone()
         if workspace is None:
             now = _now()
             slug = _unique_workspace_slug(conn, DEFAULT_WORKSPACE_SLUG)
-            cur = conn.execute(
-                "INSERT INTO workspaces (user_id, slug, name, created_at) VALUES (?, ?, ?, ?)",
+            row = conn.execute(
+                "INSERT INTO workspaces (user_id, slug, name, created_at) "
+                "VALUES (%s, %s, %s, %s) RETURNING id",
                 (user_id, slug, DEFAULT_WORKSPACE_NAME, now),
-            )
+            ).fetchone()
             conn.execute(
-                "INSERT OR IGNORE INTO workspace_members (workspace_id, user_id, role, created_at) "
-                "VALUES (?, ?, 'owner', ?)",
-                (int(cur.lastrowid), user_id, now),
+                "INSERT INTO workspace_members (workspace_id, user_id, role, created_at) "
+                "VALUES (%s, %s, 'owner', %s) ON CONFLICT (workspace_id, user_id) DO NOTHING",
+                (int(row["id"]), user_id, now),
             )
             workspace = conn.execute(
-                "SELECT id, slug, name FROM workspaces WHERE user_id = ? AND slug = ?",
+                "SELECT id, slug, name FROM workspaces WHERE user_id = %s AND slug = %s",
                 (user_id, slug),
             ).fetchone()
         if workspace is None:
             raise RuntimeError("Failed to create default workspace")
         conn.execute(
-            "UPDATE pages SET workspace_id = ? WHERE user_id = ? AND workspace_id IS NULL",
+            "UPDATE pages SET workspace_id = %s WHERE user_id = %s AND workspace_id IS NULL",
             (workspace["id"], user_id),
         )
         return _to_workspace(workspace)
@@ -736,7 +595,7 @@ def ensure_default_workspace(user_id: int) -> Workspace:
 def claim_unowned_pages(user_id: int, workspace_id: int) -> int:
     with connect() as conn:
         cur = conn.execute(
-            "UPDATE pages SET user_id = ?, workspace_id = ? WHERE user_id IS NULL",
+            "UPDATE pages SET user_id = %s, workspace_id = %s WHERE user_id IS NULL",
             (user_id, workspace_id),
         )
         return cur.rowcount
@@ -747,7 +606,7 @@ def list_pages_tree(user_id: int, workspace_id: int) -> list[PageNode]:
     with connect() as conn:
         rows = conn.execute(
             "SELECT id, slug, title, parent_id FROM pages "
-            "WHERE workspace_id = ? AND deleted_at IS NULL ORDER BY created_at, id",
+            "WHERE workspace_id = %s AND deleted_at IS NULL ORDER BY created_at, id",
             (workspace_id,),
         ).fetchall()
 
@@ -786,7 +645,7 @@ def get_page(slug: str, user_id: int, workspace_id: int) -> Page | None:
             FROM pages p
             LEFT JOIN pages parent ON parent.id = p.parent_id
             LEFT JOIN users editor ON editor.id = p.updated_by
-            WHERE p.slug = ? AND p.workspace_id = ? AND p.deleted_at IS NULL
+            WHERE p.slug = %s AND p.workspace_id = %s AND p.deleted_at IS NULL
             """,
             (slug, workspace_id),
         ).fetchone()
@@ -798,7 +657,7 @@ def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[PageRef
     chain: list[PageRef] = []
     with connect() as conn:
         row = conn.execute(
-            "SELECT parent_id FROM pages WHERE id = ? AND workspace_id = ?",
+            "SELECT parent_id FROM pages WHERE id = %s AND workspace_id = %s",
             (page_id, workspace_id),
         ).fetchone()
         parent_id = row["parent_id"] if row else None
@@ -807,7 +666,7 @@ def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[PageRef
             seen.add(parent_id)
             parent = conn.execute(
                 "SELECT id, slug, title, parent_id FROM pages "
-                "WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL",
+                "WHERE id = %s AND workspace_id = %s AND deleted_at IS NULL",
                 (parent_id, workspace_id),
             ).fetchone()
             if parent is None:
@@ -819,7 +678,7 @@ def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[PageRef
 
 
 def _resolve_parent_id(
-    conn: sqlite3.Connection,
+    conn,
     parent_slug: str | None,
     *,
     user_id: int,
@@ -829,7 +688,7 @@ def _resolve_parent_id(
     if not parent_slug:
         return None
     row = conn.execute(
-        "SELECT id FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NULL",
+        "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
         (parent_slug, workspace_id),
     ).fetchone()
     if row is None:
@@ -862,17 +721,18 @@ def create_page(
             workspace_id=workspace_id,
         )
         slug = unique_slug(conn, base_slug, workspace_id=workspace_id)
-        cur = conn.execute(
+        row = conn.execute(
             """
             INSERT INTO pages (
                 user_id, workspace_id, parent_id, slug, title, content,
                 created_at, updated_at, updated_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (user_id, workspace_id, parent_id, slug, title, content, now, now, user_id),
-        )
-        _index_page_meta(conn, int(cur.lastrowid), workspace_id, content)
+        ).fetchone()
+        _index_page_meta(conn, int(row["id"]), workspace_id, content)
         return slug
 
 
@@ -881,13 +741,14 @@ def update_page(user_id: int, workspace_id: int, slug: str, title: str, content:
     title = title.strip() or "Untitled"
     with connect() as conn:
         row = conn.execute(
-            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NULL",
+            "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
             (slug, workspace_id),
         ).fetchone()
         if row is None:
             return None
         conn.execute(
-            "UPDATE pages SET title = ?, content = ?, updated_at = ?, updated_by = ? WHERE id = ?",
+            "UPDATE pages SET title = %s, content = %s, updated_at = %s, updated_by = %s "
+            "WHERE id = %s",
             (title, content, _now(), user_id, row["id"]),
         )
         _index_page_meta(conn, int(row["id"]), workspace_id, content)
@@ -901,7 +762,7 @@ def delete_page(user_id: int, workspace_id: int, slug: str) -> bool:
     deje de aparecer en listados, búsqueda y enlaces. El contenido sigue en la fila."""
     with connect() as conn:
         cur = conn.execute(
-            "UPDATE pages SET deleted_at = ? WHERE slug = ? AND workspace_id = ? "
+            "UPDATE pages SET deleted_at = %s WHERE slug = %s AND workspace_id = %s "
             "AND deleted_at IS NULL",
             (_now(), slug, workspace_id),
         )
@@ -909,14 +770,11 @@ def delete_page(user_id: int, workspace_id: int, slug: str) -> bool:
 
 
 def list_deleted_pages(user_id: int, workspace_id: int) -> list[Page]:
-    """Páginas en la papelera del workspace, más recientes primero.
-
-    Cada Page trae solo slug, title y deleted_at (lo que se muestra en la papelera).
-    """
+    """Páginas en la papelera del workspace, más recientes primero."""
     with connect() as conn:
         rows = conn.execute(
             "SELECT slug, title, deleted_at FROM pages "
-            "WHERE workspace_id = ? AND deleted_at IS NOT NULL "
+            "WHERE workspace_id = %s AND deleted_at IS NOT NULL "
             "ORDER BY deleted_at DESC",
             (workspace_id,),
         ).fetchall()
@@ -927,7 +785,7 @@ def restore_page(user_id: int, workspace_id: int, slug: str) -> bool:
     """Saca una página de la papelera (deleted_at = NULL)."""
     with connect() as conn:
         cur = conn.execute(
-            "UPDATE pages SET deleted_at = NULL WHERE slug = ? AND workspace_id = ? "
+            "UPDATE pages SET deleted_at = NULL WHERE slug = %s AND workspace_id = %s "
             "AND deleted_at IS NOT NULL",
             (slug, workspace_id),
         )
@@ -937,10 +795,10 @@ def restore_page(user_id: int, workspace_id: int, slug: str) -> bool:
 def purge_page(user_id: int, workspace_id: int, slug: str) -> bool:
     """Borra definitivamente una página que ya está en la papelera (hard delete).
 
-    El CASCADE limpia meta/tags/links/chunks y el trigger pages_ad limpia el índice FTS."""
+    El CASCADE limpia meta/tags/links/chunks."""
     with connect() as conn:
         cur = conn.execute(
-            "DELETE FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NOT NULL",
+            "DELETE FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NOT NULL",
             (slug, workspace_id),
         )
         return cur.rowcount > 0
@@ -951,7 +809,7 @@ def pages_for_export(workspace_id: int) -> list[Page]:
     with connect() as conn:
         rows = conn.execute(
             "SELECT slug, title, content FROM pages "
-            "WHERE workspace_id = ? AND deleted_at IS NULL ORDER BY slug",
+            "WHERE workspace_id = %s AND deleted_at IS NULL ORDER BY slug",
             (workspace_id,),
         ).fetchall()
         return [_to_page(row) for row in rows]
@@ -961,7 +819,7 @@ def list_child_pages(user_id: int, workspace_id: int, parent_id: int) -> list[Pa
     with connect() as conn:
         rows = conn.execute(
             "SELECT slug, title, updated_at FROM pages "
-            "WHERE workspace_id = ? AND parent_id = ? AND deleted_at IS NULL "
+            "WHERE workspace_id = %s AND parent_id = %s AND deleted_at IS NULL "
             "ORDER BY updated_at DESC",
             (workspace_id, parent_id),
         ).fetchall()
@@ -969,11 +827,13 @@ def list_child_pages(user_id: int, workspace_id: int, parent_id: int) -> list[Pa
 
 
 def _fts_query(raw: str) -> str:
-    """Convierte input de usuario en una consulta FTS5 de prefijos segura."""
+    """Convierte input de usuario en un tsquery de prefijos seguro (equivalente al MATCH
+    de prefijos de FTS5). Los términos ya vienen filtrados a \\w+, así que `term:*` es
+    siempre sintaxis válida de tsquery — no hay riesgo de inyección."""
     terms = re.findall(r"[\w]+", raw, flags=re.UNICODE)
     if not terms:
         return ""
-    return " ".join(f'"{term}"*' for term in terms)
+    return " & ".join(f"{term}:*" for term in terms)
 
 
 def search_pages(
@@ -989,14 +849,18 @@ def search_pages(
         rows = conn.execute(
             """
             SELECT p.slug, p.title,
-                   snippet(pages_fts, 1, '<mark>', '</mark>', '…', 12) AS snippet
-            FROM pages_fts
-            JOIN pages p ON p.id = pages_fts.rowid
-            WHERE pages_fts MATCH ? AND p.workspace_id = ? AND p.deleted_at IS NULL
-            ORDER BY rank
-            LIMIT ?
+                   ts_headline(
+                       'english', p.title || ' ' || p.content, to_tsquery(%s),
+                       'StartSel=<mark>, StopSel=</mark>, MaxWords=12, MinWords=1, '
+                       'MaxFragments=1'
+                   ) AS snippet
+            FROM pages p
+            WHERE p.search_vector @@ to_tsquery(%s) AND p.workspace_id = %s
+              AND p.deleted_at IS NULL
+            ORDER BY ts_rank(p.search_vector, to_tsquery(%s)) DESC
+            LIMIT %s
             """,
-            (match, workspace_id, limit),
+            (match, match, workspace_id, match, limit),
         ).fetchall()
         return [
             SearchHit(slug=row["slug"], title=row["title"], snippet=row["snippet"])
@@ -1004,9 +868,9 @@ def search_pages(
         ]
 
 
-def _page_tags(conn: sqlite3.Connection, page_id: int) -> list[str]:
+def _page_tags(conn, page_id: int) -> list[str]:
     rows = conn.execute(
-        "SELECT tag FROM page_tags WHERE page_id = ? ORDER BY rowid", (page_id,)
+        "SELECT tag FROM page_tags WHERE page_id = %s ORDER BY id", (page_id,)
     ).fetchall()
     return [r["tag"] for r in rows]
 
@@ -1015,13 +879,13 @@ def get_page_meta(user_id: int, workspace_id: int, slug: str) -> PageMeta | None
     """Frontmatter + tags de una página, o None si no existe."""
     with connect() as conn:
         row = conn.execute(
-            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NULL",
+            "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
             (slug, workspace_id),
         ).fetchone()
         if row is None:
             return None
         meta_row = conn.execute(
-            "SELECT type, frontmatter_json FROM page_meta WHERE page_id = ?", (row["id"],)
+            "SELECT type, frontmatter_json FROM page_meta WHERE page_id = %s", (row["id"],)
         ).fetchone()
         fm = json.loads(meta_row["frontmatter_json"]) if meta_row else {}
         return PageMeta(
@@ -1044,12 +908,12 @@ def extract_pages(
     joins = ""
     params: list = []
     if tag:
-        joins = "JOIN page_tags t ON t.page_id = p.id AND t.tag = ?"
+        joins = "JOIN page_tags t ON t.page_id = p.id AND t.tag = %s"
         params.append(meta.normalize_tag(tag))
-    where = ["p.workspace_id = ?", "p.deleted_at IS NULL"]
+    where = ["p.workspace_id = %s", "p.deleted_at IS NULL"]
     params.append(workspace_id)
     if page_type:
-        where.append("m.type = ?")
+        where.append("m.type = %s")
         params.append(page_type)
     params.append(limit)
     sql = f"""
@@ -1060,7 +924,7 @@ def extract_pages(
         {joins}
         WHERE {" AND ".join(where)}
         ORDER BY p.updated_at DESC
-        LIMIT ?
+        LIMIT %s
     """
     with connect() as conn:
         rows = conn.execute(sql, params).fetchall()
@@ -1085,7 +949,7 @@ def backlinks(user_id: int, workspace_id: int, slug: str) -> list[PageRef]:
             SELECT DISTINCT p.slug, p.title
             FROM page_links l
             JOIN pages p ON p.id = l.src_page_id
-            WHERE l.workspace_id = ? AND l.dst_slug = ? AND p.deleted_at IS NULL
+            WHERE l.workspace_id = %s AND l.dst_slug = %s AND p.deleted_at IS NULL
             ORDER BY p.title
             """,
             (workspace_id, slug),
@@ -1099,7 +963,7 @@ def related_pages(
     """Vecinos por solape de tags (desc), o None si la página no existe."""
     with connect() as conn:
         page = conn.execute(
-            "SELECT id FROM pages WHERE slug = ? AND workspace_id = ? AND deleted_at IS NULL",
+            "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
             (slug, workspace_id),
         ).fetchone()
         if page is None:
@@ -1110,10 +974,10 @@ def related_pages(
             FROM page_tags t1
             JOIN page_tags t2 ON t2.tag = t1.tag AND t2.page_id != t1.page_id
             JOIN pages p ON p.id = t2.page_id
-            WHERE t1.page_id = ? AND p.workspace_id = ? AND p.deleted_at IS NULL
-            GROUP BY p.id
+            WHERE t1.page_id = %s AND p.workspace_id = %s AND p.deleted_at IS NULL
+            GROUP BY p.id, p.slug, p.title, p.updated_at
             ORDER BY shared DESC, p.updated_at DESC
-            LIMIT ?
+            LIMIT %s
             """,
             (int(page["id"]), workspace_id, limit),
         ).fetchall()
@@ -1129,7 +993,7 @@ def pages_to_embed(limit: int = 10) -> list[EmbedTarget]:
         rows = conn.execute(
             "SELECT id, workspace_id, content FROM pages "
             "WHERE embed_dirty = 1 AND workspace_id IS NOT NULL AND deleted_at IS NULL "
-            "ORDER BY id LIMIT ?",
+            "ORDER BY id LIMIT %s",
             (limit,),
         ).fetchall()
         return [
@@ -1147,13 +1011,18 @@ def store_page_chunks(
     """Reemplaza los chunks/vectores de una página y limpia embed_dirty (atómico)."""
     now = _now()
     with connect() as conn:
-        conn.execute("DELETE FROM page_chunks WHERE page_id = ?", (page_id,))
-        conn.executemany(
-            "INSERT INTO page_chunks (page_id, workspace_id, ord, text, vector, model, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [(page_id, workspace_id, ord_, text, vec, model, now) for ord_, text, vec in chunks],
-        )
-        conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = ?", (page_id,))
+        conn.execute("DELETE FROM page_chunks WHERE page_id = %s", (page_id,))
+        if chunks:
+            conn.cursor().executemany(
+                "INSERT INTO page_chunks "
+                "(page_id, workspace_id, ord, text, vector, model, created_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                [
+                    (page_id, workspace_id, ord_, text, vec, model, now)
+                    for ord_, text, vec in chunks
+                ],
+            )
+        conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
 def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[ChunkVector]:
@@ -1164,7 +1033,7 @@ def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[ChunkVector
             SELECT c.page_id, c.ord, c.text, c.vector, p.slug, p.title
             FROM page_chunks c
             JOIN pages p ON p.id = c.page_id
-            WHERE c.workspace_id = ? AND p.deleted_at IS NULL
+            WHERE c.workspace_id = %s AND p.deleted_at IS NULL
             """,
             (workspace_id,),
         ).fetchall()
@@ -1173,7 +1042,7 @@ def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[ChunkVector
                 page_id=r["page_id"],
                 ord=r["ord"],
                 text=r["text"],
-                vector=r["vector"],
+                vector=bytes(r["vector"]),
                 slug=r["slug"],
                 title=r["title"],
             )
@@ -1184,7 +1053,7 @@ def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[ChunkVector
 def get_workspace_by_id(workspace_id: int) -> Workspace | None:
     with connect() as conn:
         row = conn.execute(
-            "SELECT id, slug, name FROM workspaces WHERE id = ?",
+            "SELECT id, slug, name FROM workspaces WHERE id = %s",
             (workspace_id,),
         ).fetchone()
         return _to_workspace(row) if row else None
@@ -1193,25 +1062,26 @@ def get_workspace_by_id(workspace_id: int) -> Workspace | None:
 def set_page_git_commit(user_id: int, workspace_id: int, slug: str, sha: str) -> None:
     with connect() as conn:
         conn.execute(
-            "UPDATE pages SET git_commit = ? WHERE slug = ? AND workspace_id = ?",
+            "UPDATE pages SET git_commit = %s WHERE slug = %s AND workspace_id = %s",
             (sha, slug, workspace_id),
         )
 
 
 def create_api_token(user_id: int, name: str, token_hash: str) -> int:
     with connect() as conn:
-        cur = conn.execute(
-            "INSERT INTO api_tokens (user_id, name, token_hash, created_at) VALUES (?, ?, ?, ?)",
+        row = conn.execute(
+            "INSERT INTO api_tokens (user_id, name, token_hash, created_at) "
+            "VALUES (%s, %s, %s, %s) RETURNING id",
             (user_id, name.strip() or "token", token_hash, _now()),
-        )
-        return int(cur.lastrowid)
+        ).fetchone()
+        return int(row["id"])
 
 
 def list_api_tokens(user_id: int) -> list[ApiToken]:
     with connect() as conn:
         rows = conn.execute(
             "SELECT id, name, created_at, last_used_at FROM api_tokens "
-            "WHERE user_id = ? ORDER BY created_at, id",
+            "WHERE user_id = %s ORDER BY created_at, id",
             (user_id,),
         ).fetchall()
         return [
@@ -1228,7 +1098,7 @@ def list_api_tokens(user_id: int) -> list[ApiToken]:
 def revoke_api_token(user_id: int, token_id: int) -> bool:
     with connect() as conn:
         cur = conn.execute(
-            "DELETE FROM api_tokens WHERE id = ? AND user_id = ?",
+            "DELETE FROM api_tokens WHERE id = %s AND user_id = %s",
             (token_id, user_id),
         )
         return cur.rowcount > 0
@@ -1238,13 +1108,13 @@ def resolve_api_token(token_hash: str) -> int | None:
     """Devuelve el user_id propietario y actualiza last_used_at; None si no existe."""
     with connect() as conn:
         row = conn.execute(
-            "SELECT id, user_id FROM api_tokens WHERE token_hash = ?",
+            "SELECT id, user_id FROM api_tokens WHERE token_hash = %s",
             (token_hash,),
         ).fetchone()
         if row is None:
             return None
         conn.execute(
-            "UPDATE api_tokens SET last_used_at = ? WHERE id = ?",
+            "UPDATE api_tokens SET last_used_at = %s WHERE id = %s",
             (_now(), row["id"]),
         )
         return int(row["user_id"])

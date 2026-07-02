@@ -5,12 +5,20 @@ Unix-style codebase: zero-dependency-native over SDKs, plain markdown, local-fir
 
 ## Development setup
 
-doction uses [uv](https://docs.astral.sh/uv/) and targets Python 3.13.
+doction uses [uv](https://docs.astral.sh/uv/) and targets Python 3.13. Tests and the dev
+server need a local PostgreSQL instance — the quickest way is the one already in
+`compose.yaml`:
 
 ```bash
+docker compose up postgres -d           # local Postgres only, no need to build the app image
 uv sync --dev
-uv run uvicorn app.main:app --reload   # dev server on :8000
+DATABASE_URL=postgresql://doction:doction@localhost:5432/doction \
+  uv run uvicorn app.main:app --reload  # dev server on :8000
 ```
+
+`tests/conftest.py` creates and drops its own throwaway database per test against the
+same server (`TEST_DATABASE_URL`, defaults to the `postgres` maintenance db on
+`localhost:5432`), so `make test` needs that Postgres container running but nothing else.
 
 Useful commands:
 
@@ -30,7 +38,8 @@ EMBED_STUB=1 SEMANTIC_SEARCH=1 uv run pytest tests/
 ## Project layout
 
 - `app/main.py` — FastAPI app, all routes (REST `/api` + MCP) + the `/app` SPA host, auth middleware, lifespan.
-- `app/db.py` — SQLite layer (no ORM): users, workspaces, pages, tokens, FTS5, chunks.
+- `app/db.py` — PostgreSQL layer (no ORM): users, workspaces, pages, tokens, full-text
+  search (`tsvector`/GIN), chunks.
 - `app/mcp.py` — native MCP server (JSON-RPC 2.0) at `POST /api/mcp`.
 - `app/meta.py` — pure markdown parsers: frontmatter, tags, wikilinks, chunking.
 - `app/embeddings.py` — opt-in local semantic search (ONNX MiniLM).
@@ -45,8 +54,9 @@ EMBED_STUB=1 SEMANTIC_SEARCH=1 uv run pytest tests/
 - **Tests are required** for behavior changes. Tests live in `tests/` and must be named
   `test_*.py`. Run `make test` and `make lint` before pushing.
 - **Match the surrounding style.** ruff enforces formatting/linting; let it guide you.
-- **Database schema migrations** must be defensive (`IF NOT EXISTS` + rebuild on legacy
-  state) and run on startup — never assume a fresh database.
+- **Database schema changes** go in `db.py`'s `SCHEMA_STATEMENTS`, written defensively
+  (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`) and run on startup so
+  `init_db()` stays idempotent against an already-migrated database.
 - **On a release**, bump the version in **both** `pyproject.toml` and `SERVER_INFO` in
   `app/mcp.py`, and add a `CHANGELOG.md` entry.
 

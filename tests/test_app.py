@@ -2,43 +2,12 @@
 
 The web UI is the React SPA at /app; its endpoints are covered by
 tests/test_spa_api.py. This file focuses on /health, /docs, the Bearer-token
-REST API, image uploads, and a legacy-DB migration.
+REST API, and image uploads. `client` comes from tests/conftest.py.
 """
 
 from __future__ import annotations
 
 import base64
-import importlib
-import os
-import tempfile
-
-import pytest
-from fastapi.testclient import TestClient
-
-
-@pytest.fixture()
-def client():
-    """Fresh app + temp database per test (lifespan creates schema + seed)."""
-    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    tmp.close()
-    os.environ["DATABASE_PATH"] = tmp.name
-    os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
-
-    # Re-import so modules pick up the temp DATABASE_PATH cleanly.
-    import app.db as db_module
-    import app.main as main_module
-
-    importlib.reload(db_module)
-    importlib.reload(main_module)
-
-    with TestClient(main_module.app) as c:
-        yield c
-
-    for suffix in ("", "-wal", "-shm"):
-        try:
-            os.remove(tmp.name + suffix)
-        except OSError:
-            pass
 
 
 def _register(client, email: str = "user@example.com", password: str = "password123"):
@@ -192,33 +161,3 @@ def test_image_upload_rejects_spoofed_content_type(client):
 def test_image_upload_requires_auth(client):
     r = client.post("/api/uploads", files={"file": ("shot.png", _TINY_PNG, "image/png")})
     assert r.status_code == 401
-
-
-def test_user_columns_added_on_legacy_db(tmp_path, monkeypatch):
-    """init_db adds display_name/avatar_color to an existing users table."""
-    import sqlite3
-
-    dbfile = tmp_path / "legacy.db"
-    monkeypatch.setenv("DATABASE_PATH", str(dbfile))
-    monkeypatch.setenv("SECRET_KEY", "test-secret-key-test-secret-key-32")
-
-    import app.db as db_module
-
-    importlib.reload(db_module)
-
-    conn = sqlite3.connect(dbfile)
-    conn.executescript(
-        "CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, created_at TEXT NOT NULL);"
-    )
-    conn.commit()
-    conn.close()
-
-    db_module.init_db()
-
-    cols = {
-        row[1]
-        for row in sqlite3.connect(dbfile).execute("PRAGMA table_info(users)")
-    }
-    assert "display_name" in cols
-    assert "avatar_color" in cols

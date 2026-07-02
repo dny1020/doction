@@ -2,34 +2,15 @@
 
 from __future__ import annotations
 
-import importlib
-import os
 import sys
-import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
 
 
 @pytest.fixture()
-def app_mod():
-    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    tmp.close()
-    os.environ["DATABASE_PATH"] = tmp.name
-    os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
-
-    import app.db as d
-    import app.main as m
-
-    importlib.reload(d)
-    importlib.reload(m)
-    yield m
-
-    for s in ("", "-wal", "-shm"):
-        try:
-            os.remove(tmp.name + s)
-        except OSError:
-            pass
+def app_mod(main_module):
+    return main_module
 
 
 def test_root_redirects_to_spa(app_mod):

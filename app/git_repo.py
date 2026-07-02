@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 def _pages_dir() -> Path:
-    from app.db import db_path
-    return db_path().parent / "pages"
+    from app.db import data_dir
+    return data_dir() / "pages"
 
 
 def ensure_repo() -> None:

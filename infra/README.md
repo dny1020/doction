@@ -11,8 +11,9 @@ scp infra/compose.yaml infra/deploy.sh rpi:/opt/doction/
 scp infra/doction-deploy.* rpi:/tmp/
 
 ssh rpi
+mkdir -p /mnt/ssd/doction/postgres   # volumen de Postgres, anidado bajo el mismo /mnt/ssd/doction
 chmod +x /opt/doction/deploy.sh
-# /opt/doction/.env debe tener: SECRET_KEY=..., SECURE_COOKIES=1
+# /opt/doction/.env debe tener: POSTGRES_PASSWORD=..., SECRET_KEY=..., SECURE_COOKIES=1
 
 # 2. instalar el timer
 sudo mv /tmp/doction-deploy.{service,timer} /etc/systemd/system/
@@ -41,11 +42,26 @@ sudo systemctl start doction-deploy.service
 # (revertir el pin después de arreglar main)
 ```
 
+## Migración a PostgreSQL (una sola vez, si vienes de una versión con SQLite)
+
+```bash
+ssh rpi
+docker exec doction-postgres pg_isready -U doction   # confirma que postgres ya está arriba
+docker cp /mnt/ssd/doction/doction.db doction:/tmp/doction.db
+docker exec doction python -m scripts.migrate_sqlite_to_postgres /tmp/doction.db
+```
+
+Corre una sola vez, justo después del primer `docker compose up -d` con el `compose.yaml`
+nuevo — `doction` ya trae `DATABASE_URL` apuntando al `postgres` del compose, así que el
+script lo usa tal cual. Se niega a correr si el Postgres destino ya tiene usuarios (evita
+duplicar datos si se corre dos veces por error). El `doction.db` original en
+`/mnt/ssd/doction` queda intacto por si hay que volver atrás.
+
 ## Backups
 
-`/data` (BD SQLite + repo git de páginas + uploads) tiene todo el estado. `backup.sh` hace un
-snapshot consistente sin parar la app (usa la API online de SQLite, segura con WAL) y conserva
-los últimos `DOCTION_BACKUP_KEEP` (7 por defecto).
+El estado vive en dos sitios: Postgres (BD) y `/data` (repo git de páginas + uploads).
+`backup.sh` hace un dump consistente de Postgres (`pg_dump`, vía MVCC, sin parar nada) +
+tar de `pages/`/`uploads/`, y conserva los últimos `DOCTION_BACKUP_KEEP` (7 por defecto).
 
 ```bash
 # setup (una sola vez)
@@ -63,7 +79,8 @@ ls /mnt/ssd/doction-backups                         # snapshots disponibles
 ```
 
 Variables: `DOCTION_DATA` (def. `/mnt/ssd/doction`), `DOCTION_BACKUP_DIR`
-(def. `/mnt/ssd/doction-backups`), `DOCTION_BACKUP_KEEP` (def. `7`).
+(def. `/mnt/ssd/doction-backups`), `DOCTION_BACKUP_KEEP` (def. `7`), `DOCTION_PG_CONTAINER`
+(def. `doction-postgres`), `POSTGRES_USER`/`POSTGRES_DB` (def. `doction`/`doction`).
 
 ## Restore
 

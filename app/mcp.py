@@ -207,7 +207,7 @@ TOOLS: list[dict] = [
     },
     {
         "name": "search_pages",
-        "description": "Full-text search (SQLite FTS5/BM25) over titles and content.",
+        "description": "Full-text search (PostgreSQL tsvector/ts_rank) over titles and content.",
         "inputSchema": {
             "type": "object",
             "properties": {"query": {"type": "string"}, **_WORKSPACE_PROP},

@@ -3,40 +3,7 @@ login rate limiting, and the styled 500 handler."""
 
 from __future__ import annotations
 
-import importlib
-import os
-import tempfile
-
-import pytest
 from fastapi.testclient import TestClient
-
-
-@pytest.fixture()
-def main_module():
-    """Fresh app + temp database per test."""
-    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    tmp.close()
-    os.environ["DATABASE_PATH"] = tmp.name
-    os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
-
-    import app.db as db_module
-    import app.main as m
-
-    importlib.reload(db_module)
-    importlib.reload(m)
-    yield m
-
-    for suffix in ("", "-wal", "-shm"):
-        try:
-            os.remove(tmp.name + suffix)
-        except OSError:
-            pass
-
-
-@pytest.fixture()
-def client(main_module):
-    with TestClient(main_module.app) as c:
-        yield c
 
 
 def test_security_headers_present(client):

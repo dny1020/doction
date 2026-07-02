@@ -4,7 +4,8 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    DATABASE_PATH=/data/doction.db \
+    DATABASE_URL=postgresql://doction:doction@postgres:5432/doction \
+    DATA_DIR=/data \
     LOG_DIR=/logs \
     LOG_LEVEL=INFO \
     GIT_AUTHOR_NAME="doction" \
@@ -21,8 +22,13 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends git curl ca
 
 COPY pyproject.toml uv.lock ./
 
-# CI gate: `docker build --target test` runs lint + suite; never shipped.
+# CI gate: `docker build --target test` runs lint + suite; never shipped. Postgres
+# runs embedded in this stage (initdb + start, discarded when the layer finishes)
+# so the gate stays a single self-contained `docker build`, no sidecar containers.
 FROM base AS test
+
+RUN apt-get update -qq && apt-get install -y --no-install-recommends postgresql \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN uv sync --frozen
 
@@ -30,7 +36,16 @@ COPY app ./app
 COPY tests ./tests
 COPY scripts ./scripts
 
-RUN uv run ruff check . && uv run python -m pytest tests -q
+ENV DATABASE_URL=postgresql://doction:doction@localhost:5432/doction \
+    TEST_DATABASE_URL=postgresql://doction:doction@localhost:5432/postgres
+
+RUN service postgresql start \
+    && su postgres -c "createuser --createdb doction" \
+    && su postgres -c "psql -c \"ALTER USER doction PASSWORD 'doction';\"" \
+    && su postgres -c "createdb -O doction doction" \
+    && uv run ruff check . \
+    && uv run python -m pytest tests -q \
+    && service postgresql stop
 
 # Frontend React (Vite): construye la SPA. Node entra SOLO en este stage de build;
 # el runtime sigue siendo una imagen de solo Python. El bundle sale en

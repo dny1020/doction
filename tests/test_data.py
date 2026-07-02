@@ -6,10 +6,7 @@ tests/test_tokens.py.
 
 from __future__ import annotations
 
-import importlib
 import io
-import os
-import tempfile
 import zipfile
 
 import pytest
@@ -17,28 +14,11 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture()
-def client():
-    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    tmp.close()
-    os.environ["DATABASE_PATH"] = tmp.name
-    os.environ["SECRET_KEY"] = "test-secret-key-test-secret-key-32"
-
-    import app.db as db_module
-    import app.main as main_module
-
-    importlib.reload(db_module)
-    importlib.reload(main_module)
-
+def client(main_module):
     with TestClient(main_module.app) as c:
         # Registro por la API: deja la cookie de sesión, que autentica /api/*.
         c.post("/api/auth/register", json={"email": "u@example.com", "password": "password123"})
         yield c
-
-    for suffix in ("", "-wal", "-shm"):
-        try:
-            os.remove(tmp.name + suffix)
-        except OSError:
-            pass
 
 
 def _ws_slug(client) -> str:

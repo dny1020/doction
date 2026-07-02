@@ -1,15 +1,40 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: doction-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: doction
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: doction
+    volumes:
+      - /mnt/ssd/doction/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doction"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - db_net
+
   doction:
     image: ghcr.io/dny1020/doction:latest
     container_name: doction
     restart: unless-stopped
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql://doction:${POSTGRES_PASSWORD}@postgres:5432/doction
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - /mnt/ssd/doction:/data
       - /mnt/ssd/doction/logs:/logs
     networks:
       - proxy_net
+      - db_net
 
 networks:
   proxy_net:
     external: true
+  db_net:

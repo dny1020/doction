@@ -1,8 +1,9 @@
-"""Búsqueda semántica local: embeddings ONNX (MiniLM) sin servicios externos.
+"""Búsqueda semántica local: embeddings ONNX (MiniLM), sin servicios en la nube.
 
 Opt-in vía `SEMANTIC_SEARCH=1`. Si está apagado (o no hay vectores aún), todo
-degrada con gracia a FTS5/BM25. doction hace *retrieval*; la generación (RAG,
-resúmenes) la hace el agente conectado por MCP — aquí no vive ningún LLM.
+degrada con gracia a la búsqueda de texto completo de Postgres. doction hace
+*retrieval*; la generación (RAG, resúmenes) la hace el agente conectado por
+MCP — aquí no vive ningún LLM.
 
 El modelo se carga perezosamente y solo cuando se usa, para no gastar RAM en un
 Pi cuando la función está apagada. Para tests, `EMBED_STUB=1` usa un encoder

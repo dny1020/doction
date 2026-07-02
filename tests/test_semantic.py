@@ -15,21 +15,12 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture()
-def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "test.db"))
-    monkeypatch.setenv("SECRET_KEY", "test-secret-key-test-secret-key-32")
+def client(main_module, monkeypatch):
     monkeypatch.setenv("SEMANTIC_SEARCH", "1")
     monkeypatch.setenv("EMBED_STUB", "1")
 
-    import app.db as db_module
     import app.embeddings as emb_module
-    import app.git_repo as git_module
-    import app.main as main_module
 
-    importlib.reload(db_module)
-    importlib.reload(git_module)
-    importlib.reload(emb_module)
-    importlib.reload(main_module)
     emb_module.reset_embedder()
 
     async def _noop():  # keep embedding deterministic via drain_pending()
