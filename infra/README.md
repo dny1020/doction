@@ -47,15 +47,15 @@ sudo systemctl start doction-deploy.service
 ```bash
 ssh rpi
 docker exec doction-postgres pg_isready -U doction   # confirma que postgres ya está arriba
-docker cp /mnt/ssd/doction/doction.db doction:/tmp/doction.db
-docker exec doction python -m scripts.migrate_sqlite_to_postgres /tmp/doction.db
+docker exec doction python -m scripts.migrate_sqlite_to_postgres /data/doction.db
 ```
 
 Corre una sola vez, justo después del primer `docker compose up -d` con el `compose.yaml`
 nuevo — `doction` ya trae `DATABASE_URL` apuntando al `postgres` del compose, así que el
-script lo usa tal cual. Se niega a correr si el Postgres destino ya tiene usuarios (evita
-duplicar datos si se corre dos veces por error). El `doction.db` original en
-`/mnt/ssd/doction` queda intacto por si hay que volver atrás.
+script lo usa tal cual. `/mnt/ssd/doction:/data` ya monta `doction.db` dentro del
+contenedor en `/data/doction.db`, no hace falta copiarlo. Se niega a correr si el Postgres
+destino ya tiene usuarios (evita duplicar datos si se corre dos veces por error). El
+`doction.db` original en `/mnt/ssd/doction` queda intacto por si hay que volver atrás.
 
 ## Backups
 
