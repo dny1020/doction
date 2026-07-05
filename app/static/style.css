@@ -319,11 +319,19 @@ a { color: inherit; }
   padding: var(--sp-1);
 }
 
+/* Reset completo de <button>: en la SPA cada opción es un botón, y sin esto el
+   navegador pinta su botón nativo (fondo blanco, borde biselado) dentro del menú. */
 .ws-option {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+  width: 100%;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
   text-decoration: none;
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
   color: var(--fg-2);
   border-radius: var(--r-sm);
@@ -425,6 +433,21 @@ a { color: inherit; }
   color: var(--fg-1);
 }
 .search-field input::placeholder { color: var(--fg-3); }
+/* La X de limpiar: botón sin CSS propio heredaba el botón nativo del navegador. */
+.search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--fg-3);
+  cursor: pointer;
+  padding: 2px;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.search-clear:hover { background: var(--surface-hover); color: var(--fg-1); }
 
 /* === Sidebar eyebrow label ================================================ */
 .sidebar-eyebrow {
