@@ -2,12 +2,16 @@ import React, { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
+import { useToast } from '../components/Toast.jsx'
+import { useConfirm } from '../components/ConfirmDialog.jsx'
 
 // Papelera: páginas borradas (soft-delete). Se pueden restaurar o borrar para
 // siempre. Al restaurar refrescamos el árbol de la barra lateral.
 export default function Trash() {
   const { reloadPages } = useOutletContext()
   const { t } = useI18n()
+  const toast = useToast()
+  const confirm = useConfirm()
   const [items, setItems] = useState(null) // null = cargando
 
   function reload() {
@@ -16,14 +20,24 @@ export default function Trash() {
   useEffect(reload, [])
 
   async function onRestore(slug) {
-    await api.post('/api/trash/' + slug + '/restore')
+    try {
+      await api.post('/api/trash/' + slug + '/restore')
+    } catch (e) {
+      toast(e.message, 'error')
+      return
+    }
     reload()
     reloadPages()
   }
 
   async function onPurge(slug) {
-    if (!window.confirm(t('confirm_purge'))) return
-    await api.post('/api/trash/' + slug + '/purge')
+    if (!(await confirm(t('confirm_purge'), { confirmLabel: t('delete_forever'), danger: true }))) return
+    try {
+      await api.post('/api/trash/' + slug + '/purge')
+    } catch (e) {
+      toast(e.message, 'error')
+      return
+    }
     reload()
   }
 

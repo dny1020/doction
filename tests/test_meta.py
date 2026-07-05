@@ -33,10 +33,7 @@ def test_page_type():
 
 
 def test_extract_tags_frontmatter_and_inline():
-    content = (
-        "---\ntags: [alpha, beta]\n---\n"
-        "Talking about #sip and #Kamailio here.\n"
-    )
+    content = "---\ntags: [alpha, beta]\n---\n" "Talking about #sip and #Kamailio here.\n"
     assert meta.extract_tags(content) == ["alpha", "beta", "sip", "kamailio"]
 
 

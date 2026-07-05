@@ -7,12 +7,24 @@ test:
 
 lint:
 	uv run ruff check .
+	uv run mypy app
 
 # Snapshot local de los datos (dump de Postgres + pages/ + uploads/) en ./backups.
 # Requiere `docker compose up` corriendo (dump vía `docker exec` al contenedor postgres).
 # En la Pi lo corre el systemd timer doction-backup.timer apuntando a /mnt/ssd/doction.
 backup:
 	DOCTION_DATA=$(PWD)/data DOCTION_BACKUP_DIR=$(PWD)/backups bash infra/backup.sh
+
+check:
+	uv run ruff check .
+	uv run black --check .
+	uv run mypy app
+	uv run pytest
+
+format:
+	uv run ruff check --fix .
+	uv run black .
+
 
 test-image:
 	docker build -t $(IMAGE) .

@@ -1,6 +1,6 @@
 [project]
 name = "doction"
-version = "0.14.1"
+version = "0.15.0"
 description = "Minimalist, markdown-first DevOps knowledge system"
 requires-python = ">=3.13"
 dependencies = [
@@ -22,6 +22,8 @@ dev = [
     "pytest>=8.3",
     "httpx>=0.28",
     "ruff>=0.8",
+    "mypy>=2.1.0",
+    "black>=26.5.1",
 ]
 
 [tool.uv]
@@ -37,6 +39,17 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI usa estos como valores por defecto de parámetros (patrón estándar).
 extend-immutable-calls = ["fastapi.File", "fastapi.Form"]
+
+[tool.black]
+line-length = 100  # igual que ruff, para que no se pisen
+
+[tool.mypy]
+python_version = "3.13"
+
+[[tool.mypy.overrides]]
+# Sin stubs publicados; el runtime funciona igual.
+module = ["onnxruntime", "onnxruntime.*", "tokenizers", "tokenizers.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "-q"

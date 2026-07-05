@@ -44,6 +44,8 @@ RUN service postgresql start \
     && su postgres -c "psql -c \"ALTER USER doction PASSWORD 'doction';\"" \
     && su postgres -c "createdb -O doction doction" \
     && uv run ruff check . \
+    && uv run black --check . \
+    && uv run mypy app \
     && uv run python -m pytest tests -q \
     && service postgresql stop
 
@@ -81,7 +83,15 @@ COPY app ./app
 COPY scripts ./scripts
 # Bundle de la SPA construido en el stage `web` → servido por FastAPI en /app.
 COPY --from=web /build/app/static/app ./app/static/app
-RUN mkdir -p /data /logs
+
+# Non-root: uvicorn y los subprocesos de git corren como `doction` (uid 1000, el uid
+# típico del primer usuario en la Pi/dev, para que los bind mounts de /data y /logs
+# funcionen sin chown extra). Si los datos existentes son de root (deploys antiguos):
+#   sudo chown -R 1000:1000 /mnt/ssd/doction/{pages,uploads,logs}   (¡postgres/ no!)
+RUN useradd --uid 1000 --create-home doction \
+    && mkdir -p /data /logs \
+    && chown -R doction:doction /data /logs
+USER doction
 
 EXPOSE 8000
 

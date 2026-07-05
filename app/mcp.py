@@ -8,16 +8,18 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+from collections.abc import Callable
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
 from app import db, embeddings, git_repo
 from app.models import Workspace
+from app.version import VERSION
 
 logger = logging.getLogger(__name__)
 
-SERVER_INFO = {"name": "doction", "version": "0.14.2"}
+SERVER_INFO = {"name": "doction", "version": VERSION}
 PROTOCOL_VERSIONS = {"2024-11-05", "2025-03-26", "2025-06-18"}
 DEFAULT_PROTOCOL = "2025-03-26"
 
@@ -25,6 +27,7 @@ router = APIRouter(prefix="/api")
 
 
 # ── Tools ────────────────────────────────────────────────────────────────────
+
 
 def _workspace(user_id: int, args: dict) -> Workspace:
     slug = (args.get("workspace") or "").strip()
@@ -46,16 +49,11 @@ def _require(args: dict, key: str) -> str:
 def _git_commit(user_id: int, ws: Workspace, slug: str, title: str, content: str) -> None:
     user = db.get_user_by_id(user_id)
     author = user.email if user else "user"
-    sha = git_repo.commit_page(ws.slug, slug, content, author, f"Save: {title}")
-    if sha:
-        db.set_page_git_commit(user_id, int(ws.id), slug, sha)
+    git_repo.commit_and_record(user_id, int(ws.id), ws.slug, slug, title, content, author)
 
 
 def _tool_list_workspaces(user_id: int, args: dict) -> list[dict]:
-    return [
-        {"slug": w.slug, "name": w.name, "role": w.role}
-        for w in db.list_workspaces(user_id)
-    ]
+    return [{"slug": w.slug, "name": w.name, "role": w.role} for w in db.list_workspaces(user_id)]
 
 
 def _tool_list_members(user_id: int, args: dict) -> list[dict]:
@@ -100,7 +98,10 @@ def _tool_create_page(user_id: int, args: dict) -> dict:
     content = args.get("content") or ""
     ws = _workspace(user_id, args)
     slug = db.create_page(
-        user_id, int(ws.id), title, content,
+        user_id,
+        int(ws.id),
+        title,
+        content,
         parent_slug=args.get("parent_slug") or None,
         requested_slug=args.get("slug") or None,
     )
@@ -114,8 +115,8 @@ def _tool_update_page(user_id: int, args: dict) -> dict:
     page = db.get_page(slug, user_id, int(ws.id))
     if page is None:
         raise ValueError(f"Page not found: {slug}")
-    title = args.get("title") if args.get("title") is not None else page.title
-    content = args.get("content") if args.get("content") is not None else page.content
+    title = str(args["title"]) if args.get("title") is not None else page.title
+    content = str(args["content"]) if args.get("content") is not None else page.content
     db.update_page(user_id, int(ws.id), slug, title, content)
     _git_commit(user_id, ws, slug, title, content)
     return {"slug": slug, "title": title, "updated": True}
@@ -328,7 +329,7 @@ TOOLS: list[dict] = [
 
 # Nombre de la tool → función que la implementa. Cada función recibe
 # (user_id, args) y devuelve un dict o una lista de dicts listos para JSON.
-TOOL_HANDLERS = {
+TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
     "list_workspaces": _tool_list_workspaces,
     "list_members": _tool_list_members,
     "list_pages": _tool_list_pages,
@@ -346,6 +347,7 @@ TOOL_HANDLERS = {
 
 
 # ── JSON-RPC dispatch ────────────────────────────────────────────────────────
+
 
 def _result(msg_id: str | int | None, result: dict | list) -> dict:
     return {"jsonrpc": "2.0", "id": msg_id, "result": result}
@@ -367,7 +369,7 @@ def _call_tool(request: Request, msg_id: str | int | None, params: dict) -> dict
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Authentication required")
-    name = params.get("name")
+    name = str(params.get("name") or "")
     handler = TOOL_HANDLERS.get(name)
     if handler is None:
         return _error(msg_id, -32602, f"Unknown tool: {name}")
@@ -394,11 +396,14 @@ def _handle_message(request: Request, msg) -> dict | None:
     if method == "initialize":
         requested = params.get("protocolVersion")
         version = requested if requested in PROTOCOL_VERSIONS else DEFAULT_PROTOCOL
-        return _result(msg_id, {
-            "protocolVersion": version,
-            "capabilities": {"tools": {}},
-            "serverInfo": SERVER_INFO,
-        })
+        return _result(
+            msg_id,
+            {
+                "protocolVersion": version,
+                "capabilities": {"tools": {}},
+                "serverInfo": SERVER_INFO,
+            },
+        )
     if method == "ping":
         return _result(msg_id, {})
     if method == "tools/list":

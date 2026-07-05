@@ -26,6 +26,7 @@ def test_git_commit_stored_on_create(client):
     slug = r.json()["slug"]
 
     import app.db as db_module
+
     page = db_module.get_page(slug, *_get_uid_wid())
     assert page is not None
     assert page.git_commit is not None
@@ -104,9 +105,7 @@ def test_history_diff_returns_unified_diff(client):
     ).json()["slug"]
     client.put(f"/api/pages/{slug}", json={"content": "line one changed"}, headers=_headers(token))
 
-    latest_sha = client.get(
-        f"/api/pages/{slug}/history", headers=_headers(token)
-    ).json()[0]["sha"]
+    latest_sha = client.get(f"/api/pages/{slug}/history", headers=_headers(token)).json()[0]["sha"]
     r = client.get(f"/api/pages/{slug}/history/{latest_sha}/diff", headers=_headers(token))
     assert r.status_code == 200
     diff = r.json()["diff"]
@@ -131,6 +130,7 @@ def test_history_diff_root_commit_is_full_add(client):
 
 def _get_uid_wid() -> tuple[int, int]:
     import app.db as db_module
+
     user = db_module.get_user_by_email("u@test.com")
     assert user is not None
     uid = int(user.id)

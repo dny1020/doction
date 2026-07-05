@@ -2,12 +2,15 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
+import { useToast } from './Toast.jsx'
+import { useConfirm } from './ConfirmDialog.jsx'
 
 // Sección de ajustes para los workspaces: crear uno nuevo y, para cada workspace
 // propio, renombrarlo, exportarlo, borrarlo y gestionar sus miembros.
-export default function WorkspaceSettings({ setFlash }) {
+export default function WorkspaceSettings() {
   const { user, refresh } = useAuth()
   const { t } = useI18n()
+  const toast = useToast()
   const [newName, setNewName] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -22,9 +25,9 @@ export default function WorkspaceSettings({ setFlash }) {
       await api.post('/api/workspaces', { name: newName })
       setNewName('')
       await refresh()
-      setFlash({ tone: 'ok', text: t('msg_ws_created') })
+      toast(t('msg_ws_created'))
     } catch (e) {
-      setFlash({ tone: 'error', text: e.message })
+      toast(e.message, 'error')
     } finally {
       setBusy(false)
     }
@@ -42,7 +45,6 @@ export default function WorkspaceSettings({ setFlash }) {
             ws={ws}
             ownedCount={ownedCount}
             isActive={user.active_workspace && ws.slug === user.active_workspace.slug}
-            setFlash={setFlash}
           />
         ))}
       </ul>
@@ -64,9 +66,11 @@ export default function WorkspaceSettings({ setFlash }) {
 
 // Una fila de workspace. Si el usuario es owner, despliega la gestión completa
 // (renombrar / exportar / borrar / miembros); si es member, solo exportar.
-function WorkspaceRow({ ws, ownedCount, isActive, setFlash }) {
+function WorkspaceRow({ ws, ownedCount, isActive }) {
   const { refresh } = useAuth()
   const { t } = useI18n()
+  const toast = useToast()
+  const confirm = useConfirm()
   const isOwner = ws.role === 'owner'
   const [name, setName] = useState(ws.name)
 
@@ -75,14 +79,15 @@ function WorkspaceRow({ ws, ownedCount, isActive, setFlash }) {
     try {
       await api.put('/api/workspaces/' + ws.slug, { name })
       await refresh()
-      setFlash({ tone: 'ok', text: t('msg_ws_renamed') })
+      toast(t('msg_ws_renamed'))
     } catch (e) {
-      setFlash({ tone: 'error', text: e.message })
+      toast(e.message, 'error')
     }
   }
 
   async function onDelete() {
-    if (!window.confirm(t('confirm_delete_ws_a') + ' “' + ws.name + '” ' + t('confirm_delete_ws_b'))) return
+    const message = t('confirm_delete_ws_a') + ' “' + ws.name + '” ' + t('confirm_delete_ws_b')
+    if (!(await confirm(message, { confirmLabel: t('delete'), danger: true }))) return
     try {
       await api.del('/api/workspaces/' + ws.slug)
       if (isActive) {
@@ -91,9 +96,9 @@ function WorkspaceRow({ ws, ownedCount, isActive, setFlash }) {
         return
       }
       await refresh()
-      setFlash({ tone: 'ok', text: t('msg_ws_deleted') })
+      toast(t('msg_ws_deleted'))
     } catch (e) {
-      setFlash({ tone: 'error', text: e.message })
+      toast(e.message, 'error')
     }
   }
 
@@ -132,7 +137,7 @@ function WorkspaceRow({ ws, ownedCount, isActive, setFlash }) {
               </button>
             )}
           </div>
-          {isOwner && <MemberList slug={ws.slug} setFlash={setFlash} />}
+          {isOwner && <MemberList slug={ws.slug} />}
         </div>
       </details>
     </li>
@@ -141,8 +146,9 @@ function WorkspaceRow({ ws, ownedCount, isActive, setFlash }) {
 
 // Lista de miembros de un workspace (solo visible para el owner): añadir por email
 // y quitar miembros que no sean el owner.
-function MemberList({ slug, setFlash }) {
+function MemberList({ slug }) {
   const { t } = useI18n()
+  const toast = useToast()
   const [members, setMembers] = useState([])
   const [email, setEmail] = useState('')
 
@@ -157,9 +163,9 @@ function MemberList({ slug, setFlash }) {
       await api.post('/api/workspaces/' + slug + '/members', { email })
       setEmail('')
       reload()
-      setFlash({ tone: 'ok', text: t('msg_member_added') })
+      toast(t('msg_member_added'))
     } catch (e) {
-      setFlash({ tone: 'error', text: e.message })
+      toast(e.message, 'error')
     }
   }
 
@@ -167,9 +173,9 @@ function MemberList({ slug, setFlash }) {
     try {
       await api.del('/api/workspaces/' + slug + '/members/' + userId)
       reload()
-      setFlash({ tone: 'ok', text: t('msg_member_removed') })
+      toast(t('msg_member_removed'))
     } catch (e) {
-      setFlash({ tone: 'error', text: e.message })
+      toast(e.message, 'error')
     }
   }
 

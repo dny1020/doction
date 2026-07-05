@@ -39,8 +39,12 @@ def _token(client) -> str:
 
 
 def _call(client, token: str, tool: str, arguments: dict | None = None) -> dict:
-    msg = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-           "params": {"name": tool, "arguments": arguments or {}}}
+    msg = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": tool, "arguments": arguments or {}},
+    }
     r = client.post("/api/mcp", json=msg, headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     return r.json()["result"]
@@ -53,23 +57,35 @@ def _data(result: dict):
 
 def _drain():
     import app.embeddings as emb
+
     return emb.drain_pending()
 
 
 def _seed_pages(client, token):
-    _call(client, token, "create_page", {
-        "title": "Kamailio dispatcher",
-        "content": "kamailio dispatcher load balancing sip routing failover",
-    })
-    _call(client, token, "create_page", {
-        "title": "Coffee recipes",
-        "content": "espresso milk foam barista grinder beans",
-    })
+    _call(
+        client,
+        token,
+        "create_page",
+        {
+            "title": "Kamailio dispatcher",
+            "content": "kamailio dispatcher load balancing sip routing failover",
+        },
+    )
+    _call(
+        client,
+        token,
+        "create_page",
+        {
+            "title": "Coffee recipes",
+            "content": "espresso milk foam barista grinder beans",
+        },
+    )
     _drain()
 
 
 def test_chunks_created_and_dirty_cleared(client):
     import app.db as db
+
     token = _token(client)
     _call(client, token, "create_page", {"title": "Note", "content": "alpha beta gamma"})
     assert db.pages_to_embed()  # dirty before drain
@@ -83,6 +99,7 @@ def test_chunks_created_and_dirty_cleared(client):
 
 def test_update_marks_dirty_again(client):
     import app.db as db
+
     token = _token(client)
     created = _data(_call(client, token, "create_page", {"title": "Doc", "content": "first"}))
     _drain()
@@ -135,8 +152,11 @@ def test_semantic_falls_back_to_fts_when_disabled(client, monkeypatch):
 def test_search_endpoint_semantic_mode(client):
     token = _token(client)
     _seed_pages(client, token)
-    r = client.get("/api/search", params={"q": "sip routing", "mode": "semantic"},
-                   headers={"Authorization": f"Bearer {token}"})
+    r = client.get(
+        "/api/search",
+        params={"q": "sip routing", "mode": "semantic"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert r.status_code == 200
     body = r.json()
     assert body and body[0]["slug"] == "kamailio-dispatcher"
@@ -149,14 +169,17 @@ def test_search_endpoint_semantic_mode(client):
 def test_real_onnx_embedder_similarity():
     """Integración opt-in: valida el encoder ONNX real (mean-pooling, normalización)."""
     import app.embeddings as emb
+
     emb.reset_embedder()
     os.environ.pop("EMBED_STUB", None)
     os.environ["MODEL_DIR"] = os.path.dirname(os.environ["REAL_MODEL_PATH"])
     importlib.reload(emb)
-    vecs = emb.get_embedder().encode([
-        "kamailio sip routing failover",
-        "espresso coffee barista",
-        "sip proxy routing setup",
-    ])
+    vecs = emb.get_embedder().encode(
+        [
+            "kamailio sip routing failover",
+            "espresso coffee barista",
+            "sip proxy routing setup",
+        ]
+    )
     sims = vecs @ vecs[0]
     assert sims[2] > sims[1]  # sip-related closer than coffee

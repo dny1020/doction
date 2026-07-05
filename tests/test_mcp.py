@@ -11,8 +11,14 @@ def _register_and_token(client) -> str:
     return r.json()["token"]
 
 
-def _rpc(client, method: str, params: dict | None = None, *, token: str | None = None,
-         msg_id: int | None = 1):
+def _rpc(
+    client,
+    method: str,
+    params: dict | None = None,
+    *,
+    token: str | None = None,
+    msg_id: int | None = 1,
+):
     msg: dict = {"jsonrpc": "2.0", "method": method}
     if msg_id is not None:
         msg["id"] = msg_id
@@ -34,8 +40,11 @@ def _tool_data(result: dict):
 
 
 def test_initialize_unauthenticated(client):
-    r = _rpc(client, "initialize", {"protocolVersion": "2025-03-26",
-                                    "clientInfo": {"name": "test", "version": "0"}})
+    r = _rpc(
+        client,
+        "initialize",
+        {"protocolVersion": "2025-03-26", "clientInfo": {"name": "test", "version": "0"}},
+    )
     assert r.status_code == 200
     result = r.json()["result"]
     assert result["protocolVersion"] == "2025-03-26"
@@ -63,10 +72,19 @@ def test_tools_list(client):
     r = _rpc(client, "tools/list")
     tools = {t["name"] for t in r.json()["result"]["tools"]}
     assert tools == {
-        "list_workspaces", "list_members", "list_pages", "get_page", "search_pages",
-        "create_page", "update_page", "get_page_history",
-        "extract", "list_backlinks", "related_pages",
-        "sgrep", "rag",
+        "list_workspaces",
+        "list_members",
+        "list_pages",
+        "get_page",
+        "search_pages",
+        "create_page",
+        "update_page",
+        "get_page_history",
+        "extract",
+        "list_backlinks",
+        "related_pages",
+        "sgrep",
+        "rag",
     }
     for tool in r.json()["result"]["tools"]:
         assert tool["inputSchema"]["type"] == "object"
@@ -83,8 +101,7 @@ def test_invalid_request(client):
 
 
 def test_parse_error(client):
-    r = client.post("/api/mcp", content=b"not json",
-                    headers={"Content-Type": "application/json"})
+    r = client.post("/api/mcp", content=b"not json", headers={"Content-Type": "application/json"})
     assert r.status_code == 400
     assert r.json()["error"]["code"] == -32700
 
@@ -108,8 +125,11 @@ def test_list_workspaces(client):
 
 def test_create_get_roundtrip(client):
     token = _register_and_token(client)
-    created = _tool_data(_call(client, token, "create_page",
-                               {"title": "Runbook SBC", "content": "# Failover\nkamctl"}))
+    created = _tool_data(
+        _call(
+            client, token, "create_page", {"title": "Runbook SBC", "content": "# Failover\nkamctl"}
+        )
+    )
     page = _tool_data(_call(client, token, "get_page", {"slug": created["slug"]}))
     assert page["title"] == "Runbook SBC"
     assert "kamctl" in page["content"]

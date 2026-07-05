@@ -12,6 +12,7 @@ export default function CommandPalette({ pages }) {
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0) // índice resaltado dentro de los resultados
   const inputRef = useRef(null)
+  const prevFocusRef = useRef(null) // a quién devolver el foco al cerrar
 
   // Resultados: páginas cuyo título contiene la búsqueda (máx. 50). Con la
   // búsqueda vacía se listan todas.
@@ -20,24 +21,32 @@ export default function CommandPalette({ pages }) {
     return pages.filter((p) => p.title.toLowerCase().includes(q)).slice(0, 50)
   }, [pages, query])
 
-  // ⌘K / Ctrl-K abre o cierra la paleta desde cualquier parte de la app.
+  // ⌘K / Ctrl-K abre o cierra la paleta desde cualquier parte de la app;
+  // Esc la cierra aunque el foco esté fuera de su input.
   useEffect(() => {
     function onKey(event) {
       if ((event.metaKey || event.ctrlKey) && (event.key === 'k' || event.key === 'K')) {
         event.preventDefault()
         setOpen((isOpen) => !isOpen)
+      } else if (event.key === 'Escape') {
+        setOpen(false)
       }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  // Al abrir, limpia la búsqueda, resalta el primero y enfoca el input.
+  // Al abrir, limpia la búsqueda, resalta el primero y enfoca el input; al
+  // cerrar, devuelve el foco a donde estaba (a11y).
   useEffect(() => {
     if (open) {
+      prevFocusRef.current = document.activeElement
       setQuery('')
       setSel(0)
       inputRef.current?.focus()
+    } else if (prevFocusRef.current) {
+      prevFocusRef.current.focus?.()
+      prevFocusRef.current = null
     }
   }, [open])
 
@@ -66,6 +75,9 @@ export default function CommandPalette({ pages }) {
     <div
       className={'palette' + (open ? ' open' : '')}
       aria-hidden={open ? 'false' : 'true'}
+      // Cerrada queda en el DOM (solo opacity:0), así que `inert` evita que su
+      // input siga siendo tabulable dentro de un subárbol aria-hidden.
+      {...(open ? {} : { inert: '' })}
       onClick={(event) => {
         if (event.target === event.currentTarget) setOpen(false) // clic en el fondo
       }}

@@ -1750,3 +1750,14 @@ kbd {
 .token-meta { font-size: var(--text-xs); color: var(--fg-3); }
 .token-add { display: flex; gap: var(--sp-2); }
 .token-add .settings-input { flex: 1; }
+
+/* === Accesibilidad: sin animaciones si el sistema lo pide ================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

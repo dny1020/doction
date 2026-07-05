@@ -37,6 +37,7 @@ def test_root_redirects_to_spa(client):
 
 # ── REST API tests (Bearer token, agent-facing) ───────────────────────────────
 
+
 def _api_token(client, email="user@example.com", password="password123") -> str:
     _register(client, email, password)
     r = client.post("/api/token", json={"email": email, "password": password})

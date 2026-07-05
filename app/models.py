@@ -20,12 +20,16 @@ from dataclasses import dataclass
 @dataclass
 class User:
     """Un usuario (tabla `users`)."""
+
     id: int
     email: str
     password_hash: str
     created_at: str
     display_name: str | None = None
     avatar_color: str | None = None
+    # Versión de sesión: va como claim `ver` en el JWT; al cambiar la contraseña se
+    # incrementa y todos los JWT anteriores (cookies o bearer) dejan de valer.
+    token_version: int = 0
 
 
 @dataclass
@@ -35,6 +39,7 @@ class Workspace:
     `role` solo viene cuando se lista para un usuario concreto (su rol en él);
     `user_id` y `created_at` solo en algunas consultas.
     """
+
     id: int
     slug: str
     name: str
@@ -46,6 +51,7 @@ class Workspace:
 @dataclass
 class Member:
     """Un miembro de un workspace (usuario + su rol)."""
+
     user_id: int
     email: str
     display_name: str | None
@@ -56,6 +62,7 @@ class Member:
 @dataclass
 class ApiToken:
     """Un token de API (se muestra el hash una sola vez al crearlo)."""
+
     id: int
     name: str
     created_at: str
@@ -71,6 +78,7 @@ class Page:
     cortas (papelera, exportación, subpáginas) rellenan solo unas columnas y dejan
     el resto en `None`.
     """
+
     id: int | None = None
     slug: str = ""
     title: str = ""
@@ -97,6 +105,7 @@ class PageNode:
 
     `depth` es la profundidad para la indentación; no es una columna de la tabla.
     """
+
     slug: str
     title: str
     depth: int
@@ -108,6 +117,7 @@ class PageRef:
 
     Se usa para las migas de pan (ancestros) y para los backlinks.
     """
+
     slug: str
     title: str
 
@@ -115,6 +125,7 @@ class PageRef:
 @dataclass
 class RelatedPage:
     """Una página relacionada por etiquetas en común (`related_pages`)."""
+
     slug: str
     title: str
     shared_tags: int
@@ -126,6 +137,7 @@ class SearchHit:
 
     `snippet` es el fragmento con la coincidencia resaltada en <mark>…</mark>.
     """
+
     slug: str
     title: str
     snippet: str
@@ -134,6 +146,7 @@ class SearchHit:
 @dataclass
 class PageMeta:
     """Metadatos de una página: tipo, etiquetas y frontmatter (`get_page_meta`)."""
+
     slug: str
     type: str | None
     tags: list[str]
@@ -143,6 +156,7 @@ class PageMeta:
 @dataclass
 class ExtractedPage:
     """Página filtrada por tipo/etiqueta del frontmatter (`extract_pages`)."""
+
     slug: str
     title: str
     type: str | None
@@ -154,6 +168,7 @@ class ExtractedPage:
 @dataclass
 class HistoryEntry:
     """Una versión (commit de git) de una página (`git_repo.get_page_history`)."""
+
     sha: str
     timestamp: str
     author: str
@@ -163,6 +178,7 @@ class HistoryEntry:
 @dataclass
 class EmbedTarget:
     """Página pendiente de indexar para búsqueda semántica (`pages_to_embed`)."""
+
     id: int
     workspace_id: int
     content: str
@@ -171,6 +187,7 @@ class EmbedTarget:
 @dataclass
 class ChunkVector:
     """Un trozo de página con su vector, para la búsqueda semántica."""
+
     page_id: int
     ord: int
     text: str

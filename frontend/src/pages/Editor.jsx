@@ -1,7 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
+import {
+  Link,
+  useBlocker,
+  useNavigate,
+  useOutletContext,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
+import { useToast } from '../components/Toast.jsx'
+import { useConfirm } from '../components/ConfirmDialog.jsx'
 import { renderMarkdown } from '../markdown.js'
 
 // Editor dividido: fuente markdown a la izquierda, preview en vivo a la derecha.
@@ -14,13 +23,32 @@ export default function Editor({ mode }) {
   const parentSlug = searchParams.get('parent') || ''
   const { reloadPages } = useOutletContext()
   const navigate = useNavigate()
+  const toast = useToast()
+  const confirm = useConfirm()
   const textareaRef = useRef(null)
+  const formRef = useRef(null)
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [loaded, setLoaded] = useState(!isEdit) // en modo "new" no hay nada que cargar
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
+
+  // Guard de cambios sin guardar: comparamos contra lo cargado. Refs (no estado)
+  // porque el blocker y beforeunload se evalúan fuera del ciclo de render.
+  const initialRef = useRef({ title: '', content: '' })
+  const currentRef = useRef({ title: '', content: '' })
+  currentRef.current = { title, content }
+  const savedRef = useRef(false) // true tras guardar: la navegación ya no se bloquea
+
+  function isDirty() {
+    if (savedRef.current) return false
+    return (
+      currentRef.current.title !== initialRef.current.title ||
+      currentRef.current.content !== initialRef.current.content
+    )
+  }
 
   // En modo edición, carga el título y el contenido actuales.
   useEffect(() => {
@@ -30,6 +58,7 @@ export default function Editor({ mode }) {
       .then((page) => {
         setTitle(page.title)
         setContent(page.content)
+        initialRef.current = { title: page.title, content: page.content }
         setLoaded(true)
       })
       .catch((e) => {
@@ -38,8 +67,44 @@ export default function Editor({ mode }) {
       })
   }, [isEdit, slug])
 
+  // Navegación interna con cambios sin guardar → diálogo de confirmación.
+  const blocker = useBlocker(() => isDirty())
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    confirm(t('unsaved_changes'), { confirmLabel: t('discard'), danger: true }).then((leave) => {
+      if (leave) blocker.proceed()
+      else blocker.reset()
+    })
+  }, [blocker, confirm, t])
+
+  // Cerrar/recargar la pestaña con cambios sin guardar → aviso nativo del navegador.
+  useEffect(() => {
+    function onBeforeUnload(event) {
+      if (!isDirty()) return
+      event.preventDefault()
+      event.returnValue = '' // requerido por Chrome para mostrar el aviso
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
+
+  // ⌘S / Ctrl-S guarda (el listener global de atajos ignora los campos de texto
+  // a propósito, así que este vive aquí). requestSubmit pasa por la validación
+  // del formulario (título requerido).
+  useEffect(() => {
+    function onKey(event) {
+      if ((event.metaKey || event.ctrlKey) && (event.key === 's' || event.key === 'S')) {
+        event.preventDefault()
+        formRef.current?.requestSubmit()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
   async function onSave(event) {
     event.preventDefault()
+    if (busy) return
     setBusy(true)
     setError(null)
     try {
@@ -52,6 +117,7 @@ export default function Editor({ mode }) {
         const created = await api.post('/api/pages', body)
         targetSlug = created.slug
       }
+      savedRef.current = true
       reloadPages()
       navigate('/p/' + targetSlug)
     } catch (e) {
@@ -80,16 +146,28 @@ export default function Editor({ mode }) {
         if (!file) continue
         const form = new FormData()
         form.append('file', file, file.name || 'pasted.png')
+        setUploading(true)
         try {
           const res = await fetch('/api/uploads', {
             method: 'POST',
             body: form,
             credentials: 'same-origin',
           })
-          const data = await res.json()
-          if (res.ok && data.url) insertAtCursor('![](' + data.url + ')')
+          let data = null
+          try {
+            data = await res.json()
+          } catch (e) {
+            data = null
+          }
+          if (res.ok && data && data.url) {
+            insertAtCursor('![](' + data.url + ')')
+          } else {
+            toast((data && data.detail) || t('img_upload_failed'), 'error')
+          }
         } catch (e) {
-          // Si falla la subida, simplemente no insertamos nada.
+          toast(t('img_upload_failed'), 'error')
+        } finally {
+          setUploading(false)
         }
       }
     }
@@ -98,7 +176,7 @@ export default function Editor({ mode }) {
   if (!loaded) return <div className="placeholder">{t('loading')}</div>
 
   return (
-    <form className="editor" onSubmit={onSave}>
+    <form className="editor" onSubmit={onSave} ref={formRef}>
       <div className="editor-bar">
         <input
           className="title-input"
@@ -110,6 +188,7 @@ export default function Editor({ mode }) {
           autoFocus
         />
         <div className="editor-actions">
+          {uploading && <span className="meta">{t('img_uploading')}</span>}
           <Link className="btn" to={isEdit ? '/p/' + slug : '/'}>
             {t('cancel')}
           </Link>

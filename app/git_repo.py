@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -11,9 +12,14 @@ from app.models import HistoryEntry
 
 logger = logging.getLogger(__name__)
 
+# Los SHA vienen de la URL (input del usuario): solo hex, nunca algo que empiece por
+# `-` y que `git show` pudiera interpretar como opción.
+_SHA_RE = re.compile(r"[0-9a-fA-F]{4,64}")
+
 
 def _pages_dir() -> Path:
     from app.db import data_dir
+
     return data_dir() / "pages"
 
 
@@ -29,9 +35,7 @@ def ensure_repo() -> None:
     subprocess.run(
         ["git", "-C", str(pages), "config", "user.email", "doction@localhost"], capture_output=True
     )
-    subprocess.run(
-        ["git", "-C", str(pages), "config", "user.name", "doction"], capture_output=True
-    )
+    subprocess.run(["git", "-C", str(pages), "config", "user.name", "doction"], capture_output=True)
 
 
 def commit_page(
@@ -51,7 +55,8 @@ def commit_page(
 
     result = subprocess.run(
         ["git", "-C", str(pages), "add", rel_path],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         logger.warning("git add failed: %s", result.stderr)
@@ -65,7 +70,8 @@ def commit_page(
     if diff.returncode == 0:
         last = subprocess.run(
             ["git", "-C", str(pages), "log", "-1", "--format=%h", "--", rel_path],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         return last.stdout.strip() or None
 
@@ -74,9 +80,10 @@ def commit_page(
     env.setdefault("GIT_COMMITTER_EMAIL", "doction@localhost")
 
     result = subprocess.run(
-        ["git", "-C", str(pages), "commit", "-m", message,
-         f"--author={author} <{author}>"],
-        capture_output=True, text=True, env=env,
+        ["git", "-C", str(pages), "commit", "-m", message, f"--author={author} <{author}>"],
+        capture_output=True,
+        text=True,
+        env=env,
     )
     if result.returncode != 0:
         logger.warning("git commit failed: %s", result.stderr)
@@ -84,9 +91,31 @@ def commit_page(
 
     sha = subprocess.run(
         ["git", "-C", str(pages), "log", "-1", "--format=%h"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     return sha.stdout.strip() or None
+
+
+def commit_and_record(
+    user_id: int,
+    workspace_id: int,
+    ws_slug: str,
+    page_slug: str,
+    title: str,
+    content: str,
+    author: str,
+) -> None:
+    """Commit del guardado + persistir el SHA en la página.
+
+    Único punto compartido por REST (app.main) y MCP (app.mcp): antes cada uno
+    tenía su copia de esta rutina.
+    """
+    from app import db
+
+    sha = commit_page(ws_slug, page_slug, content, author, f"Save: {title}")
+    if sha:
+        db.set_page_git_commit(user_id, workspace_id, page_slug, sha)
 
 
 def get_page_history(ws_slug: str, page_slug: str, limit: int = 50) -> list[HistoryEntry]:
@@ -95,9 +124,19 @@ def get_page_history(ws_slug: str, page_slug: str, limit: int = 50) -> list[Hist
         return []
     rel_path = f"{ws_slug}/{page_slug}.md"
     result = subprocess.run(
-        ["git", "-C", str(pages), "log", f"--max-count={limit}",
-         "--follow", "--format=%H|%ai|%an|%s", "--", rel_path],
-        capture_output=True, text=True,
+        [
+            "git",
+            "-C",
+            str(pages),
+            "log",
+            f"--max-count={limit}",
+            "--follow",
+            "--format=%H|%ai|%an|%s",
+            "--",
+            rel_path,
+        ],
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0 or not result.stdout.strip():
         return []
@@ -118,12 +157,13 @@ def get_page_history(ws_slug: str, page_slug: str, limit: int = 50) -> list[Hist
 
 def get_page_at_commit(ws_slug: str, page_slug: str, sha: str) -> str | None:
     pages = _pages_dir()
-    if not (pages / ".git").exists():
+    if not _SHA_RE.fullmatch(sha) or not (pages / ".git").exists():
         return None
     rel_path = f"{ws_slug}/{page_slug}.md"
     result = subprocess.run(
         ["git", "-C", str(pages), "show", f"{sha}:{rel_path}"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         return None
@@ -133,12 +173,13 @@ def get_page_at_commit(ws_slug: str, page_slug: str, sha: str) -> str | None:
 def diff_page(ws_slug: str, page_slug: str, sha: str) -> str | None:
     """Diff unificado que introdujo `sha` en la página. `git show` maneja el commit raíz."""
     pages = _pages_dir()
-    if not (pages / ".git").exists():
+    if not _SHA_RE.fullmatch(sha) or not (pages / ".git").exists():
         return None
     rel_path = f"{ws_slug}/{page_slug}.md"
     result = subprocess.run(
         ["git", "-C", str(pages), "show", "--format=", "--no-color", sha, "--", rel_path],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         return None

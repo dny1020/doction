@@ -5,7 +5,7 @@ import os
 import re
 import threading
 import unicodedata
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -72,6 +72,10 @@ def _get_pool() -> ConnectionPool:
                     max_size=10,
                     kwargs={"row_factory": dict_row},
                     open=True,
+                    # Valida la conexión al sacarla del pool: si Postgres se
+                    # reinició (reboot de la Pi), se reconecta solo en vez de
+                    # fallar hasta que las conexiones muertas se reciclen.
+                    check=ConnectionPool.check_connection,
                 )
     return _pool
 
@@ -99,6 +103,7 @@ def _now() -> str:
 # a un dato con nombre (las clases de app/models.py), usando .get(...) para que si
 # una consulta no seleccionó cierta columna, ese campo quede en None.
 
+
 def _to_user(row: dict) -> User:
     return User(
         id=row["id"],
@@ -107,6 +112,7 @@ def _to_user(row: dict) -> User:
         created_at=row["created_at"],
         display_name=row.get("display_name"),
         avatar_color=row.get("avatar_color"),
+        token_version=row.get("token_version") or 0,
     )
 
 
@@ -157,9 +163,12 @@ SCHEMA_STATEMENTS = [
         password_hash TEXT NOT NULL,
         created_at    TEXT NOT NULL,
         display_name  TEXT,
-        avatar_color  TEXT
+        avatar_color  TEXT,
+        token_version INTEGER NOT NULL DEFAULT 0
     )
     """,
+    # Bases anteriores a token_version (idempotente).
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0",
     """
     CREATE TABLE IF NOT EXISTS workspaces (
         id         BIGSERIAL PRIMARY KEY,
@@ -280,15 +289,13 @@ def _unique_workspace_slug(
 
 
 def _ensure_default_workspaces(conn) -> None:
-    missing = conn.execute(
-        """
+    missing = conn.execute("""
         SELECT u.id
         FROM users u
         LEFT JOIN workspaces w ON w.user_id = u.id
         GROUP BY u.id
         HAVING COUNT(w.id) = 0
-        """
-    ).fetchall()
+        """).fetchall()
     for row in missing:
         user_id = int(row["id"])
         slug = _unique_workspace_slug(conn, DEFAULT_WORKSPACE_SLUG)
@@ -323,9 +330,7 @@ def _index_page_meta(conn, page_id: int, workspace_id: int, content: str) -> Non
     conn.execute("DELETE FROM page_tags WHERE page_id = %s", (page_id,))
     tags = [(page_id, tag) for tag in meta.extract_tags(content)]
     if tags:
-        conn.cursor().executemany(
-            "INSERT INTO page_tags (page_id, tag) VALUES (%s, %s)", tags
-        )
+        conn.cursor().executemany("INSERT INTO page_tags (page_id, tag) VALUES (%s, %s)", tags)
 
     conn.execute("DELETE FROM page_links WHERE src_page_id = %s", (page_id,))
     seen: set[str] = set()
@@ -418,12 +423,16 @@ def update_user_profile(user_id: int, display_name: str | None, avatar_color: st
         )
 
 
-def update_user_password(user_id: int, password_hash: str) -> None:
+def update_user_password(user_id: int, password_hash: str) -> int:
+    """Cambia la contraseña y sube token_version → invalida todas las sesiones JWT
+    emitidas antes del cambio. Devuelve la nueva versión (para reemitir la sesión actual)."""
     with connect() as conn:
-        conn.execute(
-            "UPDATE users SET password_hash = %s WHERE id = %s",
+        row = conn.execute(
+            "UPDATE users SET password_hash = %s, token_version = token_version + 1 "
+            "WHERE id = %s RETURNING token_version",
             (password_hash, user_id),
-        )
+        ).fetchone()
+        return int(row["token_version"]) if row else 0
 
 
 def list_workspaces(user_id: int) -> list[Workspace]:
@@ -863,8 +872,7 @@ def search_pages(
             (match, match, workspace_id, match, limit),
         ).fetchall()
         return [
-            SearchHit(slug=row["slug"], title=row["title"], snippet=row["snippet"])
-            for row in rows
+            SearchHit(slug=row["slug"], title=row["title"], snippet=row["snippet"]) for row in rows
         ]
 
 
@@ -1025,6 +1033,13 @@ def store_page_chunks(
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
+def clear_embed_dirty(page_id: int) -> None:
+    """Desmarca una página que no se pudo indexar, para que no bloquee la cola del
+    worker. La página vuelve a marcarse sucia en su próxima edición."""
+    with connect() as conn:
+        conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
+
+
 def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[ChunkVector]:
     """Chunks + vectores de un workspace para la búsqueda semántica (KNN en memoria)."""
     with connect() as conn:
@@ -1105,16 +1120,23 @@ def revoke_api_token(user_id: int, token_id: int) -> bool:
 
 
 def resolve_api_token(token_hash: str) -> int | None:
-    """Devuelve el user_id propietario y actualiza last_used_at; None si no existe."""
+    """Devuelve el user_id propietario y actualiza last_used_at; None si no existe.
+
+    last_used_at se escribe como mucho una vez por hora: en la UI se muestra solo
+    el día, y un agente MCP encadenando llamadas escribía en cada request.
+    """
     with connect() as conn:
         row = conn.execute(
-            "SELECT id, user_id FROM api_tokens WHERE token_hash = %s",
+            "SELECT id, user_id, last_used_at FROM api_tokens WHERE token_hash = %s",
             (token_hash,),
         ).fetchone()
         if row is None:
             return None
-        conn.execute(
-            "UPDATE api_tokens SET last_used_at = %s WHERE id = %s",
-            (_now(), row["id"]),
-        )
+        # Timestamps ISO-8601 UTC con formato fijo: comparar como texto es correcto.
+        hour_ago = (datetime.now(UTC) - timedelta(hours=1)).isoformat(timespec="seconds")
+        if row["last_used_at"] is None or row["last_used_at"] < hour_ago:
+            conn.execute(
+                "UPDATE api_tokens SET last_used_at = %s WHERE id = %s",
+                (_now(), row["id"]),
+            )
         return int(row["user_id"])

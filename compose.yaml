@@ -1,3 +1,6 @@
+# Compose de desarrollo local (producción usa infra/compose.yaml).
+# Antes de levantar: mkdir -p data/logs  (así los bind mounts quedan con tu uid,
+# que es el del usuario `doction` del contenedor — uid 1000, non-root).
 services:
   postgres:
     image: postgres:16-alpine
@@ -5,8 +8,11 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: doction
-      POSTGRES_PASSWORD: doction
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-doction}
       POSTGRES_DB: doction
+    ports:
+      # Solo loopback: útil para psql local, sin exponer la BD a la red.
+      - "127.0.0.1:5432:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
@@ -27,6 +33,14 @@ services:
       - ./data:/data
       - ./data/logs:/logs
     environment:
-      DATABASE_URL: postgresql://doction:doction@postgres:5432/doction
-      SECRET_KEY: change-me
+      DATABASE_URL: postgresql://doction:${POSTGRES_PASSWORD:-doction}@postgres:5432/doction
+      # Sin SECRET_KEY el server arranca con la clave de dev (y lo avisa en el log);
+      # exportarla o ponerla en .env si este compose se usa fuera de localhost.
+      SECRET_KEY: ${SECRET_KEY:-}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Check, ChevronsUpDown, LogOut, Moon, Plus, Search, Settings, Sun, Terminal, Trash2, X } from 'lucide-react'
+import { Check, ChevronsUpDown, LogOut, Moon, PanelLeftClose, Plus, Search, Settings, Sun, Terminal, Trash2, X } from 'lucide-react'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
+import { useToast } from './Toast.jsx'
 import { api } from '../api.js'
 import { avatarColor, avatarLetter } from '../avatar.js'
 import { getTheme, toggleTheme } from '../theme.js'
@@ -10,9 +11,10 @@ import LanguageToggle from './LanguageToggle.jsx'
 
 // Barra lateral: marca, selector de workspace, búsqueda en vivo, árbol de páginas,
 // botón de nueva página y, abajo, el cambio de tema + el menú de usuario.
-export default function Sidebar({ pages }) {
+export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
   const { user, logout } = useAuth()
   const { t } = useI18n()
+  const toast = useToast()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -62,7 +64,8 @@ export default function Sidebar({ pages }) {
       // Recarga completa: re-arranca usuario, árbol y página activa con el nuevo workspace.
       window.location.assign('/app/')
     } catch (e) {
-      // Si falla el cambio, dejamos todo como está.
+      // Antes fallaba en silencio: el clic no hacía nada y no se sabía por qué.
+      toast(e.message, 'error')
     }
   }
 
@@ -85,6 +88,15 @@ export default function Sidebar({ pages }) {
           <Terminal className="brand-icon lucide" size={20} />
           Doction
         </Link>
+        <button
+          className="sidebar-toggle"
+          type="button"
+          onClick={onCollapse}
+          aria-label={t('hide_sidebar')}
+          title={t('hide_sidebar')}
+        >
+          <PanelLeftClose size={16} />
+        </button>
       </div>
 
       {user && user.workspaces.length > 0 && (
@@ -155,7 +167,14 @@ export default function Sidebar({ pages }) {
           <div className="sidebar-eyebrow">{t('pages')}</div>
           <nav className="page-list">
             <ul>
-              {pages.length > 0 ? (
+              {pagesError ? (
+                <li className="muted">
+                  {t('tree_error')}{' '}
+                  <button className="btn btn-sm" type="button" onClick={onReload}>
+                    {t('retry')}
+                  </button>
+                </li>
+              ) : pages.length > 0 ? (
                 pages.map((p) => (
                   <li key={p.slug}>
                     <Link

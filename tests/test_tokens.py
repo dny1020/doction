@@ -48,8 +48,12 @@ def test_pat_works_on_mcp(client):
     pat = _create_pat(client, jwt)["token"]
     r = client.post(
         "/api/mcp",
-        json={"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-              "params": {"name": "list_workspaces", "arguments": {}}},
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "list_workspaces", "arguments": {}},
+        },
         headers=_headers(pat),
     )
     assert r.status_code == 200

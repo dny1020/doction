@@ -6,6 +6,7 @@ import hashlib
 import io
 import logging
 import os
+import re
 import zipfile
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -21,7 +22,7 @@ from fastapi.responses import (
     Response,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.status import HTTP_303_SEE_OTHER
 
 from app import db, embeddings, git_repo, i18n, mcp, seed
@@ -50,15 +51,16 @@ SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "
 DISABLE_REGISTRATION = os.environ.get("DISABLE_REGISTRATION", "").lower() in {"1", "true", "yes"}
 
 # Cabeceras de seguridad fijadas en cada respuesta (defensa en profundidad).
-# CSP pragmática: 'unsafe-inline' en script-src sigue siendo necesario porque base.html
-# tiene JS inline y handlers onclick, y Lucide carga desde unpkg. El XSS real ya queda
-# tapado al renderizar CommonMark plano (markdown.py html=False); la CSP es capa extra.
-# Endurecer a futuro: vendorizar Lucide + externalizar el JS inline para quitar 'unsafe-inline'.
+# CSP pragmática: 'unsafe-inline' en script-src sigue siendo necesario por el script
+# inline de tema en frontend/index.html (aplica claro/oscuro antes de pintar). El XSS
+# real ya queda tapado al renderizar CommonMark plano en el cliente (markdown-it con
+# html:false); la CSP es capa extra. Lucide va empaquetado en el bundle (lucide-react),
+# así que no hace falta permitir ningún origen externo.
 _CSP = (
     "default-src 'self'; "
     "img-src 'self' data:; "
     "style-src 'self' 'unsafe-inline'; "
-    "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+    "script-src 'self' 'unsafe-inline'; "
     "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 )
 SECURITY_HEADERS = {
@@ -68,18 +70,24 @@ SECURITY_HEADERS = {
     "Content-Security-Policy": _CSP,
 }
 
-# Paleta de colores para el avatar (debe coincidir con el fallback JS en base.html).
+# Paleta de colores para el avatar (debe coincidir con frontend/src/avatar.js).
 AVATAR_COLORS = [
-    "#c0604a", "#4a7fc0", "#4aab6e", "#8b5fc0",
-    "#c0914a", "#4aabc0", "#c05473", "#7a9c4a",
+    "#c0604a",
+    "#4a7fc0",
+    "#4aab6e",
+    "#8b5fc0",
+    "#c0914a",
+    "#4aabc0",
+    "#c05473",
+    "#7a9c4a",
 ]
 
 # Imágenes embebibles en documentos. Validamos por content-type + magic bytes.
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 _IMAGE_SIGNATURES = {
-    "image/png":  (b"\x89PNG\r\n\x1a\n", ".png"),
+    "image/png": (b"\x89PNG\r\n\x1a\n", ".png"),
     "image/jpeg": (b"\xff\xd8\xff", ".jpg"),
-    "image/gif":  (b"GIF8", ".gif"),
+    "image/gif": (b"GIF8", ".gif"),
 }
 
 
@@ -95,9 +103,14 @@ def _image_extension(content_type: str | None, data: bytes) -> str | None:
 
 # ── REST API ─────────────────────────────────────────────────────────────────
 
+# Tope de longitud de contraseña: PBKDF2 procesa lo que le den, así que sin tope una
+# contraseña de megabytes sería CPU gratis para un atacante.
+_MAX_PASSWORD_LEN = 256
+
+
 class _TokenIn(BaseModel):
     email: str
-    password: str
+    password: str = Field(max_length=_MAX_PASSWORD_LEN)
 
 
 class _PageIn(BaseModel):
@@ -142,12 +155,36 @@ def _api_workspace(request: Request, user_id: int) -> int:
     return int(ws.id)
 
 
+# Hash dummy para igualar el tiempo de respuesta cuando el email no existe: sin esto,
+# la ausencia del PBKDF2 (~100ms) delata qué emails están registrados.
+_DUMMY_PASSWORD_HASH = _hash_password("doction-timing-dummy")
+
+
+def _authenticate(request: Request, email: str, password: str):
+    """Email+contraseña → User, con rate-limit por (ip, email). Lo comparten el login
+    de la SPA y POST /api/token (sin el guard aquí, /api/token era fuerza bruta libre)."""
+    email = email.strip().lower()
+    ip = request.client.host if request.client else "?"
+    key = f"{ip}:{email}"
+    if _login_too_many(key):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+    user = db.get_user_by_email(email)
+    if user is None:
+        _verify_password(password, _DUMMY_PASSWORD_HASH)
+    if user is None or not _verify_password(password, user.password_hash):
+        _login_record_failure(key)
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    _login_clear(key)
+    return user
+
+
 @api_router.post("/token")
-def api_token(body: _TokenIn):
-    user = db.get_user_by_email(body.email.strip().lower())
-    if user is None or not _verify_password(body.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"token": _encode_token(int(user.id)), "token_type": "bearer"}
+def api_token(request: Request, body: _TokenIn):
+    user = _authenticate(request, body.email, body.password)
+    return {
+        "token": _encode_token(int(user.id), user.token_version),
+        "token_type": "bearer",
+    }
 
 
 @api_router.post("/tokens", status_code=201)
@@ -293,8 +330,12 @@ def api_create_page(request: Request, body: _PageIn):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     slug = db.create_page(
-        uid, wid, body.title, body.content,
-        parent_slug=body.parent_slug, requested_slug=body.slug,
+        uid,
+        wid,
+        body.title,
+        body.content,
+        parent_slug=body.parent_slug,
+        requested_slug=body.slug,
     )
     _commit_page(request, uid, wid, slug, body.title, body.content)
     return {"slug": slug, "title": body.title.strip() or "Untitled"}
@@ -307,9 +348,7 @@ def api_page_history(request: Request, slug: str, limit: int = 50):
     page = db.get_page(slug, uid, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    ws = db.get_workspace_by_id(wid)
-    ws_slug = ws.slug if ws else "unknown"
-    return git_repo.get_page_history(ws_slug, slug, limit=limit)
+    return git_repo.get_page_history(_workspace_slug(request, wid), slug, limit=limit)
 
 
 @api_router.get("/pages/{slug}/history/{sha}")
@@ -319,9 +358,7 @@ def api_page_at_commit(request: Request, slug: str, sha: str):
     page = db.get_page(slug, uid, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    ws = db.get_workspace_by_id(wid)
-    ws_slug = ws.slug if ws else "unknown"
-    content = git_repo.get_page_at_commit(ws_slug, slug, sha)
+    content = git_repo.get_page_at_commit(_workspace_slug(request, wid), slug, sha)
     if content is None:
         raise HTTPException(status_code=404, detail="Commit not found")
     return {"slug": slug, "sha": sha, "content": content}
@@ -334,9 +371,7 @@ def api_page_diff(request: Request, slug: str, sha: str):
     page = db.get_page(slug, uid, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    ws = db.get_workspace_by_id(wid)
-    ws_slug = ws.slug if ws else "unknown"
-    diff = git_repo.diff_page(ws_slug, slug, sha)
+    diff = git_repo.diff_page(_workspace_slug(request, wid), slug, sha)
     if diff is None:
         raise HTTPException(status_code=404, detail="Commit not found")
     return {"slug": slug, "sha": sha, "diff": diff}
@@ -359,7 +394,7 @@ def api_get_page(request: Request, slug: str):
     page = db.get_page(slug, uid, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    children = db.list_child_pages(uid, wid, int(page.id))
+    children = db.list_child_pages(uid, wid, int(page.id or 0))
     return {
         "slug": page.slug,
         "title": page.title,
@@ -402,16 +437,14 @@ def api_search(request: Request, q: str = "", mode: str = "keyword"):
     if mode == "semantic":
         return embeddings.semantic_search(uid, wid, q)
     results = db.search_pages(uid, wid, q)
-    return [
-        {"slug": r.slug, "title": r.title, "snippet": r.snippet}
-        for r in results
-    ]
+    return [{"slug": r.slug, "title": r.title, "snippet": r.snippet} for r in results]
 
 
 # ── SPA (React) — bootstrap + auth por JSON ──────────────────────────────────
 # Estos endpoints alimentan el frontend React (carpeta frontend/). Usan la misma
 # cookie de sesión httponly (compartida con REST/MCP); la SPA llama con
 # `fetch(..., {credentials: 'same-origin'})`, así que la cookie viaja sola.
+
 
 def _workspace_brief(ws) -> dict:
     """Forma mínima de un workspace para el frontend."""
@@ -447,20 +480,11 @@ def api_me(request: Request):
 
 @api_router.post("/auth/login")
 def api_login(request: Request, body: _TokenIn) -> Response:
-    email = body.email.strip().lower()
-    ip = request.client.host if request.client else "?"
-    key = f"{ip}:{email}"
-    if _login_too_many(key):
-        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
-    user = db.get_user_by_email(email)
-    if user is None or not _verify_password(body.password, user.password_hash):
-        _login_record_failure(key)
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    _login_clear(key)
+    user = _authenticate(request, body.email, body.password)
     user_id = int(user.id)
     workspace = db.ensure_default_workspace(user_id)
     response = JSONResponse(_me_payload(user_id, workspace.slug))
-    _issue_session(response, user_id, workspace.slug)
+    _issue_session(response, user_id, workspace.slug, user.token_version)
     return response
 
 
@@ -532,8 +556,9 @@ def api_page_view(request: Request, slug: str):
     page = db.get_page(slug, uid, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    breadcrumbs = db.get_ancestors(int(page.id), uid, wid)
-    children = db.list_child_pages(uid, wid, int(page.id))
+    # `or 0`: get_page siempre rellena id, pero el dataclass lo declara opcional.
+    breadcrumbs = db.get_ancestors(int(page.id or 0), uid, wid)
+    children = db.list_child_pages(uid, wid, int(page.id or 0))
     related = db.related_pages(uid, wid, slug) or []
     return {
         "slug": page.slug,
@@ -547,9 +572,7 @@ def api_page_view(request: Request, slug: str):
         "children": [
             {"slug": c.slug, "title": c.title, "updated_at": c.updated_at} for c in children
         ],
-        "backlinks": [
-            {"slug": b.slug, "title": b.title} for b in db.backlinks(uid, wid, slug)
-        ],
+        "backlinks": [{"slug": b.slug, "title": b.title} for b in db.backlinks(uid, wid, slug)],
         "related": [
             {"slug": r.slug, "title": r.title, "shared_tags": r.shared_tags} for r in related
         ],
@@ -558,15 +581,16 @@ def api_page_view(request: Request, slug: str):
 
 # ── SPA fase 2: settings (perfil/contraseña), papelera, restaurar versión ────
 
+
 class _ProfileIn(BaseModel):
     display_name: str = ""
     avatar_color: str = ""
 
 
 class _PasswordIn(BaseModel):
-    current_password: str
-    new_password: str
-    confirm_password: str
+    current_password: str = Field(max_length=_MAX_PASSWORD_LEN)
+    new_password: str = Field(max_length=_MAX_PASSWORD_LEN)
+    confirm_password: str = Field(max_length=_MAX_PASSWORD_LEN)
 
 
 @api_router.post("/settings/profile")
@@ -589,8 +613,12 @@ def api_update_password(request: Request, body: _PasswordIn):
         raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
     if body.new_password != body.confirm_password:
         raise HTTPException(status_code=400, detail="New passwords do not match")
-    db.update_user_password(uid, _hash_password(body.new_password))
-    return {"ok": True}
+    new_version = db.update_user_password(uid, _hash_password(body.new_password))
+    # El bump de token_version invalida todas las sesiones JWT; reemitimos la de esta
+    # pestaña para que quien cambió la contraseña no quede deslogueado.
+    response = JSONResponse({"ok": True})
+    _issue_session(response, uid, token_version=new_version)
+    return response
 
 
 @api_router.get("/trash")
@@ -628,8 +656,7 @@ def api_restore_version(request: Request, slug: str, sha: str):
     page = db.get_page(slug, uid, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    ws = db.get_workspace_by_id(wid)
-    ws_slug = ws.slug if ws else "default"
+    ws_slug = _workspace_slug(request, wid)
     content = git_repo.get_page_at_commit(ws_slug, slug, sha)
     if content is None:
         raise HTTPException(status_code=404, detail="Version not found")
@@ -645,30 +672,33 @@ def api_restore_version(request: Request, slug: str, sha: str):
     return {"slug": effective_slug, "ok": True}
 
 
-def _commit_page(
-    request: Request, uid: int, wid: int, slug: str, title: str, content: str
-) -> None:
+def _workspace_slug(request: Request, wid: int) -> str:
+    """Slug del workspace activo (o por id) — es el nombre de su carpeta en git."""
     ws = getattr(request.state, "workspace", None)
-    if ws:
-        ws_slug = ws.slug
-    else:
-        _ws = db.get_workspace_by_id(wid)
-        ws_slug = _ws.slug if _ws else "default"
+    if ws is not None and int(ws.id) == wid:
+        return ws.slug
+    ws = db.get_workspace_by_id(wid)
+    return ws.slug if ws else "default"
+
+
+def _commit_page(request: Request, uid: int, wid: int, slug: str, title: str, content: str) -> None:
     author = getattr(request.state, "user_email", None) or "user"
-    sha = git_repo.commit_page(ws_slug, slug, content, author, f"Save: {title}")
-    if sha:
-        db.set_page_git_commit(uid, wid, slug, sha)
+    git_repo.commit_and_record(
+        uid, wid, _workspace_slug(request, wid), slug, title, content, author
+    )
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     secret_key = os.environ.get("SECRET_KEY")
-    if not secret_key:
+    # Placeholders conocidos cuentan como "sin configurar": un compose de ejemplo con
+    # `change-me` firmaría JWTs con una clave que conoce cualquiera.
+    if not secret_key or secret_key in {"change-me", "changeme", "dev-secret-key"}:
         if SECURE_COOKIES:
             # SECURE_COOKIES=1 es señal de producción (tras TLS): no arrancar con clave insegura.
             raise RuntimeError(
-                "SECRET_KEY must be set when SECURE_COOKIES is enabled — refusing to start "
-                "with the insecure dev default in production"
+                "SECRET_KEY must be set to a real secret when SECURE_COOKIES is enabled — "
+                "refusing to start with an insecure default/placeholder in production"
             )
         secret_key = "dev-secret-key"
         logger.warning("SECRET_KEY not set — using insecure dev default, do not use in production")
@@ -698,9 +728,23 @@ app = FastAPI(title="doction", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # Imágenes subidas (pegadas/arrastradas en el editor) viven junto a la BD, no en la imagen.
+# Se sirven con una ruta autenticada (no StaticFiles): sin sesión, una imagen pegada en
+# un workspace privado sería una URL pública para siempre.
 UPLOADS_DIR = db.data_dir() / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+_UPLOAD_NAME_RE = re.compile(r"[0-9a-f]{32}\.[a-z0-9]{2,5}")
+
+
+@app.get("/uploads/{name}")
+async def serve_upload(request: Request, name: str) -> Response:
+    _api_user(request)  # lanza 401 si no hay sesión ni bearer
+    if not _UPLOAD_NAME_RE.fullmatch(name):
+        raise HTTPException(status_code=404, detail="Not found")
+    path = UPLOADS_DIR / name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path)
+
 
 app.include_router(api_router)
 app.include_router(mcp.router)
@@ -739,15 +783,22 @@ async def unhandled_error(request: Request, exc: Exception) -> Response:
     return JSONResponse({"detail": "Internal server error"}, status_code=500)
 
 
-def _encode_token(user_id: int) -> str:
+def _encode_token(user_id: int, token_version: int = 0) -> str:
     payload = {
         "sub": str(user_id),
+        "ver": token_version,
         "exp": datetime.now(UTC) + timedelta(days=7),
     }
     return jwt.encode(payload, app.state.secret_key, algorithm="HS256")
 
 
-def _decode_token(token: str) -> int | None:
+def _decode_token(token: str) -> tuple[int, int] | None:
+    """(user_id, token_version) del JWT, o None si es inválido/expirado.
+
+    La versión se compara luego con users.token_version (middleware): si el usuario
+    cambió la contraseña después de emitirse este token, ya no coincide y se rechaza.
+    JWTs antiguos sin claim `ver` cuentan como versión 0.
+    """
     try:
         payload = jwt.decode(token, app.state.secret_key, algorithms=["HS256"])
     except jwt.PyJWTError:
@@ -756,16 +807,11 @@ def _decode_token(token: str) -> int | None:
     if not isinstance(subject, str):
         return None
     try:
-        return int(subject)
+        uid = int(subject)
     except ValueError:
         return None
-
-
-def _get_user_id(request: Request) -> int | None:
-    token = request.cookies.get("session")
-    if not token:
-        return None
-    return _decode_token(token)
+    version = payload.get("ver")
+    return uid, version if isinstance(version, int) else 0
 
 
 def _lang(request: Request) -> str:
@@ -780,19 +826,29 @@ def _registration_open() -> bool:
 
 def _ws_cookie(response: Response, slug: str) -> None:
     response.set_cookie(
-        "workspace", slug,
-        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=WORKSPACE_MAX_AGE,
+        "workspace",
+        slug,
+        httponly=True,
+        samesite="lax",
+        secure=SECURE_COOKIES,
+        max_age=WORKSPACE_MAX_AGE,
     )
 
 
-def _issue_session(response: Response, user_id: int, ws_slug: str | None = None) -> None:
+def _issue_session(
+    response: Response, user_id: int, ws_slug: str | None = None, token_version: int = 0
+) -> None:
     """Fija la cookie de sesión (httponly, JWT) y, si se da, la del workspace activo.
 
     Lo comparten el login/registro web (form) y los endpoints JSON de la SPA.
     """
     response.set_cookie(
-        "session", _encode_token(user_id),
-        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=SESSION_MAX_AGE,
+        "session",
+        _encode_token(user_id, token_version),
+        httponly=True,
+        samesite="lax",
+        secure=SECURE_COOKIES,
+        max_age=SESSION_MAX_AGE,
     )
     if ws_slug:
         _ws_cookie(response, ws_slug)
@@ -800,8 +856,12 @@ def _issue_session(response: Response, user_id: int, ws_slug: str | None = None)
 
 def _lang_cookie(response: Response, lang: str) -> None:
     response.set_cookie(
-        "lang", lang,
-        httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=LANG_MAX_AGE,
+        "lang",
+        lang,
+        httponly=True,
+        samesite="lax",
+        secure=SECURE_COOKIES,
+        max_age=LANG_MAX_AGE,
     )
 
 
@@ -843,11 +903,13 @@ async def upload_image(request: Request, file: UploadFile = File(...)) -> Respon
     derivado de su hash y devuelve la URL para insertarla como markdown."""
     _api_user(request)  # lanza 401 si no hay sesión
     data = await file.read()
+    # HTTPException para que el error salga como {"detail": ...}, igual que el
+    # resto de la API (antes este endpoint era el único que devolvía {"error": ...}).
     if len(data) > MAX_UPLOAD_BYTES:
-        return JSONResponse({"error": "file too large"}, status_code=413)
+        raise HTTPException(status_code=413, detail="File too large (max 5 MB)")
     ext = _image_extension(file.content_type, data)
     if ext is None:
-        return JSONResponse({"error": "unsupported image type"}, status_code=400)
+        raise HTTPException(status_code=400, detail="Unsupported image type")
     name = hashlib.sha256(data).hexdigest()[:32] + ext
     dest = UPLOADS_DIR / name
     if not dest.exists():
@@ -893,18 +955,28 @@ async def attach_user(request: Request, call_next):
         request.cookies.get("lang"), request.headers.get("accept-language")
     )
 
-    user_id = _get_user_id(request)
-    if user_id is None:
+    # token_ver = versión del JWT a validar contra users.token_version.
+    # None = autenticado por PAT (los PAT se revocan uno a uno, no por versión).
+    user_id: int | None = None
+    token_ver: int | None = None
+    session_claims = _decode_token(request.cookies.get("session") or "")
+    if session_claims is not None:
+        user_id, token_ver = session_claims
+    else:
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
             bearer = auth[7:].strip()
             if bearer.startswith(TOKEN_PREFIX):
                 user_id = db.resolve_api_token(hash_api_token(bearer))
             else:
-                user_id = _decode_token(bearer)
+                bearer_claims = _decode_token(bearer)
+                if bearer_claims is not None:
+                    user_id, token_ver = bearer_claims
 
     if user_id is not None:
         user = db.get_user_by_id(user_id)
+        if user is not None and token_ver is not None and token_ver != user.token_version:
+            user = None  # JWT emitido antes de un cambio de contraseña → revocado
         if user is not None:
             user_id = int(user.id)
             request.state.user_id = user_id
@@ -912,8 +984,13 @@ async def attach_user(request: Request, call_next):
             request.state.user_display_name = user.display_name
             request.state.user_avatar_color = user.avatar_color
 
-            db.ensure_default_workspace(user_id)
+            # Solo crear el workspace por defecto si de verdad falta (usuario sin
+            # ninguno): antes se llamaba incondicionalmente y eso metía un UPDATE
+            # en cada request autenticada — puro desgaste de WAL en la Pi.
             workspaces = db.list_workspaces(user_id)
+            if not workspaces:
+                db.ensure_default_workspace(user_id)
+                workspaces = db.list_workspaces(user_id)
             request.state.workspaces = workspaces
 
             requested_slug = request.query_params.get("ws") or request.cookies.get("workspace")

@@ -11,10 +11,23 @@ export default function KeyboardShortcuts() {
   const navigate = useNavigate()
   const location = useLocation()
   const [helpOpen, setHelpOpen] = useState(false)
+  const closeRef = useRef(null)
+  const prevFocusRef = useRef(null) // a quién devolver el foco al cerrar
 
   // Ruta actual en un ref para que el listener (montado una vez) la lea fresca.
   const locRef = useRef(location)
   locRef.current = location
+
+  // Al abrir, foco al botón de cerrar; al cerrar, de vuelta a donde estaba (a11y).
+  useEffect(() => {
+    if (helpOpen) {
+      prevFocusRef.current = document.activeElement
+      closeRef.current?.focus()
+    } else if (prevFocusRef.current) {
+      prevFocusRef.current.focus?.()
+      prevFocusRef.current = null
+    }
+  }, [helpOpen])
 
   useEffect(() => {
     function onKey(event) {
@@ -54,6 +67,8 @@ export default function KeyboardShortcuts() {
     <div
       className={'shortcuts-overlay' + (helpOpen ? ' open' : '')}
       aria-hidden={helpOpen ? 'false' : 'true'}
+      // Cerrado sigue en el DOM (opacity:0): `inert` lo saca del orden de tabulación.
+      {...(helpOpen ? {} : { inert: '' })}
       onClick={(event) => {
         if (event.target === event.currentTarget) setHelpOpen(false)
       }}
@@ -61,7 +76,7 @@ export default function KeyboardShortcuts() {
       <div className="shortcuts-modal" role="dialog" aria-modal="true" aria-label={t('shortcuts_title')}>
         <div className="shortcuts-head">
           <span className="shortcuts-title">{t('shortcuts_title')}</span>
-          <button className="shortcuts-close" type="button" onClick={() => setHelpOpen(false)} aria-label={t('close')}>
+          <button ref={closeRef} className="shortcuts-close" type="button" onClick={() => setHelpOpen(false)} aria-label={t('close')}>
             ×
           </button>
         </div>

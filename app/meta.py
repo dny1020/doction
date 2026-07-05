@@ -53,7 +53,7 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
         key = key.strip().lower()
         if key:
             meta[key] = _parse_scalar_or_list(raw)
-    return meta, content[match.end():]
+    return meta, content[match.end() :]
 
 
 def extract_tags(content: str) -> list[str]:

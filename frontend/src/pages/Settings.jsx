@@ -2,33 +2,33 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
+import { useToast } from '../components/Toast.jsx'
+import { useConfirm } from '../components/ConfirmDialog.jsx'
 import { AVATAR_COLORS, autoColor, avatarLetter } from '../avatar.js'
 import WorkspaceSettings from '../components/WorkspaceSettings.jsx'
 
 // Página de ajustes: perfil, contraseña, tokens de API y workspaces.
-// El mensaje de aviso (flash) vive aquí arriba y lo comparten las secciones.
+// Los avisos van por los toasts globales (antes había un flash local de la página).
 export default function Settings() {
   const { t } = useI18n()
-  const [flash, setFlash] = useState(null) // { tone: 'ok' | 'error', text }
 
   return (
     <div className="settings">
       <h1 className="settings-h1">{t('settings')}</h1>
 
-      {flash && <div className={'settings-flash settings-flash--' + flash.tone}>{flash.text}</div>}
-
-      <ProfileSection setFlash={setFlash} />
-      <PasswordSection setFlash={setFlash} />
-      <TokensSection setFlash={setFlash} />
-      <WorkspaceSettings setFlash={setFlash} />
+      <ProfileSection />
+      <PasswordSection />
+      <TokensSection />
+      <WorkspaceSettings />
     </div>
   )
 }
 
 // ── Perfil: nombre visible + color del avatar ───────────────────────────────
-function ProfileSection({ setFlash }) {
+function ProfileSection() {
   const { user, refresh } = useAuth()
   const { t } = useI18n()
+  const toast = useToast()
   const [name, setName] = useState(user.display_name || '')
   const [color, setColor] = useState(user.avatar_color || '') // '' = automático
   const [busy, setBusy] = useState(false)
@@ -42,9 +42,9 @@ function ProfileSection({ setFlash }) {
     try {
       await api.post('/api/settings/profile', { display_name: name, avatar_color: color })
       await refresh() // refresca el avatar de la barra lateral
-      setFlash({ tone: 'ok', text: t('msg_profile') })
+      toast(t('msg_profile'))
     } catch (e) {
-      setFlash({ tone: 'error', text: e.message })
+      toast(e.message, 'error')
     } finally {
       setBusy(false)
     }
@@ -96,8 +96,9 @@ function ProfileSection({ setFlash }) {
 }
 
 // ── Contraseña ──────────────────────────────────────────────────────────────
-function PasswordSection({ setFlash }) {
+function PasswordSection() {
   const { t } = useI18n()
+  const toast = useToast()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -115,9 +116,9 @@ function PasswordSection({ setFlash }) {
       setCurrent('')
       setNext('')
       setConfirm('')
-      setFlash({ tone: 'ok', text: t('msg_password') })
+      toast(t('msg_password'))
     } catch (e) {
-      setFlash({ tone: 'error', text: e.message })
+      toast(e.message, 'error')
     } finally {
       setBusy(false)
     }
@@ -169,8 +170,10 @@ function PasswordSection({ setFlash }) {
 }
 
 // ── Tokens de API ───────────────────────────────────────────────────────────
-function TokensSection({ setFlash }) {
+function TokensSection() {
   const { t } = useI18n()
+  const toast = useToast()
+  const confirm = useConfirm()
   const [tokens, setTokens] = useState([])
   const [name, setName] = useState('')
   const [newToken, setNewToken] = useState(null) // texto plano, mostrado una sola vez
@@ -190,20 +193,20 @@ function TokensSection({ setFlash }) {
       setName('')
       reload()
     } catch (e) {
-      setFlash({ tone: 'error', text: e.message })
+      toast(e.message, 'error')
     } finally {
       setBusy(false)
     }
   }
 
   async function onRevoke(id) {
-    if (!window.confirm(t('confirm_revoke_token'))) return
+    if (!(await confirm(t('confirm_revoke_token'), { confirmLabel: t('revoke'), danger: true }))) return
     try {
       await api.del('/api/tokens/' + id)
       reload()
-      setFlash({ tone: 'ok', text: t('msg_token_revoked') })
+      toast(t('msg_token_revoked'))
     } catch (e) {
-      setFlash({ tone: 'error', text: e.message })
+      toast(e.message, 'error')
     }
   }
 

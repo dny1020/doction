@@ -63,6 +63,7 @@ def test_member_sees_and_edits_shared_workspace(client):
     assert hist[0]["author"] == "b@test.com"
 
     import app.db as db_module
+
     a_uid = int(db_module.get_user_by_email("a@test.com").id)
     wid = int(db_module.get_workspace_by_slug(a_uid, a_slug).id)
     page = db_module.get_page(page_slug, a_uid, wid)
@@ -74,9 +75,7 @@ def test_member_cannot_manage_workspace(client):
     _register(client, "b@test.com")
     ta, tb = _token(client, "a@test.com"), _token(client, "b@test.com")
     a_slug = _default_slug(client, ta)
-    client.post(
-        f"/api/workspaces/{a_slug}/members", json={"email": "b@test.com"}, headers=_h(ta)
-    )
+    client.post(f"/api/workspaces/{a_slug}/members", json={"email": "b@test.com"}, headers=_h(ta))
 
     # B (member) no puede añadir ni quitar miembros.
     r = client.post(
@@ -97,9 +96,7 @@ def test_removing_member_revokes_access(client):
     page_slug = client.post(
         "/api/pages", json={"title": "Shared", "content": "v1"}, headers=_h(ta)
     ).json()["slug"]
-    client.post(
-        f"/api/workspaces/{a_slug}/members", json={"email": "b@test.com"}, headers=_h(ta)
-    )
+    client.post(f"/api/workspaces/{a_slug}/members", json={"email": "b@test.com"}, headers=_h(ta))
 
     b_id = next(m["user_id"] for m in _members(client, ta, a_slug) if m["email"] == "b@test.com")
     r = client.delete(f"/api/workspaces/{a_slug}/members/{b_id}", headers=_h(ta))

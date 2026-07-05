@@ -23,6 +23,12 @@ export function I18nProvider({ children }) {
       .finally(() => setReady(true))
   }, [])
 
+  // index.html trae lang="en" fijo; sin esto, un lector de pantalla leería la
+  // interfaz en español con voz/reglas de inglés.
+  useEffect(() => {
+    document.documentElement.lang = data.lang
+  }, [data.lang])
+
   function t(key) {
     return data.t[key] || key
   }

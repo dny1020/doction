@@ -82,6 +82,7 @@ def test_page_view(client):
 
 # ── Fase 2: settings, papelera, historial/restaurar, workspaces ──────────────
 
+
 def test_update_profile(client):
     _register(client)
     r = client.post(

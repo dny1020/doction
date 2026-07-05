@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
+import { useToast } from '../components/Toast.jsx'
+import { useConfirm } from '../components/ConfirmDialog.jsx'
 
 // Clase CSS para colorear una línea de diff unificado (misma lógica que el
 // frontend Jinja: añadidos, borrados, cabeceras de hunk y metadatos).
@@ -21,6 +23,8 @@ export default function History() {
   const { pages, reloadPages } = useOutletContext()
   const { t } = useI18n()
   const navigate = useNavigate()
+  const toast = useToast()
+  const confirm = useConfirm()
   const [history, setHistory] = useState(null) // null = cargando
   const [error, setError] = useState(null)
 
@@ -38,8 +42,13 @@ export default function History() {
   const title = treePage ? treePage.title : slug
 
   async function onRestore(sha) {
-    if (!window.confirm(t('confirm_restore'))) return
-    await api.post('/api/pages/' + slug + '/restore/' + sha)
+    if (!(await confirm(t('confirm_restore'), { confirmLabel: t('restore') }))) return
+    try {
+      await api.post('/api/pages/' + slug + '/restore/' + sha)
+    } catch (e) {
+      toast(e.message, 'error')
+      return
+    }
     reloadPages()
     navigate('/p/' + slug)
   }

@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
+import { useToast } from '../components/Toast.jsx'
+import { useConfirm } from '../components/ConfirmDialog.jsx'
 import Markdown from '../components/Markdown.jsx'
 import Toc from '../components/Toc.jsx'
 
@@ -9,27 +11,42 @@ import Toc from '../components/Toc.jsx'
 // contenido + migas + subpáginas + backlinks + relacionadas en una sola llamada.
 export default function Reader() {
   const { slug } = useParams()
-  const { pages, reloadPages } = useOutletContext()
+  const { pages, pagesError, reloadPages } = useOutletContext()
   const { t } = useI18n()
   const navigate = useNavigate()
+  const toast = useToast()
+  const confirm = useConfirm()
   const [view, setView] = useState(null)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState(null) // Error de api.js (trae .status)
   const wrapRef = useRef(null)
   const proseRef = useRef(null)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!slug) return
     setView(null)
     setError(null)
     api
       .get('/api/pages/' + slug + '/view')
       .then(setView)
-      .catch((e) => setError(e.message))
+      .catch(setError)
   }, [slug])
 
-  // Ruta home (/): si hay páginas, abre la primera; si no, estado vacío.
+  useEffect(load, [load])
+
+  // Ruta home (/): si hay páginas, abre la primera; si no, estado vacío — salvo
+  // que el árbol no cargara (red caída ≠ workspace vacío).
   if (!slug) {
     if (pages && pages.length > 0) return <Navigate to={'/p/' + pages[0].slug} replace />
+    if (pagesError) {
+      return (
+        <div className="placeholder placeholder--error">
+          <h1>{t('tree_error')}</h1>
+          <button className="btn btn-primary" type="button" onClick={reloadPages}>
+            {t('retry')}
+          </button>
+        </div>
+      )
+    }
     return (
       <div className="placeholder">
         <h1>{t('empty_title')}</h1>
@@ -40,18 +57,39 @@ export default function Reader() {
     )
   }
 
-  if (error) {
+  if (error && error.status === 404) {
     return (
       <div className="placeholder">
-        <h1>{error}</h1>
+        <h1>{t('nf_title')}</h1>
+        <p className="muted">
+          {t('nf_desc')} <code>/{slug}</code>
+        </p>
+        <Link className="btn btn-primary" to="/">{t('back_home')}</Link>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="placeholder placeholder--error">
+        <h1>{t('error_title')}</h1>
+        <p className="muted">{error.message}</p>
+        <button className="btn btn-primary" type="button" onClick={load}>
+          {t('retry')}
+        </button>
       </div>
     )
   }
   if (!view) return <div className="placeholder">{t('loading')}</div>
 
   async function onDelete() {
-    if (!window.confirm(t('confirm_delete_page') + ' “' + view.title + '”?')) return
-    await api.del('/api/pages/' + slug)
+    const message = t('confirm_delete_page') + ' “' + view.title + '”?'
+    if (!(await confirm(message, { confirmLabel: t('delete'), danger: true }))) return
+    try {
+      await api.del('/api/pages/' + slug)
+    } catch (e) {
+      toast(e.message, 'error')
+      return
+    }
     reloadPages()
     navigate('/')
   }

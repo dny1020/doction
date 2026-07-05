@@ -53,6 +53,7 @@ def _l2_normalize(mat: np.ndarray) -> np.ndarray:
 
 # ── Encoders ─────────────────────────────────────────────────────────────────
 
+
 class _OnnxEmbedder:
     """MiniLM int8 vía onnxruntime + tokenizer HF. Mean-pooling + L2 normalize."""
 
@@ -121,6 +122,7 @@ def reset_embedder() -> None:
 
 # ── Storage helpers ──────────────────────────────────────────────────────────
 
+
 def _to_blob(vec: np.ndarray) -> bytes:
     return np.asarray(vec, dtype=np.float32).tobytes()
 
@@ -156,6 +158,7 @@ def drain_pending(limit: int = 1000) -> int:
 
 
 # ── Search ───────────────────────────────────────────────────────────────────
+
 
 def _snippet(text: str, length: int = 240) -> str:
     text = " ".join(text.split())
@@ -273,21 +276,22 @@ def rag_context(user_id: int, workspace_id: int, query: str, *, k: int = 6) -> d
             ]
             return {"query": query, "mode": "semantic", "chunks": chunks}
 
-    rows = db.search_pages(user_id, workspace_id, query, limit=k)
+    hits = db.search_pages(user_id, workspace_id, query, limit=k)
     chunks = [
         {
-            "slug": r.slug,
-            "title": r.title,
+            "slug": h.slug,
+            "title": h.title,
             "ord": None,
             "score": None,
-            "text": _clean(r.snippet),
+            "text": _clean(h.snippet),
         }
-        for r in rows
+        for h in hits
     ]
     return {"query": query, "mode": "fts", "chunks": chunks}
 
 
 # ── Background enrichment (sin broker; plan §5 "queue job, enrich later") ──────
+
 
 async def enrichment_worker(*, interval: float = 2.0, batch: int = 5) -> None:
     """Loop async que embebe páginas sucias en un threadpool (no bloquea el loop)."""
@@ -301,9 +305,20 @@ async def enrichment_worker(*, interval: float = 2.0, batch: int = 5) -> None:
                 await asyncio.sleep(interval)
                 continue
             for row in pending:
-                await asyncio.to_thread(
-                    reindex_page, int(row.id), int(row.workspace_id), row.content or ""
-                )
+                # try/except por página: sin esto, una página que siempre falla
+                # encabezaba cada batch y bloqueaba la cola para siempre.
+                try:
+                    await asyncio.to_thread(
+                        reindex_page, int(row.id), int(row.workspace_id), row.content or ""
+                    )
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception(
+                        "no se pudo indexar la página %s; se salta hasta su próxima edición",
+                        row.id,
+                    )
+                    await asyncio.to_thread(db.clear_embed_dirty, int(row.id))
         except asyncio.CancelledError:
             logger.info("embedding worker detenido")
             raise
