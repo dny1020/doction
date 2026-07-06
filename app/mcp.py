@@ -13,7 +13,7 @@ from collections.abc import Callable
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
-from app import db, embeddings, git_repo
+from app import db, embeddings, git_repo, suggest
 from app.models import Workspace
 from app.version import VERSION
 
@@ -90,7 +90,13 @@ def _tool_search_pages(user_id: int, args: dict) -> list[dict]:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     results = db.search_pages(user_id, int(ws.id), query)
-    return [{"slug": r.slug, "title": r.title, "snippet": r.snippet} for r in results]
+    out: list[dict] = [{"slug": r.slug, "title": r.title, "snippet": r.snippet} for r in results]
+    # Uploads con texto OCR indexado (OCR_UPLOADS): items extra con type="upload".
+    out += [
+        {"type": "upload", "name": h.name, "url": f"/uploads/{h.name}", "snippet": h.snippet}
+        for h in db.search_uploads(int(ws.id), query)
+    ]
+    return out
 
 
 def _tool_create_page(user_id: int, args: dict) -> dict:
@@ -174,6 +180,39 @@ def _tool_rag(user_id: int, args: dict) -> dict:
     return embeddings.rag_context(user_id, int(ws.id), query, k=limit)
 
 
+def _tool_suggest_links(user_id: int, args: dict) -> dict:
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    result = suggest.suggest_links(user_id, int(ws.id), slug)
+    if result is None:
+        raise ValueError(f"Page not found: {slug}")
+    return result
+
+
+def _tool_suggest_tags(user_id: int, args: dict) -> dict:
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    result = suggest.suggest_tags(user_id, int(ws.id), slug)
+    if result is None:
+        raise ValueError(f"Page not found: {slug}")
+    return result
+
+
+def _tool_summarize_page(user_id: int, args: dict) -> dict:
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    page = db.get_page(slug, user_id, int(ws.id))
+    if page is None:
+        raise ValueError(f"Page not found: {slug}")
+    k = max(1, min(int(args.get("sentences") or 3), 10))
+    return {"slug": slug, **suggest.summarize(page.content, k=k)}
+
+
+def _tool_workspace_insights(user_id: int, args: dict) -> dict:
+    ws = _workspace(user_id, args)
+    return suggest.workspace_insights(user_id, int(ws.id))
+
+
 _WORKSPACE_PROP = {
     "workspace": {
         "type": "string",
@@ -208,7 +247,11 @@ TOOLS: list[dict] = [
     },
     {
         "name": "search_pages",
-        "description": "Full-text search (PostgreSQL tsvector/ts_rank) over titles and content.",
+        "description": (
+            "Full-text search (PostgreSQL tsvector/ts_rank) over titles and content. "
+            'Also returns OCR-indexed upload matches (items with type="upload") when '
+            "the server has OCR_UPLOADS enabled."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {"query": {"type": "string"}, **_WORKSPACE_PROP},
@@ -309,6 +352,58 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "suggest_links",
+        "description": (
+            "Pages this page should probably link to but doesn't yet: cosine similarity "
+            "over local page embeddings, or literal title mentions when semantic search "
+            "is off. Returns slug, title, score and a `mode` field."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"slug": {"type": "string"}, **_WORKSPACE_PROP},
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "suggest_tags",
+        "description": (
+            "Candidate tags for a page: TF-IDF terms that are characteristic of it vs "
+            "the rest of the workspace, boosting terms already used as tags elsewhere. "
+            "No embeddings needed."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"slug": {"type": "string"}, **_WORKSPACE_PROP},
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "summarize_page",
+        "description": (
+            "Extractive summary (TextRank over local sentence embeddings, no LLM): the "
+            "k most central sentences in document order. Falls back to the leading "
+            "sentences when semantic search is disabled."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string"},
+                "sentences": {"type": "integer", "default": 3},
+                **_WORKSPACE_PROP,
+            },
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "workspace_insights",
+        "description": (
+            "Workspace health report from the wikilink graph: central pages (PageRank), "
+            "orphans, hubs, authorities, broken wikilinks, near-duplicate pairs and "
+            "semantic topic clusters (the last two only when semantic search is on)."
+        ),
+        "inputSchema": {"type": "object", "properties": {**_WORKSPACE_PROP}},
+    },
+    {
         "name": "rag",
         "description": (
             "Retrieval pipe: returns the top-k most relevant chunks with provenance "
@@ -343,6 +438,10 @@ TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
     "related_pages": _tool_related_pages,
     "sgrep": _tool_sgrep,
     "rag": _tool_rag,
+    "suggest_links": _tool_suggest_links,
+    "suggest_tags": _tool_suggest_tags,
+    "summarize_page": _tool_summarize_page,
+    "workspace_insights": _tool_workspace_insights,
 }
 
 

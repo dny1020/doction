@@ -19,7 +19,7 @@ def normalize_tag(tag: str) -> str:
     return tag.strip().lstrip("#").lower()
 
 
-def _strip_code(text: str) -> str:
+def strip_code(text: str) -> str:
     """Quita bloques ``` y spans `inline` para no confundir comentarios con #tags."""
     text = _FENCE_RE.sub(" ", text)
     return _INLINE_CODE_RE.sub(" ", text)
@@ -67,7 +67,7 @@ def extract_tags(content: str) -> list[str]:
     elif isinstance(fm_tags, str) and fm_tags:
         found.extend(fm_tags.split(","))
 
-    for m in _TAG_RE.finditer(_strip_code(body)):
+    for m in _TAG_RE.finditer(strip_code(body)):
         found.append(m.group(1))
 
     seen: set[str] = set()
@@ -84,7 +84,7 @@ def extract_links(content: str) -> list[str]:
     """Targets crudos de wikilinks `[[target]]` o `[[target|texto]]` (sin código)."""
     seen: set[str] = set()
     out: list[str] = []
-    for m in _WIKILINK_RE.finditer(_strip_code(content)):
+    for m in _WIKILINK_RE.finditer(strip_code(content)):
         target = m.group(1).strip()
         if target and target not in seen:
             seen.add(target)

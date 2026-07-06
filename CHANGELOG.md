@@ -6,6 +6,29 @@ simple incremental versioning (`pyproject.toml` ⇆ `SERVER_INFO` in `app/mcp.py
 
 ## [Unreleased]
 
+### Added
+- **Local ML round, no LLM and zero new Python dependencies** (`app/suggest.py`,
+  `app/graph.py`, numpy over the existing embeddings/link graph):
+  - Wikilink suggestions: `GET /api/pages/{slug}/suggest-links` + MCP `suggest_links`
+    (cosine similarity between page vectors; literal title-mention fallback when
+    semantic search is off).
+  - Tag suggestions: `GET /api/pages/{slug}/suggest-tags` + MCP `suggest_tags`
+    (TF-IDF vs the workspace corpus, boosting terms already used as tags).
+  - Extractive summaries: `GET /api/pages/{slug}/summary` + MCP `summarize_page`
+    (TextRank over sentence embeddings; leading-sentences fallback).
+  - Workspace insights: `GET /api/insights` + MCP `workspace_insights` — PageRank
+    central pages, orphans, hubs/authorities, broken wikilinks, near-duplicate pairs
+    and k-means topic clusters. MCP tool count: 13 → 17.
+- **OCR for uploads** (opt-in `OCR_UPLOADS=1`, `app/ocr.py`): the bundled tesseract
+  binary indexes the text inside uploaded images into a new `upload_texts` table
+  (generated tsvector + GIN). Surfaced via `GET /api/search?uploads=1` (opt-in param;
+  the default response stays pages-only) and as `type: "upload"` items in MCP
+  `search_pages`. Languages via `OCR_LANGS` (default `eng+spa`).
+- **Cross-encoder reranker** (opt-in `RERANK=1`, requires `SEMANTIC_SEARCH=1`):
+  ms-marco MiniLM int8 ONNX (~23 MB, baked into the image with pinned revision +
+  SHA-256) re-scores the top-20 sgrep candidates; results gain `rerank_score` and
+  `via: "semantic+rerank"` while keeping the bi-encoder `score` for explainability.
+
 ## [0.9] — 2026-06-15
 
 ### Added

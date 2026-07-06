@@ -64,6 +64,12 @@ FROM base AS runtime
 
 RUN uv sync --frozen --no-dev && uv cache clean
 
+# OCR local opt-in (OCR_UPLOADS=1): tesseract indexa el texto de las imágenes
+# subidas para la búsqueda. Solo en runtime — el stage test no lo necesita.
+RUN apt-get update -qq && apt-get install -y --no-install-recommends \
+        tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa \
+    && rm -rf /var/lib/apt/lists/*
+
 # Modelo de embeddings (MiniLM int8, ~22MB) horneado en la imagen → semántica
 # offline, sin servicios externos. Opt-in en runtime con SEMANTIC_SEARCH=1; si está
 # apagado el modelo ni se carga (0 RAM extra). Revisión + sha256 fijadas (reproducible).
@@ -78,6 +84,20 @@ RUN mkdir -p /app/models \
         "https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REV}/tokenizer.json" \
     && echo "${MODEL_SHA256}  /app/models/model_quantized.onnx" | sha256sum -c - \
     && echo "${TOKENIZER_SHA256}  /app/models/tokenizer.json" | sha256sum -c -
+
+# Reranker cross-encoder (ms-marco MiniLM int8, ~23MB): repuntúa el top-20 de sgrep.
+# Opt-in en runtime con RERANK=1 (requiere SEMANTIC_SEARCH=1); apagado no carga nada.
+ARG RERANK_REPO=Xenova/ms-marco-MiniLM-L-6-v2
+ARG RERANK_REV=a09144355adeed5f58c8ed011d209bf8ee5a1fec
+ARG RERANK_SHA256=e9d8ebf845c413e981c175bfe49a3bfa9b3dcce2a3ba54875ee5df5a58639fbe
+ARG RERANK_TOKENIZER_SHA256=d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
+RUN mkdir -p /app/models/reranker \
+    && curl -fsSL -o /app/models/reranker/model_quantized.onnx \
+        "https://huggingface.co/${RERANK_REPO}/resolve/${RERANK_REV}/onnx/model_quantized.onnx" \
+    && curl -fsSL -o /app/models/reranker/tokenizer.json \
+        "https://huggingface.co/${RERANK_REPO}/resolve/${RERANK_REV}/tokenizer.json" \
+    && echo "${RERANK_SHA256}  /app/models/reranker/model_quantized.onnx" | sha256sum -c - \
+    && echo "${RERANK_TOKENIZER_SHA256}  /app/models/reranker/tokenizer.json" | sha256sum -c -
 
 COPY app ./app
 COPY scripts ./scripts

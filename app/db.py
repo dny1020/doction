@@ -18,6 +18,7 @@ from app.models import (
     ChunkVector,
     EmbedTarget,
     ExtractedPage,
+    LinkEdge,
     Member,
     Page,
     PageMeta,
@@ -25,6 +26,7 @@ from app.models import (
     PageRef,
     RelatedPage,
     SearchHit,
+    UploadHit,
     User,
     Workspace,
 )
@@ -264,6 +266,20 @@ SCHEMA_STATEMENTS = [
     """,
     "CREATE INDEX IF NOT EXISTS page_chunks_ws_idx ON page_chunks(workspace_id)",
     "CREATE INDEX IF NOT EXISTS page_chunks_page_idx ON page_chunks(page_id)",
+    """
+    CREATE TABLE IF NOT EXISTS upload_texts (
+        name          TEXT NOT NULL,
+        workspace_id  BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        user_id       BIGINT REFERENCES users(id) ON DELETE SET NULL,
+        text          TEXT NOT NULL,
+        created_at    TEXT NOT NULL,
+        search_vector tsvector GENERATED ALWAYS AS (
+            to_tsvector('english', coalesce(text, ''))
+        ) STORED,
+        PRIMARY KEY (name, workspace_id)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS upload_texts_search_idx ON upload_texts USING GIN(search_vector)",
 ]
 
 
@@ -995,6 +1011,59 @@ def related_pages(
         ]
 
 
+def workspace_pages(workspace_id: int) -> list[Page]:
+    """Páginas vivas (id, slug, title, content) para las funciones ML locales
+    (TF-IDF, sugerencias, insights). El acceso ya lo garantizó la membresía al
+    resolver el workspace."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, slug, title, content FROM pages "
+            "WHERE workspace_id = %s AND deleted_at IS NULL ORDER BY id",
+            (workspace_id,),
+        ).fetchall()
+        return [_to_page(row) for row in rows]
+
+
+def page_outgoing_links(page_id: int) -> list[str]:
+    """Slugs destino de los wikilinks salientes de una página."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT dst_slug FROM page_links WHERE src_page_id = %s", (page_id,)
+        ).fetchall()
+        return [r["dst_slug"] for r in rows]
+
+
+def workspace_links(workspace_id: int) -> list[LinkEdge]:
+    """Todas las aristas de wikilinks del workspace (origen vivo; el destino puede
+    no existir — enlace roto, lo resuelve app.graph)."""
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT l.src_page_id, l.dst_slug
+            FROM page_links l
+            JOIN pages p ON p.id = l.src_page_id
+            WHERE l.workspace_id = %s AND p.deleted_at IS NULL
+            """,
+            (workspace_id,),
+        ).fetchall()
+        return [LinkEdge(src_page_id=r["src_page_id"], dst_slug=r["dst_slug"]) for r in rows]
+
+
+def workspace_tags(workspace_id: int) -> list[str]:
+    """Vocabulario de tags vivos del workspace (para alinear sugerencias TF-IDF)."""
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT t.tag
+            FROM page_tags t
+            JOIN pages p ON p.id = t.page_id
+            WHERE p.workspace_id = %s AND p.deleted_at IS NULL
+            """,
+            (workspace_id,),
+        ).fetchall()
+        return [r["tag"] for r in rows]
+
+
 def pages_to_embed(limit: int = 10) -> list[EmbedTarget]:
     """Páginas marcadas como sucias (embed_dirty=1) pendientes de embedding."""
     with connect() as conn:
@@ -1063,6 +1132,46 @@ def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[ChunkVector
             )
             for r in rows
         ]
+
+
+def store_upload_text(name: str, user_id: int, workspace_id: int, text: str) -> None:
+    """Guarda/actualiza el texto OCR de un upload. La clave es (name, workspace_id):
+    el nombre viene del hash del archivo, así que la misma imagen puede vivir en
+    varios workspaces sin que uno vea el texto del otro."""
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO upload_texts (name, workspace_id, user_id, text, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (name, workspace_id)
+            DO UPDATE SET text = EXCLUDED.text, user_id = EXCLUDED.user_id
+            """,
+            (name, workspace_id, user_id, text, _now()),
+        )
+
+
+def search_uploads(workspace_id: int, query: str, limit: int = 5) -> list[UploadHit]:
+    """Búsqueda FTS sobre el texto OCR de los uploads del workspace."""
+    match = _fts_query(query)
+    if not match:
+        return []
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT name,
+                   ts_headline(
+                       'english', text, to_tsquery(%s),
+                       'StartSel=<mark>, StopSel=</mark>, MaxWords=12, MinWords=1, '
+                       'MaxFragments=1'
+                   ) AS snippet
+            FROM upload_texts
+            WHERE search_vector @@ to_tsquery(%s) AND workspace_id = %s
+            ORDER BY ts_rank(search_vector, to_tsquery(%s)) DESC
+            LIMIT %s
+            """,
+            (match, match, workspace_id, match, limit),
+        ).fetchall()
+        return [UploadHit(name=r["name"], snippet=r["snippet"]) for r in rows]
 
 
 def get_workspace_by_id(workspace_id: int) -> Workspace | None:

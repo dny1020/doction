@@ -27,7 +27,14 @@ container + a Postgres container — no API keys, no SaaS, no LLM inside doction
   `sgrep` (meaning-based search) and `rag` (retrieval with provenance). Fully offline, no
   API keys; gracefully degrades to FTS when disabled.
 - **Per-page git history** — every save is a commit; browse diffs and previous versions.
-- **REST API** + **native MCP server** (JSON-RPC 2.0, 13 tools) for agents.
+- **Local ML, no LLM** — wikilink & tag suggestions, near-duplicate detection, extractive
+  summaries (TextRank) and workspace insights (PageRank, orphans, broken links, topic
+  clusters), all computed locally with numpy over the existing embeddings/link graph.
+- **OCR for uploads** (opt-in) — tesseract indexes the text inside pasted screenshots so
+  they show up in search.
+- **Cross-encoder reranker** (opt-in) — a second tiny ONNX model re-scores the top
+  semantic hits for noticeably better precision.
+- **REST API** + **native MCP server** (JSON-RPC 2.0, 17 tools) for agents.
 - **No LLM inside doction** — retrieval only; the connected agent does the generation.
 
 ## How it works
@@ -44,9 +51,10 @@ container + a Postgres container — no API keys, no SaaS, no LLM inside doction
 
 On every save, doction commits the page to git and extracts its metadata (frontmatter,
 tags, wikilinks) into indexed tables. When semantic search is enabled, a background worker
-chunks and embeds the page without blocking the app. doction handles **retrieval**; text
-generation (summaries, RAG answers) is done by the agent connected over MCP — there is no
-LLM inside doction.
+chunks and embeds the page without blocking the app. doction handles **retrieval** and
+light local ML (suggestions, insights, *extractive* summaries — it only selects existing
+sentences, never writes new text); generative answers are the job of the agent connected
+over MCP — there is no LLM inside doction.
 
 ---
 
@@ -70,11 +78,14 @@ docker compose up
 | `DATA_DIR` | Directory for the git pages repo + uploads. | `/data` |
 | `SECURE_COOKIES` | `1` when behind TLS (reverse proxy). | off |
 | `SEMANTIC_SEARCH` | `1` enables local semantic search (`sgrep` / `rag`). | off |
+| `RERANK` | `1` re-scores top `sgrep` hits with a local cross-encoder (requires `SEMANTIC_SEARCH=1`). | off |
+| `OCR_UPLOADS` | `1` OCR-indexes uploaded images with tesseract so they appear in search. | off |
+| `OCR_LANGS` | tesseract language packs used for OCR. | `eng+spa` |
 | `LOG_LEVEL` | Root logger level (`DEBUG`/`INFO`/`WARNING`/…). | `INFO` |
 | `LOG_DIR` | Directory for the rotated log file (also mirrored to stdout). | `/logs` |
 
-> The embedding model (~22 MB) ships inside the image. It is only loaded into RAM when
-> `SEMANTIC_SEARCH=1`; when off, it costs nothing.
+> The embedding model (~22 MB) and the reranker (~23 MB) ship inside the image. Each is
+> loaded into RAM only when its flag is on; when off, they cost nothing.
 
 ---
 
@@ -116,7 +127,12 @@ POST   /api/pages                        create page
 PUT    /api/pages/{slug}                 update page
 DELETE /api/pages/{slug}                 delete page
 GET    /api/search?q=...                 full-text search (PostgreSQL FTS)
-GET    /api/search?q=...&mode=semantic   semantic search (sgrep)
+GET    /api/search?q=...&mode=semantic   semantic search (sgrep; reranked with RERANK=1)
+GET    /api/search?q=...&uploads=1       also match OCR text of uploaded images
+GET    /api/pages/{slug}/suggest-links   wikilink suggestions (embeddings / title mentions)
+GET    /api/pages/{slug}/suggest-tags    tag suggestions (TF-IDF vs the workspace)
+GET    /api/pages/{slug}/summary         extractive summary (TextRank, no LLM)
+GET    /api/insights                     workspace health: graph + duplicates + clusters
 GET    /api/pages/{slug}/history         git history
 GET    /api/pages/{slug}/history/{sha}   content at a commit
 POST   /api/mcp                          MCP (JSON-RPC 2.0)
@@ -152,7 +168,7 @@ claude mcp add --transport http doction $DOCTION/api/mcp \
   --header "Authorization: Bearer doction_..."
 ```
 
-Once connected, the agent sees all 13 tools:
+Once connected, the agent sees all 17 tools:
 
 ![doction MCP server connected inside an agent — authenticated](docs/assets/mcp.png)
 
@@ -169,8 +185,12 @@ Once connected, the agent sees all 13 tools:
 | `extract` | structured query by frontmatter `type:` / tags (no LLM) |
 | `list_backlinks` | pages linking here via `[[wikilink]]` |
 | `related_pages` | neighbor pages by shared tags (knowledge graph) |
-| `sgrep` | semantic search blended with keyword boost |
+| `sgrep` | semantic search blended with keyword boost (reranked when `RERANK=1`) |
 | `rag` | top-k chunks with provenance for the agent to synthesize |
+| `suggest_links` | pages this page should link to but doesn't yet |
+| `suggest_tags` | candidate tags via TF-IDF against the workspace corpus |
+| `summarize_page` | extractive TextRank summary (no LLM) |
+| `workspace_insights` | PageRank, orphans, hubs, broken links, duplicates, topic clusters |
 
 `initialize` and `tools/list` are open; `tools/call` requires a Bearer token. Probe the
 deployed version without auth:
