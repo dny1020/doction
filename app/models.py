@@ -194,3 +194,23 @@ class ChunkVector:
     vector: bytes
     slug: str
     title: str
+
+
+@dataclass
+class UploadHit:
+    """Un upload cuyo texto OCR coincide con la búsqueda (`search_uploads`)."""
+
+    name: str
+    snippet: str
+
+
+@dataclass
+class LinkEdge:
+    """Una arista del grafo de wikilinks (`workspace_links`).
+
+    `dst_slug` es el destino tal como se guardó (slugificado); puede no resolver
+    a ninguna página existente (enlace roto).
+    """
+
+    src_page_id: int
+    dst_slug: str

@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.status import HTTP_303_SEE_OTHER
 
-from app import db, embeddings, git_repo, i18n, mcp, seed
+from app import db, embeddings, git_repo, i18n, mcp, ocr, seed, suggest
 from app.auth import (
     TOKEN_PREFIX,
     generate_api_token,
@@ -428,16 +428,71 @@ def api_delete_page(request: Request, slug: str):
         raise HTTPException(status_code=404, detail="Page not found")
 
 
+@api_router.get("/pages/{slug}/suggest-links")
+def api_suggest_links(request: Request, slug: str):
+    """Wikilinks candidatos: páginas afines (embeddings o menciones de título)
+    que esta página todavía no enlaza."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    result = suggest.suggest_links(uid, wid, slug)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    return result
+
+
+@api_router.get("/pages/{slug}/suggest-tags")
+def api_suggest_tags(request: Request, slug: str):
+    """Tags candidatos por TF-IDF frente al resto del workspace."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    result = suggest.suggest_tags(uid, wid, slug)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    return result
+
+
+@api_router.get("/pages/{slug}/summary")
+def api_page_summary(request: Request, slug: str, k: int = 3):
+    """Resumen extractivo (TextRank) de la página; `lead` si la semántica está apagada."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    page = db.get_page(slug, uid, wid)
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    k = max(1, min(k, 10))
+    return {"slug": slug, **suggest.summarize(page.content, k=k)}
+
+
+@api_router.get("/insights")
+def api_insights(request: Request):
+    """Salud del workspace: grafo de wikilinks + duplicados y clusters semánticos."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    return suggest.workspace_insights(uid, wid)
+
+
 @api_router.get("/search")
-def api_search(request: Request, q: str = "", mode: str = "keyword"):
+def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bool = False):
+    """Búsqueda del workspace. `uploads=1` añade además coincidencias en el texto
+    OCR de las imágenes subidas (items con `type: "upload"`) — opt-in para no
+    romper a los clientes que esperan solo páginas."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     if not q.strip():
         return []
     if mode == "semantic":
-        return embeddings.semantic_search(uid, wid, q)
-    results = db.search_pages(uid, wid, q)
-    return [{"slug": r.slug, "title": r.title, "snippet": r.snippet} for r in results]
+        results: list[dict] = list(embeddings.semantic_search(uid, wid, q))
+    else:
+        results = [
+            {"slug": r.slug, "title": r.title, "snippet": r.snippet}
+            for r in db.search_pages(uid, wid, q)
+        ]
+    if uploads:
+        results += [
+            {"type": "upload", "name": h.name, "url": f"/uploads/{h.name}", "snippet": h.snippet}
+            for h in db.search_uploads(wid, q)
+        ]
+    return results
 
 
 # ── SPA (React) — bootstrap + auth por JSON ──────────────────────────────────
@@ -897,11 +952,23 @@ async def register_redirect() -> Response:
     return RedirectResponse("/app/register", status_code=HTTP_303_SEE_OTHER)
 
 
+# Tareas de OCR en vuelo: referencia fuerte para que el GC no las cancele a medias.
+_OCR_TASKS: set[asyncio.Task] = set()
+
+
+async def _ocr_index_upload(name: str, user_id: int, workspace_id: int, path: Path) -> None:
+    """OCR en threadpool tras responder la subida: la latencia del upload no lo espera."""
+    try:
+        await asyncio.to_thread(ocr.index_upload, name, user_id, workspace_id, path)
+    except Exception:
+        logger.exception("ocr: fallo indexando %s", name)
+
+
 @app.post("/api/uploads")
 async def upload_image(request: Request, file: UploadFile = File(...)) -> Response:
     """Recibe una imagen (pegada/arrastrada en el editor), la guarda con nombre
     derivado de su hash y devuelve la URL para insertarla como markdown."""
-    _api_user(request)  # lanza 401 si no hay sesión
+    uid = _api_user(request)  # lanza 401 si no hay sesión
     data = await file.read()
     # HTTPException para que el error salga como {"detail": ...}, igual que el
     # resto de la API (antes este endpoint era el único que devolvía {"error": ...}).
@@ -914,6 +981,11 @@ async def upload_image(request: Request, file: UploadFile = File(...)) -> Respon
     dest = UPLOADS_DIR / name
     if not dest.exists():
         dest.write_bytes(data)
+    if ocr.ocr_enabled():
+        wid = _api_workspace(request, uid)
+        task = asyncio.create_task(_ocr_index_upload(name, uid, wid, dest))
+        _OCR_TASKS.add(task)
+        task.add_done_callback(_OCR_TASKS.discard)
     return JSONResponse({"url": f"/uploads/{name}"})
 
 

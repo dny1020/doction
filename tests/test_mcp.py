@@ -85,6 +85,10 @@ def test_tools_list(client):
         "related_pages",
         "sgrep",
         "rag",
+        "suggest_links",
+        "suggest_tags",
+        "summarize_page",
+        "workspace_insights",
     }
     for tool in r.json()["result"]["tools"]:
         assert tool["inputSchema"]["type"] == "object"

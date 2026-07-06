@@ -1,4 +1,4 @@
-.PHONY: test lint test-image backup
+.PHONY: test lint test-image backup check format bump-patch bump-minor bump-major
 
 IMAGE := doction-test-$(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 
@@ -58,3 +58,17 @@ test-image:
 	  echo "smoke test FAILED — image $(IMAGE) kept for inspection"; \
 	  exit 1; \
 	fi
+
+# Sube la versión (única fuente: pyproject.toml — app/version.py y el MCP la leen
+# de ahí en runtime), commitea y etiqueta. uv.lock también registra la versión del
+# proyecto, así que se re-lockea y entra en el mismo commit.
+bump-patch bump-minor bump-major:
+	@git diff --quiet && git diff --cached --quiet \
+		|| { echo 'working tree not clean — commit or stash first'; exit 1; }
+	@part=$(subst bump-,,$@); \
+	v=$$(python3 -c "import re,sys;c=open('pyproject.toml').read();ma,mi,pa=map(int,re.search(r'version = \"(\d+)\.(\d+)\.(\d+)\"',c).groups());print({'major':f'{ma+1}.0.0','minor':f'{ma}.{mi+1}.0','patch':f'{ma}.{mi}.{pa+1}'}[sys.argv[1]])" $$part); \
+	sed -i "s/^version = \".*\"/version = \"$$v\"/" pyproject.toml; \
+	uv lock -q; \
+	git add pyproject.toml uv.lock && git commit -m "bump: v$$v" && git tag "v$$v"; \
+	echo "v$$v — recuerda: git push && git push --tags"
+

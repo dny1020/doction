@@ -28,11 +28,14 @@ logger = logging.getLogger(__name__)
 EMBED_DIM = 384
 MAX_TOKENS = 256
 KEYWORD_BOOST = 0.1  # plan §4: "embedding similarity + keyword boost"
+RERANK_CANDIDATES = 20  # cuántos resultados del bi-encoder repuntúa el cross-encoder
 
 _DEFAULT_MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 _MODELS_DIR = Path(os.environ.get("MODEL_DIR") or _DEFAULT_MODELS_DIR)
 MODEL_PATH = str(_MODELS_DIR / "model_quantized.onnx")
 TOKENIZER_PATH = str(_MODELS_DIR / "tokenizer.json")
+RERANKER_MODEL_PATH = str(_MODELS_DIR / "reranker" / "model_quantized.onnx")
+RERANKER_TOKENIZER_PATH = str(_MODELS_DIR / "reranker" / "tokenizer.json")
 
 _MARK_RE = re.compile(r"</?mark>")
 
@@ -44,6 +47,11 @@ def _flag(name: str) -> bool:
 def semantic_enabled() -> bool:
     """True si la búsqueda semántica está activada por entorno."""
     return _flag("SEMANTIC_SEARCH")
+
+
+def rerank_enabled() -> bool:
+    """True si el reranker cross-encoder está activado (requiere semántica activa)."""
+    return _flag("RERANK") and semantic_enabled()
 
 
 def _l2_normalize(mat: np.ndarray) -> np.ndarray:
@@ -101,7 +109,55 @@ class _StubEmbedder:
         return _l2_normalize(out)
 
 
+class _OnnxReranker:
+    """Cross-encoder ms-marco MiniLM int8: puntúa pares (query, texto).
+
+    A diferencia del bi-encoder, ve query y texto juntos, así que ordena mejor;
+    solo se usa para repuntuar los primeros RERANK_CANDIDATES (opt-in RERANK=1).
+    """
+
+    name = "ms-marco-MiniLM-L-6-v2-int8"
+
+    def __init__(self) -> None:
+        import onnxruntime as ort
+        from tokenizers import Tokenizer
+
+        self._tok = Tokenizer.from_file(RERANKER_TOKENIZER_PATH)
+        self._tok.enable_truncation(max_length=MAX_TOKENS)
+        self._tok.enable_padding()
+        self._sess = ort.InferenceSession(RERANKER_MODEL_PATH, providers=["CPUExecutionProvider"])
+        self._inputs = {model_input.name for model_input in self._sess.get_inputs()}
+
+    def score(self, query: str, texts: list[str]) -> np.ndarray:
+        if not texts:
+            return np.zeros(0, dtype=np.float32)
+        encs = self._tok.encode_batch([(query, text) for text in texts])
+        feeds: dict[str, np.ndarray] = {
+            "input_ids": np.array([e.ids for e in encs], dtype=np.int64),
+            "attention_mask": np.array([e.attention_mask for e in encs], dtype=np.int64),
+        }
+        if "token_type_ids" in self._inputs:
+            feeds["token_type_ids"] = np.array([e.type_ids for e in encs], dtype=np.int64)
+        (logits,) = self._sess.run(None, feeds)  # (B, 1)
+        return logits.ravel().astype(np.float32)
+
+
+class _StubReranker:
+    """Reranker determinista para tests: solape de tokens query∩texto."""
+
+    name = "stub"
+
+    def score(self, query: str, texts: list[str]) -> np.ndarray:
+        q_tokens = set(re.findall(r"\w+", query.lower()))
+        out = np.zeros(len(texts), dtype=np.float32)
+        for i, text in enumerate(texts):
+            t_tokens = re.findall(r"\w+", text.lower())
+            out[i] = sum(1.0 for t in t_tokens if t in q_tokens)
+        return out
+
+
 _embedder: _OnnxEmbedder | _StubEmbedder | None = None
+_reranker: _OnnxReranker | _StubReranker | None = None
 _embedder_lock = threading.Lock()
 
 
@@ -115,9 +171,20 @@ def get_embedder() -> _OnnxEmbedder | _StubEmbedder:
     return _embedder
 
 
+def get_reranker() -> _OnnxReranker | _StubReranker:
+    """Singleton perezoso del cross-encoder (mismo patrón que get_embedder)."""
+    global _reranker
+    if _reranker is None:
+        with _embedder_lock:
+            if _reranker is None:
+                _reranker = _StubReranker() if _flag("EMBED_STUB") else _OnnxReranker()
+    return _reranker
+
+
 def reset_embedder() -> None:
-    global _embedder
+    global _embedder, _reranker
     _embedder = None
+    _reranker = None
 
 
 # ── Storage helpers ──────────────────────────────────────────────────────────
@@ -241,7 +308,21 @@ def semantic_search(
         r["via"] = "semantic"
 
     results.sort(key=_result_score, reverse=True)
-    out = results[:k]
+
+    if rerank_enabled() and results:
+        # Repuntúa los primeros candidatos con el cross-encoder y reordena por su
+        # score; se conserva `score` (bi-encoder) para que el resultado siga
+        # siendo explicable.
+        pool = results[:RERANK_CANDIDATES]
+        rerank_scores = get_reranker().score(query, [r["chunk"] for r in pool])
+        for r, rerank_score in zip(pool, rerank_scores, strict=True):
+            r["rerank_score"] = round(float(rerank_score), 4)
+            r["via"] = "semantic+rerank"
+        pool.sort(key=lambda r: r["rerank_score"], reverse=True)
+        out = pool[:k]
+    else:
+        out = results[:k]
+
     for r in out:
         r["score"] = round(r["score"], 4)
         r["chunk"] = _snippet(r["chunk"])
