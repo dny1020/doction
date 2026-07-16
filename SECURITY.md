@@ -42,6 +42,5 @@ doction is self-hosted; deployment security is your responsibility. Recommended 
   `proxy_net` (only reachable from the app container on the internal `db_net`), so it's
   never exposed even if the reverse proxy is misconfigured.
 - Back up both volumes: `/data` (git repo + uploads) and the Postgres data directory hold
-  all state between them. Use the provided `infra/backup.sh` (daily via
-  `doction-backup.timer`, dumps Postgres with `pg_dump` + tars `pages/`/`uploads/`) and
-  `infra/restore.sh` — see `infra/README.md`.
+  all state between them. Dump the database with `pg_dump` and archive `pages/`/`uploads/`
+  from `/data`; restoring means loading the dump and unpacking those directories back.

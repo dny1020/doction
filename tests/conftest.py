@@ -24,6 +24,7 @@ import uuid
 
 import psycopg
 import pytest
+from psycopg import sql
 
 TEST_PG_CONTAINER = "doction-test-pg"
 TEST_PG_PORT = 55432
@@ -101,7 +102,7 @@ def main_module(tmp_path, monkeypatch, admin_database_url):
     """App fresca: base Postgres aislada (una por test) + DATA_DIR en tmp_path."""
     db_name = f"doction_test_{uuid.uuid4().hex[:16]}"
     with psycopg.connect(admin_database_url, autocommit=True) as admin:
-        admin.execute(f'CREATE DATABASE "{db_name}"')
+        admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
 
     base_url = admin_database_url.rsplit("/", 1)[0]
     monkeypatch.setenv("DATABASE_URL", f"{base_url}/{db_name}")
@@ -122,7 +123,9 @@ def main_module(tmp_path, monkeypatch, admin_database_url):
 
     db_module.reset_pool()
     with psycopg.connect(admin_database_url, autocommit=True) as admin:
-        admin.execute(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
+        admin.execute(
+            sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(db_name))
+        )
 
 
 @pytest.fixture()

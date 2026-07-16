@@ -16,6 +16,7 @@ import os
 import re
 import threading
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 
@@ -89,7 +90,9 @@ class _OnnxEmbedder:
         feeds: dict[str, np.ndarray] = {"input_ids": input_ids, "attention_mask": attention}
         if "token_type_ids" in self._inputs:
             feeds["token_type_ids"] = np.array([e.type_ids for e in encs], dtype=np.int64)
-        (last_hidden,) = self._sess.run(None, feeds)  # (B, S, 384)
+        # run() promete Sequence[ndarray | SparseTensor | list | dict]; este modelo
+        # siempre devuelve un único tensor denso.
+        (last_hidden,) = cast(list[np.ndarray], self._sess.run(None, feeds))  # (B, S, 384)
         mask = attention[:, :, None].astype(np.float32)
         summed = (last_hidden * mask).sum(axis=1)
         counts = np.clip(mask.sum(axis=1), 1e-9, None)
@@ -139,7 +142,7 @@ class _OnnxReranker:
         }
         if "token_type_ids" in self._inputs:
             feeds["token_type_ids"] = np.array([e.type_ids for e in encs], dtype=np.int64)
-        (logits,) = self._sess.run(None, feeds)  # (B, 1)
+        (logits,) = cast(list[np.ndarray], self._sess.run(None, feeds))  # (B, 1)
         return logits.ravel().astype(np.float32)
 
 

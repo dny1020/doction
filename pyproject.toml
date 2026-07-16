@@ -22,8 +22,7 @@ dev = [
     "pytest>=8.3",
     "httpx>=0.28",
     "ruff>=0.8",
-    "mypy>=2.1.0",
-    "black>=26.5.1",
+    "pyright>=1.1.411",
 ]
 
 [tool.uv]
@@ -40,17 +39,9 @@ select = ["E", "F", "I", "UP", "B"]
 # FastAPI usa estos como valores por defecto de parámetros (patrón estándar).
 extend-immutable-calls = ["fastapi.File", "fastapi.Form"]
 
-[tool.black]
-line-length = 100  # igual que ruff, para que no se pisen
-target-version = ["py313"]  # igual que ruff; sin esto black asume hasta 3.15 y avisa
-
-[tool.mypy]
-python_version = "3.13"
-
-[[tool.mypy.overrides]]
-# Sin stubs publicados; el runtime funciona igual.
-module = ["onnxruntime", "onnxruntime.*", "tokenizers", "tokenizers.*"]
-ignore_missing_imports = true
+[tool.pyright]
+pythonVersion = "3.13"
+include = ["app", "tests"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

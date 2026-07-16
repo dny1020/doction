@@ -1,8 +1,0 @@
-[Unit]
-Description=doction pull-deploy (ghcr.io)
-After=docker.service network-online.target
-Requires=docker.service
-
-[Service]
-Type=oneshot
-ExecStart=/opt/doction/deploy.sh

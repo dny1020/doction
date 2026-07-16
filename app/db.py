@@ -5,9 +5,11 @@ import threading
 import unicodedata
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import LiteralString
 from urllib.parse import urlsplit, urlunsplit
 
-from psycopg.rows import dict_row
+from psycopg import Connection
+from psycopg.rows import DictRow, dict_row
 from psycopg_pool import ConnectionPool
 
 from app import meta
@@ -34,7 +36,7 @@ DEFAULT_DATA_DIR = "data"
 DEFAULT_WORKSPACE_NAME = "Personal"
 DEFAULT_WORKSPACE_SLUG = "personal"
 
-_pool: ConnectionPool | None = None
+_pool: ConnectionPool[Connection[DictRow]] | None = None
 _pool_lock = threading.Lock()
 
 
@@ -61,7 +63,7 @@ def data_dir() -> Path:
     return d
 
 
-def _get_pool() -> ConnectionPool:
+def _get_pool() -> ConnectionPool[Connection[DictRow]]:
     global _pool
     if _pool is None:
         with _pool_lock:
@@ -70,12 +72,16 @@ def _get_pool() -> ConnectionPool:
                     database_url(),
                     min_size=1,
                     max_size=10,
+                    # `connection_class` duplica el row_factory de kwargs, pero es lo
+                    # que hace que las filas se tipen como dict y no como tupla: sin
+                    # él, cada row["campo"] de este módulo es un error de tipos.
+                    connection_class=Connection[DictRow],
                     kwargs={"row_factory": dict_row},
                     open=True,
                     # Valida la conexión al sacarla del pool: si Postgres se
                     # reinició (reboot de la Pi), se reconecta solo en vez de
                     # fallar hasta que las conexiones muertas se reciclen.
-                    check=ConnectionPool.check_connection,
+                    check=ConnectionPool[Connection[DictRow]].check_connection,
                 )
     return _pool
 
@@ -155,7 +161,7 @@ def _to_page(row: dict) -> Page:
 # — ver scripts/migrate_sqlite_to_postgres.py para la migración única de datos
 # existentes). `search_vector` es una columna generada: Postgres la mantiene
 # sincronizada solo, sin triggers (a diferencia de los 3 triggers que requería FTS5).
-SCHEMA_STATEMENTS = [
+SCHEMA_STATEMENTS: list[LiteralString] = [
     """
     CREATE TABLE IF NOT EXISTS users (
         id            BIGSERIAL PRIMARY KEY,
@@ -404,10 +410,10 @@ def unique_slug(
 def create_user(email: str, password_hash: str) -> int:
     with connect() as conn:
         row = conn.execute(
-            "INSERT INTO users (email, password_hash, created_at) VALUES (%s, %s, %s) "
-            "RETURNING id",
+            "INSERT INTO users (email, password_hash, created_at) VALUES (%s, %s, %s) RETURNING id",
             (email, password_hash, _now()),
         ).fetchone()
+        assert row is not None
         return int(row["id"])
 
 
@@ -491,6 +497,7 @@ def create_workspace(user_id: int, name: str) -> str:
             "RETURNING id",
             (user_id, slug, name, now),
         ).fetchone()
+        assert row is not None
         conn.execute(
             "INSERT INTO workspace_members (workspace_id, user_id, role, created_at) "
             "VALUES (%s, %s, 'owner', %s) ON CONFLICT (workspace_id, user_id) DO NOTHING",
@@ -514,10 +521,11 @@ def rename_workspace(user_id: int, slug: str, name: str) -> bool:
 def delete_workspace(user_id: int, slug: str) -> bool:
     """Borra el workspace y sus páginas. No borra el último que quede."""
     with connect() as conn:
-        count = conn.execute(
+        total = conn.execute(
             "SELECT COUNT(*) AS n FROM workspaces WHERE user_id = %s", (user_id,)
-        ).fetchone()["n"]
-        if count <= 1:
+        ).fetchone()
+        assert total is not None
+        if total["n"] <= 1:
             return False
         ws = conn.execute(
             "SELECT id FROM workspaces WHERE user_id = %s AND slug = %s",
@@ -597,6 +605,7 @@ def ensure_default_workspace(user_id: int) -> Workspace:
                 "VALUES (%s, %s, %s, %s) RETURNING id",
                 (user_id, slug, DEFAULT_WORKSPACE_NAME, now),
             ).fetchone()
+            assert row is not None
             conn.execute(
                 "INSERT INTO workspace_members (workspace_id, user_id, role, created_at) "
                 "VALUES (%s, %s, 'owner', %s) ON CONFLICT (workspace_id, user_id) DO NOTHING",
@@ -755,6 +764,7 @@ def create_page(
             """,
             (user_id, workspace_id, parent_id, slug, title, content, now, now, user_id),
         ).fetchone()
+        assert row is not None
         _index_page_meta(conn, int(row["id"]), workspace_id, content)
         return slug
 
@@ -927,12 +937,15 @@ def extract_pages(
     limit: int = 200,
 ) -> list[ExtractedPage]:
     """Filtra páginas por `type` y/o `tag` del frontmatter; estructura sin LLM."""
-    joins = ""
+    # Los fragmentos van tipados como LiteralString a propósito: así el f-string de
+    # abajo sigue siéndolo y el checker prueba que no hay nada del usuario en el SQL
+    # (sus valores viajan por %s).
+    joins: LiteralString = ""
     params: list = []
     if tag:
         joins = "JOIN page_tags t ON t.page_id = p.id AND t.tag = %s"
         params.append(meta.normalize_tag(tag))
-    where = ["p.workspace_id = %s", "p.deleted_at IS NULL"]
+    where: list[LiteralString] = ["p.workspace_id = %s", "p.deleted_at IS NULL"]
     params.append(workspace_id)
     if page_type:
         where.append("m.type = %s")
@@ -1196,6 +1209,7 @@ def create_api_token(user_id: int, name: str, token_hash: str) -> int:
             "VALUES (%s, %s, %s, %s) RETURNING id",
             (user_id, name.strip() or "token", token_hash, _now()),
         ).fetchone()
+        assert row is not None
         return int(row["id"])
 
 

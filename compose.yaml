@@ -1,4 +1,5 @@
-# Compose de desarrollo local (producción usa infra/compose.yaml).
+# Compose de desarrollo local. El de producción vive en la Pi (/opt/doction), fuera
+# de este repo.
 # Antes de levantar: mkdir -p data/logs  (así los bind mounts quedan con tu uid,
 # que es el del usuario `doction` del contenedor — uid 1000, non-root).
 services:

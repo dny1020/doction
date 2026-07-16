@@ -27,7 +27,9 @@ COPY pyproject.toml uv.lock ./
 # so the gate stays a single self-contained `docker build`, no sidecar containers.
 FROM base AS test
 
-RUN apt-get update -qq && apt-get install -y --no-install-recommends postgresql \
+# nodejs es para pyright: está escrito en TypeScript y corre sobre node. Sin él se
+# bajaría uno por su cuenta a mitad del build.
+RUN apt-get update -qq && apt-get install -y --no-install-recommends postgresql nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 RUN uv sync --frozen
@@ -44,9 +46,9 @@ RUN service postgresql start \
     && su postgres -c "psql -c \"ALTER USER doction PASSWORD 'doction';\"" \
     && su postgres -c "createdb -O doction doction" \
     && uv run ruff check . \
-    && uv run black --check . \
-    && uv run mypy app \
-    && uv run python -m pytest tests -q \
+    && uv run ruff format --check . \
+    && uv run pyright app tests \
+    && uv run pytest \
     && service postgresql stop
 
 # Frontend React (Vite): construye la SPA. Node entra SOLO en este stage de build;

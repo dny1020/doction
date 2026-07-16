@@ -18,14 +18,15 @@ DATABASE_URL=postgresql://doction:doction@localhost:5432/doction \
 
 `tests/conftest.py` creates and drops its own throwaway database per test against the
 same server (`TEST_DATABASE_URL`, defaults to the `postgres` maintenance db on
-`localhost:5432`), so `make test` needs that Postgres container running but nothing else.
+`localhost:5432`), so the suite needs that Postgres container running but nothing else.
 
 Useful commands:
 
 ```bash
-make test           # pytest
-make lint           # ruff check
-make test-image     # build + smoke-test /health locally
+uv run pytest                     # tests
+uv run ruff check .               # lint
+uv run ruff format --check .      # formatting
+uv run pyright app tests          # types
 ```
 
 To exercise semantic search without the real ONNX model, the test suite uses a
@@ -52,19 +53,20 @@ EMBED_STUB=1 SEMANTIC_SEARCH=1 uv run pytest tests/
 - **Keep dependencies minimal.** Prefer the standard library and small, well-understood
   libraries. New runtime dependencies should be justified in the PR.
 - **Tests are required** for behavior changes. Tests live in `tests/` and must be named
-  `test_*.py`. Run `make test` and `make lint` before pushing.
+  `test_*.py`. Run `uv run pytest` and the lint/type commands above before pushing.
 - **Match the surrounding style.** ruff enforces formatting/linting; let it guide you.
 - **Database schema changes** go in `db.py`'s `SCHEMA_STATEMENTS`, written defensively
   (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`) and run on startup so
   `init_db()` stays idempotent against an already-migrated database.
-- **On a release**, bump the version in **both** `pyproject.toml` and `SERVER_INFO` in
-  `app/mcp.py`, and add a `CHANGELOG.md` entry.
+- **On a release**, bump the version in `pyproject.toml` — it is the single source:
+  `app/version.py` reads it at runtime, and `/health`, MCP and the image tag all
+  follow from there.
 
 ## Pull requests
 
 1. Fork and create a feature branch off `main`.
 2. Make your change with tests; keep the diff focused.
-3. Ensure `make test` and `make lint` pass.
+3. Ensure the tests, lint, formatting and type checks above pass.
 4. Open a PR describing the change and the motivation. CI runs lint + tests in-image on
    every PR.
 

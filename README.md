@@ -208,9 +208,8 @@ curl -s -X POST $DOCTION/api/mcp \
 ```bash
 uv sync --dev
 uv run uvicorn app.main:app --reload   # dev server on :8000
-make test           # pytest
-make lint           # ruff check
-make test-image     # build + smoke-test /health
+uv run pytest                          # tests
+uv run ruff check . && uv run ruff format --check . && uv run pyright app tests
 ```
 
 Stack: FastAPI (REST + native MCP) serving a React SPA (Vite, built into the image at
@@ -247,8 +246,10 @@ docker run -d --name doction --restart unless-stopped --network doction-net \
 Terminate TLS in nginx/Caddy/Traefik pointing at `http://127.0.0.1:8000`. Page content
 (git repo + uploads) lives in `/data`; the database lives in Postgres's own volume — back
 up both. Logs (console + rotated file) live in the separate `/logs` volume; diagnostic
-only, not part of the backup. An opinionated pull-based deploy example (`docker compose` +
-systemd, including backup/restore for both volumes) lives in [`infra/`](infra/).
+only, not part of the backup.
+
+Pushing to `main` publishes the image to GHCR; deploying is a plain `docker compose pull`
+and `docker compose up -d` on the host, with your own compose file.
 
 ## License
 

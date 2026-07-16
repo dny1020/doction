@@ -91,8 +91,8 @@ def test_chunks_created_and_dirty_cleared(client):
     assert db.pages_to_embed() == []  # nothing dirty after drain
     # chunks exist for the workspace
     with db.connect() as conn:
-        n = conn.execute("SELECT COUNT(*) AS n FROM page_chunks").fetchone()["n"]
-    assert n >= 1
+        row = conn.execute("SELECT COUNT(*) AS n FROM page_chunks").fetchone()
+    assert row is not None and row["n"] >= 1
 
 
 def test_update_marks_dirty_again(client):

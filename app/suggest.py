@@ -32,7 +32,8 @@ _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
 # Stopwords EN+ES mínimas: suficiente para TF-IDF de una wiki técnica, sin
 # arrastrar una lista de NLTK como dependencia.
-STOPWORDS = frozenset("""
+STOPWORDS = frozenset(
+    """
     the a an and or but if then else for while of to in on at by with from as is are was
     were be been being have has had do does did will would should could can may might must
     not no nor so than that this these those it its they them their there here what which
@@ -46,7 +47,8 @@ STOPWORDS = frozenset("""
     sobre desde hasta durante antes despues arriba abajo hay fue han sus tu tus su
     nosotros vosotros ellos ellas usted ustedes se lo le les mi mis te ya
     http https www com org net
-    """.split())
+    """.split()
+)
 
 
 def tokenize(content: str) -> list[str]:

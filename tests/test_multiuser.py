@@ -62,9 +62,13 @@ def test_member_sees_and_edits_shared_workspace(client):
 
     import app.db as db_module
 
-    a_uid = int(db_module.get_user_by_email("a@test.com").id)
-    wid = int(db_module.get_workspace_by_slug(a_uid, a_slug).id)
-    page = db_module.get_page(page_slug, a_uid, wid)
+    user_a = db_module.get_user_by_email("a@test.com")
+    assert user_a is not None
+    a_uid = int(user_a.id)
+    workspace = db_module.get_workspace_by_slug(a_uid, a_slug)
+    assert workspace is not None
+    page = db_module.get_page(page_slug, a_uid, int(workspace.id))
+    assert page is not None
     assert page.updated_by_email == "b@test.com"
 
 

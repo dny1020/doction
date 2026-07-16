@@ -9,15 +9,15 @@ env:
   IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
+  # Lint, tipos y tests corren dentro del stage `test` del Dockerfile, que trae su
+  # propio Postgres. Por eso aquí no hace falta ni Python ni base de datos: el
+  # `docker build` es la prueba entera.
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: docker/setup-buildx-action@v3
-
-      - name: Lint + tests (in-image gate)
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: .
           target: test
@@ -25,7 +25,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  build-push:
+  # Solo al hacer push a main, y solo si `test` pasó: publica la imagen en GHCR
+  # etiquetada con la versión de pyproject.toml y como :latest.
+  # arm64 es para la Raspberry Pi; amd64, para todo lo demás.
+  publish:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -35,12 +38,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read version from pyproject.toml
-        id: meta
-        run: echo "version=$(awk -F'"' '/^version/{print $2}' pyproject.toml)" >> "$GITHUB_OUTPUT"
+      - name: Leer la versión de pyproject.toml
+        id: version
+        run: echo "value=$(awk -F'"' '/^version/{print $2}' pyproject.toml)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
-
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -49,14 +51,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push (amd64 + arm64)
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
+            ${{ env.IMAGE }}:${{ steps.version.outputs.value }}
             ${{ env.IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -26,6 +26,7 @@ def test_git_commit_stored_on_create(client):
     import app.db as db_module
 
     user = db_module.get_user_by_email("u@test.com")
+    assert user is not None
     uid = int(user.id)
     wid = int(db_module.ensure_default_workspace(uid).id)
     page = db_module.get_page(slug, uid, wid)
