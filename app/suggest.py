@@ -7,8 +7,6 @@ está. Cada función degrada con gracia cuando la búsqueda semántica está apa
 principio de "explainability over magic" de sgrep.
 """
 
-from __future__ import annotations
-
 import logging
 import math
 import re

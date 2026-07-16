@@ -1,7 +1,5 @@
 """Tests for the Phase A intelligence tools: extract / list_backlinks / related_pages."""
 
-from __future__ import annotations
-
 import json
 
 

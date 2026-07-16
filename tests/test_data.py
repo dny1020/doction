@@ -4,8 +4,6 @@ Soft-delete/trash is covered by tests/test_spa_api.py; token management by
 tests/test_tokens.py.
 """
 
-from __future__ import annotations
-
 import io
 import zipfile
 
@@ -21,12 +19,8 @@ def client(main_module):
         yield c
 
 
-def _ws_slug(client) -> str:
-    return client.get("/api/workspaces").json()[0]["slug"]
-
-
 def test_export_returns_zip_of_live_pages(client):
-    slug = _ws_slug(client)
+    slug = client.get("/api/workspaces").json()[0]["slug"]
     client.post("/api/pages", json={"title": "Keep Me", "content": "# keep"})
     client.post("/api/pages", json={"title": "Drop Me", "content": "# drop"})
     client.delete("/api/pages/drop-me")  # soft-delete

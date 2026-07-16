@@ -4,8 +4,6 @@ The tesseract binary itself is faked (monkeypatched): what's under test is the
 wiring — extract → store in upload_texts → FTS search → REST/MCP surfacing.
 """
 
-from __future__ import annotations
-
 import json
 import subprocess
 import time

@@ -1,7 +1,5 @@
 """Tests for collaborative workspaces (membership + owner/member roles)."""
 
-from __future__ import annotations
-
 
 def _register(client, email: str) -> None:
     # El registro inicia sesión (cookie); se limpia para no contaminar al siguiente usuario.

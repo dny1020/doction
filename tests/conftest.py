@@ -16,8 +16,6 @@ corriendo o tenga los permisos bien. Limpieza: `docker rm -f doction-test-pg`
 (o nada — pesa ~40 MB de RAM y arranca solo la próxima vez).
 """
 
-from __future__ import annotations
-
 import importlib
 import os
 import subprocess

@@ -7,8 +7,6 @@ Sin esto, uvicorn solo configura sus propios loggers (``uvicorn``, ``uvicorn.err
 se llama una vez al importar ``app.main``, antes de que corra cualquier logger.
 """
 
-from __future__ import annotations
-
 import logging
 import logging.handlers
 import os

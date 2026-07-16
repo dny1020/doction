@@ -1,7 +1,5 @@
 """Tests for app.meta — frontmatter / tags / wikilinks / chunking (puro, sin DB)."""
 
-from __future__ import annotations
-
 from app import meta
 
 

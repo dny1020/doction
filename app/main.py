@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import dataclasses
 import hashlib
@@ -502,7 +500,6 @@ def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bo
 
 
 def _workspace_brief(ws) -> dict:
-    """Forma mínima de un workspace para el frontend."""
     return {"slug": ws.slug, "name": ws.name, "role": ws.role}
 
 

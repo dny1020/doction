@@ -10,8 +10,6 @@ Pi cuando la función está apagada. Para tests, `EMBED_STUB=1` usa un encoder
 determinista (bag-of-words) y evita depender del modelo real.
 """
 
-from __future__ import annotations
-
 import hashlib
 import logging
 import os
@@ -36,8 +34,6 @@ MODEL_PATH = str(_MODELS_DIR / "model_quantized.onnx")
 TOKENIZER_PATH = str(_MODELS_DIR / "tokenizer.json")
 RERANKER_MODEL_PATH = str(_MODELS_DIR / "reranker" / "model_quantized.onnx")
 RERANKER_TOKENIZER_PATH = str(_MODELS_DIR / "reranker" / "tokenizer.json")
-
-_MARK_RE = re.compile(r"</?mark>")
 
 
 def _flag(name: str) -> bool:
@@ -233,12 +229,8 @@ def _snippet(text: str, length: int = 240) -> str:
 
 
 def _clean(snippet: str) -> str:
-    return _MARK_RE.sub("", snippet or "")
-
-
-def _result_score(result: dict) -> float:
-    """Clave de ordenación: la puntuación de un resultado de búsqueda."""
-    return result["score"]
+    snippet = snippet or ""
+    return snippet.replace("<mark>", "").replace("</mark>", "")
 
 
 def _fts_results(user_id: int, workspace_id: int, query: str, k: int) -> list[dict]:
@@ -307,7 +299,7 @@ def semantic_search(
             r["score"] += KEYWORD_BOOST
         r["via"] = "semantic"
 
-    results.sort(key=_result_score, reverse=True)
+    results.sort(key=lambda r: r["score"], reverse=True)
 
     if rerank_enabled() and results:
         # Repuntúa los primeros candidatos con el cross-encoder y reordena por su

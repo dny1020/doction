@@ -1,7 +1,5 @@
 """Tests for git-based page versioning."""
 
-from __future__ import annotations
-
 import unittest.mock as mock
 
 
@@ -27,7 +25,10 @@ def test_git_commit_stored_on_create(client):
 
     import app.db as db_module
 
-    page = db_module.get_page(slug, *_get_uid_wid())
+    user = db_module.get_user_by_email("u@test.com")
+    uid = int(user.id)
+    wid = int(db_module.ensure_default_workspace(uid).id)
+    page = db_module.get_page(slug, uid, wid)
     assert page is not None
     assert page.git_commit is not None
     assert len(page.git_commit) == 7
@@ -126,14 +127,3 @@ def test_history_diff_root_commit_is_full_add(client):
     r = client.get(f"/api/pages/{slug}/history/{first_sha}/diff", headers=_headers(token))
     assert r.status_code == 200
     assert "original line" in r.json()["diff"]
-
-
-def _get_uid_wid() -> tuple[int, int]:
-    import app.db as db_module
-
-    user = db_module.get_user_by_email("u@test.com")
-    assert user is not None
-    uid = int(user.id)
-    ws = db_module.ensure_default_workspace(uid)
-    wid = int(ws.id)
-    return uid, wid

@@ -5,8 +5,6 @@ ES se construye como overrides sobre EN, así que cualquier clave faltante en ES
 cae de vuelta al inglés automáticamente.
 """
 
-from __future__ import annotations
-
 DEFAULT_LANG = "en"
 LANGS = ("en", "es")
 

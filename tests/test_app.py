@@ -5,8 +5,6 @@ tests/test_spa_api.py. This file focuses on /health, /docs, the Bearer-token
 REST API, and image uploads. `client` comes from tests/conftest.py.
 """
 
-from __future__ import annotations
-
 import base64
 
 

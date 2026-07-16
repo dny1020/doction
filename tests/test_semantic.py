@@ -4,8 +4,6 @@ Uses a deterministic stub embedder (EMBED_STUB=1) and a no-op enrichment worker;
 embedding is driven explicitly via embeddings.drain_pending() for determinism.
 """
 
-from __future__ import annotations
-
 import importlib
 import json
 import os

@@ -13,8 +13,6 @@ DATABASE_URL que la app, así que apúntalo a la BD real.
     docker exec -it doction python -m scripts.create_user alice@example.com
 """
 
-from __future__ import annotations
-
 import argparse
 import getpass
 import sys

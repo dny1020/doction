@@ -12,8 +12,6 @@ Reglas para leer este archivo:
   función de `db.py` dice qué campos rellena.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 

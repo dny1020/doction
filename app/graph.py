@@ -6,8 +6,6 @@ una dependencia. Las funciones numéricas son puras; `link_insights` es la únic
 que consulta la base de datos.
 """
 
-from __future__ import annotations
-
 import numpy as np
 
 from app import db

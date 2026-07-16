@@ -5,8 +5,6 @@ había driftado una vez. pyproject.toml viaja dentro de la imagen Docker (el COP
 stage base), así que se puede leer en runtime con tomllib (stdlib) sin duplicarla.
 """
 
-from __future__ import annotations
-
 import logging
 import tomllib
 from pathlib import Path

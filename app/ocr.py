@@ -7,8 +7,6 @@ paquetes que instala el Dockerfile). Un OCR fallido nunca rompe la subida: el
 worker registra el error y sigue.
 """
 
-from __future__ import annotations
-
 import logging
 import os
 import shutil

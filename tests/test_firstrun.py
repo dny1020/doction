@@ -1,7 +1,5 @@
 """Primer arranque (sin usuarios) y creación de usuarios por CLI."""
 
-from __future__ import annotations
-
 import sys
 
 import pytest

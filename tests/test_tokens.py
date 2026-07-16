@@ -1,7 +1,5 @@
 """Tests for long-lived personal access tokens (PAT) at /api/tokens."""
 
-from __future__ import annotations
-
 
 def _register_and_token(client, email: str = "u@test.com") -> str:
     client.post("/api/auth/register", json={"email": email, "password": "password123"})

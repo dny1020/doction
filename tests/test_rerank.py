@@ -3,8 +3,6 @@
 Uses the deterministic stub reranker (EMBED_STUB=1): score = query-token overlap.
 """
 
-from __future__ import annotations
-
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient

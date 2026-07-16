@@ -1,7 +1,5 @@
 """Tests de los endpoints JSON que alimentan la SPA de React (Fase 1)."""
 
-from __future__ import annotations
-
 
 def _register(client, email="user@example.com", password="password123"):
     return client.post("/api/auth/register", json={"email": email, "password": password})

@@ -1,7 +1,5 @@
 """Tests for the native MCP endpoint (JSON-RPC 2.0 over POST /api/mcp)."""
 
-from __future__ import annotations
-
 import json
 
 

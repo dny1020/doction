@@ -4,8 +4,6 @@ Sin dependencias: la "estructura" sale del propio markdown (filosofía Unix). Es
 funciones son puras; el indexado en SQLite vive en app.db.
 """
 
-from __future__ import annotations
-
 import re
 
 _FRONTMATTER_RE = re.compile(r"^---[ \t]*\n(.*?)\n---[ \t]*\n?", re.DOTALL)

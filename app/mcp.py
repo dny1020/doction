@@ -3,8 +3,6 @@
 Auth Bearer del middleware de app.main; modo stateless (JSON plano, sin SSE).
 """
 
-from __future__ import annotations
-
 import dataclasses
 import json
 import logging

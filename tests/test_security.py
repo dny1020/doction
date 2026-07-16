@@ -3,8 +3,6 @@ autenticado, revocación de sesiones al cambiar la contraseña (token_version),
 JWT expirado, validación del SHA de git, límite de tamaño de subida y el
 worker de embeddings saltándose páginas envenenadas."""
 
-from __future__ import annotations
-
 import base64
 from datetime import UTC, datetime, timedelta
 

@@ -4,8 +4,6 @@ Same approach as test_semantic.py: deterministic stub embedder (EMBED_STUB=1),
 no background worker, embedding driven explicitly via drain_pending().
 """
 
-from __future__ import annotations
-
 import json
 
 import numpy as np
@@ -106,11 +104,6 @@ def _drain():
     import app.embeddings as emb
 
     return emb.drain_pending()
-
-
-def _token(client) -> str:
-    r = client.post("/api/token", json={"email": "u@test.com", "password": "password123"})
-    return r.json()["token"]
 
 
 def _call(client, token: str, tool: str, arguments: dict | None = None) -> dict:
@@ -246,7 +239,9 @@ def test_insights_off_modes_without_semantic(client_fts):
 
 def test_mcp_tools_and_calls(client):
     _register(client)
-    token = _token(client)
+    token = client.post(
+        "/api/token", json={"email": "u@test.com", "password": "password123"}
+    ).json()["token"]
 
     r = client.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     names = [t["name"] for t in r.json()["result"]["tools"]]

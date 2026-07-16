@@ -1,7 +1,5 @@
 """Versionado de páginas con git — silencioso, nunca bloquea un guardado."""
 
-from __future__ import annotations
-
 import logging
 import os
 import re

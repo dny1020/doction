@@ -1,8 +1,6 @@
 """Tests for the Phase 1 'trust foundation': security headers, XSS escaping,
 login rate limiting, and the styled 500 handler."""
 
-from __future__ import annotations
-
 from fastapi.testclient import TestClient
 
 
