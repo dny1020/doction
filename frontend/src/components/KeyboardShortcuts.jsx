@@ -41,7 +41,8 @@ export default function KeyboardShortcuts() {
 
       // No disparar atajos mientras se escribe, ni pisar combos con modificadores (⌘K…).
       const el = event.target
-      if (el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
+      if (el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'))
+        return
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
       if (event.key === '?') {
@@ -73,20 +74,61 @@ export default function KeyboardShortcuts() {
         if (event.target === event.currentTarget) setHelpOpen(false)
       }}
     >
-      <div className="shortcuts-modal" role="dialog" aria-modal="true" aria-label={t('shortcuts_title')}>
+      <div
+        className="shortcuts-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('shortcuts_title')}
+      >
         <div className="shortcuts-head">
           <span className="shortcuts-title">{t('shortcuts_title')}</span>
-          <button ref={closeRef} className="shortcuts-close" type="button" onClick={() => setHelpOpen(false)} aria-label={t('close')}>
+          <button
+            ref={closeRef}
+            className="shortcuts-close"
+            type="button"
+            onClick={() => setHelpOpen(false)}
+            aria-label={t('close')}
+          >
             ×
           </button>
         </div>
         <ul className="shortcuts-list">
-          <li><span>{t('sc_focus_search')}</span><span><kbd>/</kbd></span></li>
-          <li><span>{t('sc_command_palette')}</span><span><kbd>⌘</kbd> <kbd>K</kbd></span></li>
-          <li><span>{t('sc_edit')}</span><span><kbd>e</kbd></span></li>
-          <li><span>{t('sc_new_page')}</span><span><kbd>n</kbd></span></li>
-          <li><span>{t('sc_help')}</span><span><kbd>?</kbd></span></li>
-          <li><span>{t('sc_close')}</span><span><kbd>Esc</kbd></span></li>
+          <li>
+            <span>{t('sc_focus_search')}</span>
+            <span>
+              <kbd>/</kbd>
+            </span>
+          </li>
+          <li>
+            <span>{t('sc_command_palette')}</span>
+            <span>
+              <kbd>⌘</kbd> <kbd>K</kbd>
+            </span>
+          </li>
+          <li>
+            <span>{t('sc_edit')}</span>
+            <span>
+              <kbd>e</kbd>
+            </span>
+          </li>
+          <li>
+            <span>{t('sc_new_page')}</span>
+            <span>
+              <kbd>n</kbd>
+            </span>
+          </li>
+          <li>
+            <span>{t('sc_help')}</span>
+            <span>
+              <kbd>?</kbd>
+            </span>
+          </li>
+          <li>
+            <span>{t('sc_close')}</span>
+            <span>
+              <kbd>Esc</kbd>
+            </span>
+          </li>
         </ul>
       </div>
     </div>

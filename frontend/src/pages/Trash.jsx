@@ -15,7 +15,10 @@ export default function Trash() {
   const [items, setItems] = useState(null) // null = cargando
 
   function reload() {
-    api.get('/api/trash').then(setItems).catch(() => setItems([]))
+    api
+      .get('/api/trash')
+      .then(setItems)
+      .catch(() => setItems([]))
   }
   useEffect(reload, [])
 
@@ -31,7 +34,8 @@ export default function Trash() {
   }
 
   async function onPurge(slug) {
-    if (!(await confirm(t('confirm_purge'), { confirmLabel: t('delete_forever'), danger: true }))) return
+    if (!(await confirm(t('confirm_purge'), { confirmLabel: t('delete_forever'), danger: true })))
+      return
     try {
       await api.post('/api/trash/' + slug + '/purge')
     } catch (e) {

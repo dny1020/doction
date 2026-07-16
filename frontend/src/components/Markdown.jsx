@@ -14,11 +14,7 @@ const Markdown = forwardRef(function Markdown({ text }, ref) {
   }, [text, ref])
 
   return (
-    <div
-      ref={ref}
-      className="prose"
-      dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }}
-    />
+    <div ref={ref} className="prose" dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }} />
   )
 })
 

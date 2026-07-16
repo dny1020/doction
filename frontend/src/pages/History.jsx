@@ -11,8 +11,13 @@ function diffLineClass(line) {
   if (line.startsWith('+') && !line.startsWith('+++')) return 'diff-add'
   if (line.startsWith('-') && !line.startsWith('---')) return 'diff-del'
   if (line.startsWith('@@')) return 'diff-hunk'
-  if (line.startsWith('diff ') || line.startsWith('index ') ||
-      line.startsWith('+++') || line.startsWith('---')) return 'diff-meta'
+  if (
+    line.startsWith('diff ') ||
+    line.startsWith('index ') ||
+    line.startsWith('+++') ||
+    line.startsWith('---')
+  )
+    return 'diff-meta'
   return ''
 }
 
@@ -59,14 +64,20 @@ export default function History() {
         <header className="page-header">
           <nav className="breadcrumbs" aria-label="Breadcrumb">
             <Link to="/">{t('home')}</Link>
-            <span className="crumb-sep" aria-hidden="true">›</span>
+            <span className="crumb-sep" aria-hidden="true">
+              ›
+            </span>
             <Link to={'/p/' + slug}>{title}</Link>
-            <span className="crumb-sep" aria-hidden="true">›</span>
+            <span className="crumb-sep" aria-hidden="true">
+              ›
+            </span>
             <span className="crumb-current">{t('history')}</span>
           </nav>
           <h1>{t('history')}</h1>
           <div className="page-actions">
-            <Link className="btn" to={'/p/' + slug}>{title}</Link>
+            <Link className="btn" to={'/p/' + slug}>
+              {title}
+            </Link>
           </div>
         </header>
 
@@ -109,7 +120,7 @@ function HistoryItem({ slug, commit, canRestore, onRestore }) {
     try {
       const data = await api.get('/api/pages/' + slug + '/history/' + commit.sha + '/diff')
       setDiff(data.diff || '')
-    } catch (e) {
+    } catch {
       setDiff('')
     } finally {
       setLoading(false)
@@ -122,15 +133,21 @@ function HistoryItem({ slug, commit, canRestore, onRestore }) {
         <span className="history-msg">{commit.message}</span>
         <div className="history-sub">
           <span className="history-author">{commit.author}</span>
-          <span className="history-sep" aria-hidden="true">·</span>
+          <span className="history-sep" aria-hidden="true">
+            ·
+          </span>
           <time className="history-date">{commit.timestamp.slice(0, 16)}</time>
-          <span className="history-sep" aria-hidden="true">·</span>
+          <span className="history-sep" aria-hidden="true">
+            ·
+          </span>
           <code className="history-sha">{commit.sha}</code>
         </div>
         {diff !== null && (
           <div className="diff">
             {diff.split('\n').map((line, i) => (
-              <span key={i} className={'diff-line ' + diffLineClass(line)}>{line}</span>
+              <span key={i} className={'diff-line ' + diffLineClass(line)}>
+                {line}
+              </span>
             ))}
           </div>
         )}

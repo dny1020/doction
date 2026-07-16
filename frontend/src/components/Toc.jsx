@@ -60,7 +60,7 @@ export default function Toc({ proseRef, wrapRef, content }) {
         const current = order.filter((id) => visible.has(id))
         if (current.length > 0) setActiveId(current[current.length - 1])
       },
-      { rootMargin: '0px 0px -66% 0px', threshold: 0 }
+      { rootMargin: '0px 0px -66% 0px', threshold: 0 },
     )
     heads.forEach((h) => observer.observe(h))
 

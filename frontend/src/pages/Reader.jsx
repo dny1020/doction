@@ -64,7 +64,9 @@ export default function Reader() {
         <p className="muted">
           {t('nf_desc')} <code>/{slug}</code>
         </p>
-        <Link className="btn btn-primary" to="/">{t('back_home')}</Link>
+        <Link className="btn btn-primary" to="/">
+          {t('back_home')}
+        </Link>
       </div>
     )
   }
@@ -105,28 +107,43 @@ export default function Reader() {
             <Link to="/">{t('home')}</Link>
             {view.breadcrumbs.map((crumb) => (
               <span key={crumb.slug}>
-                <span className="crumb-sep" aria-hidden="true">›</span>
+                <span className="crumb-sep" aria-hidden="true">
+                  ›
+                </span>
                 <Link to={'/p/' + crumb.slug}>{crumb.title}</Link>
               </span>
             ))}
-            <span className="crumb-sep" aria-hidden="true">›</span>
+            <span className="crumb-sep" aria-hidden="true">
+              ›
+            </span>
             <span className="crumb-current">{view.title}</span>
           </nav>
 
           <h1>{view.title}</h1>
 
           <div className="page-actions">
-            <Link className="btn" to={'/p/' + slug + '/edit'}>{t('edit')}</Link>
-            <Link className="btn" to={'/new?parent=' + slug}>{t('new_subpage')}</Link>
-            <Link className="btn" to={'/p/' + slug + '/history'}>{t('history')}</Link>
-            <button className="btn btn-danger" type="button" onClick={onDelete}>{t('delete')}</button>
+            <Link className="btn" to={'/p/' + slug + '/edit'}>
+              {t('edit')}
+            </Link>
+            <Link className="btn" to={'/new?parent=' + slug}>
+              {t('new_subpage')}
+            </Link>
+            <Link className="btn" to={'/p/' + slug + '/history'}>
+              {t('history')}
+            </Link>
+            <button className="btn btn-danger" type="button" onClick={onDelete}>
+              {t('delete')}
+            </button>
           </div>
 
           <p className="meta">
             {t('updated')} {updatedDate}
             {editor && (
               <>
-                <span className="crumb-sep" aria-hidden="true">·</span> {t('by')} {editor}
+                <span className="crumb-sep" aria-hidden="true">
+                  ·
+                </span>{' '}
+                {t('by')} {editor}
               </>
             )}
           </p>
@@ -138,7 +155,9 @@ export default function Reader() {
           <section className="subpages">
             <div className="subpages-hd">
               <span className="subpages-eyebrow">{t('subpages')}</span>
-              <Link className="btn btn-sm" to={'/new?parent=' + slug}>{t('new_short')}</Link>
+              <Link className="btn btn-sm" to={'/new?parent=' + slug}>
+                {t('new_short')}
+              </Link>
             </div>
             <div className="subpages-grid">
               {view.children.map((child) => (

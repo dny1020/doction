@@ -58,7 +58,9 @@ export default function WorkspaceSettings() {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
-        <button className="btn btn-primary" type="submit" disabled={busy}>{t('create')}</button>
+        <button className="btn btn-primary" type="submit" disabled={busy}>
+          {t('create')}
+        </button>
       </form>
     </section>
   )
@@ -121,10 +123,14 @@ function WorkspaceRow({ ws, ownedCount, isActive }) {
                   onChange={(e) => setName(e.target.value)}
                   required
                 />
-                <button className="btn" type="submit">{t('rename')}</button>
+                <button className="btn" type="submit">
+                  {t('rename')}
+                </button>
               </form>
             )}
-            <a className="btn" href={'/api/workspaces/' + ws.slug + '/export'}>{t('export')}</a>
+            <a className="btn" href={'/api/workspaces/' + ws.slug + '/export'}>
+              {t('export')}
+            </a>
             {isOwner && (
               <button
                 className="btn btn-danger"
@@ -153,7 +159,10 @@ function MemberList({ slug }) {
   const [email, setEmail] = useState('')
 
   function reload() {
-    api.get('/api/workspaces/' + slug + '/members').then(setMembers).catch(() => setMembers([]))
+    api
+      .get('/api/workspaces/' + slug + '/members')
+      .then(setMembers)
+      .catch(() => setMembers([]))
   }
   useEffect(reload, [slug])
 
@@ -187,7 +196,11 @@ function MemberList({ slug }) {
             <span className="member-id">{m.display_name || m.email}</span>
             <span className="member-role">{t(m.role)}</span>
             {m.role !== 'owner' && (
-              <button className="btn btn-sm btn-danger" type="button" onClick={() => onRemove(m.user_id)}>
+              <button
+                className="btn btn-sm btn-danger"
+                type="button"
+                onClick={() => onRemove(m.user_id)}
+              >
                 {t('remove')}
               </button>
             )}
@@ -203,7 +216,9 @@ function MemberList({ slug }) {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <button className="btn" type="submit">{t('add_member')}</button>
+        <button className="btn" type="submit">
+          {t('add_member')}
+        </button>
       </form>
     </div>
   )

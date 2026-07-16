@@ -156,7 +156,7 @@ export default function Editor({ mode }) {
           let data = null
           try {
             data = await res.json()
-          } catch (e) {
+          } catch {
             data = null
           }
           if (res.ok && data && data.url) {
@@ -165,7 +165,7 @@ export default function Editor({ mode }) {
           } else {
             toast((data && data.detail) || t('img_upload_failed'), 'error')
           }
-        } catch (e) {
+        } catch {
           toast(t('img_upload_failed'), 'error')
         } finally {
           setUploading(false)
@@ -209,7 +209,10 @@ export default function Editor({ mode }) {
           onPaste={onPaste}
         />
         {content ? (
-          <div className="prose preview" dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} />
+          <div
+            className="prose preview"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+          />
         ) : (
           <div className="prose preview preview-empty">{t('preview_hint')}</div>
         )}

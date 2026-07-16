@@ -34,7 +34,7 @@ export default function Layout() {
     if (!isMobile()) {
       try {
         localStorage.setItem('sidebar', value ? 'collapsed' : 'open')
-      } catch (e) {
+      } catch {
         // localStorage bloqueado (modo privado): el estado solo dura la sesión.
       }
     }
@@ -71,7 +71,9 @@ export default function Layout() {
 
   return (
     <div className="layout">
-      <a className="skip-link" href="#content">{t('skip_to_content')}</a>
+      <a className="skip-link" href="#content">
+        {t('skip_to_content')}
+      </a>
       <button
         className="sidebar-toggle sidebar-toggle--show"
         type="button"

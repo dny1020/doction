@@ -5,8 +5,14 @@
 
 // Misma paleta que AVATAR_COLORS en app/main.py.
 export const AVATAR_COLORS = [
-  '#c0604a', '#4a7fc0', '#4aab6e', '#8b5fc0',
-  '#c0914a', '#4aabc0', '#c05473', '#7a9c4a',
+  '#c0604a',
+  '#4a7fc0',
+  '#4aab6e',
+  '#8b5fc0',
+  '#c0914a',
+  '#4aabc0',
+  '#c05473',
+  '#7a9c4a',
 ]
 
 // Color automático y estable a partir del email.

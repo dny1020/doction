@@ -33,7 +33,11 @@ function renderMermaid(root) {
     .then(() => {
       if (typeof mermaid === 'undefined') return
       const dark = document.documentElement.getAttribute('data-theme') === 'dark'
-      mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' })
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: dark ? 'dark' : 'default',
+        securityLevel: 'strict',
+      })
       mermaid.run({ nodes: root.querySelectorAll('.mermaid') })
     })
     .catch(() => {})

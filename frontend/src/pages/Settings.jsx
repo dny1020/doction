@@ -60,7 +60,9 @@ function ProfileSection() {
             {previewLetter}
           </div>
           <div className="profile-fields">
-            <label className="settings-label" htmlFor="display_name">{t('name')}</label>
+            <label className="settings-label" htmlFor="display_name">
+              {t('name')}
+            </label>
             <input
               className="settings-input"
               id="display_name"
@@ -76,19 +78,33 @@ function ProfileSection() {
         <label className="settings-label">{t('avatar_color')}</label>
         <div className="color-swatches">
           <label className={'swatch swatch--auto' + (color === '' ? ' selected' : '')}>
-            <input type="radio" name="avatar_color" checked={color === ''} onChange={() => setColor('')} />
-            <span className="swatch-dot swatch-dot--auto" title={t('auto')}>A</span>
+            <input
+              type="radio"
+              name="avatar_color"
+              checked={color === ''}
+              onChange={() => setColor('')}
+            />
+            <span className="swatch-dot swatch-dot--auto" title={t('auto')}>
+              A
+            </span>
           </label>
           {AVATAR_COLORS.map((c) => (
             <label key={c} className={'swatch' + (color === c ? ' selected' : '')}>
-              <input type="radio" name="avatar_color" checked={color === c} onChange={() => setColor(c)} />
+              <input
+                type="radio"
+                name="avatar_color"
+                checked={color === c}
+                onChange={() => setColor(c)}
+              />
               <span className="swatch-dot" style={{ background: c }} />
             </label>
           ))}
         </div>
 
         <div className="settings-actions">
-          <button className="btn btn-primary" type="submit" disabled={busy}>{t('save_profile')}</button>
+          <button className="btn btn-primary" type="submit" disabled={busy}>
+            {t('save_profile')}
+          </button>
         </div>
       </form>
     </section>
@@ -129,7 +145,9 @@ function PasswordSection() {
       <h2 className="settings-card-title">{t('password')}</h2>
       <p className="settings-card-desc">{t('password_desc')}</p>
       <form className="settings-form" onSubmit={onSave}>
-        <label className="settings-label" htmlFor="current_password">{t('current_password')}</label>
+        <label className="settings-label" htmlFor="current_password">
+          {t('current_password')}
+        </label>
         <input
           className="settings-input"
           id="current_password"
@@ -139,7 +157,9 @@ function PasswordSection() {
           onChange={(e) => setCurrent(e.target.value)}
           required
         />
-        <label className="settings-label" htmlFor="new_password">{t('new_password')}</label>
+        <label className="settings-label" htmlFor="new_password">
+          {t('new_password')}
+        </label>
         <input
           className="settings-input"
           id="new_password"
@@ -150,7 +170,9 @@ function PasswordSection() {
           onChange={(e) => setNext(e.target.value)}
           required
         />
-        <label className="settings-label" htmlFor="confirm_password">{t('repeat_new_password')}</label>
+        <label className="settings-label" htmlFor="confirm_password">
+          {t('repeat_new_password')}
+        </label>
         <input
           className="settings-input"
           id="confirm_password"
@@ -162,7 +184,9 @@ function PasswordSection() {
           required
         />
         <div className="settings-actions">
-          <button className="btn btn-primary" type="submit" disabled={busy}>{t('change_password')}</button>
+          <button className="btn btn-primary" type="submit" disabled={busy}>
+            {t('change_password')}
+          </button>
         </div>
       </form>
     </section>
@@ -180,7 +204,10 @@ function TokensSection() {
   const [busy, setBusy] = useState(false)
 
   function reload() {
-    api.get('/api/tokens').then(setTokens).catch(() => setTokens([]))
+    api
+      .get('/api/tokens')
+      .then(setTokens)
+      .catch(() => setTokens([]))
   }
   useEffect(reload, [])
 
@@ -200,7 +227,8 @@ function TokensSection() {
   }
 
   async function onRevoke(id) {
-    if (!(await confirm(t('confirm_revoke_token'), { confirmLabel: t('revoke'), danger: true }))) return
+    if (!(await confirm(t('confirm_revoke_token'), { confirmLabel: t('revoke'), danger: true })))
+      return
     try {
       await api.del('/api/tokens/' + id)
       reload()
@@ -246,11 +274,19 @@ function TokensSection() {
                 <span className="token-name">{tok.name}</span>
                 <span className="token-meta">
                   {t('created')} {tok.created_at.slice(0, 10)}
-                  <span className="crumb-sep" aria-hidden="true">·</span>
-                  {tok.last_used_at ? t('last_used') + ' ' + tok.last_used_at.slice(0, 10) : t('token_never_used')}
+                  <span className="crumb-sep" aria-hidden="true">
+                    ·
+                  </span>
+                  {tok.last_used_at
+                    ? t('last_used') + ' ' + tok.last_used_at.slice(0, 10)
+                    : t('token_never_used')}
                 </span>
               </div>
-              <button className="btn btn-sm btn-danger" type="button" onClick={() => onRevoke(tok.id)}>
+              <button
+                className="btn btn-sm btn-danger"
+                type="button"
+                onClick={() => onRevoke(tok.id)}
+              >
                 {t('revoke')}
               </button>
             </li>
@@ -267,7 +303,9 @@ function TokensSection() {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <button className="btn btn-primary" type="submit" disabled={busy}>{t('create_token')}</button>
+        <button className="btn btn-primary" type="submit" disabled={busy}>
+          {t('create_token')}
+        </button>
       </form>
     </section>
   )

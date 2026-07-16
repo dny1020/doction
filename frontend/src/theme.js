@@ -11,7 +11,7 @@ export function toggleTheme() {
   document.documentElement.setAttribute('data-theme', next)
   try {
     localStorage.setItem('theme', next)
-  } catch (e) {
+  } catch {
     // localStorage puede fallar (modo privado); el tema igual cambia en esta sesión.
   }
   return next

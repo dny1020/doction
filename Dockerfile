@@ -60,7 +60,9 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build
+# `check` = eslint + prettier --check + build: el mismo gate que se corre en local,
+# así que el bundle solo se genera si el front pasa lint y formato.
+RUN npm run check
 
 FROM base AS runtime
 

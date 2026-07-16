@@ -31,8 +31,22 @@ function GuestOnly({ children }) {
 // Árbol de rutas para createBrowserRouter (main.jsx). Una URL desconocida cae en
 // el 404 con estilo (antes se redirigía a la home en silencio).
 export const routes = [
-  { path: '/login', element: <GuestOnly><Login /></GuestOnly> },
-  { path: '/register', element: <GuestOnly><Register /></GuestOnly> },
+  {
+    path: '/login',
+    element: (
+      <GuestOnly>
+        <Login />
+      </GuestOnly>
+    ),
+  },
+  {
+    path: '/register',
+    element: (
+      <GuestOnly>
+        <Register />
+      </GuestOnly>
+    ),
+  },
   {
     element: (
       <RequireAuth>

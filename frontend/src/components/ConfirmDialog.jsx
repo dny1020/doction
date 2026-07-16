@@ -37,11 +37,7 @@ export function ConfirmProvider({ children }) {
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      <dialog
-        ref={dialogRef}
-        className="confirm-dialog"
-        onCancel={() => close(false)} /* Esc */
-      >
+      <dialog ref={dialogRef} className="confirm-dialog" onCancel={() => close(false)} /* Esc */>
         {request && (
           <>
             <p className="confirm-dialog-msg">{request.message}</p>

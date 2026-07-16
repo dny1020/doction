@@ -25,7 +25,7 @@ async function request(method, url, body) {
   let data = null
   try {
     data = await response.json()
-  } catch (e) {
+  } catch {
     data = null
   }
 

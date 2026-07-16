@@ -82,7 +82,12 @@ export default function CommandPalette({ pages }) {
         if (event.target === event.currentTarget) setOpen(false) // clic en el fondo
       }}
     >
-      <div className="palette-box" role="dialog" aria-modal="true" aria-label={t('sc_command_palette')}>
+      <div
+        className="palette-box"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('sc_command_palette')}
+      >
         <input
           ref={inputRef}
           className="palette-input"

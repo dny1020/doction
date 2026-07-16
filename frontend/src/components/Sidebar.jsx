@@ -1,6 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Check, ChevronsUpDown, LogOut, Moon, PanelLeftClose, Plus, Search, Settings, Sun, Terminal, Trash2, X } from 'lucide-react'
+import {
+  Check,
+  ChevronsUpDown,
+  LogOut,
+  Moon,
+  PanelLeftClose,
+  Plus,
+  Search,
+  Settings,
+  Sun,
+  Terminal,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
 import { useToast } from './Toast.jsx'
@@ -137,7 +150,12 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
             onChange={(e) => setQuery(e.target.value)}
           />
           {query && (
-            <button className="search-clear" type="button" onClick={() => setQuery('')} aria-label="Clear">
+            <button
+              className="search-clear"
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear"
+            >
               <X size={14} />
             </button>
           )}
@@ -156,7 +174,9 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
                 ))}
               </ul>
             ) : (
-              <p className="muted no-results">{t('no_matches')} “{query}”.</p>
+              <p className="muted no-results">
+                {t('no_matches')} “{query}”.
+              </p>
             )}
           </div>
         )}
@@ -201,7 +221,12 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
         <div className="sidebar-user">
           <div className="sidebar-controls">
             <LanguageToggle />
-            <button className="theme-toggle" type="button" onClick={onToggleTheme} title={t('toggle_theme')}>
+            <button
+              className="theme-toggle"
+              type="button"
+              onClick={onToggleTheme}
+              title={t('toggle_theme')}
+            >
               {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             </button>
           </div>
@@ -216,7 +241,9 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
               {letter}
             </button>
             <div className={'avatar-menu' + (menuOpen ? ' open' : '')}>
-              {user && user.display_name && <div className="avatar-menu-name">{user.display_name}</div>}
+              {user && user.display_name && (
+                <div className="avatar-menu-name">{user.display_name}</div>
+              )}
               {user && <div className="avatar-menu-email">{user.email}</div>}
               <div className="avatar-menu-divider" />
               <Link className="avatar-menu-item" to="/settings" onClick={() => setMenuOpen(false)}>
