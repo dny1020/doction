@@ -1,26 +1,26 @@
 [project]
 name = "doction"
-version = "0.18.0"
+version = "0.18.1"
 description = "Minimalist, markdown-first DevOps knowledge system"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
+    "python-multipart>=0.0.18",  # uploads (Form/File)
     "PyJWT>=2.8",
-    "python-multipart>=0.0.18",
-    # Búsqueda semántica local (opt-in vía SEMANTIC_SEARCH): modelo ONNX en el
-    # contenedor, sin servicios externos. numpy entra de la mano de onnxruntime.
+    "psycopg[binary]>=3.2",
+    "psycopg-pool>=3.2",
+    # Búsqueda semántica local, opt-in con SEMANTIC_SEARCH: el modelo ONNX viaja en
+    # la imagen, sin servicios externos. numpy llega de la mano de onnxruntime.
     "onnxruntime>=1.20",
     "tokenizers>=0.21",
     "numpy>=2.1",
-    "psycopg[binary]>=3.2",
-    "psycopg-pool>=3.2",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
-    "httpx>=0.28",
+    "httpx>=0.28",  # lo necesita el TestClient de starlette
     "ruff>=0.8",
     "pyright>=1.1.411",
 ]
@@ -28,24 +28,23 @@ dev = [
 [tool.uv]
 package = false
 
+# ruff y pyright deducen la versión de Python desde requires-python.
 [tool.ruff]
 line-length = 100
-target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.flake8-bugbear]
-# FastAPI usa estos como valores por defecto de parámetros (patrón estándar).
+# FastAPI las usa como valores por defecto de parámetros; es su patrón normal.
 extend-immutable-calls = ["fastapi.File", "fastapi.Form"]
 
 [tool.pyright]
-pythonVersion = "3.13"
 include = ["app", "tests"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
 pythonpath = ["."]
-# `pytest` a secas solo recolecta tests/ — sin esto intenta caminar data/
-# (datadir de Postgres, ilegible para el usuario) y revienta la recolección.
+# Sin esto, `pytest` a secas intenta recorrer data/ (el datadir de Postgres, que no
+# es legible) y revienta al recolectar.
 testpaths = ["tests"]

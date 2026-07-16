@@ -214,7 +214,9 @@ uv run ruff check . && uv run ruff format --check . && uv run pyright app tests
 
 Stack: FastAPI (REST + native MCP) serving a React SPA (Vite, built into the image at
 `/app`), PostgreSQL (no ORM, raw SQL), and ONNX embeddings via onnxruntime + tokenizers.
-See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+
+The test suite starts its own throwaway Postgres container, so `uv run pytest` needs
+nothing set up beyond Docker.
 
 ## Deployment
 
