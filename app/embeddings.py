@@ -241,8 +241,8 @@ def _clean(snippet: str) -> str:
     return snippet.replace("<mark>", "").replace("</mark>", "")
 
 
-def _fts_results(user_id: int, workspace_id: int, query: str, k: int) -> list[dict]:
-    rows = db.search_pages(user_id, workspace_id, query, limit=k)
+def _fts_results(workspace_id: int, query: str, k: int) -> list[dict]:
+    rows = db.search_pages(workspace_id, query, limit=k)
     return [
         {
             "slug": r.slug,
@@ -257,7 +257,6 @@ def _fts_results(user_id: int, workspace_id: int, query: str, k: int) -> list[di
 
 
 def semantic_search(
-    user_id: int,
     workspace_id: int,
     query: str,
     *,
@@ -280,11 +279,11 @@ def semantic_search(
     if not query:
         return []
     if not semantic_enabled():
-        return _fts_results(user_id, workspace_id, query, k)
+        return _fts_results(workspace_id, query, k)
 
-    rows = db.workspace_chunk_vectors(user_id, workspace_id)
+    rows = db.workspace_chunk_vectors(workspace_id)
     if not rows:
-        return _fts_results(user_id, workspace_id, query, k)
+        return _fts_results(workspace_id, query, k)
 
     qvec = get_embedder().encode([query])[0]
     mat = np.stack([_from_blob(r.vector) for r in rows])
@@ -306,7 +305,7 @@ def semantic_search(
     results = list(best.values())
     keyword_slugs: set[str] = set()
     if keyword_boost:
-        for hit in db.search_pages(user_id, workspace_id, query):
+        for hit in db.search_pages(workspace_id, query):
             keyword_slugs.add(hit.slug)
     for r in results:
         r["keyword_match"] = r["slug"] in keyword_slugs
@@ -338,7 +337,7 @@ def semantic_search(
     return out
 
 
-def rag_context(user_id: int, workspace_id: int, query: str, *, k: int = 6) -> dict:
+def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
     """rag como tubería de retrieval: top-k chunks + procedencia, SIN generar texto.
 
     El agente sintetiza la respuesta a partir de estos fragmentos.
@@ -348,7 +347,7 @@ def rag_context(user_id: int, workspace_id: int, query: str, *, k: int = 6) -> d
         return {"query": query, "mode": "empty", "chunks": []}
 
     if semantic_enabled():
-        rows = db.workspace_chunk_vectors(user_id, workspace_id)
+        rows = db.workspace_chunk_vectors(workspace_id)
         if rows:
             qvec = get_embedder().encode([query])[0]
             mat = np.stack([_from_blob(r.vector) for r in rows])
@@ -366,7 +365,7 @@ def rag_context(user_id: int, workspace_id: int, query: str, *, k: int = 6) -> d
             ]
             return {"query": query, "mode": "semantic", "chunks": chunks}
 
-    hits = db.search_pages(user_id, workspace_id, query, limit=k)
+    hits = db.search_pages(workspace_id, query, limit=k)
     chunks = [
         {
             "slug": h.slug,

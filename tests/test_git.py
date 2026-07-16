@@ -29,7 +29,7 @@ def test_git_commit_stored_on_create(client):
     assert user is not None
     uid = int(user.id)
     wid = int(db_module.ensure_default_workspace(uid).id)
-    page = db_module.get_page(slug, uid, wid)
+    page = db_module.get_page(slug, wid)
     assert page is not None
     assert page.git_commit is not None
     assert len(page.git_commit) == 7

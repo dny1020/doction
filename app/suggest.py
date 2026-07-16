@@ -89,20 +89,20 @@ def _page_vectors(rows: list[ChunkVector]) -> tuple[list[tuple[int, str, str]], 
 # ── Wikilinks y duplicados ───────────────────────────────────────────────────
 
 
-def suggest_links(user_id: int, workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
+def suggest_links(workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
     """Páginas del workspace que esta página debería enlazar y aún no enlaza.
 
     Con semántica activa: similitud coseno entre vectores de página. Apagada o
     sin vectores todavía: menciones literales de títulos ajenos en el cuerpo.
     None si la página no existe.
     """
-    page = db.get_page(slug, user_id, workspace_id)
+    page = db.get_page(slug, workspace_id)
     if page is None:
         return None
     linked = set(db.page_outgoing_links(int(page.id or 0))) | {slug}
 
     if embeddings.semantic_enabled():
-        entries, mat = _page_vectors(db.workspace_chunk_vectors(user_id, workspace_id))
+        entries, mat = _page_vectors(db.workspace_chunk_vectors(workspace_id))
         pos = next((i for i, (pid, _, _) in enumerate(entries) if pid == page.id), None)
         if pos is not None and len(entries) > 1:
             sims = mat @ mat[pos]
@@ -132,13 +132,11 @@ def suggest_links(user_id: int, workspace_id: int, slug: str, *, k: int = 5) -> 
     return {"slug": slug, "mode": "title-match", "suggestions": suggestions}
 
 
-def find_duplicates(
-    user_id: int, workspace_id: int, *, threshold: float = DUP_THRESHOLD, k: int = 20
-) -> dict:
+def find_duplicates(workspace_id: int, *, threshold: float = DUP_THRESHOLD, k: int = 20) -> dict:
     """Pares de páginas casi duplicadas por similitud coseno (solo con semántica)."""
     if not embeddings.semantic_enabled():
         return {"mode": "off", "pairs": []}
-    entries, mat = _page_vectors(db.workspace_chunk_vectors(user_id, workspace_id))
+    entries, mat = _page_vectors(db.workspace_chunk_vectors(workspace_id))
     if len(entries) < 2:
         return {"mode": "semantic", "pairs": []}
     sims = mat @ mat.T
@@ -161,7 +159,7 @@ def find_duplicates(
 # ── Tags (TF-IDF) ────────────────────────────────────────────────────────────
 
 
-def suggest_tags(user_id: int, workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
+def suggest_tags(workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
     """Tags candidatos para una página: términos TF-IDF característicos frente al
     resto del workspace, con premio a los que ya existen como tag en otras
     páginas. No necesita vectores. None si la página no existe."""
@@ -175,7 +173,7 @@ def suggest_tags(user_id: int, workspace_id: int, slug: str, *, k: int = 5) -> d
         return {"slug": slug, "suggestions": []}
 
     idf = _idf([set(d) for d in docs])
-    page_meta = db.get_page_meta(user_id, workspace_id, slug)
+    page_meta = db.get_page_meta(workspace_id, slug)
     existing = {meta.normalize_tag(t) for t in (page_meta.tags if page_meta else [])}
     vocab = set(db.workspace_tags(workspace_id))
 
@@ -245,10 +243,10 @@ def summarize(content: str, *, k: int = 3) -> dict:
 # ── Insights del workspace ───────────────────────────────────────────────────
 
 
-def _topic_clusters(user_id: int, workspace_id: int, *, max_clusters: int = 5) -> dict:
+def _topic_clusters(workspace_id: int, *, max_clusters: int = 5) -> dict:
     """Agrupa las páginas por tema (k-means sobre vectores) y etiqueta cada grupo
     con sus términos TF-IDF más característicos."""
-    entries, mat = _page_vectors(db.workspace_chunk_vectors(user_id, workspace_id))
+    entries, mat = _page_vectors(db.workspace_chunk_vectors(workspace_id))
     if len(entries) < MIN_CLUSTER_PAGES:
         return {"mode": "semantic", "groups": []}
     k = min(max_clusters, max(2, len(entries) // 4))
@@ -276,13 +274,13 @@ def _topic_clusters(user_id: int, workspace_id: int, *, max_clusters: int = 5) -
     return {"mode": "semantic", "groups": groups}
 
 
-def workspace_insights(user_id: int, workspace_id: int) -> dict:
+def workspace_insights(workspace_id: int) -> dict:
     """Panel de salud del workspace: estructura del grafo de wikilinks más las
     señales semánticas (duplicados y clusters de temas) cuando hay vectores."""
-    insights = graph.link_insights(user_id, workspace_id)
-    insights["duplicates"] = find_duplicates(user_id, workspace_id)
+    insights = graph.link_insights(workspace_id)
+    insights["duplicates"] = find_duplicates(workspace_id)
     if embeddings.semantic_enabled():
-        insights["clusters"] = _topic_clusters(user_id, workspace_id)
+        insights["clusters"] = _topic_clusters(workspace_id)
     else:
         insights["clusters"] = {"mode": "off", "groups": []}
     return insights

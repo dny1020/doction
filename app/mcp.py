@@ -47,10 +47,10 @@ def _require(args: dict, key: str) -> str:
 def _git_commit(user_id: int, ws: Workspace, slug: str, title: str, content: str) -> None:
     user = db.get_user_by_id(user_id)
     author = user.email if user else "user"
-    git_repo.commit_and_record(user_id, int(ws.id), ws.slug, slug, title, content, author)
+    git_repo.commit_and_record(int(ws.id), ws.slug, slug, title, content, author)
 
 
-def _tool_list_workspaces(user_id: int, args: dict) -> list[dict]:
+def _tool_list_workspaces(user_id: int, _args: dict) -> list[dict]:
     return [{"slug": w.slug, "name": w.name, "role": w.role} for w in db.list_workspaces(user_id)]
 
 
@@ -64,14 +64,14 @@ def _tool_list_members(user_id: int, args: dict) -> list[dict]:
 
 def _tool_list_pages(user_id: int, args: dict) -> list[dict]:
     ws = _workspace(user_id, args)
-    nodes = db.list_pages_tree(user_id, int(ws.id))
+    nodes = db.list_pages_tree(int(ws.id))
     return [dataclasses.asdict(node) for node in nodes]
 
 
 def _tool_get_page(user_id: int, args: dict) -> dict:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    page = db.get_page(slug, user_id, int(ws.id))
+    page = db.get_page(slug, int(ws.id))
     if page is None:
         raise ValueError(f"Page not found: {slug}")
     return {
@@ -87,7 +87,7 @@ def _tool_get_page(user_id: int, args: dict) -> dict:
 def _tool_search_pages(user_id: int, args: dict) -> list[dict]:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
-    results = db.search_pages(user_id, int(ws.id), query)
+    results = db.search_pages(int(ws.id), query)
     out: list[dict] = [{"slug": r.slug, "title": r.title, "snippet": r.snippet} for r in results]
     # Uploads con texto OCR indexado (OCR_UPLOADS): items extra con type="upload".
     out += [
@@ -116,7 +116,7 @@ def _tool_create_page(user_id: int, args: dict) -> dict:
 def _tool_update_page(user_id: int, args: dict) -> dict:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    page = db.get_page(slug, user_id, int(ws.id))
+    page = db.get_page(slug, int(ws.id))
     if page is None:
         raise ValueError(f"Page not found: {slug}")
     title = str(args["title"]) if args.get("title") is not None else page.title
@@ -130,7 +130,7 @@ def _tool_get_page_history(user_id: int, args: dict) -> list[dict]:
     slug = _require(args, "slug")
     limit = int(args.get("limit") or 50)
     ws = _workspace(user_id, args)
-    if db.get_page(slug, user_id, int(ws.id)) is None:
+    if db.get_page(slug, int(ws.id)) is None:
         raise ValueError(f"Page not found: {slug}")
     history = git_repo.get_page_history(ws.slug, slug, limit=limit)
     return [dataclasses.asdict(entry) for entry in history]
@@ -139,7 +139,6 @@ def _tool_get_page_history(user_id: int, args: dict) -> list[dict]:
 def _tool_extract(user_id: int, args: dict) -> list[dict]:
     ws = _workspace(user_id, args)
     pages = db.extract_pages(
-        user_id,
         int(ws.id),
         page_type=(args.get("type") or None),
         tag=(args.get("tag") or None),
@@ -150,15 +149,15 @@ def _tool_extract(user_id: int, args: dict) -> list[dict]:
 def _tool_list_backlinks(user_id: int, args: dict) -> list[dict]:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    if db.get_page(slug, user_id, int(ws.id)) is None:
+    if db.get_page(slug, int(ws.id)) is None:
         raise ValueError(f"Page not found: {slug}")
-    return [dataclasses.asdict(ref) for ref in db.backlinks(user_id, int(ws.id), slug)]
+    return [dataclasses.asdict(ref) for ref in db.backlinks(int(ws.id), slug)]
 
 
 def _tool_related_pages(user_id: int, args: dict) -> list[dict]:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    related = db.related_pages(user_id, int(ws.id), slug)
+    related = db.related_pages(int(ws.id), slug)
     if related is None:
         raise ValueError(f"Page not found: {slug}")
     return [dataclasses.asdict(page) for page in related]
@@ -168,20 +167,20 @@ def _tool_sgrep(user_id: int, args: dict) -> list[dict]:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     limit = int(args.get("limit") or 10)
-    return embeddings.semantic_search(user_id, int(ws.id), query, k=limit)
+    return embeddings.semantic_search(int(ws.id), query, k=limit)
 
 
 def _tool_rag(user_id: int, args: dict) -> dict:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     limit = int(args.get("limit") or 6)
-    return embeddings.rag_context(user_id, int(ws.id), query, k=limit)
+    return embeddings.rag_context(int(ws.id), query, k=limit)
 
 
 def _tool_suggest_links(user_id: int, args: dict) -> dict:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    result = suggest.suggest_links(user_id, int(ws.id), slug)
+    result = suggest.suggest_links(int(ws.id), slug)
     if result is None:
         raise ValueError(f"Page not found: {slug}")
     return result
@@ -190,7 +189,7 @@ def _tool_suggest_links(user_id: int, args: dict) -> dict:
 def _tool_suggest_tags(user_id: int, args: dict) -> dict:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    result = suggest.suggest_tags(user_id, int(ws.id), slug)
+    result = suggest.suggest_tags(int(ws.id), slug)
     if result is None:
         raise ValueError(f"Page not found: {slug}")
     return result
@@ -199,7 +198,7 @@ def _tool_suggest_tags(user_id: int, args: dict) -> dict:
 def _tool_summarize_page(user_id: int, args: dict) -> dict:
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
-    page = db.get_page(slug, user_id, int(ws.id))
+    page = db.get_page(slug, int(ws.id))
     if page is None:
         raise ValueError(f"Page not found: {slug}")
     k = max(1, min(int(args.get("sentences") or 3), 10))
@@ -208,7 +207,7 @@ def _tool_summarize_page(user_id: int, args: dict) -> dict:
 
 def _tool_workspace_insights(user_id: int, args: dict) -> dict:
     ws = _workspace(user_id, args)
-    return suggest.workspace_insights(user_id, int(ws.id))
+    return suggest.workspace_insights(int(ws.id))
 
 
 _WORKSPACE_PROP = {

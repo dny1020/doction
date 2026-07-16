@@ -96,7 +96,6 @@ def commit_page(
 
 
 def commit_and_record(
-    user_id: int,
     workspace_id: int,
     ws_slug: str,
     page_slug: str,
@@ -113,7 +112,7 @@ def commit_and_record(
 
     sha = commit_page(ws_slug, page_slug, content, author, f"Save: {title}")
     if sha:
-        db.set_page_git_commit(user_id, workspace_id, page_slug, sha)
+        db.set_page_git_commit(workspace_id, page_slug, sha)
 
 
 def get_page_history(ws_slug: str, page_slug: str, limit: int = 50) -> list[HistoryEntry]:

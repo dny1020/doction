@@ -165,13 +165,13 @@ def test_min_score_filters_weak_hits(client):
 
     token = _token(client)
     _seed_pages(client, token)
-    uid, wid = 1, 1
+    wid = 1
 
-    todos = emb.semantic_search(uid, wid, "sip routing")
+    todos = emb.semantic_search(wid, "sip routing")
     assert len(todos) > 1  # sin corte devuelve el workspace entero ordenado
 
     corte = max(r["score"] for r in todos)
-    filtrados = emb.semantic_search(uid, wid, "sip routing", min_score=corte)
+    filtrados = emb.semantic_search(wid, "sip routing", min_score=corte)
     assert [r["slug"] for r in filtrados] == [todos[0]["slug"]]
     assert all(r["score"] >= corte for r in filtrados)
 
@@ -184,7 +184,7 @@ def test_min_score_does_not_break_fts_fallback(client, monkeypatch):
     _seed_pages(client, token)
     monkeypatch.setenv("SEMANTIC_SEARCH", "0")
 
-    results = emb.semantic_search(1, 1, "dispatcher", min_score=0.9)
+    results = emb.semantic_search(1, "dispatcher", min_score=0.9)
     assert results
     assert all(r["via"] == "fts" and r["score"] is None for r in results)
 

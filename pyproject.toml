@@ -33,7 +33,17 @@ package = false
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+# ARG avisa de argumentos que se aceptan y se ignoran: así se habían colado 17
+# `user_id` que no filtraban nada pero hacían creer que controlaban el acceso.
+# Cuando el framework impone la firma (FastAPI, el dispatch del MCP), el argumento
+# va con guion bajo — ruff no marca los que empiezan así.
+select = ["E", "F", "I", "UP", "B", "ARG"]
+
+[tool.ruff.lint.per-file-ignores]
+# En los tests, ARG solo genera ruido: los dobles (lambdas y fakes de monkeypatch)
+# tienen que respetar una firma que no usan, y un fixture pedido por su efecto
+# secundario no se puede renombrar a _algo — pytest los resuelve por nombre.
+"tests/**" = ["ARG"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI las usa como valores por defecto de parámetros; es su patrón normal.

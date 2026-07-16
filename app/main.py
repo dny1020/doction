@@ -224,7 +224,7 @@ def api_create_workspace(request: Request, body: _WorkspaceIn):
     return {"slug": slug, "name": body.name.strip() or "Workspace"}
 
 
-def _api_owned_workspace(request: Request, uid: int, slug: str) -> Workspace:
+def _api_owned_workspace(uid: int, slug: str) -> Workspace:
     """Resuelve el workspace por slug exigiendo que el usuario sea owner."""
     ws = db.get_workspace_by_slug(uid, slug)
     if ws is None:
@@ -237,7 +237,7 @@ def _api_owned_workspace(request: Request, uid: int, slug: str) -> Workspace:
 @api_router.put("/workspaces/{slug}")
 def api_rename_workspace(request: Request, slug: str, body: _WorkspaceIn):
     uid = _api_user(request)
-    _api_owned_workspace(request, uid, slug)  # exige ser owner
+    _api_owned_workspace(uid, slug)  # exige ser owner
     if not db.rename_workspace(uid, slug, body.name):
         raise HTTPException(status_code=400, detail="Enter a valid name")
     return {"slug": slug, "name": body.name.strip()}
@@ -246,7 +246,7 @@ def api_rename_workspace(request: Request, slug: str, body: _WorkspaceIn):
 @api_router.delete("/workspaces/{slug}")
 def api_delete_workspace(request: Request, slug: str) -> Response:
     uid = _api_user(request)
-    _api_owned_workspace(request, uid, slug)  # exige ser owner
+    _api_owned_workspace(uid, slug)  # exige ser owner
     if not db.delete_workspace(uid, slug):
         raise HTTPException(status_code=400, detail="Cannot delete your only workspace")
     response = JSONResponse({"slug": slug, "ok": True})
@@ -278,7 +278,7 @@ def api_list_members(request: Request, slug: str):
 @api_router.post("/workspaces/{slug}/members", status_code=201)
 def api_add_member(request: Request, slug: str, body: _MemberIn):
     uid = _api_user(request)
-    ws = _api_owned_workspace(request, uid, slug)
+    ws = _api_owned_workspace(uid, slug)
     target = db.get_user_by_email(body.email.strip().lower())
     if target is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -291,7 +291,7 @@ def api_add_member(request: Request, slug: str, body: _MemberIn):
 @api_router.delete("/workspaces/{slug}/members/{member_id}", status_code=204)
 def api_remove_member(request: Request, slug: str, member_id: int):
     uid = _api_user(request)
-    ws = _api_owned_workspace(request, uid, slug)
+    ws = _api_owned_workspace(uid, slug)
     if db.get_member_role(member_id, int(ws.id)) == "owner":
         raise HTTPException(status_code=400, detail="Cannot remove the owner")
     if not db.remove_workspace_member(int(ws.id), member_id):
@@ -320,7 +320,7 @@ def api_export_workspace(request: Request, slug: str) -> Response:
 def api_list_pages(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    return db.list_pages_tree(uid, wid)
+    return db.list_pages_tree(wid)
 
 
 @api_router.post("/pages", status_code=201)
@@ -335,7 +335,7 @@ def api_create_page(request: Request, body: _PageIn):
         parent_slug=body.parent_slug,
         requested_slug=body.slug,
     )
-    _commit_page(request, uid, wid, slug, body.title, body.content)
+    _commit_page(request, wid, slug, body.title, body.content)
     return {"slug": slug, "title": body.title.strip() or "Untitled"}
 
 
@@ -343,7 +343,7 @@ def api_create_page(request: Request, body: _PageIn):
 def api_page_history(request: Request, slug: str, limit: int = 50):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    page = db.get_page(slug, uid, wid)
+    page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     return git_repo.get_page_history(_workspace_slug(request, wid), slug, limit=limit)
@@ -353,7 +353,7 @@ def api_page_history(request: Request, slug: str, limit: int = 50):
 def api_page_at_commit(request: Request, slug: str, sha: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    page = db.get_page(slug, uid, wid)
+    page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     content = git_repo.get_page_at_commit(_workspace_slug(request, wid), slug, sha)
@@ -366,7 +366,7 @@ def api_page_at_commit(request: Request, slug: str, sha: str):
 def api_page_diff(request: Request, slug: str, sha: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    page = db.get_page(slug, uid, wid)
+    page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     diff = git_repo.diff_page(_workspace_slug(request, wid), slug, sha)
@@ -379,7 +379,7 @@ def api_page_diff(request: Request, slug: str, sha: str):
 def api_get_page_raw(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    page = db.get_page(slug, uid, wid)
+    page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     return page.content
@@ -389,10 +389,10 @@ def api_get_page_raw(request: Request, slug: str):
 def api_get_page(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    page = db.get_page(slug, uid, wid)
+    page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    children = db.list_child_pages(uid, wid, int(page.id or 0))
+    children = db.list_child_pages(wid, int(page.id or 0))
     return {
         "slug": page.slug,
         "title": page.title,
@@ -408,13 +408,13 @@ def api_get_page(request: Request, slug: str):
 def api_update_page(request: Request, slug: str, body: _PagePatch):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    page = db.get_page(slug, uid, wid)
+    page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     new_title = body.title if body.title is not None else page.title
     new_content = body.content if body.content is not None else page.content
     db.update_page(uid, wid, slug, new_title, new_content)
-    _commit_page(request, uid, wid, slug, new_title, new_content)
+    _commit_page(request, wid, slug, new_title, new_content)
     return {"slug": slug, "title": new_title, "updated": True}
 
 
@@ -422,7 +422,7 @@ def api_update_page(request: Request, slug: str, body: _PagePatch):
 def api_delete_page(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    if not db.delete_page(uid, wid, slug):
+    if not db.delete_page(wid, slug):
         raise HTTPException(status_code=404, detail="Page not found")
 
 
@@ -432,7 +432,7 @@ def api_suggest_links(request: Request, slug: str):
     que esta página todavía no enlaza."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    result = suggest.suggest_links(uid, wid, slug)
+    result = suggest.suggest_links(wid, slug)
     if result is None:
         raise HTTPException(status_code=404, detail="Page not found")
     return result
@@ -443,7 +443,7 @@ def api_suggest_tags(request: Request, slug: str):
     """Tags candidatos por TF-IDF frente al resto del workspace."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    result = suggest.suggest_tags(uid, wid, slug)
+    result = suggest.suggest_tags(wid, slug)
     if result is None:
         raise HTTPException(status_code=404, detail="Page not found")
     return result
@@ -454,7 +454,7 @@ def api_page_summary(request: Request, slug: str, k: int = 3):
     """Resumen extractivo (TextRank) de la página; `lead` si la semántica está apagada."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    page = db.get_page(slug, uid, wid)
+    page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     k = max(1, min(k, 10))
@@ -466,7 +466,7 @@ def api_insights(request: Request):
     """Salud del workspace: grafo de wikilinks + duplicados y clusters semánticos."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    return suggest.workspace_insights(uid, wid)
+    return suggest.workspace_insights(wid)
 
 
 @api_router.get("/search")
@@ -486,26 +486,24 @@ def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bo
         # paráfrasis que no comparte ninguna palabra con el texto.
         results: list[dict] = [
             {"slug": r.slug, "title": r.title, "snippet": r.snippet, "via": "fts"}
-            for r in db.search_pages(uid, wid, q)
+            for r in db.search_pages(wid, q)
         ]
         seen = {r["slug"] for r in results}
         # keyword_boost apagado: premia justo a los que ya salieron arriba por FTS y
         # aquí se descartan por duplicados, así que solo costaría otra consulta.
         for hit in embeddings.semantic_search(
-            uid, wid, q, min_score=embeddings.SEARCH_MIN_SCORE, keyword_boost=False
+            wid, q, min_score=embeddings.SEARCH_MIN_SCORE, keyword_boost=False
         ):
             if hit["slug"] not in seen:
                 results.append({**hit, "snippet": hit["chunk"]})
     elif mode == "semantic":
-        results = list(
-            embeddings.semantic_search(uid, wid, q, min_score=embeddings.SEARCH_MIN_SCORE)
-        )
+        results = list(embeddings.semantic_search(wid, q, min_score=embeddings.SEARCH_MIN_SCORE))
         for r in results:
             r["snippet"] = r["chunk"]
     else:
         results = [
             {"slug": r.slug, "title": r.title, "snippet": r.snippet}
-            for r in db.search_pages(uid, wid, q)
+            for r in db.search_pages(wid, q)
         ]
     if uploads:
         results += [
@@ -627,13 +625,13 @@ def api_page_view(request: Request, slug: str):
     """Todo lo que la vista de lectura de la SPA necesita en una sola llamada."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    page = db.get_page(slug, uid, wid)
+    page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     # `or 0`: get_page siempre rellena id, pero el dataclass lo declara opcional.
-    breadcrumbs = db.get_ancestors(int(page.id or 0), uid, wid)
-    children = db.list_child_pages(uid, wid, int(page.id or 0))
-    related = db.related_pages(uid, wid, slug) or []
+    breadcrumbs = db.get_ancestors(int(page.id or 0), wid)
+    children = db.list_child_pages(wid, int(page.id or 0))
+    related = db.related_pages(wid, slug) or []
     return {
         "slug": page.slug,
         "title": page.title,
@@ -646,7 +644,7 @@ def api_page_view(request: Request, slug: str):
         "children": [
             {"slug": c.slug, "title": c.title, "updated_at": c.updated_at} for c in children
         ],
-        "backlinks": [{"slug": b.slug, "title": b.title} for b in db.backlinks(uid, wid, slug)],
+        "backlinks": [{"slug": b.slug, "title": b.title} for b in db.backlinks(wid, slug)],
         "related": [
             {"slug": r.slug, "title": r.title, "shared_tags": r.shared_tags} for r in related
         ],
@@ -701,7 +699,7 @@ def api_trash(request: Request):
     wid = _api_workspace(request, uid)
     return [
         {"slug": p.slug, "title": p.title, "deleted_at": p.deleted_at}
-        for p in db.list_deleted_pages(uid, wid)
+        for p in db.list_deleted_pages(wid)
     ]
 
 
@@ -709,7 +707,7 @@ def api_trash(request: Request):
 def api_trash_restore(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    if not db.restore_page(uid, wid, slug):
+    if not db.restore_page(wid, slug):
         raise HTTPException(status_code=404, detail="Page not found in trash")
     return {"slug": slug, "ok": True}
 
@@ -718,7 +716,7 @@ def api_trash_restore(request: Request, slug: str):
 def api_trash_purge(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    if not db.purge_page(uid, wid, slug):
+    if not db.purge_page(wid, slug):
         raise HTTPException(status_code=404, detail="Page not found in trash")
 
 
@@ -727,7 +725,7 @@ def api_restore_version(request: Request, slug: str, sha: str):
     """Restaura el contenido de una versión antigua (commit git) como nueva versión."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    page = db.get_page(slug, uid, wid)
+    page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
     ws_slug = _workspace_slug(request, wid)
@@ -742,7 +740,7 @@ def api_restore_version(request: Request, slug: str, sha: str):
         ws_slug, effective_slug, content, author, f"Restore {sha}: {title}"
     )
     if new_sha:
-        db.set_page_git_commit(uid, wid, effective_slug, new_sha)
+        db.set_page_git_commit(wid, effective_slug, new_sha)
     return {"slug": effective_slug, "ok": True}
 
 
@@ -755,11 +753,9 @@ def _workspace_slug(request: Request, wid: int) -> str:
     return ws.slug if ws else "default"
 
 
-def _commit_page(request: Request, uid: int, wid: int, slug: str, title: str, content: str) -> None:
+def _commit_page(request: Request, wid: int, slug: str, title: str, content: str) -> None:
     author = getattr(request.state, "user_email", None) or "user"
-    git_repo.commit_and_record(
-        uid, wid, _workspace_slug(request, wid), slug, title, content, author
-    )
+    git_repo.commit_and_record(wid, _workspace_slug(request, wid), slug, title, content, author)
 
 
 @asynccontextmanager
@@ -851,7 +847,7 @@ async def serve_spa(full_path: str = "") -> Response:
 
 
 @app.exception_handler(Exception)
-async def unhandled_error(request: Request, exc: Exception) -> Response:
+async def unhandled_error(request: Request, _exc: Exception) -> Response:
     """Cualquier excepción no capturada → 500 JSON, sin filtrar el traceback."""
     logger.exception("unhandled error on %s %s", request.method, request.url.path)
     return JSONResponse({"detail": "Internal server error"}, status_code=500)

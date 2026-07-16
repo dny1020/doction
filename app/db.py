@@ -633,7 +633,7 @@ def claim_unowned_pages(user_id: int, workspace_id: int) -> int:
         return cur.rowcount
 
 
-def list_pages_tree(user_id: int, workspace_id: int) -> list[PageNode]:
+def list_pages_tree(workspace_id: int) -> list[PageNode]:
     """Lista plana en orden DFS con campo depth para renderizar el árbol en la sidebar."""
     with connect() as conn:
         rows = conn.execute(
@@ -667,7 +667,7 @@ def list_pages_tree(user_id: int, workspace_id: int) -> list[PageNode]:
     return result
 
 
-def get_page(slug: str, user_id: int, workspace_id: int) -> Page | None:
+def get_page(slug: str, workspace_id: int) -> Page | None:
     # El acceso lo garantiza la membresía al resolver el workspace; aquí basta workspace_id.
     with connect() as conn:
         row = conn.execute(
@@ -684,7 +684,7 @@ def get_page(slug: str, user_id: int, workspace_id: int) -> Page | None:
         return _to_page(row) if row else None
 
 
-def get_ancestors(page_id: int, user_id: int, workspace_id: int) -> list[PageRef]:
+def get_ancestors(page_id: int, workspace_id: int) -> list[PageRef]:
     """Cadena de ancestros desde la raíz hasta el padre directo (sin incluir la página)."""
     chain: list[PageRef] = []
     with connect() as conn:
@@ -713,7 +713,6 @@ def _resolve_parent_id(
     conn,
     parent_slug: str | None,
     *,
-    user_id: int,
     workspace_id: int,
     ignore_id: int | None = None,
 ) -> int | None:
@@ -749,7 +748,6 @@ def create_page(
         parent_id = _resolve_parent_id(
             conn,
             parent_slug,
-            user_id=user_id,
             workspace_id=workspace_id,
         )
         slug = unique_slug(conn, base_slug, workspace_id=workspace_id)
@@ -788,7 +786,7 @@ def update_page(user_id: int, workspace_id: int, slug: str, title: str, content:
         return slug
 
 
-def delete_page(user_id: int, workspace_id: int, slug: str) -> bool:
+def delete_page(workspace_id: int, slug: str) -> bool:
     """Soft-delete: mueve la página a la papelera (deleted_at = now). Recuperable.
 
     No se borra el archivo del repo git ni los datos derivados: solo se marca para que
@@ -802,7 +800,7 @@ def delete_page(user_id: int, workspace_id: int, slug: str) -> bool:
         return cur.rowcount > 0
 
 
-def list_deleted_pages(user_id: int, workspace_id: int) -> list[Page]:
+def list_deleted_pages(workspace_id: int) -> list[Page]:
     """Páginas en la papelera del workspace, más recientes primero."""
     with connect() as conn:
         rows = conn.execute(
@@ -814,7 +812,7 @@ def list_deleted_pages(user_id: int, workspace_id: int) -> list[Page]:
         return [_to_page(row) for row in rows]
 
 
-def restore_page(user_id: int, workspace_id: int, slug: str) -> bool:
+def restore_page(workspace_id: int, slug: str) -> bool:
     """Saca una página de la papelera (deleted_at = NULL)."""
     with connect() as conn:
         cur = conn.execute(
@@ -825,7 +823,7 @@ def restore_page(user_id: int, workspace_id: int, slug: str) -> bool:
         return cur.rowcount > 0
 
 
-def purge_page(user_id: int, workspace_id: int, slug: str) -> bool:
+def purge_page(workspace_id: int, slug: str) -> bool:
     """Borra definitivamente una página que ya está en la papelera (hard delete).
 
     El CASCADE limpia meta/tags/links/chunks."""
@@ -848,7 +846,7 @@ def pages_for_export(workspace_id: int) -> list[Page]:
         return [_to_page(row) for row in rows]
 
 
-def list_child_pages(user_id: int, workspace_id: int, parent_id: int) -> list[Page]:
+def list_child_pages(workspace_id: int, parent_id: int) -> list[Page]:
     with connect() as conn:
         rows = conn.execute(
             "SELECT slug, title, updated_at FROM pages "
@@ -870,7 +868,6 @@ def _fts_query(raw: str) -> str:
 
 
 def search_pages(
-    user_id: int,
     workspace_id: int,
     query: str,
     limit: int = 20,
@@ -907,7 +904,7 @@ def _page_tags(conn, page_id: int) -> list[str]:
     return [r["tag"] for r in rows]
 
 
-def get_page_meta(user_id: int, workspace_id: int, slug: str) -> PageMeta | None:
+def get_page_meta(workspace_id: int, slug: str) -> PageMeta | None:
     """Frontmatter + tags de una página, o None si no existe."""
     with connect() as conn:
         row = conn.execute(
@@ -929,7 +926,6 @@ def get_page_meta(user_id: int, workspace_id: int, slug: str) -> PageMeta | None
 
 
 def extract_pages(
-    user_id: int,
     workspace_id: int,
     *,
     page_type: str | None = None,
@@ -976,7 +972,7 @@ def extract_pages(
         ]
 
 
-def backlinks(user_id: int, workspace_id: int, slug: str) -> list[PageRef]:
+def backlinks(workspace_id: int, slug: str) -> list[PageRef]:
     """Páginas que enlazan a `slug` vía wikilink [[slug]]."""
     with connect() as conn:
         rows = conn.execute(
@@ -992,9 +988,7 @@ def backlinks(user_id: int, workspace_id: int, slug: str) -> list[PageRef]:
         return [PageRef(slug=r["slug"], title=r["title"]) for r in rows]
 
 
-def related_pages(
-    user_id: int, workspace_id: int, slug: str, limit: int = 10
-) -> list[RelatedPage] | None:
+def related_pages(workspace_id: int, slug: str, limit: int = 10) -> list[RelatedPage] | None:
     """Vecinos por solape de tags (desc), o None si la página no existe."""
     with connect() as conn:
         page = conn.execute(
@@ -1120,7 +1114,7 @@ def clear_embed_dirty(page_id: int) -> None:
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
-def workspace_chunk_vectors(user_id: int, workspace_id: int) -> list[ChunkVector]:
+def workspace_chunk_vectors(workspace_id: int) -> list[ChunkVector]:
     """Chunks + vectores de un workspace para la búsqueda semántica (KNN en memoria)."""
     with connect() as conn:
         rows = conn.execute(
@@ -1194,7 +1188,7 @@ def get_workspace_by_id(workspace_id: int) -> Workspace | None:
         return _to_workspace(row) if row else None
 
 
-def set_page_git_commit(user_id: int, workspace_id: int, slug: str, sha: str) -> None:
+def set_page_git_commit(workspace_id: int, slug: str, sha: str) -> None:
     with connect() as conn:
         conn.execute(
             "UPDATE pages SET git_commit = %s WHERE slug = %s AND workspace_id = %s",

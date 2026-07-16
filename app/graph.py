@@ -64,7 +64,7 @@ def _ref(page) -> dict:
     return {"slug": page.slug, "title": page.title}
 
 
-def link_insights(user_id: int, workspace_id: int, *, top: int = 10) -> dict:
+def link_insights(workspace_id: int, *, top: int = 10) -> dict:
     """Análisis estructural del grafo de wikilinks de un workspace.
 
     Devuelve páginas centrales (PageRank), huérfanas (sin enlaces en ningún
