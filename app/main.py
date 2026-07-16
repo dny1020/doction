@@ -479,7 +479,9 @@ def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bo
     if not q.strip():
         return []
     if mode == "semantic":
-        results: list[dict] = list(embeddings.semantic_search(uid, wid, q))
+        results: list[dict] = list(
+            embeddings.semantic_search(uid, wid, q, min_score=embeddings.SEARCH_MIN_SCORE)
+        )
         for r in results:
             r["snippet"] = r["chunk"]
     else:

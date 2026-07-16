@@ -27,6 +27,11 @@ EMBED_DIM = 384
 MAX_TOKENS = 256
 KEYWORD_BOOST = 0.1  # plan §4: "embedding similarity + keyword boost"
 RERANK_CANDIDATES = 20  # cuántos resultados del bi-encoder repuntúa el cross-encoder
+# Corte del buscador de la UI. Medido sobre el wiki: los aciertos caen entre 0.38 y
+# 0.86, y por debajo de 0.35 solo aparece relleno (cualquier página contra cualquier
+# consulta). Recorta el listado de ~10 a 1-5 sin perder aciertos; no separa del todo
+# señal de ruido —el ruido llega a 0.48— así que ordena, no decide.
+SEARCH_MIN_SCORE = 0.35
 
 _DEFAULT_MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 _MODELS_DIR = Path(os.environ.get("MODEL_DIR") or _DEFAULT_MODELS_DIR)
@@ -255,11 +260,18 @@ def semantic_search(
     *,
     k: int = 10,
     keyword_boost: bool = True,
+    min_score: float | None = None,
 ) -> list[dict]:
     """sgrep: similitud de embeddings + boost por keyword. Degrada a FTS si aplica.
 
     Devuelve resultados explicables: slug, title, score y el mejor chunk (plan:
     "explainability over magic").
+
+    `min_score` descarta los resultados por debajo del coseno dado. Sin él la lista
+    trae siempre el workspace entero ordenado, que es lo que quiere un agente por
+    MCP pero no un buscador. No aplica al fallback FTS (ahí el score es None).
+    Con RERANK=1 el corte va antes del cross-encoder: este solo reordena lo que ya
+    pasó el piso de coseno, no lo rescata.
     """
     query = (query or "").strip()
     if not query:
@@ -300,6 +312,8 @@ def semantic_search(
         r["via"] = "semantic"
 
     results.sort(key=lambda r: r["score"], reverse=True)
+    if min_score is not None:
+        results = [r for r in results if r["score"] >= min_score]
 
     if rerank_enabled() and results:
         # Repuntúa los primeros candidatos con el cross-encoder y reordena por su
