@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { api } from './api.js'
 
 // Internacionalización (EN/ES). El catálogo vive en el backend (app/i18n.py) y lo

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 
 // Índice "On this page" generado a partir de los h1/h2/h3 del prose ya pintado.

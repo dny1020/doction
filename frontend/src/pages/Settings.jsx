@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
@@ -223,7 +223,14 @@ function TokensSection() {
             <button
               className="btn btn-sm"
               type="button"
-              onClick={() => navigator.clipboard.writeText(newToken)}
+              // El portapapeles rechaza en contextos no seguros; sin el catch, copiar
+              // fallaba en silencio y el token parecía copiado.
+              onClick={() =>
+                navigator.clipboard
+                  .writeText(newToken)
+                  .then(() => toast(t('copied')))
+                  .catch((e) => toast(e.message, 'error'))
+              }
             >
               {t('copy')}
             </button>

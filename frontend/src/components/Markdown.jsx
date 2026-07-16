@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect } from 'react'
+import { forwardRef, useEffect } from 'react'
 import { renderMarkdown } from '../markdown.js'
 import { enhanceProse } from '../prose.js'
 

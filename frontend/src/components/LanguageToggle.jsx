@@ -1,4 +1,3 @@
-import React from 'react'
 import { useI18n } from '../i18n.jsx'
 import { useToast } from './Toast.jsx'
 

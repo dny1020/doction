@@ -11,7 +11,6 @@ LANGS = ("en", "es")
 _EN: dict[str, str] = {
     # Sidebar / menús
     "new_workspace": "New workspace",
-    "add": "Add",
     "search_placeholder": "Search  (/)",
     "pages": "Pages",
     "new_page": "New page",
@@ -27,7 +26,6 @@ _EN: dict[str, str] = {
     "language": "Language",
     # Atajos
     "shortcuts_title": "Keyboard shortcuts",
-    "sc_toggle_sidebar": "Toggle sidebar",
     "sc_focus_search": "Focus search",
     "sc_edit": "Edit current page",
     "sc_new_page": "New page",
@@ -50,7 +48,6 @@ _EN: dict[str, str] = {
     # Historial / versiones
     "history": "History",
     "no_history": "No versions yet.",
-    "view": "View",
     "restore": "Restore",
     "confirm_restore": "Restore this version? Current content will be saved as a new version.",
     # Editor
@@ -60,7 +57,6 @@ _EN: dict[str, str] = {
     "create": "Create",
     "write_markdown": "Write markdown…",
     "preview_hint": "Start typing to see preview.",
-    "parent": "Parent:",
     "unsaved_changes": "You have unsaved changes. Leave without saving?",
     "discard": "Discard",
     # Estado vacío / 404
@@ -72,7 +68,6 @@ _EN: dict[str, str] = {
     "create_this_page": "Create this page",
     "back_home": "Back home",
     "error_title": "Something went wrong",
-    "error_desc": "An unexpected error occurred. It has been logged — please try again.",
     "trash": "Trash",
     "trash_desc": "Deleted pages stay here. Restore them, or delete them permanently.",
     "trash_empty": "Trash is empty",
@@ -146,7 +141,6 @@ _EN: dict[str, str] = {
 
 _ES: dict[str, str] = {
     "new_workspace": "Nuevo workspace",
-    "add": "Agregar",
     "search_placeholder": "Buscar  (/)",
     "pages": "Páginas",
     "new_page": "Nueva página",
@@ -161,7 +155,6 @@ _ES: dict[str, str] = {
     "hide_sidebar": "Ocultar barra lateral",
     "language": "Idioma",
     "shortcuts_title": "Atajos de teclado",
-    "sc_toggle_sidebar": "Mostrar/ocultar barra lateral",
     "sc_focus_search": "Ir a buscar",
     "sc_edit": "Editar página actual",
     "sc_new_page": "Nueva página",
@@ -182,7 +175,6 @@ _ES: dict[str, str] = {
     "confirm_delete_page": "Eliminar",
     "history": "Historial",
     "no_history": "Aún no hay versiones.",
-    "view": "Ver",
     "restore": "Restaurar",
     "confirm_restore": "¿Restaurar esta versión? La actual se guardará como una versión nueva.",
     "title": "Título",
@@ -191,7 +183,6 @@ _ES: dict[str, str] = {
     "create": "Crear",
     "write_markdown": "Escribe markdown…",
     "preview_hint": "Empieza a escribir para ver la vista previa.",
-    "parent": "Padre:",
     "unsaved_changes": "Tienes cambios sin guardar. ¿Salir sin guardar?",
     "discard": "Descartar",
     "empty_title": "Aún no hay nada",
@@ -202,7 +193,6 @@ _ES: dict[str, str] = {
     "create_this_page": "Crear esta página",
     "back_home": "Volver al inicio",
     "error_title": "Algo salió mal",
-    "error_desc": "Ocurrió un error inesperado. Quedó registrado — inténtalo de nuevo.",
     "trash": "Papelera",
     "trash_desc": "Las páginas eliminadas quedan aquí. Restáuralas o bórralas definitivamente.",
     "trash_empty": "La papelera está vacía",

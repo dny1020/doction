@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 
 // Diálogo de confirmación propio (reemplaza a window.confirm). Usa <dialog> nativo

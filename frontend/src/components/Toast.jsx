@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useRef, useState } from 'react'
 
 // Toasts globales (avisos breves abajo a la derecha). Reusa las clases `.toasts`
 // y `.toast--ok/--error` del design system. Uso: const toast = useToast();

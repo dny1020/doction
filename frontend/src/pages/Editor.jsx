@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Link,
   useBlocker,
@@ -161,6 +161,7 @@ export default function Editor({ mode }) {
           }
           if (res.ok && data && data.url) {
             insertAtCursor('![](' + data.url + ')')
+            toast(t('img_uploaded'))
           } else {
             toast((data && data.detail) || t('img_upload_failed'), 'error')
           }

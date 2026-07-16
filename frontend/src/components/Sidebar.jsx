@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Check, ChevronsUpDown, LogOut, Moon, PanelLeftClose, Plus, Search, Settings, Sun, Terminal, Trash2, X } from 'lucide-react'
 import { useAuth } from '../auth.jsx'
