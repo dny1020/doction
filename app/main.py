@@ -480,6 +480,8 @@ def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bo
         return []
     if mode == "semantic":
         results: list[dict] = list(embeddings.semantic_search(uid, wid, q))
+        for r in results:
+            r["snippet"] = r["chunk"]
     else:
         results = [
             {"slug": r.slug, "title": r.title, "snippet": r.snippet}
