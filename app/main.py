@@ -471,15 +471,33 @@ def api_insights(request: Request):
 
 @api_router.get("/search")
 def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bool = False):
-    """Búsqueda del workspace. `uploads=1` añade además coincidencias en el texto
-    OCR de las imágenes subidas (items con `type: "upload"`) — opt-in para no
-    romper a los clientes que esperan solo páginas."""
+    """Búsqueda del workspace: `keyword` (FTS), `semantic` (embeddings) o `hybrid`.
+
+    `uploads=1` añade además coincidencias en el texto OCR de las imágenes subidas
+    (items con `type: "upload"`) — opt-in para no romper a los clientes que esperan
+    solo páginas."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     if not q.strip():
         return []
-    if mode == "semantic":
-        results: list[dict] = list(
+    if mode == "hybrid":
+        # Los exactos primero: FTS nunca falla si la palabra está en la página, algo
+        # que la semántica sola sí hace. Debajo, lo que solo ella encuentra: la
+        # paráfrasis que no comparte ninguna palabra con el texto.
+        results: list[dict] = [
+            {"slug": r.slug, "title": r.title, "snippet": r.snippet, "via": "fts"}
+            for r in db.search_pages(uid, wid, q)
+        ]
+        seen = {r["slug"] for r in results}
+        # keyword_boost apagado: premia justo a los que ya salieron arriba por FTS y
+        # aquí se descartan por duplicados, así que solo costaría otra consulta.
+        for hit in embeddings.semantic_search(
+            uid, wid, q, min_score=embeddings.SEARCH_MIN_SCORE, keyword_boost=False
+        ):
+            if hit["slug"] not in seen:
+                results.append({**hit, "snippet": hit["chunk"]})
+    elif mode == "semantic":
+        results = list(
             embeddings.semantic_search(uid, wid, q, min_score=embeddings.SEARCH_MIN_SCORE)
         )
         for r in results:

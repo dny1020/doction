@@ -40,7 +40,7 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
     }
     const timer = setTimeout(() => {
       api
-        .get('/api/search?mode=semantic&q=' + encodeURIComponent(q))
+        .get('/api/search?mode=hybrid&q=' + encodeURIComponent(q))
         .then(setResults)
         .catch(() => setResults([]))
     }, 200)

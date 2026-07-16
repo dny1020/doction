@@ -203,6 +203,59 @@ def test_search_endpoint_applies_min_score(client):
     assert all(x["score"] >= emb.SEARCH_MIN_SCORE for x in r.json())
 
 
+def _search(client, token: str, q: str, mode: str) -> list[dict]:
+    r = client.get(
+        "/api/search",
+        params={"q": q, "mode": mode},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 200
+    return r.json()
+
+
+def test_hybrid_puts_exact_matches_first_without_duplicates(client):
+    token = _token(client)
+    _seed_pages(client, token)
+
+    results = _search(client, token, "dispatcher", "hybrid")
+    slugs = [r["slug"] for r in results]
+    assert slugs[0] == "kamailio-dispatcher"
+    assert results[0]["via"] == "fts"
+    assert "<mark>" in results[0]["snippet"]  # FTS resalta el término exacto
+    assert len(slugs) == len(set(slugs)), slugs
+    # Lo que aporta la semántica va detrás de los exactos, nunca intercalado.
+    vias = [r["via"] for r in results]
+    assert vias == sorted(vias, key=lambda v: v != "fts")
+
+
+def test_hybrid_finds_pages_that_fts_alone_misses(client):
+    """El punto del híbrido: rescatar lo que FTS deja fuera.
+
+    `_fts_query` une los términos con AND, así que basta una palabra de más para que
+    FTS no devuelva nada aunque la página sea la buena. La semántica sí la puntúa.
+    """
+    token = _token(client)
+    _call(client, token, "create_page", {"title": "Espresso", "content": "espresso"})
+    _drain()
+
+    assert _search(client, token, "espresso", "keyword")  # término exacto: FTS lo ve
+    assert not _search(client, token, "espresso cappuccino", "keyword")  # AND: falta una
+    rescatados = _search(client, token, "espresso cappuccino", "hybrid")
+    assert [r["slug"] for r in rescatados] == ["espresso"]
+    assert rescatados[0]["via"] == "semantic"
+
+
+def test_hybrid_degrades_to_fts_when_semantic_off(client, monkeypatch):
+    token = _token(client)
+    _seed_pages(client, token)
+    monkeypatch.setenv("SEMANTIC_SEARCH", "0")
+
+    results = _search(client, token, "dispatcher", "hybrid")
+    slugs = [r["slug"] for r in results]
+    assert slugs == ["kamailio-dispatcher"]
+    assert len(slugs) == len(set(slugs))  # el fallback FTS no se duplica a sí mismo
+
+
 @pytest.mark.skipif(
     not os.path.exists(os.environ.get("REAL_MODEL_PATH", "/nonexistent")),
     reason="real ONNX model not present (set REAL_MODEL_PATH to run)",
