@@ -5,6 +5,7 @@ import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import Sidebar from './Sidebar.jsx'
 import CommandPalette from './CommandPalette.jsx'
+import CaptureModal from './CaptureModal.jsx'
 import KeyboardShortcuts from './KeyboardShortcuts.jsx'
 
 // En móvil el sidebar es un cajón (drawer) que tapa el contenido: arranca cerrado
@@ -95,6 +96,7 @@ export default function Layout() {
         </div>
       </main>
       <CommandPalette pages={pages} />
+      <CaptureModal />
       <KeyboardShortcuts />
     </div>
   )

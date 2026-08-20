@@ -137,6 +137,21 @@ _EN: dict[str, str] = {
     "msg_ws_deleted": "Workspace deleted.",
     "msg_member_added": "Member added.",
     "msg_member_removed": "Member removed.",
+    # Captura rápida, feed y operaciones sobre el árbol (modelo v2).
+    "capture": "Quick capture",
+    "capture_placeholder": "Write it now, file it later…",
+    "capture_hint": "⌘/Ctrl + Enter to save",
+    "capture_saved": "Captured.",
+    "notes": "Inbox",
+    "no_notes": "Nothing captured yet",
+    "load_more": "Load more",
+    "move": "Move",
+    "move_to": "Move to…",
+    "move_to_root": "Top level",
+    "rename_to": "New slug",
+    "msg_moved": "Page moved.",
+    "msg_renamed": "Page renamed. The old link still works.",
+    "page_actions": "Page actions",
 }
 
 _ES: dict[str, str] = {
@@ -257,6 +272,20 @@ _ES: dict[str, str] = {
     "msg_ws_deleted": "Workspace eliminado.",
     "msg_member_added": "Miembro añadido.",
     "msg_member_removed": "Miembro eliminado.",
+    "capture": "Captura rápida",
+    "capture_placeholder": "Escríbelo ahora, ordénalo después…",
+    "capture_hint": "⌘/Ctrl + Enter para guardar",
+    "capture_saved": "Capturado.",
+    "notes": "Bandeja",
+    "no_notes": "Aún no has capturado nada",
+    "load_more": "Cargar más",
+    "move": "Mover",
+    "move_to": "Mover a…",
+    "move_to_root": "Nivel superior",
+    "rename_to": "Nuevo slug",
+    "msg_moved": "Página movida.",
+    "msg_renamed": "Página renombrada. El enlace anterior sigue funcionando.",
+    "page_actions": "Acciones de la página",
 }
 
 _CATALOGS: dict[str, dict[str, str]] = {

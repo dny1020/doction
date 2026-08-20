@@ -1784,3 +1784,77 @@ kbd {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ── Modelo v2: captura rápida, bandeja y acciones por página ───────────── */
+
+/* El modal de captura reusa .palette pero con textarea en vez de input. */
+.capture-input {
+  resize: vertical;
+  min-height: 7rem;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.capture-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+/* Cada fila del árbol aloja su menú "⋯", que solo aparece al pasar por encima
+   o al enfocar con teclado, para no ensuciar la lista. */
+.page-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.page-row > a {
+  flex: 1;
+  min-width: 0;
+}
+.page-row-actions {
+  position: relative;
+  flex: none;
+}
+.page-row-actions-btn {
+  opacity: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--fg-3);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--r-sm);
+}
+.page-row:hover .page-row-actions-btn,
+.page-row-actions-btn:focus-visible,
+.page-row-actions .avatar-menu.open ~ .page-row-actions-btn {
+  opacity: 1;
+}
+.page-row-actions-btn:hover {
+  color: var(--fg-1);
+  background: var(--surface-hover);
+}
+/* El menú cuelga del botón, no del pie de la barra lateral. */
+.page-row-actions .avatar-menu {
+  top: 100%;
+  bottom: auto;
+  right: 0;
+  left: auto;
+}
+
+.inbox-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  border-radius: var(--r-sm);
+}
+.inbox-link:hover {
+  background: var(--surface-hover);
+  color: var(--fg-1);
+}

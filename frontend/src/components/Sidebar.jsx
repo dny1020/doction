@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Check,
   ChevronsUpDown,
+  Inbox,
   LogOut,
   Moon,
   PanelLeftClose,
@@ -21,6 +22,7 @@ import { api } from '../api.js'
 import { avatarColor, avatarLetter } from '../avatar.js'
 import { getTheme, toggleTheme } from '../theme.js'
 import LanguageToggle from './LanguageToggle.jsx'
+import PageActions from './PageActions.jsx'
 
 // Barra lateral: marca, selector de workspace, búsqueda en vivo, árbol de páginas,
 // botón de nueva página y, abajo, el cambio de tema + el menú de usuario.
@@ -196,7 +198,7 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
                 </li>
               ) : pages.length > 0 ? (
                 pages.map((p) => (
-                  <li key={p.slug}>
+                  <li key={p.slug} className="page-row">
                     <Link
                       to={'/p/' + p.slug}
                       data-depth={p.depth}
@@ -204,6 +206,7 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
                     >
                       {p.title}
                     </Link>
+                    <PageActions page={p} pages={pages} onDone={onReload} />
                   </li>
                 ))
               ) : (
@@ -215,6 +218,9 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
       )}
 
       <div className="sidebar-foot">
+        <Link className="inbox-link" to="/notes">
+          <Inbox className="lucide" size={15} /> {t('notes')}
+        </Link>
         <Link className="new-btn" to="/new">
           <Plus className="lucide" size={15} /> {t('new_page')}
         </Link>

@@ -42,7 +42,11 @@ ENV DATABASE_URL=postgresql://doction:doction@localhost:5432/doction \
     TEST_DATABASE_URL=postgresql://doction:doction@localhost:5432/postgres
 
 RUN service postgresql start \
-    && su postgres -c "createuser --createdb doction" \
+    # --superuser para igualar al Postgres efimero que usa tests/conftest.py en
+    # local (POSTGRES_USER siempre es superusuario en la imagen oficial). Sin
+    # esto el mismo rol tiene privilegios distintos aqui y en local, y el
+    # DROP DATABASE ... WITH (FORCE) del teardown falla solo en CI.
+    && su postgres -c "createuser --createdb --superuser doction" \
     && su postgres -c "psql -c \"ALTER USER doction PASSWORD 'doction';\"" \
     && su postgres -c "createdb -O doction doction" \
     && uv run ruff check . \

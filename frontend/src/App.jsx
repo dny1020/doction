@@ -9,6 +9,7 @@ import Editor from './pages/Editor.jsx'
 import History from './pages/History.jsx'
 import Settings from './pages/Settings.jsx'
 import Trash from './pages/Trash.jsx'
+import Notes from './pages/Notes.jsx'
 import NotFound from './pages/NotFound.jsx'
 
 // Envuelve las rutas que requieren sesión. Mientras se comprueba la sesión inicial
@@ -61,6 +62,7 @@ export const routes = [
       { path: '/p/:slug/history', element: <History /> },
       { path: '/settings', element: <Settings /> },
       { path: '/trash', element: <Trash /> },
+      { path: '/notes', element: <Notes /> },
     ],
   },
   { path: '*', element: <NotFound /> },
