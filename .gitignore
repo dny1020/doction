@@ -25,6 +25,5 @@ app/static/app/
 
 # graphify knowledge-graph output (regenerable analysis artifacts)
 graphify-out/
-SPEC.md
 .graphifyignore
 .claudeignore
