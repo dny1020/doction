@@ -1,5 +1,29 @@
-/* === Google Fonts ========================================================= */
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* ── Tipografía ──────────────────────────────────────────────────────────────
+   Inter autohospedada (variable, 400-700 en un solo fichero por rango), igual
+   que highlight.js y mermaid: doction se sirve en LAN/VPN y una petición a
+   fonts.gstatic.com fallaría justo donde más se usa. Antes los tokens nombraban
+   familias que nadie cargaba, así que el navegador caía a Georgia.
+   font-display: swap — texto legible desde el primer pintado. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/static/vendor/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/static/vendor/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
 /* === Light tokens ========================================================= */
 :root {
@@ -58,9 +82,10 @@
   --dur:      200ms;
 
   /* Type */
-  --font-sans:  "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
-  --font-mono:  "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans:  'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Memos no usa serif en ningún sitio; se conserva el token por si vuelve. */
+  --font-serif: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:  ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
 
   --text-xs:   12px;
   --text-sm:   13px;
@@ -131,7 +156,7 @@ a { color: inherit; }
 .layout {
   display: grid;
   grid-template-columns: auto 1fr;
-  min-height: 100vh;
+  min-height: 100vh; min-height: 100dvh;
 }
 
 /* === Sidebar ============================================================== */
@@ -143,7 +168,7 @@ a { color: inherit; }
   flex-direction: column;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100vh; height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
   transition: width var(--dur) var(--ease), opacity var(--dur) var(--ease);
@@ -721,7 +746,7 @@ a { color: inherit; }
   display: block;
   position: sticky;
   top: var(--sp-7);
-  max-height: calc(100vh - 80px);
+  max-height: calc(100vh - 80px); max-height: calc(100dvh - 80px);
   overflow-y: auto;
 }
 
@@ -1369,7 +1394,7 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
+    height: 100vh; height: 100dvh;
     width: 85vw;
     max-width: 320px;
     transform: translateX(0);
@@ -1818,7 +1843,6 @@ kbd {
   flex: none;
 }
 .page-row-actions-btn {
-  opacity: 0;
   background: none;
   border: 0;
   cursor: pointer;
@@ -1827,11 +1851,6 @@ kbd {
   display: flex;
   align-items: center;
   border-radius: var(--r-sm);
-}
-.page-row:hover .page-row-actions-btn,
-.page-row-actions-btn:focus-visible,
-.page-row-actions .avatar-menu.open ~ .page-row-actions-btn {
-  opacity: 1;
 }
 .page-row-actions-btn:hover {
   color: var(--fg-1);
@@ -1857,4 +1876,165 @@ kbd {
 .inbox-link:hover {
   background: var(--surface-hover);
   color: var(--fg-1);
+}
+
+/* ── Táctil e iPhone ─────────────────────────────────────────────────────────
+   Medido en Safari de iPhone: los tres problemas de abajo no se ven en un
+   escritorio pero hacen que la app "se sienta" mal en el móvil. */
+
+/* Safari hace zoom automático al enfocar un input de menos de 16px, y ya no
+   vuelve solo: la vista queda descuadrada el resto de la sesión. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Sin esto cada toque deja el destello gris azulado por defecto de Safari. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Evita que al llegar al final de la barra lateral o de un modal el scroll
+   siga en la página de detrás. */
+.sidebar,
+.page-list,
+.palette-box {
+  overscroll-behavior: contain;
+}
+
+/* Instalada como PWA no hay barras del navegador que hagan de colchón: sin
+   esto el pie de la barra lateral queda bajo el indicador de inicio. */
+@supports (padding: max(0px)) {
+  .sidebar-foot {
+    padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+  }
+  .sidebar-head {
+    padding-top: max(var(--sp-3), env(safe-area-inset-top));
+  }
+}
+
+/* Los afordances que solo aparecen al pasar el ratón no existen en táctil.
+   El menú ⋯ de cada página estaba en opacity:0 hasta el hover, o sea que en
+   el iPhone era inalcanzable. */
+@media (hover: hover) {
+  .page-row-actions-btn {
+    opacity: 0;
+  }
+  .page-row:hover .page-row-actions-btn,
+  .page-row-actions-btn:focus-visible {
+    opacity: 1;
+  }
+}
+@media (hover: none) {
+  .page-row-actions-btn {
+    opacity: 1;
+  }
+}
+
+/* Objetivo táctil de 44px (guía de Apple) sin agrandar el diseño: el área se
+   extiende con un pseudo-elemento, el botón se ve igual. */
+@media (pointer: coarse) {
+  .page-row-actions-btn,
+  .sidebar-toggle,
+  .theme-toggle,
+  .search-clear {
+    position: relative;
+  }
+  .page-row-actions-btn::after,
+  .sidebar-toggle::after,
+  .theme-toggle::after,
+  .search-clear::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+  .ws-option,
+  .avatar-menu-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  /* Aqui no vale flex: convertiria el texto en item anonimo y se perderia el
+     text-overflow: ellipsis de los titulos largos. */
+  .page-list a {
+    padding-block: 11px;
+  }
+}
+
+/* ── Movimiento ──────────────────────────────────────────────────────────────
+   Los menus, la paleta y los toasts ya se animaban con transiciones. Lo que
+   faltaba era lo que se nota mas: que el contenido entre en vez de aparecer de
+   golpe, y que los controles respondan al pulsarlos.
+   El bloque prefers-reduced-motion de mas arriba usa !important sobre `*`, asi
+   que todo lo de aqui queda anulado si el sistema lo pide. */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Entrada del contenido al navegar entre paginas. */
+.prose,
+.placeholder,
+.settings {
+  animation: rise var(--dur) var(--ease) both;
+}
+
+/* Las listas entran escalonadas: 30ms por fila, tope a la sexta para que una
+   lista larga no tarde un segundo en terminar de aparecer. */
+.results li {
+  animation: rise var(--dur) var(--ease) both;
+}
+.results li:nth-child(1) { animation-delay: 0ms; }
+.results li:nth-child(2) { animation-delay: 30ms; }
+.results li:nth-child(3) { animation-delay: 60ms; }
+.results li:nth-child(4) { animation-delay: 90ms; }
+.results li:nth-child(5) { animation-delay: 120ms; }
+.results li:nth-child(n + 6) { animation-delay: 150ms; }
+
+/* Respuesta al pulsar. En movil es lo unico que confirma el toque, porque no
+   hay hover que preceda al clic. */
+.btn,
+.new-btn,
+.inbox-link,
+.sidebar-toggle,
+.theme-toggle,
+.avatar,
+.ws-trigger,
+.page-row-actions-btn {
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+.btn:active,
+.new-btn:active,
+.inbox-link:active,
+.sidebar-toggle:active,
+.theme-toggle:active,
+.avatar:active,
+.ws-trigger:active,
+.page-row-actions-btn:active {
+  transform: scale(0.96);
+}
+
+/* El foco de teclado tambien merece transicion: sin esto el anillo parpadea. */
+:where(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  transition: outline-color var(--dur-fast) var(--ease);
 }
