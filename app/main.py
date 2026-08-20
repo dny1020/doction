@@ -112,10 +112,20 @@ class _TokenIn(BaseModel):
 
 
 class _PageIn(BaseModel):
-    title: str
+    # title es opcional: una captura de una línea no debería obligar a inventar
+    # un título. db.create_page lo deriva de la primera línea del contenido.
+    title: str = ""
     content: str = ""
     parent_slug: str | None = None
     slug: str | None = None
+
+
+class _MoveIn(BaseModel):
+    parent_slug: str | None = None
+
+
+class _RenameIn(BaseModel):
+    slug: str
 
 
 class _PagePatch(BaseModel):
@@ -335,8 +345,10 @@ def api_create_page(request: Request, body: _PageIn):
         parent_slug=body.parent_slug,
         requested_slug=body.slug,
     )
-    _commit_page(request, wid, slug, body.title, body.content)
-    return {"slug": slug, "title": body.title.strip() or "Untitled"}
+    page = db.get_page(slug, wid)
+    title = page.title if page else body.title
+    _commit_page(request, wid, slug, title, body.content)
+    return {"slug": slug, "title": title}
 
 
 @api_router.get("/pages/{slug}/history")
@@ -418,6 +430,47 @@ def api_update_page(request: Request, slug: str, body: _PagePatch):
     return {"slug": slug, "title": new_title, "updated": True}
 
 
+@api_router.post("/pages/{slug}/move")
+def api_move_page(request: Request, slug: str, body: _MoveIn):
+    """Reparenta una página. Barato: el repo git es plano, no se mueve ningún fichero."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    try:
+        moved = db.move_page(wid, slug, body.parent_slug)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if moved is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    return {"slug": moved, "parent_slug": body.parent_slug}
+
+
+@api_router.post("/pages/{slug}/rename")
+def api_rename_page(request: Request, slug: str, body: _RenameIn):
+    """Cambia el slug dejando alias del anterior, para no romper [[wikilinks]]."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    try:
+        renamed = db.rename_page(wid, slug, body.slug)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if renamed is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    if renamed != slug:
+        author = getattr(request.state, "user_email", None) or "user"
+        git_repo.rename_page_file(_workspace_slug(request, wid), slug, renamed, author)
+    return {"slug": renamed, "previous_slug": slug}
+
+
+@api_router.get("/pages/{slug}/children")
+def api_page_children(request: Request, slug: str):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    children = db.list_children(wid, slug)
+    if children is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    return children
+
+
 @api_router.delete("/pages/{slug}", status_code=204)
 def api_delete_page(request: Request, slug: str):
     uid = _api_user(request)
@@ -467,6 +520,18 @@ def api_insights(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     return suggest.workspace_insights(wid)
+
+
+@api_router.get("/notes")
+def api_notes(request: Request, limit: int = 50, before: str | None = None):
+    """Feed cronológico de capturas (`type: memo`), paginado por cursor.
+
+    Aparte del árbol a propósito: list_pages_tree no pagina y la captura rápida
+    crece sin límite.
+    """
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    return db.list_notes(wid, limit=limit, before=before)
 
 
 @api_router.get("/search")

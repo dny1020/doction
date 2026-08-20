@@ -20,6 +20,7 @@ from app.models import (
     ExtractedPage,
     LinkEdge,
     Member,
+    NoteRef,
     Page,
     PageMeta,
     PageNode,
@@ -255,6 +256,34 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS page_links_dst_idx ON page_links(workspace_id, dst_slug)",
+    # El destino real de un wikilink es la página; dst_slug se conserva porque es
+    # la única representación que tiene un enlace roto, y los enlaces rotos son
+    # información (los reporta graph.link_insights).
+    "ALTER TABLE page_links ADD COLUMN IF NOT EXISTS dst_page_id BIGINT "
+    "REFERENCES pages(id) ON DELETE SET NULL",
+    "CREATE INDEX IF NOT EXISTS page_links_dst_page_idx ON page_links(dst_page_id)",
+    # Backfill idempotente: resuelve los enlaces que ya existían.
+    """
+    UPDATE page_links l SET dst_page_id = p.id
+    FROM pages p
+    WHERE l.dst_page_id IS NULL
+      AND p.workspace_id = l.workspace_id
+      AND p.slug = l.dst_slug
+      AND p.deleted_at IS NULL
+    """,
+    # Un slug anterior sigue resolviendo para siempre: renombrar no rompe los
+    # [[wikilinks]] escritos en el markdown de otras páginas, y evita tener que
+    # reescribir contenido que el usuario no editó.
+    """
+    CREATE TABLE IF NOT EXISTS page_aliases (
+        workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        slug         TEXT   NOT NULL,
+        page_id      BIGINT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+        created_at   TEXT   NOT NULL,
+        PRIMARY KEY (workspace_id, slug)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS page_aliases_page_idx ON page_aliases(page_id)",
     "CREATE INDEX IF NOT EXISTS page_links_src_idx ON page_links(src_page_id)",
     """
     CREATE TABLE IF NOT EXISTS page_chunks (
@@ -354,15 +383,30 @@ def _index_page_meta(conn, page_id: int, workspace_id: int, content: str) -> Non
 
     conn.execute("DELETE FROM page_links WHERE src_page_id = %s", (page_id,))
     seen: set[str] = set()
-    edges: list[tuple[int, str, int]] = []
+    edges: list[tuple[int, str, int, int, str, int, str]] = []
     for target in meta.extract_links(content):
         dst = slugify(target)
         if dst not in seen:
             seen.add(dst)
-            edges.append((page_id, dst, workspace_id))
+            # Los valores se repiten porque la subconsulta busca el destino
+            # primero entre las páginas y luego entre los alias.
+            edges.append((page_id, dst, workspace_id, workspace_id, dst, workspace_id, dst))
     if edges:
+        # dst_page_id se resuelve aquí; queda NULL si el destino aún no existe,
+        # y create_page lo rellena cuando esa página se crea.
         conn.cursor().executemany(
-            "INSERT INTO page_links (src_page_id, dst_slug, workspace_id) VALUES (%s, %s, %s)",
+            """
+            INSERT INTO page_links (src_page_id, dst_slug, workspace_id, dst_page_id)
+            VALUES (
+                %s, %s, %s,
+                (SELECT id FROM pages
+                 WHERE workspace_id = %s AND slug = %s AND deleted_at IS NULL
+                 UNION ALL
+                 SELECT page_id FROM page_aliases
+                 WHERE workspace_id = %s AND slug = %s
+                 LIMIT 1)
+            )
+            """,
             edges,
         )
 
@@ -397,9 +441,15 @@ def unique_slug(
     candidate = base
     suffix = 1
     while True:
+        # Un alias ocupa el nombre igual que una página viva: si no, renombrar
+        # podría robarle el slug a un enlace antiguo que aún resuelve.
         row = conn.execute(
-            "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s",
-            (candidate, workspace_id),
+            """
+            SELECT id FROM pages WHERE slug = %s AND workspace_id = %s
+            UNION ALL
+            SELECT page_id AS id FROM page_aliases WHERE slug = %s AND workspace_id = %s
+            """,
+            (candidate, workspace_id, candidate, workspace_id),
         ).fetchone()
         if row is None or row["id"] == ignore_id:
             return candidate
@@ -637,8 +687,13 @@ def list_pages_tree(workspace_id: int) -> list[PageNode]:
     """Lista plana en orden DFS con campo depth para renderizar el árbol en la sidebar."""
     with connect() as conn:
         rows = conn.execute(
-            "SELECT id, slug, title, parent_id FROM pages "
-            "WHERE workspace_id = %s AND deleted_at IS NULL ORDER BY created_at, id",
+            # Las capturas (type: memo) viven en el feed paginado, no en el árbol:
+            # esta consulta no pagina y la sidebar las pinta todas.
+            "SELECT p.id, p.slug, p.title, p.parent_id FROM pages p "
+            "LEFT JOIN page_meta m ON m.page_id = p.id "
+            "WHERE p.workspace_id = %s AND p.deleted_at IS NULL "
+            "AND (m.type IS NULL OR m.type <> 'memo') "
+            "ORDER BY p.created_at, p.id",
             (workspace_id,),
         ).fetchall()
 
@@ -681,6 +736,26 @@ def get_page(slug: str, workspace_id: int) -> Page | None:
             """,
             (slug, workspace_id),
         ).fetchone()
+        if row is None:
+            # Slug anterior: un renombrado deja alias para que los [[wikilinks]]
+            # ya escritos sigan resolviendo sin tocar el markdown de nadie.
+            alias = conn.execute(
+                "SELECT page_id FROM page_aliases WHERE slug = %s AND workspace_id = %s",
+                (slug, workspace_id),
+            ).fetchone()
+            if alias is not None:
+                row = conn.execute(
+                    """
+                    SELECT p.*, parent.slug AS parent_slug, parent.title AS parent_title,
+                           editor.email AS updated_by_email,
+                           editor.display_name AS updated_by_name
+                    FROM pages p
+                    LEFT JOIN pages parent ON parent.id = p.parent_id
+                    LEFT JOIN users editor ON editor.id = p.updated_by
+                    WHERE p.id = %s AND p.deleted_at IS NULL
+                    """,
+                    (alias["page_id"],),
+                ).fetchone()
         return _to_page(row) if row else None
 
 
@@ -739,9 +814,15 @@ def create_page(
     parent_slug: str | None = None,
     requested_slug: str | None = None,
 ) -> str:
-    title = title.strip() or "Untitled"
-    base_source = requested_slug.strip() if requested_slug else title
-    base_slug = slugify(base_source)
+    title = title.strip() or meta.derive_title(content)
+    # Sin requested_slug ni título propio, el slug sale de una marca temporal: si
+    # se derivara del título, cien capturas sin título darían untitled-2 … -101.
+    if requested_slug:
+        base_slug = slugify(requested_slug.strip())
+    elif title == meta.UNTITLED:
+        base_slug = f"nota-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
+    else:
+        base_slug = slugify(title)
     now = _now()
 
     with connect() as conn:
@@ -763,13 +844,23 @@ def create_page(
             (user_id, workspace_id, parent_id, slug, title, content, now, now, user_id),
         ).fetchone()
         assert row is not None
-        _index_page_meta(conn, int(row["id"]), workspace_id, content)
+        page_id = int(row["id"])
+        _index_page_meta(conn, page_id, workspace_id, content)
+        # Referencias hacia adelante: enlaces escritos antes de que existiera el
+        # destino. Sin esto quedarían rotos para siempre aunque el destino llegue.
+        conn.execute(
+            """
+            UPDATE page_links SET dst_page_id = %s
+            WHERE dst_page_id IS NULL AND workspace_id = %s AND dst_slug = %s
+            """,
+            (page_id, workspace_id, slug),
+        )
         return slug
 
 
 def update_page(user_id: int, workspace_id: int, slug: str, title: str, content: str) -> str | None:
     """Actualiza una página manteniendo el slug estable; devuelve slug o None si no existe."""
-    title = title.strip() or "Untitled"
+    title = title.strip() or meta.derive_title(content)
     with connect() as conn:
         row = conn.execute(
             "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
@@ -784,6 +875,138 @@ def update_page(user_id: int, workspace_id: int, slug: str, title: str, content:
         )
         _index_page_meta(conn, int(row["id"]), workspace_id, content)
         return slug
+
+
+def move_page(workspace_id: int, slug: str, parent_slug: str | None) -> str | None:
+    """Reparenta una página; devuelve su slug o None si no existe.
+
+    Es la operación más barata del modelo: el repo git es plano
+    (`{workspace}/{slug}.md`), así que mover no toca ningún fichero.
+
+    Lanza ValueError si el destino no existe o crearía un ciclo.
+    """
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
+            (slug, workspace_id),
+        ).fetchone()
+        if row is None:
+            return None
+        page_id = int(row["id"])
+
+        parent_id: int | None = None
+        if parent_slug:
+            parent = conn.execute(
+                "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
+                (parent_slug, workspace_id),
+            ).fetchone()
+            if parent is None:
+                raise ValueError(f"parent not found: {parent_slug}")
+            parent_id = int(parent["id"])
+
+        # pages.parent_id no tiene restricción contra bucles y el DFS de
+        # list_pages_tree se colgaría, así que hay que mirar los ancestros antes.
+        ancestor = parent_id
+        seen: set[int] = set()
+        while ancestor is not None and ancestor not in seen:
+            if ancestor == page_id:
+                raise ValueError("a page cannot become its own descendant")
+            seen.add(ancestor)
+            up = conn.execute("SELECT parent_id FROM pages WHERE id = %s", (ancestor,)).fetchone()
+            ancestor = up["parent_id"] if up else None
+
+        conn.execute(
+            "UPDATE pages SET parent_id = %s, updated_at = %s WHERE id = %s",
+            (parent_id, _now(), page_id),
+        )
+        return slug
+
+
+def rename_page(workspace_id: int, slug: str, new_slug: str) -> str | None:
+    """Cambia el slug dejando alias del anterior; devuelve el nuevo o None.
+
+    No reescribe el markdown de las páginas que enlazan: hacerlo produciría
+    commits de git en páginas que el usuario no editó. El alias mantiene vivos
+    los [[wikilinks]] ya escritos.
+    """
+    base = slugify(new_slug)
+    if not base:
+        raise ValueError("empty slug")
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id, slug FROM pages "
+            "WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
+            (slug, workspace_id),
+        ).fetchone()
+        if row is None:
+            return None
+        page_id = int(row["id"])
+        previous = str(row["slug"])
+        if base == previous:
+            return previous
+
+        final = unique_slug(conn, base, workspace_id=workspace_id, ignore_id=page_id)
+        now = _now()
+        conn.execute(
+            "UPDATE pages SET slug = %s, updated_at = %s WHERE id = %s", (final, now, page_id)
+        )
+        conn.execute(
+            "INSERT INTO page_aliases (workspace_id, slug, page_id, created_at) "
+            "VALUES (%s, %s, %s, %s) ON CONFLICT (workspace_id, slug) DO NOTHING",
+            (workspace_id, previous, page_id, now),
+        )
+        # dst_page_id es la verdad y no cambia; dst_slug es caché para mostrar.
+        conn.execute("UPDATE page_links SET dst_slug = %s WHERE dst_page_id = %s", (final, page_id))
+        return final
+
+
+def list_children(workspace_id: int, slug: str) -> list[PageRef] | None:
+    """Hijos directos de una página. None si la página no existe."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
+            (slug, workspace_id),
+        ).fetchone()
+        if row is None:
+            return None
+        rows = conn.execute(
+            "SELECT slug, title FROM pages "
+            "WHERE parent_id = %s AND deleted_at IS NULL ORDER BY title",
+            (row["id"],),
+        ).fetchall()
+        return [PageRef(slug=r["slug"], title=r["title"]) for r in rows]
+
+
+def list_notes(workspace_id: int, *, limit: int = 50, before: str | None = None) -> list[NoteRef]:
+    """Feed cronológico de capturas (`type: memo`), paginado por cursor.
+
+    Existe porque list_pages_tree devuelve TODAS las páginas sin paginar: unos
+    miles de notas harían inusable la barra lateral.
+    """
+    limit = max(1, min(limit, 200))
+    sql = """
+        SELECT p.slug, p.title, p.created_at, LEFT(p.content, 200) AS excerpt
+        FROM pages p
+        JOIN page_meta m ON m.page_id = p.id
+        WHERE p.workspace_id = %s AND p.deleted_at IS NULL AND m.type = 'memo'
+    """
+    params: list[object] = [workspace_id]
+    if before:
+        sql += " AND p.created_at < %s"
+        params.append(before)
+    sql += " ORDER BY p.created_at DESC LIMIT %s"
+    params.append(limit)
+    with connect() as conn:
+        rows = conn.execute(sql, params).fetchall()  # type: ignore[arg-type]
+        return [
+            NoteRef(
+                slug=r["slug"],
+                title=r["title"],
+                created_at=r["created_at"],
+                excerpt=r["excerpt"],
+            )
+            for r in rows
+        ]
 
 
 def delete_page(workspace_id: int, slug: str) -> bool:
@@ -980,10 +1203,12 @@ def backlinks(workspace_id: int, slug: str) -> list[PageRef]:
             SELECT DISTINCT p.slug, p.title
             FROM page_links l
             JOIN pages p ON p.id = l.src_page_id
-            WHERE l.workspace_id = %s AND l.dst_slug = %s AND p.deleted_at IS NULL
+            LEFT JOIN pages dst ON dst.id = l.dst_page_id
+            WHERE l.workspace_id = %s AND p.deleted_at IS NULL
+              AND (dst.slug = %s OR (l.dst_page_id IS NULL AND l.dst_slug = %s))
             ORDER BY p.title
             """,
-            (workspace_id, slug),
+            (workspace_id, slug, slug),
         ).fetchall()
         return [PageRef(slug=r["slug"], title=r["title"]) for r in rows]
 

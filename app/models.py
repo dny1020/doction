@@ -110,6 +110,20 @@ class PageNode:
 
 
 @dataclass
+class NoteRef:
+    """Una nota en el feed cronológico (`list_notes`).
+
+    Lleva `created_at` porque es el cursor de la paginación: el árbol de la
+    barra lateral no sirve para captura rápida, que crece sin límite.
+    """
+
+    slug: str
+    title: str
+    created_at: str
+    excerpt: str
+
+
+@dataclass
 class PageRef:
     """Una referencia ligera a una página (solo slug + título).
 

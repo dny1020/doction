@@ -76,6 +76,10 @@ def test_tools_list(client):
         "get_page",
         "search_pages",
         "create_page",
+        "move_page",
+        "rename_page",
+        "delete_page",
+        "list_children",
         "update_page",
         "get_page_history",
         "extract",
@@ -137,10 +141,11 @@ def test_create_get_roundtrip(client):
     assert "kamctl" in page["content"]
 
 
-def test_create_missing_title_is_tool_error(client):
+def test_create_without_title_derives_it(client):
+    """El título dejó de ser obligatorio: la captura rápida lo deriva del texto."""
     token = _register_and_token(client)
-    result = _call(client, token, "create_page", {"content": "orphan"})
-    assert result["isError"] is True
+    data = _tool_data(_call(client, token, "create_page", {"content": "orphan"}))
+    assert data["title"] == "orphan"
 
 
 def test_search_pages(client):

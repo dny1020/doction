@@ -95,6 +95,57 @@ def commit_page(
     return sha.stdout.strip() or None
 
 
+def rename_page_file(ws_slug: str, old_slug: str, new_slug: str, author: str) -> str | None:
+    """Renombra el .md con `git mv` y commitea. None si algo falla.
+
+    Como el resto del módulo, un fallo de git nunca rompe la operación: el
+    renombrado ya está hecho en Postgres, que es la fuente de verdad.
+    """
+    pages = _pages_dir()
+    old_rel = f"{ws_slug}/{old_slug}.md"
+    new_rel = f"{ws_slug}/{new_slug}.md"
+    if not (pages / old_rel).exists():
+        logger.warning("git: %s does not exist, nothing to rename", old_rel)
+        return None
+
+    moved = subprocess.run(
+        ["git", "-C", str(pages), "mv", old_rel, new_rel],
+        capture_output=True,
+        text=True,
+    )
+    if moved.returncode != 0:
+        logger.warning("git mv failed: %s", moved.stderr)
+        return None
+
+    env = os.environ.copy()
+    env.setdefault("GIT_COMMITTER_NAME", "doction")
+    env.setdefault("GIT_COMMITTER_EMAIL", "doction@localhost")
+    done = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(pages),
+            "commit",
+            f"--author={author} <{author}>",
+            "-m",
+            f"Rename: {old_slug} -> {new_slug}",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if done.returncode != 0:
+        logger.warning("git commit failed after rename: %s", done.stderr)
+        return None
+
+    last = subprocess.run(
+        ["git", "-C", str(pages), "log", "-1", "--format=%h"],
+        capture_output=True,
+        text=True,
+    )
+    return last.stdout.strip() or None
+
+
 def commit_and_record(
     workspace_id: int,
     ws_slug: str,

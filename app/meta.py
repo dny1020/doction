@@ -90,6 +90,23 @@ def extract_links(content: str) -> list[str]:
     return out
 
 
+UNTITLED = "Untitled"
+
+
+def derive_title(content: str, *, max_len: int = 80) -> str:
+    """Título a partir de la primera línea con texto; UNTITLED si no hay ninguna.
+
+    Para la captura rápida: una nota de una línea no debería obligar a inventar
+    un título. Se ignora el frontmatter y se limpia el marcado de encabezado.
+    """
+    _, body = parse_frontmatter(content)
+    for line in body.splitlines():
+        line = line.strip().lstrip("#").strip()
+        if line:
+            return line[:max_len].rstrip()
+    return UNTITLED
+
+
 def page_type(content: str) -> str | None:
     """Valor de `type:` del frontmatter, o None."""
     meta, _ = parse_frontmatter(content)

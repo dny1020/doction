@@ -1,6 +1,7 @@
 # SPEC — doction v2 model
 
-Design document. **Nothing here is implemented yet.**
+Design document. **Implemented in 0.19.0** — this stays as the decision record
+for why the model looks the way it does.
 
 ## Problem
 

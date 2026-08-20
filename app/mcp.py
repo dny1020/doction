@@ -98,7 +98,8 @@ def _tool_search_pages(user_id: int, args: dict) -> list[dict]:
 
 
 def _tool_create_page(user_id: int, args: dict) -> dict:
-    title = _require(args, "title")
+    # title opcional: db.create_page lo deriva de la primera línea del contenido.
+    title = str(args.get("title") or "")
     content = args.get("content") or ""
     ws = _workspace(user_id, args)
     slug = db.create_page(
@@ -109,8 +110,49 @@ def _tool_create_page(user_id: int, args: dict) -> dict:
         parent_slug=args.get("parent_slug") or None,
         requested_slug=args.get("slug") or None,
     )
-    _git_commit(user_id, ws, slug, title, content)
-    return {"slug": slug, "title": title}
+    page = db.get_page(slug, int(ws.id))
+    final_title = page.title if page else title
+    _git_commit(user_id, ws, slug, final_title, content)
+    return {"slug": slug, "title": final_title}
+
+
+def _tool_move_page(user_id: int, args: dict) -> dict:
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    moved = db.move_page(int(ws.id), slug, args.get("parent_slug") or None)
+    if moved is None:
+        raise ValueError(f"Page not found: {slug}")
+    return {"slug": moved, "parent_slug": args.get("parent_slug") or None, "moved": True}
+
+
+def _tool_rename_page(user_id: int, args: dict) -> dict:
+    slug = _require(args, "slug")
+    new_slug = _require(args, "new_slug")
+    ws = _workspace(user_id, args)
+    renamed = db.rename_page(int(ws.id), slug, new_slug)
+    if renamed is None:
+        raise ValueError(f"Page not found: {slug}")
+    if renamed != slug:
+        user = db.get_user_by_id(user_id)
+        git_repo.rename_page_file(ws.slug, slug, renamed, user.email if user else "user")
+    return {"slug": renamed, "previous_slug": slug}
+
+
+def _tool_delete_page(user_id: int, args: dict) -> dict:
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    if not db.delete_page(int(ws.id), slug):
+        raise ValueError(f"Page not found: {slug}")
+    return {"slug": slug, "deleted": True}
+
+
+def _tool_list_children(user_id: int, args: dict) -> list:
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    children = db.list_children(int(ws.id), slug)
+    if children is None:
+        raise ValueError(f"Page not found: {slug}")
+    return [{"slug": c.slug, "title": c.title} for c in children]
 
 
 def _tool_update_page(user_id: int, args: dict) -> dict:
@@ -267,7 +309,60 @@ TOOLS: list[dict] = [
                 "slug": {"type": "string", "description": "Optional explicit slug."},
                 **_WORKSPACE_PROP,
             },
-            "required": ["title"],
+            # Nada obligatorio: sin título se deriva del contenido, y sin
+            # contenido queda una página vacía que se rellena después. Mismo
+            # contrato que POST /api/pages, para que no diverjan.
+            "required": [],
+        },
+    },
+    {
+        "name": "move_page",
+        "description": (
+            "Reparent a page. Cheap: the git repo is flat, so no file moves. "
+            "Omit parent_slug to move it to the root."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string"},
+                "parent_slug": {"type": "string", "description": "New parent, or omit for root."},
+                **_WORKSPACE_PROP,
+            },
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "rename_page",
+        "description": (
+            "Change a page's slug. The old slug keeps resolving through an alias, "
+            "so existing [[wikilinks]] do not break."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string"},
+                "new_slug": {"type": "string"},
+                **_WORKSPACE_PROP,
+            },
+            "required": ["slug", "new_slug"],
+        },
+    },
+    {
+        "name": "delete_page",
+        "description": "Soft-delete a page; it goes to the trash and can be restored.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"slug": {"type": "string"}, **_WORKSPACE_PROP},
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "list_children",
+        "description": "Direct children of a page.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"slug": {"type": "string"}, **_WORKSPACE_PROP},
+            "required": ["slug"],
         },
     },
     {
@@ -428,6 +523,10 @@ TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
     "get_page": _tool_get_page,
     "search_pages": _tool_search_pages,
     "create_page": _tool_create_page,
+    "move_page": _tool_move_page,
+    "rename_page": _tool_rename_page,
+    "delete_page": _tool_delete_page,
+    "list_children": _tool_list_children,
     "update_page": _tool_update_page,
     "get_page_history": _tool_get_page_history,
     "extract": _tool_extract,
