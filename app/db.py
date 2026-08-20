@@ -25,10 +25,12 @@ from app.models import (
     PageMeta,
     PageNode,
     PageRef,
+    PendingDelivery,
     RelatedPage,
     SearchHit,
     UploadHit,
     User,
+    Webhook,
     Workspace,
 )
 
@@ -284,6 +286,37 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS page_aliases_page_idx ON page_aliases(page_id)",
+    # Webhooks de salida. La entrega va en cola en tabla, no en memoria: si el
+    # receptor está caído o doction reinicia, los eventos no se pierden.
+    """
+    CREATE TABLE IF NOT EXISTS webhooks (
+        id              BIGSERIAL PRIMARY KEY,
+        workspace_id    BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        url             TEXT   NOT NULL,
+        secret          TEXT   NOT NULL,
+        events          TEXT   NOT NULL DEFAULT '',
+        active          BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at      TEXT   NOT NULL,
+        last_status     TEXT,
+        last_attempt_at TEXT
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS webhooks_ws_idx ON webhooks(workspace_id)",
+    """
+    CREATE TABLE IF NOT EXISTS webhook_deliveries (
+        id              BIGSERIAL PRIMARY KEY,
+        webhook_id      BIGINT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+        event           TEXT   NOT NULL,
+        payload_json    TEXT   NOT NULL,
+        attempts        INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at TEXT   NOT NULL,
+        delivered_at    TEXT,
+        last_error      TEXT
+    )
+    """,
+    # El worker busca pendientes por (delivered_at IS NULL, next_attempt_at).
+    "CREATE INDEX IF NOT EXISTS webhook_deliveries_due_idx "
+    "ON webhook_deliveries(next_attempt_at) WHERE delivered_at IS NULL",
     "CREATE INDEX IF NOT EXISTS page_links_src_idx ON page_links(src_page_id)",
     """
     CREATE TABLE IF NOT EXISTS page_chunks (
@@ -855,6 +888,7 @@ def create_page(
             """,
             (page_id, workspace_id, slug),
         )
+        emit_event(conn, workspace_id, "page.created", {"page": {"slug": slug, "title": title}})
         return slug
 
 
@@ -874,7 +908,149 @@ def update_page(user_id: int, workspace_id: int, slug: str, title: str, content:
             (title, content, _now(), user_id, row["id"]),
         )
         _index_page_meta(conn, int(row["id"]), workspace_id, content)
+        emit_event(conn, workspace_id, "page.updated", {"page": {"slug": slug, "title": title}})
         return slug
+
+
+# ── Webhooks de salida ───────────────────────────────────────────────────────
+# emit_event() se llama DENTRO de la transacción que ya hizo la escritura, así el
+# evento se encola en el mismo commit que el cambio: no hay ventana en la que la
+# página exista y su aviso se haya perdido. La entrega la hace el worker aparte;
+# aquí no se abre ni una conexión HTTP.
+
+MAX_DELIVERY_ATTEMPTS = 6
+
+
+def emit_event(conn, workspace_id: int, event: str, payload: dict) -> None:
+    """Encola `event` para los webhooks activos del workspace que lo escuchen."""
+    rows = conn.execute(
+        "SELECT id, events FROM webhooks WHERE workspace_id = %s AND active",
+        (workspace_id,),
+    ).fetchall()
+    if not rows:
+        return
+    body = json.dumps({**payload, "event": event, "at": _now()}, ensure_ascii=False)
+    now = _now()
+    encolar = [
+        (r["id"], event, body, now)
+        for r in rows
+        # events vacío = todos; si no, lista separada por comas.
+        if not r["events"] or event in {e.strip() for e in r["events"].split(",")}
+    ]
+    if encolar:
+        conn.cursor().executemany(
+            "INSERT INTO webhook_deliveries (webhook_id, event, payload_json, next_attempt_at) "
+            "VALUES (%s, %s, %s, %s)",
+            encolar,
+        )
+
+
+def list_webhooks(workspace_id: int) -> list[Webhook]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, workspace_id, url, events, active, created_at, last_status, "
+            "last_attempt_at FROM webhooks WHERE workspace_id = %s ORDER BY id",
+            (workspace_id,),
+        ).fetchall()
+        return [
+            Webhook(
+                id=r["id"],
+                workspace_id=r["workspace_id"],
+                url=r["url"],
+                events=r["events"],
+                active=r["active"],
+                created_at=r["created_at"],
+                last_status=r["last_status"],
+                last_attempt_at=r["last_attempt_at"],
+            )
+            for r in rows
+        ]
+
+
+def create_webhook(workspace_id: int, url: str, secret: str, events: str = "") -> int:
+    with connect() as conn:
+        row = conn.execute(
+            "INSERT INTO webhooks (workspace_id, url, secret, events, created_at) "
+            "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (workspace_id, url, secret, events, _now()),
+        ).fetchone()
+        assert row is not None
+        return int(row["id"])
+
+
+def delete_webhook(workspace_id: int, webhook_id: int) -> bool:
+    with connect() as conn:
+        cur = conn.execute(
+            "DELETE FROM webhooks WHERE id = %s AND workspace_id = %s",
+            (webhook_id, workspace_id),
+        )
+        return cur.rowcount > 0
+
+
+def due_deliveries(limit: int = 10) -> list[PendingDelivery]:
+    """Entregas pendientes cuyo momento de reintento ya pasó."""
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT d.id, d.webhook_id, w.url, w.secret, d.event, d.payload_json, d.attempts
+            FROM webhook_deliveries d
+            JOIN webhooks w ON w.id = d.webhook_id
+            WHERE d.delivered_at IS NULL AND d.next_attempt_at <= %s AND w.active
+            ORDER BY d.id
+            LIMIT %s
+            """,
+            (_now(), limit),
+        ).fetchall()
+        return [
+            PendingDelivery(
+                id=r["id"],
+                webhook_id=r["webhook_id"],
+                url=r["url"],
+                secret=r["secret"],
+                event=r["event"],
+                payload_json=r["payload_json"],
+                attempts=r["attempts"],
+            )
+            for r in rows
+        ]
+
+
+def mark_delivered(delivery_id: int, webhook_id: int, status: str) -> None:
+    now = _now()
+    with connect() as conn:
+        conn.execute(
+            "UPDATE webhook_deliveries SET delivered_at = %s, attempts = attempts + 1, "
+            "last_error = NULL WHERE id = %s",
+            (now, delivery_id),
+        )
+        conn.execute(
+            "UPDATE webhooks SET last_status = %s, last_attempt_at = %s WHERE id = %s",
+            (status, now, webhook_id),
+        )
+
+
+def mark_failed(delivery_id: int, webhook_id: int, error: str, attempts: int) -> None:
+    """Reprograma con backoff exponencial; al agotar intentos la deja marcada."""
+    now = datetime.now(UTC)
+    # 1min, 2, 4, 8, 16… La entrega deja de reintentarse al llegar al máximo.
+    espera = timedelta(minutes=2 ** min(attempts, 5))
+    siguiente = (now + espera).isoformat(timespec="seconds")
+    agotada = attempts + 1 >= MAX_DELIVERY_ATTEMPTS
+    with connect() as conn:
+        conn.execute(
+            "UPDATE webhook_deliveries SET attempts = attempts + 1, last_error = %s, "
+            "next_attempt_at = %s, delivered_at = %s WHERE id = %s",
+            (
+                error[:500],
+                siguiente,
+                now.isoformat(timespec="seconds") if agotada else None,
+                delivery_id,
+            ),
+        )
+        conn.execute(
+            "UPDATE webhooks SET last_status = %s, last_attempt_at = %s WHERE id = %s",
+            (error[:200], now.isoformat(timespec="seconds"), webhook_id),
+        )
 
 
 def move_page(workspace_id: int, slug: str, parent_slug: str | None) -> str | None:
@@ -919,6 +1095,12 @@ def move_page(workspace_id: int, slug: str, parent_slug: str | None) -> str | No
             "UPDATE pages SET parent_id = %s, updated_at = %s WHERE id = %s",
             (parent_id, _now(), page_id),
         )
+        emit_event(
+            conn,
+            workspace_id,
+            "page.moved",
+            {"page": {"slug": slug}, "parent_slug": parent_slug},
+        )
         return slug
 
 
@@ -957,6 +1139,12 @@ def rename_page(workspace_id: int, slug: str, new_slug: str) -> str | None:
         )
         # dst_page_id es la verdad y no cambia; dst_slug es caché para mostrar.
         conn.execute("UPDATE page_links SET dst_slug = %s WHERE dst_page_id = %s", (final, page_id))
+        emit_event(
+            conn,
+            workspace_id,
+            "page.renamed",
+            {"page": {"slug": final}, "previous_slug": previous},
+        )
         return final
 
 
@@ -1020,6 +1208,8 @@ def delete_page(workspace_id: int, slug: str) -> bool:
             "AND deleted_at IS NULL",
             (_now(), slug, workspace_id),
         )
+        if cur.rowcount > 0:
+            emit_event(conn, workspace_id, "page.deleted", {"page": {"slug": slug}})
         return cur.rowcount > 0
 
 

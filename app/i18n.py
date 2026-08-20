@@ -152,6 +152,17 @@ _EN: dict[str, str] = {
     "msg_moved": "Page moved.",
     "msg_renamed": "Page renamed. The old link still works.",
     "page_actions": "Page actions",
+    # Webhooks de salida.
+    "webhooks": "Webhooks",
+    "webhooks_desc": (
+        "Doction posts page events to these URLs. Signed with HMAC-SHA256 in "
+        "X-Doction-Signature; failed deliveries retry with backoff."
+    ),
+    "secret_shown_once": "Copy this secret now — it won't be shown again.",
+    "webhook_url_ph": "https://n8n.example/webhook/…",
+    "webhook_events_ph": "Events (blank = all)",
+    "all_events": "all events",
+    "confirm_delete_webhook": "Delete this webhook? Events will stop being sent.",
 }
 
 _ES: dict[str, str] = {
@@ -286,6 +297,17 @@ _ES: dict[str, str] = {
     "msg_moved": "Página movida.",
     "msg_renamed": "Página renombrada. El enlace anterior sigue funcionando.",
     "page_actions": "Acciones de la página",
+    "webhooks": "Webhooks",
+    "webhooks_desc": (
+        "Doction publica los eventos de página en estas URLs. Van firmados con "
+        "HMAC-SHA256 en X-Doction-Signature; si fallan se reintentan con espera "
+        "creciente."
+    ),
+    "secret_shown_once": "Copia este secreto ahora — no se volverá a mostrar.",
+    "webhook_url_ph": "https://n8n.ejemplo/webhook/…",
+    "webhook_events_ph": "Eventos (vacío = todos)",
+    "all_events": "todos los eventos",
+    "confirm_delete_webhook": "¿Eliminar este webhook? Dejarán de enviarse eventos.",
 }
 
 _CATALOGS: dict[str, dict[str, str]] = {

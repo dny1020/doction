@@ -110,6 +110,37 @@ class PageNode:
 
 
 @dataclass
+class Webhook:
+    """Un receptor de eventos de salida (`POST /api/webhooks`).
+
+    `secret` no se devuelve nunca por la API: solo se muestra al crearlo, igual
+    que un PAT. `events` vacío significa "todos".
+    """
+
+    id: int
+    workspace_id: int
+    url: str
+    events: str
+    active: bool
+    created_at: str
+    last_status: str | None
+    last_attempt_at: str | None
+
+
+@dataclass
+class PendingDelivery:
+    """Una entrega pendiente que el worker debe intentar."""
+
+    id: int
+    webhook_id: int
+    url: str
+    secret: str
+    event: str
+    payload_json: str
+    attempts: int
+
+
+@dataclass
 class NoteRef:
     """Una nota en el feed cronológico (`list_notes`).
 

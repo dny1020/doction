@@ -5,6 +5,7 @@ import io
 import logging
 import os
 import re
+import secrets
 import zipfile
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -23,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.status import HTTP_303_SEE_OTHER
 
-from app import db, embeddings, git_repo, i18n, mcp, ocr, seed, suggest
+from app import db, embeddings, git_repo, i18n, mcp, ocr, seed, suggest, webhooks
 from app.auth import (
     TOKEN_PREFIX,
     generate_api_token,
@@ -120,6 +121,13 @@ class _PageIn(BaseModel):
     slug: str | None = None
 
 
+class _WebhookIn(BaseModel):
+    url: str
+    # Vacío = todos los eventos. Si no, lista separada por comas:
+    # page.created, page.updated, page.deleted, page.moved, page.renamed
+    events: str = ""
+
+
 class _MoveIn(BaseModel):
     parent_slug: str | None = None
 
@@ -208,6 +216,35 @@ def api_create_token(request: Request, body: _ApiTokenIn):
 def api_list_tokens(request: Request):
     uid = _api_user(request)
     return [dataclasses.asdict(t) for t in db.list_api_tokens(uid)]
+
+
+@api_router.get("/webhooks")
+def api_list_webhooks(request: Request):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    return [dataclasses.asdict(w) for w in db.list_webhooks(wid)]
+
+
+@api_router.post("/webhooks", status_code=201)
+def api_create_webhook(request: Request, body: _WebhookIn):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    url = body.url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="URL must be http(s)")
+    secret = secrets.token_hex(24)
+    hook_id = db.create_webhook(wid, url, secret, body.events.strip())
+    # Como con los PAT: el secreto se enseña una vez y no se vuelve a devolver.
+    # El receptor lo necesita para verificar la cabecera X-Doction-Signature.
+    return {"id": hook_id, "url": url, "events": body.events.strip(), "secret": secret}
+
+
+@api_router.delete("/webhooks/{webhook_id}", status_code=204)
+def api_delete_webhook(request: Request, webhook_id: int):
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    if not db.delete_webhook(wid, webhook_id):
+        raise HTTPException(status_code=404, detail="Webhook not found")
 
 
 @api_router.delete("/tokens/{token_id}", status_code=204)
@@ -847,7 +884,18 @@ async def lifespan(_: FastAPI):
         embed_task = asyncio.create_task(embeddings.enrichment_worker())
         logger.info("semantic search ON — embedding worker running")
 
+    # Sin condición: sin webhooks registrados la consulta no devuelve nada y el
+    # worker duerme. Un flag más sería una forma extra de que los eventos se
+    # pierdan en silencio.
+    webhook_task = asyncio.create_task(webhooks.delivery_worker())
+
     yield
+
+    webhook_task.cancel()
+    try:
+        await webhook_task
+    except asyncio.CancelledError:
+        pass
 
     if embed_task is not None:
         embed_task.cancel()

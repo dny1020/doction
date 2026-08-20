@@ -158,10 +158,7 @@ working untouched.
 
 ## Out of scope
 
-- **Outbound webhooks.** doction makes no runtime HTTP calls at all (`httpx` is dev-only), has
-  no hooks, no queue and no scheduler. Adding events is a separate, larger decision; the natural
-  seams when it comes are `db._index_page_meta()` and `git_repo.commit_and_record()`, and
-  `embeddings.enrichment_worker()` is the in-process async worker pattern to copy.
+- ~~**Outbound webhooks.**~~ **Shipped in 0.21.0** — see the section below.
 - **Token scopes.** A PAT is the full user. A capture-only credential would be real new work in
   `auth.py` and the middleware.
 - **PWA / offline capture.** Making doction installable on a phone is a frontend concern, not a
@@ -186,3 +183,34 @@ New tests, in the style of `tests/test_app.py` and `tests/test_meta.py`:
 
 End to end on the Pi: capture from the CLI with a PAT, see it in the feed, move it into the
 tree, rename it, and confirm an old wikilink still resolves and the git history is intact.
+
+
+## Outbound webhooks (0.21.0)
+
+The one thing the design deliberately deferred, and the piece that makes n8n a real bus rather
+than something that has to poll.
+
+**Still no new dependency.** Delivery uses `urllib.request` from the standard library inside a
+thread, the same instinct as `mcp.py` shipping without an SDK and `graph.py` without NetworkX.
+It is the project's first outbound HTTP call, which is why it lives alone in `app/webhooks.py`.
+
+**The queue is a table, not memory.** `db.emit_event()` inserts delivery rows **inside the
+transaction that already made the write**, so an event cannot be lost in the window between a
+page being saved and its notification being queued. If the receiver is down or doction restarts,
+the rows are still there. `webhook_deliveries` carries `attempts` and `next_attempt_at`; the
+worker retries with exponential backoff and gives up after `MAX_DELIVERY_ATTEMPTS`.
+
+**Nothing happens in the request path.** Emission is one INSERT. `webhooks.delivery_worker()`
+drains the queue on its own schedule, copying `embeddings.enrichment_worker()` down to the
+per-item try/except — one broken receiver must not block the queue for the others.
+
+Events: `page.created`, `page.updated`, `page.deleted`, `page.moved`, `page.renamed`. A webhook
+with an empty `events` receives all of them.
+
+Receivers verify origin through `X-Doction-Signature: sha256=…`, an HMAC of the raw body with a
+per-webhook secret shown once at creation, exactly like a PAT.
+
+**SSRF is deliberately not mitigated.** The intended target is a service on the internal network
+(`http://n8n:5678`), so blocking private addresses would defeat the feature. Only an
+authenticated user can register a webhook; that is the trust boundary, and it is the same one
+that already governs the API.
