@@ -720,12 +720,15 @@ def list_pages_tree(workspace_id: int) -> list[PageNode]:
     """Lista plana en orden DFS con campo depth para renderizar el árbol en la sidebar."""
     with connect() as conn:
         rows = conn.execute(
-            # Las capturas (type: memo) viven en el feed paginado, no en el árbol:
-            # esta consulta no pagina y la sidebar las pinta todas.
+            # Las capturas SIN ARCHIVAR (type: memo, sin padre) viven en el feed
+            # paginado, no en el árbol: esta consulta no pagina y la sidebar las
+            # pinta todas. En cuanto una se mueve bajo un padre deja de ser
+            # bandeja y pasa a ser una página más del árbol; el triaje es
+            # move_page y no reescribe el frontmatter de nadie.
             "SELECT p.id, p.slug, p.title, p.parent_id FROM pages p "
             "LEFT JOIN page_meta m ON m.page_id = p.id "
             "WHERE p.workspace_id = %s AND p.deleted_at IS NULL "
-            "AND (m.type IS NULL OR m.type <> 'memo') "
+            "AND (m.type IS NULL OR m.type <> 'memo' OR p.parent_id IS NOT NULL) "
             "ORDER BY p.created_at, p.id",
             (workspace_id,),
         ).fetchall()
@@ -1166,17 +1169,21 @@ def list_children(workspace_id: int, slug: str) -> list[PageRef] | None:
 
 
 def list_notes(workspace_id: int, *, limit: int = 50, before: str | None = None) -> list[NoteRef]:
-    """Feed cronológico de capturas (`type: memo`), paginado por cursor.
+    """Feed cronológico de capturas sin archivar, paginado por cursor.
 
     Existe porque list_pages_tree devuelve TODAS las páginas sin paginar: unos
     miles de notas harían inusable la barra lateral.
+
+    La bandeja es `type: memo` Y sin padre: mover una nota bajo cualquier página
+    la saca de aquí y la mete en el árbol, que es en lo que consiste el triaje.
     """
     limit = max(1, min(limit, 200))
     sql = """
         SELECT p.slug, p.title, p.created_at, LEFT(p.content, 200) AS excerpt
         FROM pages p
         JOIN page_meta m ON m.page_id = p.id
-        WHERE p.workspace_id = %s AND p.deleted_at IS NULL AND m.type = 'memo'
+        WHERE p.workspace_id = %s AND p.deleted_at IS NULL
+          AND m.type = 'memo' AND p.parent_id IS NULL
     """
     params: list[object] = [workspace_id]
     if before:

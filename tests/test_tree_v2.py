@@ -187,6 +187,57 @@ def test_memos_are_in_the_feed_and_out_of_the_tree(client):
     assert feed[0]["slug"] not in slugs
 
 
+def test_filing_a_memo_moves_it_from_the_inbox_into_the_tree(client):
+    """El triaje es move_page, sin reescribir el frontmatter.
+
+    Antes la bandeja era `type: memo` a secas, asi que una nota archivada seguia
+    fuera del arbol Y dentro del feed: se quedaba en tierra de nadie.
+    """
+    token = _token(client)
+    _create(client, token, title="Homelab", content="raiz")
+    memo = _create(client, token, content="---\ntype: memo\n---\nrevisar el router")
+
+    assert [n["slug"] for n in client.get("/api/notes", headers=_h(token)).json()] == [memo["slug"]]
+
+    r = client.post(
+        f"/api/pages/{memo['slug']}/move",
+        json={"parent_slug": "homelab"},
+        headers=_h(token),
+    )
+    assert r.status_code == 200, r.text
+
+    assert client.get("/api/notes", headers=_h(token)).json() == []
+
+    tree = client.get("/api/pages", headers=_h(token)).json()
+    archivada = next(p for p in tree if p["slug"] == memo["slug"])
+    assert archivada["depth"] == 1
+
+    # Sigue siendo un memo: el contenido no se toca, solo cambia de sitio.
+    page = client.get(f"/api/pages/{memo['slug']}", headers=_h(token)).json()
+    assert "type: memo" in page["content"]
+
+
+def test_memo_moved_back_to_root_returns_to_the_inbox(client):
+    token = _token(client)
+    _create(client, token, title="Homelab", content="raiz")
+    memo = _create(client, token, content="---\ntype: memo\n---\nvuelve a la bandeja")
+
+    client.post(
+        f"/api/pages/{memo['slug']}/move",
+        json={"parent_slug": "homelab"},
+        headers=_h(token),
+    )
+    client.post(
+        f"/api/pages/{memo['slug']}/move",
+        json={"parent_slug": None},
+        headers=_h(token),
+    )
+
+    assert [n["slug"] for n in client.get("/api/notes", headers=_h(token)).json()] == [memo["slug"]]
+    tree = client.get("/api/pages", headers=_h(token)).json()
+    assert memo["slug"] not in {p["slug"] for p in tree}
+
+
 def test_feed_paginates_by_cursor(client):
     token = _token(client)
     for i in range(3):

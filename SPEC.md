@@ -121,8 +121,19 @@ index. Triage (move out of Inbox into the tree) is exactly `move_page`.
 
 **One thing this needs that does not exist:** `db.list_pages_tree()` returns *every* page in the
 workspace, unpaginated, and the sidebar renders all of it. A few thousand memos make it
-unusable. v2 adds a paginated, `created_at DESC` feed endpoint and keeps `type: memo` pages out
-of the tree query.
+unusable. v2 adds a paginated, `created_at DESC` feed endpoint and keeps unfiled memos out of
+the tree query.
+
+**Corrected in 0.23.0.** The sentence above said "triage is exactly `move_page`", and the first
+implementation did not deliver it: the feed selected `type = 'memo'` and the tree excluded it,
+both regardless of parent, so a memo moved into the tree stayed invisible there *and* stayed in
+the Inbox. The fix defines the Inbox as **`type: memo` AND `parent_id IS NULL`** — an unfiled
+capture. Moving a note under any parent files it, and moving it back to the root returns it.
+
+Clearing `type: memo` on move was the other candidate and is wrong here: `page_meta.type` is
+re-derived from frontmatter on every save, so it would only stick by rewriting the markdown —
+a git commit on a page the user never edited, which is the same thing the rename design
+rejects. `move_page` still touches nothing but `parent_id`.
 
 ## Contract changes
 
