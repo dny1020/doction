@@ -9,22 +9,16 @@ import { api } from '../api.js'
 // Mover es una sola llamada; el repo git es plano, así que reparentar no mueve
 // ningún fichero. Renombrar deja alias del slug anterior, de modo que los
 // [[wikilinks]] ya escritos siguen resolviendo — de ahí el mensaje al guardar.
+//
+// El menú es un <dialog> modal, no un desplegable absoluto: el árbol tiene su
+// propio scroll, y un desplegable colgado de la fila se recortaba contra el
+// borde de .page-list en cuanto la fila quedaba cerca del final visible.
 export default function PageActions({ page, pages, onDone }) {
   const { t } = useI18n()
   const toast = useToast()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [dialog, setDialog] = useState(null) // 'move' | 'rename' | null
+  const [dialog, setDialog] = useState(null) // 'menu' | 'move' | 'rename' | null
   const [value, setValue] = useState('')
-  const wrapRef = useRef(null)
   const dialogRef = useRef(null)
-
-  useEffect(() => {
-    function onDocClick(event) {
-      if (wrapRef.current && !wrapRef.current.contains(event.target)) setMenuOpen(false)
-    }
-    document.addEventListener('click', onDocClick)
-    return () => document.removeEventListener('click', onDocClick)
-  }, [])
 
   useEffect(() => {
     const el = dialogRef.current
@@ -33,9 +27,14 @@ export default function PageActions({ page, pages, onDone }) {
   }, [dialog])
 
   function openDialog(kind) {
-    setMenuOpen(false)
     setValue(kind === 'rename' ? page.slug : '')
     setDialog(kind)
+  }
+
+  // Clic en el backdrop: el <dialog> ocupa toda la pantalla, así que un clic
+  // "fuera" llega al propio elemento y no a su contenido.
+  function onDialogClick(event) {
+    if (event.target === dialogRef.current) setDialog(null)
   }
 
   async function submit(event) {
@@ -59,7 +58,7 @@ export default function PageActions({ page, pages, onDone }) {
   const targets = pages.filter((p) => p.slug !== page.slug)
 
   return (
-    <span className="page-row-actions" ref={wrapRef}>
+    <span className="page-row-actions">
       <button
         className="page-row-actions-btn"
         type="button"
@@ -68,23 +67,31 @@ export default function PageActions({ page, pages, onDone }) {
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          setMenuOpen((v) => !v)
+          setDialog('menu')
         }}
       >
         <MoreHorizontal size={14} />
       </button>
 
-      <div className={'avatar-menu' + (menuOpen ? ' open' : '')}>
-        <button className="avatar-menu-item" type="button" onClick={() => openDialog('move')}>
-          {t('move')}
-        </button>
-        <button className="avatar-menu-item" type="button" onClick={() => openDialog('rename')}>
-          {t('rename')}
-        </button>
-      </div>
+      <dialog
+        ref={dialogRef}
+        className="confirm-dialog"
+        onCancel={() => setDialog(null)}
+        onClick={onDialogClick}
+      >
+        {dialog === 'menu' && (
+          <div className="row-menu">
+            <p className="confirm-dialog-msg">{page.title}</p>
+            <button className="avatar-menu-item" type="button" onClick={() => openDialog('move')}>
+              {t('move')}
+            </button>
+            <button className="avatar-menu-item" type="button" onClick={() => openDialog('rename')}>
+              {t('rename')}
+            </button>
+          </div>
+        )}
 
-      <dialog ref={dialogRef} className="confirm-dialog" onCancel={() => setDialog(null)}>
-        {dialog && (
+        {(dialog === 'move' || dialog === 'rename') && (
           <form onSubmit={submit}>
             <p className="confirm-dialog-msg">
               {dialog === 'rename' ? t('rename_to') : t('move_to')}

@@ -55,6 +55,28 @@ but it needs opaque backgrounds and z-index management to stop tree rows showing
 it leaves `.sidebar` scrolling — so the sticky footer would hover over the last tree item
 instead of sitting below it. It treats the symptom; the flex fix restores the intended design.
 
+### 1b. The row overflow menu becomes a dialog, because decision 1 clips it
+
+Decision 1 has a consequence found during implementation. `.page-row-actions` is
+`position: relative` and its menu opens downward (`.page-row-actions .avatar-menu { top:
+100% }`), so it is clipped by `.page-list`'s overflow box. Before decision 1 that box grew to
+content height and only the last row clipped; now the box is height-constrained and every row
+within roughly a menu's height of the fold clips. It bites hardest on touch, where
+`@media (hover: none)` keeps every row's control permanently visible.
+
+The row menu therefore moves from the absolutely-positioned `.avatar-menu` dropdown to the
+native `<dialog>` + `showModal()` pattern **that `PageActions.jsx` already uses** for its move
+and rename forms. A modal dialog renders in the top layer, so no ancestor's `overflow` can
+clip it. No new dependency, no new pattern — the component gains one more `dialog` state
+alongside `'move'` and `'rename'`.
+
+*Alternative rejected:* CSS that flips the menu upward near the fold. Anchor positioning is
+not a safe target for the project's browsers, and the fallback needs measurement in JS, which
+this design's non-goals exclude.
+
+*Alternative rejected:* padding the bottom of the tree. Only helps rows at the very end, not
+rows near the fold mid-scroll — half a fix for a whole problem.
+
 ### 2. The mobile header is sticky inside the content column, not fixed to the viewport
 
 A new `.app-bar` element rendered by `Layout.jsx` directly inside `.content`, with
@@ -160,11 +182,11 @@ stylesheet and nowhere in `frontend/src/`. It is a leftover from the retired Jin
   → Accepted as the cost of not hoisting Save into the app bar (decision 4). If it proves too
   heavy in use, the app bar can hide its title on `/edit` routes, recovering the row without
   changing the structure.
-- **`overflow: hidden` on `.sidebar` clips any child that overflows deliberately.** The
-  workspace dropdown and the avatar menu open *inside* the sidebar and are positioned
-  relative to it. → Both already open within the sidebar's bounds (the avatar menu opens
-  upward via `bottom: calc(100% + 6px)`); this must be verified in both themes and at a
-  short viewport height, and is called out as a task.
+- **`overflow: hidden` on `.sidebar` clips any child that overflows deliberately.** Three
+  menus open inside it. The workspace dropdown spans its trigger's width near the top and the
+  user menu opens upward from the footer within the sidebar's 264px — both fit, and are
+  verified as a task. The page-row menu did *not* fit; see decision 1b, which moves it to a
+  dialog.
 - **`::after` hit expansion on `.btn` can overlap neighbouring buttons.** `.page-actions` and
   `.editor-actions` put buttons in a row with `--sp-2` (8px) gaps; two 44px overlays on 34px
   buttons will overlap by a few pixels. → The overlay is centred, so each button still owns

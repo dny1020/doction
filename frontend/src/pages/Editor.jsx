@@ -34,6 +34,9 @@ export default function Editor({ mode }) {
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
+  // Solo cuenta en móvil, donde el panel partido se apila: el botón que la
+  // alterna está oculto por CSS a partir de 820px.
+  const [showPreview, setShowPreview] = useState(false)
 
   // Guard de cambios sin guardar: comparamos contra lo cargado. Refs (no estado)
   // porque el blocker y beforeunload se evalúan fuera del ciclo de render.
@@ -190,6 +193,13 @@ export default function Editor({ mode }) {
         />
         <div className="editor-actions">
           {uploading && <span className="meta">{t('img_uploading')}</span>}
+          <button
+            className="btn editor-preview-toggle"
+            type="button"
+            onClick={() => setShowPreview((v) => !v)}
+          >
+            {showPreview ? t('write') : t('preview')}
+          </button>
           <Link className="btn" to={isEdit ? '/p/' + slug : '/'}>
             {t('cancel')}
           </Link>
@@ -199,7 +209,7 @@ export default function Editor({ mode }) {
         </div>
       </div>
       {error && <p className="auth-error">{error}</p>}
-      <div className="editor-split">
+      <div className={'editor-split' + (showPreview ? ' editor-split--preview' : '')}>
         <textarea
           ref={textareaRef}
           className="editor-textarea"

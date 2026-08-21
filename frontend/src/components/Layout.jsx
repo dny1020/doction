@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
-import { PanelLeft } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, Outlet, useLocation } from 'react-router-dom'
+import { MoreHorizontal, PanelLeft } from 'lucide-react'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import Sidebar from './Sidebar.jsx'
@@ -29,6 +29,8 @@ export default function Layout() {
   const [collapsed, setCollapsedState] = useState(
     () => isMobile() || localStorage.getItem('sidebar') === 'collapsed',
   )
+  const [barMenuOpen, setBarMenuOpen] = useState(false)
+  const barMenuRef = useRef(null)
 
   const setCollapsed = useCallback((value) => {
     setCollapsedState(value)
@@ -53,6 +55,17 @@ export default function Layout() {
     if (isMobile()) setCollapsed(true)
   }, [location.pathname, setCollapsed])
 
+  // Navegar cierra también el menú "⋯" de la barra.
+  useEffect(() => setBarMenuOpen(false), [location.pathname])
+
+  useEffect(() => {
+    function onDocClick(event) {
+      if (barMenuRef.current && !barMenuRef.current.contains(event.target)) setBarMenuOpen(false)
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [])
+
   const reloadPages = useCallback(() => {
     api
       .get('/api/pages')
@@ -69,6 +82,23 @@ export default function Layout() {
   useEffect(() => {
     reloadPages()
   }, [reloadPages])
+
+  // El título y las acciones de la barra móvil salen de la URL, igual que el
+  // resaltado del árbol en Sidebar.jsx: así la barra no necesita que cada ruta
+  // le publique su estado.
+  const routeMatch = location.pathname.match(/^\/p\/([^/]+)/)
+  const activeSlug = routeMatch ? decodeURIComponent(routeMatch[1]) : null
+  const activePage = activeSlug ? pages.find((p) => p.slug === activeSlug) : null
+  // Las acciones solo tienen sentido en la vista de lectura, no editando ni en
+  // el historial de esa misma página.
+  const isReader = Boolean(activeSlug) && /^\/p\/[^/]+\/?$/.test(location.pathname)
+
+  let barTitle = ''
+  if (activePage) barTitle = activePage.title
+  else if (location.pathname.startsWith('/notes')) barTitle = t('notes')
+  else if (location.pathname.startsWith('/settings')) barTitle = t('settings')
+  else if (location.pathname.startsWith('/trash')) barTitle = t('trash')
+  else if (location.pathname.startsWith('/new')) barTitle = t('new_page')
 
   return (
     <div className="layout">
@@ -91,6 +121,40 @@ export default function Layout() {
         onCollapse={() => setCollapsed(true)}
       />
       <main className="content" id="content">
+        <div className="app-bar">
+          <button
+            className="sidebar-toggle"
+            type="button"
+            onClick={() => setCollapsed(false)}
+            aria-label={t('show_sidebar')}
+          >
+            <PanelLeft size={16} />
+          </button>
+          <span className="app-bar-title">{barTitle}</span>
+          {isReader && (
+            <span className="app-bar-actions" ref={barMenuRef}>
+              <button
+                className="sidebar-toggle"
+                type="button"
+                aria-label={t('page_actions')}
+                onClick={() => setBarMenuOpen((v) => !v)}
+              >
+                <MoreHorizontal size={16} />
+              </button>
+              <div className={'avatar-menu' + (barMenuOpen ? ' open' : '')}>
+                <Link className="avatar-menu-item" to={'/p/' + activeSlug + '/edit'}>
+                  {t('edit')}
+                </Link>
+                <Link className="avatar-menu-item" to={'/new?parent=' + activeSlug}>
+                  {t('new_subpage')}
+                </Link>
+                <Link className="avatar-menu-item" to={'/p/' + activeSlug + '/history'}>
+                  {t('history')}
+                </Link>
+              </div>
+            </span>
+          )}
+        </div>
         <div className="content-body">
           <Outlet context={{ pages, pagesError, reloadPages }} />
         </div>

@@ -73,6 +73,9 @@
 
   /* Layout */
   --sidebar-w:      264px;
+  /* Alto de la barra de app en móvil. El safe-area la hace más alta en un
+     iPhone con notch, así que lo que se pegue debajo tiene que leer esto. */
+  --app-bar-h:      calc(44px + env(safe-area-inset-top));
   --measure:        90ch;
   --editor-measure: 1600px;
 
@@ -169,8 +172,7 @@ a { color: inherit; }
   position: sticky;
   top: 0;
   height: 100vh; height: 100dvh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   transition: width var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 
@@ -516,6 +518,9 @@ a { color: inherit; }
 /* === Nav / page list ====================================================== */
 .page-list {
   flex: 1;
+  /* Sin esto un item flex no baja de su altura de contenido, el desbordamiento
+     se escapa a .sidebar y la cabecera y el pie se van con el scroll. */
+  min-height: 0;
   overflow-y: auto;
   padding: 0 var(--sp-2) var(--sp-3);
 }
@@ -721,6 +726,22 @@ a { color: inherit; }
   justify-content: center;
 }
 
+/* Barra de app: solo en móvil. `sticky` y no `fixed` para que participe en el
+   flujo — así el contenido no necesita padding-top de compensación ni pelearse
+   con el safe-area del PWA. */
+.app-bar { display: none; }
+.app-bar-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-bar-actions { position: relative; flex: none; }
+
 .page, .placeholder { width: 100%; max-width: var(--measure); min-width: 0; }
 .editor { width: 100%; max-width: var(--editor-measure); }
 
@@ -788,6 +809,10 @@ a { color: inherit; }
 .toc-h3 { padding-left: 28px; font-size: 11px; }
 
 @media (max-width: 1120px) {
+  /* Entre 820 y 1120 la barra seguía a ancho completo y sin TOC: el contenido
+     se quedaba estrecho sin ganar nada. */
+  :root { --sidebar-w: 220px; }
+
   .page-wrap.has-toc {
     max-width: var(--measure);
     grid-template-columns: 1fr;
@@ -1234,6 +1259,7 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
 }
 .title-input::placeholder { color: var(--fg-3); }
 .editor-actions { display: flex; gap: var(--sp-2); }
+.editor-preview-toggle { display: none; }
 
 .editor-split {
   display: grid;
@@ -1408,13 +1434,30 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
     transform: translateX(-110%);
     opacity: 0;
   }
-  .sidebar-collapsed .content { padding-left: var(--sp-3); }
+  /* El hueco existía para el botón flotante; con la barra ya no hace falta,
+     y sin esto la barra se desplazaba al abrir y cerrar el cajón. */
+  .sidebar-collapsed .content { padding-left: 0; }
 
   .content-body { padding: var(--sp-5) var(--sp-4) var(--sp-7); }
-  .topbar { padding: var(--sp-2) var(--sp-4); }
 
-  .sidebar-toggle--show { display: inline-flex; }
-  .sidebar-collapsed .sidebar-toggle--show { display: inline-flex; }
+  .app-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    min-height: var(--app-bar-h);
+    padding: 0 var(--sp-3);
+    padding-top: env(safe-area-inset-top);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* El toggle vive en la barra; el botón flotante ya no hace falta y encima
+     se solapaba con las migas y el título. */
+  .sidebar-toggle--show,
+  .sidebar-collapsed .sidebar-toggle--show { display: none; }
 
   .sidebar-overlay { opacity: 0; }
   html:not(.sidebar-collapsed) .sidebar-overlay {
@@ -1422,8 +1465,26 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
     pointer-events: auto;
   }
 
+  /* Guardar tiene que alcanzarse desde el final de un documento largo. */
+  .editor-bar {
+    position: sticky;
+    top: var(--app-bar-h);
+    z-index: 20;
+    background: var(--bg);
+    margin-bottom: 0;
+    padding-top: var(--sp-3);
+  }
+  .title-input { min-width: 0; }
+
   .editor-split { grid-template-columns: 1fr; }
   .editor-textarea { min-height: 40vh; }
+
+  /* El panel partido se apila en móvil, así que la vista previa quedaba una
+     pantalla por debajo del textarea: se alterna con un botón normal. */
+  .editor-preview-toggle { display: inline-flex; }
+  .editor-split > .preview { display: none; }
+  .editor-split--preview > .editor-textarea { display: none; }
+  .editor-split--preview > .preview { display: block; }
 }
 
 /* === Keyboard shortcuts modal ============================================= */
@@ -1717,6 +1778,11 @@ kbd {
 .confirm-dialog-msg { margin: 0 0 var(--sp-4); color: var(--fg-1); }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
 
+/* Menú de acciones de una fila del árbol. Vive en el <dialog> porque .page-list
+   recorta su desbordamiento; reutiliza los items del resto de menús. */
+.row-menu { display: flex; flex-direction: column; gap: 2px; }
+.row-menu .avatar-menu-item { border-radius: var(--r-sm); }
+
 /* Command palette (⌘K). */
 .palette {
   position: fixed;
@@ -1856,13 +1922,6 @@ kbd {
   color: var(--fg-1);
   background: var(--surface-hover);
 }
-/* El menú cuelga del botón, no del pie de la barra lateral. */
-.page-row-actions .avatar-menu {
-  top: 100%;
-  bottom: auto;
-  right: 0;
-  left: auto;
-}
 
 .inbox-link {
   display: flex;
@@ -1940,13 +1999,15 @@ html {
   .page-row-actions-btn,
   .sidebar-toggle,
   .theme-toggle,
-  .search-clear {
+  .search-clear,
+  .btn {
     position: relative;
   }
   .page-row-actions-btn::after,
   .sidebar-toggle::after,
   .theme-toggle::after,
-  .search-clear::after {
+  .search-clear::after,
+  .btn::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -1965,6 +2026,7 @@ html {
      text-overflow: ellipsis de los titulos largos. */
   .page-list a {
     padding-block: 11px;
+    min-height: 44px;
   }
 }
 

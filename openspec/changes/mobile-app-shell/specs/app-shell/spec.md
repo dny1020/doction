@@ -25,13 +25,30 @@ MUST remain visible at every scroll position of the tree, on every viewport size
 
 - **WHEN** the page tree is shorter than the available sidebar height
 - **THEN** the tree does not scroll and no scrollbar is shown for it
-- **AND** the footer region sits directly below the tree rather than being pushed to the
-  bottom edge
+- **AND** the footer region remains pinned to the bottom edge of the sidebar
 
 #### Scenario: Sidebar scroll does not chain to the page behind it
 
 - **WHEN** the user scrolls past either end of the page tree on a touch device
 - **THEN** the main content area behind the sidebar does not scroll
+
+### Requirement: Page-row actions remain usable at any scroll position
+
+The per-page actions menu in the page tree SHALL be fully visible and operable regardless of
+where its row sits within the scrolled tree. It MUST NOT be clipped by the tree's scroll
+boundary.
+
+#### Scenario: Actions on a row near the bottom of the visible tree
+
+- **WHEN** the user opens the actions menu for a page row close to the bottom edge of the
+  scrolled tree
+- **THEN** the entire menu is visible and every option in it can be selected
+
+#### Scenario: Move and rename behaviour is unchanged
+
+- **WHEN** the user chooses Move or Rename from a row's actions
+- **THEN** the existing move and rename flows run unchanged, including the alias that keeps
+  previously written wikilinks resolving
 
 ### Requirement: The sidebar visibility control is always reachable
 

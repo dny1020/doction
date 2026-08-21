@@ -152,6 +152,9 @@ _EN: dict[str, str] = {
     "msg_moved": "Page moved.",
     "msg_renamed": "Page renamed. The old link still works.",
     "page_actions": "Page actions",
+    # Editor en móvil: la vista previa se alterna, no se apila.
+    "preview": "Preview",
+    "write": "Write",
     # Webhooks de salida.
     "webhooks": "Webhooks",
     "webhooks_desc": (
@@ -297,6 +300,8 @@ _ES: dict[str, str] = {
     "msg_moved": "Página movida.",
     "msg_renamed": "Página renombrada. El enlace anterior sigue funcionando.",
     "page_actions": "Acciones de la página",
+    "preview": "Vista previa",
+    "write": "Escribir",
     "webhooks": "Webhooks",
     "webhooks_desc": (
         "Doction publica los eventos de página en estas URLs. Van firmados con "
