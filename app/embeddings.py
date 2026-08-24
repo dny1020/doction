@@ -26,13 +26,37 @@ logger = logging.getLogger(__name__)
 
 EMBED_DIM = 384
 MAX_TOKENS = 256
-KEYWORD_BOOST = 0.1  # plan §4: "embedding similarity + keyword boost"
-RERANK_CANDIDATES = 20  # cuántos resultados del bi-encoder repuntúa el cross-encoder
-# Corte del buscador de la UI. Medido sobre el wiki: los aciertos caen entre 0.38 y
-# 0.86, y por debajo de 0.35 solo aparece relleno (cualquier página contra cualquier
-# consulta). Recorta el listado de ~10 a 1-5 sin perder aciertos; no separa del todo
-# señal de ruido —el ruido llega a 0.48— así que ordena, no decide.
-SEARCH_MIN_SCORE = 0.35
+# Barrido con el piso ya en 0.25 (28 consultas, evals/results/2026-08-24-minilm-en.json):
+#
+#   boost   0.00   0.05   0.10   0.20   0.30
+#   MRR     0.70   0.70   0.72   0.74   0.74
+#
+# Con el piso bajo el boost aporta poco: 0.02 de MRR es una consulta de 28. Los
+# valores altos miden algo mejor pero dentro del ruido, y subirlo acerca el orden
+# semántico al de FTS —que es justo lo que `hybrid` ya aporta por separado—, así
+# que se queda en 0.1.
+KEYWORD_BOOST = 0.1
+# Cuántos resultados del bi-encoder repuntúa el cross-encoder. Sin barrer a
+# propósito: el reranker completo no mejora nada medible (MRR 0.73 frente a 0.72
+# sin él, y recall@1 0.57 frente a 0.61) mientras multiplica por 29 la latencia
+# mediana. Afinar su ventana sería optimizar algo que conviene tener apagado.
+# Ojo con la interacción: bajar SEARCH_MIN_SCORE deja pasar más candidatos al
+# cross-encoder, así que el reranker se encareció al bajar el piso (54 → 350 ms).
+RERANK_CANDIDATES = 20
+# Corte del buscador de la UI: decide qué se esconde, no cómo se ordena, así que se
+# mide por lo que cuesta esconder. Barrido sobre el wiki real (28 consultas,
+# evals/results/2026-08-24-minilm-en.json):
+#
+#   piso   0.25   0.30   0.35   0.40   0.45   0.50
+#   MRR    0.72   0.68   0.67   0.67   0.53   0.38
+#   vacías 0.07   0.11   0.14   0.21   0.36   0.54
+#   fallos    4      7      8      8     12     17
+#
+# recall@1 es 0.64 de 0.25 a 0.40: el piso no cambia el primer resultado, solo corta
+# la cola. El 0.35 anterior escondía 4 aciertos y doblaba las listas vacías a cambio
+# de nada medible. Lo que no mide este barrido es cuánto relleno entra por debajo;
+# el precio de 0.25 es una lista más larga.
+SEARCH_MIN_SCORE = 0.25
 
 _DEFAULT_MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 _MODELS_DIR = Path(os.environ.get("MODEL_DIR") or _DEFAULT_MODELS_DIR)
@@ -185,6 +209,16 @@ def get_reranker() -> _OnnxReranker | _StubReranker:
     return _reranker
 
 
+def current_model_name() -> str:
+    """Nombre del encoder configurado, sin cargar el modelo.
+
+    `name` es atributo de clase en ambos encoders, así que se puede saber con qué
+    modelo se escribieron los vectores sin abrir la sesión ONNX — importa porque
+    esto se consulta también con la semántica apagada.
+    """
+    return _StubEmbedder.name if _flag("EMBED_STUB") else _OnnxEmbedder.name
+
+
 def reset_embedder() -> None:
     global _embedder, _reranker
     _embedder = None
@@ -281,7 +315,7 @@ def semantic_search(
     if not semantic_enabled():
         return _fts_results(workspace_id, query, k)
 
-    rows = db.workspace_chunk_vectors(workspace_id)
+    rows = db.workspace_chunk_vectors(workspace_id, current_model_name())
     if not rows:
         return _fts_results(workspace_id, query, k)
 
@@ -337,6 +371,47 @@ def semantic_search(
     return out
 
 
+def search(workspace_id: int, query: str, *, mode: str = "keyword") -> list[dict]:
+    """Los tres modos del buscador: `keyword` (FTS), `semantic` y `hybrid`.
+
+    Vive aquí y no en la ruta porque el harness de evaluación mide exactamente lo
+    que recibe el usuario; si la mezcla de `hybrid` se quedara inline en el
+    endpoint habría que reimplementarla para medirla, y entonces lo medido sería
+    la copia y no el código que se despliega.
+    """
+    if not query.strip():
+        return []
+
+    if mode == "hybrid":
+        # Los exactos primero: FTS nunca falla si la palabra está en la página, algo
+        # que la semántica sola sí hace. Debajo, lo que solo ella encuentra: la
+        # paráfrasis que no comparte ninguna palabra con el texto.
+        results: list[dict] = [
+            {"slug": r.slug, "title": r.title, "snippet": r.snippet, "via": "fts"}
+            for r in db.search_pages(workspace_id, query)
+        ]
+        seen = {r["slug"] for r in results}
+        # keyword_boost apagado: premia justo a los que ya salieron arriba por FTS y
+        # aquí se descartan por duplicados, así que solo costaría otra consulta.
+        for hit in semantic_search(
+            workspace_id, query, min_score=SEARCH_MIN_SCORE, keyword_boost=False
+        ):
+            if hit["slug"] not in seen:
+                results.append({**hit, "snippet": hit["chunk"]})
+        return results
+
+    if mode == "semantic":
+        results = list(semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE))
+        for r in results:
+            r["snippet"] = r["chunk"]
+        return results
+
+    return [
+        {"slug": r.slug, "title": r.title, "snippet": r.snippet}
+        for r in db.search_pages(workspace_id, query)
+    ]
+
+
 def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
     """rag como tubería de retrieval: top-k chunks + procedencia, SIN generar texto.
 
@@ -347,7 +422,7 @@ def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
         return {"query": query, "mode": "empty", "chunks": []}
 
     if semantic_enabled():
-        rows = db.workspace_chunk_vectors(workspace_id)
+        rows = db.workspace_chunk_vectors(workspace_id, current_model_name())
         if rows:
             qvec = get_embedder().encode([query])[0]
             mat = np.stack([_from_blob(r.vector) for r in rows])
@@ -387,6 +462,11 @@ async def enrichment_worker(*, interval: float = 2.0, batch: int = 5) -> None:
     import asyncio
 
     logger.info("embedding worker iniciado (model dir=%s)", _MODELS_DIR)
+    # Un cambio de encoder deja vectores de otro espacio en la tabla; compararlos
+    # por coseno no significa nada. Se re-encolan antes de servir nada nuevo.
+    stale = await asyncio.to_thread(db.mark_stale_model_dirty, current_model_name())
+    if stale:
+        logger.info("reindexando %d páginas: cambió el modelo de embeddings", stale)
     while True:
         try:
             pending = await asyncio.to_thread(db.pages_to_embed, batch)

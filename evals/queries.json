@@ -1,0 +1,37 @@
+[
+  {"class": "A", "query": "renovacion tls", "expect": ["rpi-operaciones-renovacion-tls-con-certbot"],
+   "note": "la reproducción de proposal.md: debe fallar contra la configuración de hoy"},
+  {"class": "A", "query": "gestion de secretos", "expect": ["rpi-operaciones-gestion-de-secretos"]},
+  {"class": "A", "query": "recuperacion de emergencia", "expect": ["rpi-troubleshooting-recuperacion-de-emergencia"]},
+  {"class": "A", "query": "instalacion debian", "expect": ["dotfiles-operaciones-instalacion-debian-wsl"]},
+  {"class": "A", "query": "arbol de decision", "expect": ["rpi-troubleshooting"]},
+  {"class": "A", "query": "contenedor caído", "expect": ["rpi-troubleshooting-contenedor-caido-o-en-error"],
+   "note": "dirección inversa: consulta acentuada contra contenido sin acento"},
+  {"class": "A", "query": "actualizar imágenes docker", "expect": ["rpi-operaciones-actualizar-imagenes-docker"],
+   "note": "dirección inversa"},
+
+  {"class": "B", "query": "como renovar el certificado", "expect": ["rpi-operaciones-renovacion-tls-con-certbot"]},
+  {"class": "B", "query": "donde guardo las contraseñas del servidor", "expect": ["rpi-operaciones-gestion-de-secretos"]},
+  {"class": "B", "query": "que hago si el servidor no arranca", "expect": ["rpi-troubleshooting-recuperacion-de-emergencia"]},
+  {"class": "B", "query": "como enlazar mis archivos de configuracion", "expect": ["dotfiles-arquitectura-gnu-stow"]},
+  {"class": "B", "query": "dar permisos de administrador a un usuario", "expect": ["linux-passwd"]},
+
+  {"class": "C", "query": "renew the TLS certificate", "expect": ["rpi-operaciones-renovacion-tls-con-certbot"]},
+  {"class": "C", "query": "where are the secrets stored", "expect": ["rpi-operaciones-gestion-de-secretos"]},
+  {"class": "C", "query": "how do I update a docker image", "expect": ["rpi-operaciones-actualizar-imagenes-docker"]},
+  {"class": "C", "query": "disaster recovery procedure", "expect": ["rpi-troubleshooting-recuperacion-de-emergencia"]},
+  {"class": "C", "query": "reverse proxy configuration", "expect": ["rpi-arquitectura-red-y-proxy", "rpi-troubleshooting-red-y-proxy-nginx"]},
+
+  {"class": "D", "query": "certbot", "expect": ["rpi-operaciones-renovacion-tls-con-certbot"]},
+  {"class": "D", "query": "fstab", "expect": ["rpi-troubleshooting-errores-fstab-y-montajes-ssd-usb", "rpi-arquitectura-almacenamiento"]},
+  {"class": "D", "query": "nginx", "expect": ["rpi-arquitectura-red-y-proxy", "rpi-troubleshooting-red-y-proxy-nginx"]},
+  {"class": "D", "query": "stow", "expect": ["dotfiles-arquitectura-gnu-stow"]},
+  {"class": "D", "query": "ssh-copy-id", "expect": ["linux-ssh"]},
+  {"class": "D", "query": "journalctl", "expect": ["rpi-arquitectura-logging"]},
+
+  {"class": "E", "query": "the pi won't boot", "expect": ["rpi-troubleshooting-recuperacion-de-emergencia"]},
+  {"class": "E", "query": "my container keeps restarting", "expect": ["rpi-troubleshooting-contenedor-caido-o-en-error"]},
+  {"class": "E", "query": "the ssd is not mounted", "expect": ["rpi-troubleshooting-errores-fstab-y-montajes-ssd-usb"]},
+  {"class": "E", "query": "site shows certificate expired", "expect": ["rpi-operaciones-renovacion-tls-con-certbot"]},
+  {"class": "E", "query": "set up a new laptop with my shell config", "expect": ["dotfiles-operaciones-instalacion-debian-wsl"]}
+]

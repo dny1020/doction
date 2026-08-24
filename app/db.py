@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import threading
@@ -33,6 +34,8 @@ from app.models import (
     Webhook,
     Workspace,
 )
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_DATABASE_URL = "postgresql://doction:doction@localhost:5432/doction"
 DEFAULT_DATA_DIR = "data"
@@ -224,8 +227,8 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         updated_by    BIGINT REFERENCES users(id),
         deleted_at    TEXT,
         search_vector tsvector GENERATED ALWAYS AS (
-            setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
-            setweight(to_tsvector('english', coalesce(content, '')), 'B')
+            setweight(to_tsvector('doction', coalesce(title, '')), 'A') ||
+            setweight(to_tsvector('doction', coalesce(content, '')), 'B')
         ) STORED
     )
     """,
@@ -340,7 +343,7 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         text          TEXT NOT NULL,
         created_at    TEXT NOT NULL,
         search_vector tsvector GENERATED ALWAYS AS (
-            to_tsvector('english', coalesce(text, ''))
+            to_tsvector('doction', coalesce(text, ''))
         ) STORED,
         PRIMARY KEY (name, workspace_id)
     )
@@ -447,11 +450,115 @@ def _index_page_meta(conn, page_id: int, workspace_id: int, content: str) -> Non
     conn.execute("UPDATE pages SET embed_dirty = 1 WHERE id = %s", (page_id,))
 
 
+# Configuración de búsqueda propia: pliega acentos antes de aplicar el stemmer.
+# `unaccent()` suelto no vale en una columna generada —es STABLE, no IMMUTABLE, y
+# Postgres la rechaza—; encadenado dentro de una configuración sí, porque
+# to_tsvector(regconfig, text) sí es IMMUTABLE.
+#
+# El stemmer es el inglés, medido: con `spanish_stem` las consultas en inglés
+# contra páginas en español caen a 0.00 de MRR (evals/results/2026-08-24-minilm-en.json).
+# El acento es el problema real; el stemmer inglés no lo era.
+TS_CONFIG = "doction"
+_TS_STEMMER = "english_stem"
+_TS_WORD_TOKENS = "asciiword, asciihword, hword_asciipart, word, hword, hword_part"
+
+
+def _ensure_text_search_config(conn) -> bool:
+    """Crea/actualiza la configuración `doction`. True si su mapeo cambió.
+
+    Sin la extensión `unaccent` (rol sin permiso para crearla) la configuración se
+    queda en el stemmer solo: la búsqueda pierde el plegado de acentos pero el
+    servidor arranca igual.
+    """
+    unaccent = True
+    try:
+        conn.execute("CREATE EXTENSION IF NOT EXISTS unaccent")
+    except Exception:
+        conn.rollback()
+        unaccent = False
+        logger.warning(
+            "no se pudo crear la extensión unaccent; %s se queda sin plegado de "
+            "acentos (las consultas en español sin tildes fallarán)",
+            TS_CONFIG,
+        )
+
+    dictionaries = f"unaccent, {_TS_STEMMER}" if unaccent else _TS_STEMMER
+    existing = conn.execute(
+        """
+        SELECT string_agg(d.dictname, ', ' ORDER BY m.mapseqno) AS dicts
+        FROM pg_ts_config c
+        JOIN pg_ts_config_map m ON m.mapcfg = c.oid
+        JOIN pg_ts_dict d ON d.oid = m.mapdict
+        JOIN ts_token_type(c.cfgparser) t ON t.tokid = m.maptokentype
+        WHERE c.cfgname = %s AND t.alias = 'word'
+        """,
+        (TS_CONFIG,),
+    ).fetchone()
+
+    if existing is not None and existing["dicts"] == dictionaries:
+        return False
+
+    if existing is None or existing["dicts"] is None:
+        conn.execute(f"CREATE TEXT SEARCH CONFIGURATION {TS_CONFIG} ( COPY = english )")
+    conn.execute(
+        f"ALTER TEXT SEARCH CONFIGURATION {TS_CONFIG} "
+        f"ALTER MAPPING FOR {_TS_WORD_TOKENS} WITH {dictionaries}"
+    )
+    logger.info("configuración de búsqueda %s → %s", TS_CONFIG, dictionaries)
+    return True
+
+
+# Las columnas generadas no se recalculan solas cuando cambia su definición ni
+# cuando cambia el mapeo de la configuración: Postgres las calcula al escribir.
+# `init_db` es CREATE TABLE IF NOT EXISTS a propósito (sin escalera de
+# migraciones), así que una base ya existente nunca vería el cambio. Esto no
+# añade una escalera: comprueba el estado real contra el que declara el código y
+# converge. Al ser convergente, volver a una imagen anterior también funciona.
+_SEARCH_VECTOR_COLUMNS = {
+    "pages": (
+        "setweight(to_tsvector('doction', coalesce(title, '')), 'A') || "
+        "setweight(to_tsvector('doction', coalesce(content, '')), 'B')",
+        "pages_search_idx",
+    ),
+    "upload_texts": (
+        "to_tsvector('doction', coalesce(text, ''))",
+        "upload_texts_search_idx",
+    ),
+}
+
+
+def _converge_search_vectors(conn, *, force: bool) -> None:
+    """Reconstruye las columnas `search_vector` que no estén en la configuración."""
+    for table, (expression, index) in _SEARCH_VECTOR_COLUMNS.items():
+        row = conn.execute(
+            """
+            SELECT pg_get_expr(d.adbin, d.adrelid) AS expr
+            FROM pg_attrdef d
+            JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+            WHERE d.adrelid = %s::regclass AND a.attname = 'search_vector'
+            """,
+            (table,),
+        ).fetchone()
+        current = (row["expr"] if row else None) or ""
+        if not force and f"'{TS_CONFIG}'" in current:
+            continue
+        # DROP COLUMN se lleva por delante el índice GIN, así que se recrea.
+        conn.execute(f"ALTER TABLE {table} DROP COLUMN IF EXISTS search_vector")
+        conn.execute(
+            f"ALTER TABLE {table} ADD COLUMN search_vector tsvector "
+            f"GENERATED ALWAYS AS ({expression}) STORED"
+        )
+        conn.execute(f"CREATE INDEX IF NOT EXISTS {index} ON {table} USING GIN(search_vector)")
+        logger.info("search_vector de %s reconstruido sobre %s", table, TS_CONFIG)
+
+
 def init_db() -> None:
     """Crea el esquema (idempotente) y corre los backfills defensivos."""
     with connect() as conn:
+        mapping_changed = _ensure_text_search_config(conn)
         for stmt in SCHEMA_STATEMENTS:
             conn.execute(stmt)
+        _converge_search_vectors(conn, force=mapping_changed)
         _ensure_default_workspaces(conn)
         _ensure_member_owners(conn)
 
@@ -1300,14 +1407,14 @@ def search_pages(
             """
             SELECT p.slug, p.title,
                    ts_headline(
-                       'english', p.title || ' ' || p.content, to_tsquery(%s),
+                       'doction', p.title || ' ' || p.content, to_tsquery('doction', %s),
                        'StartSel=<mark>, StopSel=</mark>, MaxWords=12, MinWords=1, '
                        'MaxFragments=1'
                    ) AS snippet
             FROM pages p
-            WHERE p.search_vector @@ to_tsquery(%s) AND p.workspace_id = %s
+            WHERE p.search_vector @@ to_tsquery('doction', %s) AND p.workspace_id = %s
               AND p.deleted_at IS NULL
-            ORDER BY ts_rank(p.search_vector, to_tsquery(%s)) DESC
+            ORDER BY ts_rank(p.search_vector, to_tsquery('doction', %s)) DESC
             LIMIT %s
             """,
             (match, match, workspace_id, match, limit),
@@ -1529,6 +1636,23 @@ def store_page_chunks(
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
+def mark_stale_model_dirty(model: str) -> int:
+    """Re-encola las páginas cuyos chunks vienen de otro encoder. Devuelve cuántas."""
+    with connect() as conn:
+        row = conn.execute(
+            """
+            WITH stale AS (
+                SELECT DISTINCT page_id FROM page_chunks WHERE model <> %s
+            )
+            UPDATE pages SET embed_dirty = 1
+            WHERE id IN (SELECT page_id FROM stale)
+            RETURNING id
+            """,
+            (model,),
+        ).fetchall()
+        return len(row)
+
+
 def clear_embed_dirty(page_id: int) -> None:
     """Desmarca una página que no se pudo indexar, para que no bloquee la cola del
     worker. La página vuelve a marcarse sucia en su próxima edición."""
@@ -1536,17 +1660,21 @@ def clear_embed_dirty(page_id: int) -> None:
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
-def workspace_chunk_vectors(workspace_id: int) -> list[ChunkVector]:
-    """Chunks + vectores de un workspace para la búsqueda semántica (KNN en memoria)."""
+def workspace_chunk_vectors(workspace_id: int, model: str) -> list[ChunkVector]:
+    """Chunks + vectores de un workspace para la búsqueda semántica (KNN en memoria).
+
+    Filtra por `model`: durante un reindexado por cambio de encoder conviven
+    vectores de dos espacios distintos, y su coseno no significa nada.
+    """
     with connect() as conn:
         rows = conn.execute(
             """
             SELECT c.page_id, c.ord, c.text, c.vector, p.slug, p.title
             FROM page_chunks c
             JOIN pages p ON p.id = c.page_id
-            WHERE c.workspace_id = %s AND p.deleted_at IS NULL
+            WHERE c.workspace_id = %s AND c.model = %s AND p.deleted_at IS NULL
             """,
-            (workspace_id,),
+            (workspace_id, model),
         ).fetchall()
         return [
             ChunkVector(
@@ -1587,13 +1715,13 @@ def search_uploads(workspace_id: int, query: str, limit: int = 5) -> list[Upload
             """
             SELECT name,
                    ts_headline(
-                       'english', text, to_tsquery(%s),
+                       'doction', text, to_tsquery('doction', %s),
                        'StartSel=<mark>, StopSel=</mark>, MaxWords=12, MinWords=1, '
                        'MaxFragments=1'
                    ) AS snippet
             FROM upload_texts
-            WHERE search_vector @@ to_tsquery(%s) AND workspace_id = %s
-            ORDER BY ts_rank(search_vector, to_tsquery(%s)) DESC
+            WHERE search_vector @@ to_tsquery('doction', %s) AND workspace_id = %s
+            ORDER BY ts_rank(search_vector, to_tsquery('doction', %s)) DESC
             LIMIT %s
             """,
             (match, match, workspace_id, match, limit),
