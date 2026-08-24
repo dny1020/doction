@@ -1613,6 +1613,32 @@ def pages_to_embed(limit: int = 10) -> list[EmbedTarget]:
         ]
 
 
+def index_counts(workspace_id: int, model: str) -> tuple[int, int]:
+    """(páginas vivas, páginas con chunks de `model`) del workspace.
+
+    Cuenta, no trae contenido: `pages_to_embed` devuelve el markdown entero y sirve
+    para alimentar al worker, no para informar de cuánto queda por indexar.
+    """
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                count(*) AS total,
+                count(*) FILTER (
+                    WHERE EXISTS (
+                        SELECT 1 FROM page_chunks c
+                        WHERE c.page_id = p.id AND c.model = %s
+                    )
+                ) AS indexed
+            FROM pages p
+            WHERE p.workspace_id = %s AND p.deleted_at IS NULL
+            """,
+            (model, workspace_id),
+        ).fetchone()
+        assert row is not None
+        return int(row["total"]), int(row["indexed"])
+
+
 def store_page_chunks(
     page_id: int,
     workspace_id: int,

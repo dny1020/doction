@@ -34,6 +34,7 @@ from app.auth import hash_password as _hash_password
 from app.auth import verify_password as _verify_password
 from app.logging_config import configure_logging
 from app.models import Workspace
+from app.version import VERSION
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -557,6 +558,49 @@ def api_insights(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     return suggest.workspace_insights(wid)
+
+
+@api_router.get("/system")
+def api_system(request: Request):
+    """Qué está corriendo este despliegue: versión, base de datos y recuperación.
+
+    Solo lectura. Las banderas salen del entorno del proceso (`/opt/doction/.env` en
+    la Pi), así que un formulario que pareciera cambiarlas estaría mintiendo: no hay
+    forma de reescribir ese archivo y reiniciarse. Existe porque hasta ahora no había
+    manera de saber en qué modo de búsqueda estaba un servidor salvo mirando la forma
+    de los resultados.
+
+    Aparte de /health, que es anónimo y lo consume el healthcheck del contenedor.
+    """
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+
+    try:
+        with db.connect() as conn:
+            conn.execute("SELECT 1")
+        db_state = "ok"
+    except Exception:
+        logger.exception("system report: base de datos inalcanzable")
+        db_state = "unreachable"
+
+    semantic = embeddings.semantic_enabled()
+    report = {
+        "version": VERSION,
+        "db": db_state,
+        "semantic_search": semantic,
+        "rerank": embeddings.rerank_enabled(),
+        "ocr_uploads": ocr.ocr_enabled(),
+    }
+    if semantic and db_state == "ok":
+        # current_model_name() lee un atributo de clase: informar no debe cargar el
+        # modelo. Los contadores solo van con la semántica activa — un 0 con la
+        # función apagada no se distingue de un índice roto.
+        model = embeddings.current_model_name()
+        total, indexed = db.index_counts(wid, model)
+        report["embedding_model"] = model
+        report["indexed_pages"] = indexed
+        report["pending_pages"] = total - indexed
+    return report
 
 
 @api_router.get("/notes")

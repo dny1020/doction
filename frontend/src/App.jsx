@@ -8,6 +8,12 @@ import Reader from './pages/Reader.jsx'
 import Editor from './pages/Editor.jsx'
 import History from './pages/History.jsx'
 import Settings from './pages/Settings.jsx'
+import AccountSection from './pages/settings/Account.jsx'
+import PreferencesSection from './pages/settings/Preferences.jsx'
+import WorkspacesSection from './pages/settings/Workspaces.jsx'
+import TokensSection from './pages/settings/Tokens.jsx'
+import WebhooksSection from './pages/settings/Webhooks.jsx'
+import SystemSection from './pages/settings/System.jsx'
 import Trash from './pages/Trash.jsx'
 import Notes from './pages/Notes.jsx'
 import NotFound from './pages/NotFound.jsx'
@@ -60,7 +66,25 @@ export const routes = [
       { path: '/p/:slug', element: <Reader /> },
       { path: '/p/:slug/edit', element: <Editor mode="edit" /> },
       { path: '/p/:slug/history', element: <History /> },
-      { path: '/settings', element: <Settings /> },
+      {
+        path: '/settings',
+        element: <Settings />,
+        children: [
+          // `/settings` a secas sigue siendo una URL válida: la enlaza la barra
+          // lateral y puede estar en marcadores. Redirige en vez de mostrar un
+          // índice de seis enlaces que la navegación ya lista.
+          { index: true, element: <Navigate to="account" replace /> },
+          { path: 'account', element: <AccountSection /> },
+          { path: 'preferences', element: <PreferencesSection /> },
+          { path: 'workspaces', element: <WorkspacesSection /> },
+          { path: 'tokens', element: <TokensSection /> },
+          { path: 'webhooks', element: <WebhooksSection /> },
+          { path: 'system', element: <SystemSection /> },
+          // Una sección inexistente cae en el 404 normal, no en un marco de
+          // ajustes vacío sin nada seleccionado.
+          { path: '*', element: <NotFound /> },
+        ],
+      },
       { path: '/trash', element: <Trash /> },
       { path: '/notes', element: <Notes /> },
     ],

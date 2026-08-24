@@ -1993,6 +1993,126 @@ html {
   }
 }
 
+/* ── Ajustes por secciones ───────────────────────────────────────────────────
+   Una seccion en pantalla, navegacion propia dentro del contenido. El corte es
+   1120px y no los 820px del shell: entre medias la barra lateral sigue siendo
+   columna fija y una segunda columna dejaria el contenido mas estrecho que su
+   propio cromo. 1120 ya es donde el lector suelta la tabla de contenidos. */
+.settings-layout { display: grid; gap: var(--sp-5); }
+.settings-panel { min-width: 0; }
+
+.settings-select { position: relative; margin-bottom: var(--sp-2); }
+.settings-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+}
+.settings-select-trigger:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+.settings-select-trigger:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+.settings-select-label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.settings-select-icon { flex-shrink: 0; color: var(--fg-3); }
+
+.settings-select-menu {
+  position: absolute;
+  top: calc(100% + var(--sp-1));
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-1);
+  display: none;
+}
+.settings-select-menu.open { display: block; }
+.settings-select-option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-2);
+  border-radius: var(--r-xs);
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+.settings-select-option-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.settings-select-option-check { flex-shrink: 0; opacity: 0; color: var(--accent); }
+.settings-select-option:hover { background: var(--surface-hover); color: var(--fg-1); }
+.settings-select-option.active { color: var(--accent-press); font-weight: 500; }
+.settings-select-option.active .settings-select-option-check { opacity: 1; }
+
+.settings-nav { display: none; flex-direction: column; gap: 2px; }
+.settings-nav-item {
+  display: block;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-xs);
+  border-left: 2px solid transparent;
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+.settings-nav-item:hover { background: var(--surface-hover); color: var(--fg-1); }
+.settings-nav-item:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+/* El estado activo no depende solo del color: tambien lleva el filete y el peso. */
+.settings-nav-item--active {
+  background: var(--surface-hover);
+  border-left-color: var(--accent);
+  color: var(--accent-press);
+  font-weight: 500;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-2) 0;
+}
+.settings-row-label { color: var(--fg-2); font-size: var(--text-sm); }
+.settings-row-actions { display: flex; gap: var(--sp-2); }
+
+.settings-group-title {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.settings-facts { margin: 0; display: flex; flex-direction: column; }
+.settings-fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+.settings-facts .settings-fact:last-child { border-bottom: none; }
+.settings-fact-label { color: var(--fg-3); margin: 0; }
+.settings-fact-value { color: var(--fg-1); margin: 0; font-variant-numeric: tabular-nums; }
+
+@media (min-width: 1121px) {
+  .settings { max-width: 960px; }
+  .settings-layout { grid-template-columns: 180px minmax(0, 1fr); align-items: start; }
+  .settings-nav { display: flex; position: sticky; top: var(--sp-4); }
+  .settings-select { display: none; }
+}
+
 /* Objetivo táctil de 44px (guía de Apple) sin agrandar el diseño: el área se
    extiende con un pseudo-elemento, el botón se ve igual. */
 @media (pointer: coarse) {
@@ -2017,11 +2137,14 @@ html {
     transform: translate(-50%, -50%);
   }
   .ws-option,
-  .avatar-menu-item {
+  .avatar-menu-item,
+  .settings-select-option,
+  .settings-nav-item {
     min-height: 44px;
     display: flex;
     align-items: center;
   }
+  .settings-select-trigger { min-height: 44px; }
   /* Aqui no vale flex: convertiria el texto en item anonimo y se perderia el
      text-overflow: ellipsis de los titulos largos. */
   .page-list a {
