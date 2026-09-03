@@ -20,17 +20,36 @@ def corpus_dir() -> Path:
     return Path(os.environ.get("EVAL_CORPUS") or DEFAULT_CORPUS)
 
 
-def load(workspace: str) -> tuple[int, int]:
-    """Crea usuario + workspace y carga las páginas del volcado. Devuelve (id, páginas)."""
-    source = corpus_dir() / workspace
+def _sources(workspace: str) -> list[Path]:
+    """Los directorios a cargar. `all` los junta todos en un mismo workspace.
+
+    Juntarlos no es cosmético: la recuperación filtra por workspace, así que cargar
+    tres workspaces por separado mide lo mismo tres veces. En uno solo, las páginas
+    de los otros dos se convierten en distractores y la tarea se parece más a un
+    wiki de verdad. Los slugs no chocan entre volcados; si algún día chocan, el
+    segundo fallaría al crearse y se vería.
+    """
+    root = corpus_dir()
+    if workspace == "all":
+        dirs = sorted(d for d in root.iterdir() if d.is_dir())
+        if not dirs:
+            raise SystemExit(f"corpus vacío: {root} (define EVAL_CORPUS)")
+        return dirs
+    source = root / workspace
     if not source.is_dir():
         raise SystemExit(f"corpus no encontrado: {source} (define EVAL_CORPUS)")
+    return [source]
+
+
+def load(workspace: str) -> tuple[int, int]:
+    """Crea usuario + workspace y carga las páginas del volcado. Devuelve (id, páginas)."""
+    sources = _sources(workspace)
 
     db.init_db()
     user_id = db.create_user("eval@localhost", auth.hash_password("eval"))
     workspace_id = int(db.ensure_default_workspace(user_id).id or 0)
 
-    files = sorted(source.glob("*.md"))
+    files = sorted(path for source in sources for path in source.glob("*.md"))
     for path in files:
         title_file = path.with_suffix(".title")
         title = title_file.read_text().strip() if title_file.exists() else ""

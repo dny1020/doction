@@ -165,7 +165,11 @@ def _sweep(embeddings, workspace_id: int, queries: list[dict]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workspace", default="personal")
+    parser.add_argument(
+        "--workspace",
+        default="personal",
+        help="nombre del volcado, o `all` para juntar todos en un workspace",
+    )
     parser.add_argument("--queries", type=Path, default=QUERIES)
     parser.add_argument("--keep", action="store_true", help="no borrar la base al terminar")
     parser.add_argument(
@@ -183,7 +187,7 @@ def main() -> None:
     os.environ.setdefault("MODEL_DIR", str(Path(__file__).resolve().parent.parent / "models"))
     os.environ.setdefault("DATA_DIR", "/tmp/doction-eval")
 
-    from app import db, embeddings
+    from app import db, embeddings, meta
     from evals import corpus
 
     try:
@@ -279,6 +283,9 @@ def main() -> None:
                     # distintos se ven idénticos en el JSON.
                     "model": model,
                     "model_dir": os.environ["MODEL_DIR"],
+                    # Sin esto, dos runs a los dos lados de un cambio de troceador
+                    # se ven idénticos en el JSON y la comparación queda sin etiqueta.
+                    "chunker": meta.CHUNKER_ID,
                     "summary": table,
                     "per_query": per_query,
                 },

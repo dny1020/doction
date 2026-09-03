@@ -116,6 +116,13 @@ def page_type(content: str) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
+# Identidad del troceador. Va grabada junto a los vectores igual que el modelo:
+# dos formas de partir una página producen fragmentos distintos, así que compararlos
+# por coseno significa tan poco como mezclar dos encoders. Cambiar el algoritmo
+# obliga a subir esto, y eso es lo que dispara el reindexado.
+CHUNKER_ID = "paragraph-v1"
+
+
 def chunk_markdown(text: str, *, max_chars: int = 1000, overlap: int = 150) -> list[str]:
     """Parte el cuerpo en ventanas ~max_chars respetando límites de párrafo.
 
