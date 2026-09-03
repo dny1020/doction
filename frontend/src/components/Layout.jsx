@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useParams } from 'react-router-dom'
 import { MoreHorizontal, PanelLeft } from 'lucide-react'
-import { api, setWorkspace } from '../api.js'
+import { api, isAbort, setWorkspace } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
 import { newPagePath, pagePath } from '../routes.js'
@@ -100,26 +100,27 @@ export default function Layout() {
 
   const reloadPages = useCallback(() => {
     // Sin workspace no hay árbol que pedir, y `api` no sabría a cuál preguntar.
-    if (!ws) return
+    if (!ws) return undefined
+    const controller = new AbortController()
     api
-      .get('/api/pages')
+      .get('/api/pages', controller.signal)
       .then((list) => {
         setPages(list)
         setPagesWs(ws)
         setPagesError(false)
       })
-      .catch(() => {
+      .catch((e) => {
+        if (isAbort(e)) return
         setPages([])
         setPagesWs(ws)
         setPagesError(true)
       })
+    return () => controller.abort()
     // El árbol es de un workspace: sin `ws` aquí, cambiar de workspace dejaba en
     // pantalla el árbol del anterior.
   }, [ws])
 
-  useEffect(() => {
-    reloadPages()
-  }, [reloadPages])
+  useEffect(() => reloadPages(), [reloadPages])
 
   // El título y las acciones de la barra móvil salen de la URL, igual que el
   // resaltado del árbol en Sidebar.jsx: así la barra no necesita que cada ruta
@@ -157,6 +158,7 @@ export default function Layout() {
       <Sidebar
         ws={ws}
         pages={pages}
+        pagesReady={pagesWs === ws}
         pagesError={pagesError}
         onReload={reloadPages}
         onCollapse={() => setCollapsed(true)}

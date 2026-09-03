@@ -12,8 +12,10 @@ import { useI18n } from '../i18n.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 import { renderMarkdown } from '../markdown.js'
+import { enhanceProse } from '../prose.js'
 import { pagePath, wsPath } from '../routes.js'
 import { clearDraft, readDraft, writeDraft } from '../drafts.js'
+import { useDocumentTitle } from '../useDocumentTitle.js'
 
 // Editor dividido: fuente markdown a la izquierda, preview en vivo a la derecha.
 // `mode` es "new" (crear) o "edit" (editar una página existente).
@@ -29,6 +31,7 @@ export default function Editor({ mode }) {
   const confirm = useConfirm()
   const textareaRef = useRef(null)
   const formRef = useRef(null)
+  const previewRef = useRef(null)
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -108,6 +111,17 @@ export default function Editor({ mode }) {
   }, [content])
 
   const previewHtml = useMemo(() => renderMarkdown(preview), [preview])
+
+  // Editando, el título sigue al campo: renombrar una página se ve en la pestaña
+  // antes de guardar.
+  useDocumentTitle(title ? t('edit') + ': ' + title : t('new_page'), ws)
+
+  // La vista previa pasa por las mismas mejoras que la de lectura: resaltado,
+  // diagramas y fórmulas. Sin esto el editor y el lector enseñaban cosas distintas
+  // para el mismo markdown, que es justo lo que una vista previa no debe hacer.
+  useEffect(() => {
+    enhanceProse(previewRef.current)
+  }, [previewHtml])
 
   // Navegación interna con cambios sin guardar → diálogo de confirmación.
   const blocker = useBlocker(() => isDirty())
@@ -301,7 +315,11 @@ export default function Editor({ mode }) {
           onPaste={onPaste}
         />
         {content ? (
-          <div className="prose preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+          <div
+            ref={previewRef}
+            className="prose preview"
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+          />
         ) : (
           <div className="prose preview preview-empty">{t('preview_hint')}</div>
         )}

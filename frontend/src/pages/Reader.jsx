@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom'
-import { api } from '../api.js'
+import { api, isAbort } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { newPagePath, pagePath, wsPath } from '../routes.js'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 import Markdown from '../components/Markdown.jsx'
 import Toc from '../components/Toc.jsx'
+import EmptyState from '../components/EmptyState.jsx'
+import { DocumentSkeleton } from '../components/Skeleton.jsx'
+import { useDocumentTitle } from '../useDocumentTitle.js'
 
 // Vista de lectura de una página. Pide /api/pages/{slug}/view, que trae el
 // contenido + migas + subpáginas + backlinks + relacionadas en una sola llamada.
@@ -19,28 +22,44 @@ export default function Reader() {
   const confirm = useConfirm()
   const [view, setView] = useState(null)
   const [error, setError] = useState(null) // Error de api.js (trae .status)
+  // Borrar es irreversible desde la vista: mientras la petición está en vuelo el
+  // botón se deshabilita, para que dos clics no manden dos borrados.
+  const [deleting, setDeleting] = useState(false)
   const wrapRef = useRef(null)
   const proseRef = useRef(null)
 
+  // El AbortController vive en un ref para que `load` pueda reintentar (el botón
+  // de la vista de error) sin dejar colgando la petición anterior.
+  const requestRef = useRef(null)
+
   const load = useCallback(() => {
-    if (!slug || !ws) return
+    if (!slug || !ws) return undefined
+    requestRef.current?.abort()
+    const controller = new AbortController()
+    requestRef.current = controller
     setView(null)
     setError(null)
     api
-      .get('/api/pages/' + slug + '/view')
+      .get('/api/pages/' + slug + '/view', controller.signal)
       .then(setView)
-      .catch(setError)
+      .catch((e) => {
+        // Cancelada porque ya vamos a otra página: no hay nada que enseñar.
+        if (!isAbort(e)) setError(e)
+      })
+    return () => controller.abort()
     // `ws` cuenta: el mismo slug en otro workspace es otra página.
   }, [slug, ws])
 
   useEffect(load, [load])
+
+  useDocumentTitle(view ? view.title : null, ws)
 
   // Ruta home (/): si hay páginas, abre la primera; si no, estado vacío — salvo
   // que el árbol no cargara (red caída ≠ workspace vacío).
   if (!slug) {
     // Sin el árbol de ESTE workspace no se decide nada: redirigir con el del
     // anterior manda a una página que aquí no existe.
-    if (!pagesReady && !pagesError) return <div className="placeholder">{t('loading')}</div>
+    if (!pagesReady && !pagesError) return <DocumentSkeleton />
     if (pages && pages.length > 0) return <Navigate to={pagePath(ws, pages[0].slug)} replace />
     if (pagesError) {
       return (
@@ -53,12 +72,12 @@ export default function Reader() {
       )
     }
     return (
-      <div className="placeholder">
-        <h1>{t('empty_title')}</h1>
-        <Link className="btn btn-primary" to={newPagePath(ws)}>
-          {t('create_this_page')}
-        </Link>
-      </div>
+      <EmptyState
+        title={t('empty_title')}
+        hint={t('empty_workspace_hint')}
+        actionLabel={t('create_this_page')}
+        actionTo={newPagePath(ws)}
+      />
     )
   }
 
@@ -86,15 +105,22 @@ export default function Reader() {
       </div>
     )
   }
-  if (!view) return <div className="placeholder">{t('loading')}</div>
+  if (!view) return <DocumentSkeleton />
 
   async function onDelete() {
-    const message = t('confirm_delete_page') + ' “' + view.title + '”?'
+    if (deleting) return
+    let message = t('confirm_delete_page') + ' “' + view.title + '”?'
+    // Una página se lleva sus subpáginas por delante. Decirlo antes, no después.
+    if (view.children.length > 0) {
+      message += ' ' + t('confirm_delete_children').replace('{n}', view.children.length)
+    }
     if (!(await confirm(message, { confirmLabel: t('delete'), danger: true }))) return
+    setDeleting(true)
     try {
       await api.del('/api/pages/' + slug)
     } catch (e) {
       toast(e.message, 'error')
+      setDeleting(false)
       return
     }
     reloadPages()
@@ -136,7 +162,7 @@ export default function Reader() {
             <Link className="btn" to={pagePath(ws, slug, '/history')}>
               {t('history')}
             </Link>
-            <button className="btn btn-danger" type="button" onClick={onDelete}>
+            <button className="btn btn-danger" type="button" onClick={onDelete} disabled={deleting}>
               {t('delete')}
             </button>
           </div>
@@ -154,7 +180,16 @@ export default function Reader() {
           </p>
         </header>
 
-        <Markdown ref={proseRef} text={view.content} />
+        {view.content.trim() ? (
+          <Markdown ref={proseRef} text={view.content} />
+        ) : (
+          <div className="prose" ref={proseRef}>
+            <p className="muted">{t('empty_page')}</p>
+            <Link className="btn btn-sm" to={pagePath(ws, slug, '/edit')}>
+              {t('edit')}
+            </Link>
+          </div>
+        )}
 
         {view.children.length > 0 && (
           <section className="subpages">

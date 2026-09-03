@@ -3,6 +3,7 @@ import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { pagePath } from '../routes.js'
+import { useDocumentTitle } from '../useDocumentTitle.js'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 
@@ -46,6 +47,7 @@ export default function History() {
   // El título lo sacamos del árbol que ya tiene el Layout; si no, usamos el slug.
   const treePage = pages.find((p) => p.slug === slug)
   const title = treePage ? treePage.title : slug
+  useDocumentTitle(t('history') + ': ' + title, ws)
 
   async function onRestore(sha) {
     if (!(await confirm(t('confirm_restore'), { confirmLabel: t('restore') }))) return

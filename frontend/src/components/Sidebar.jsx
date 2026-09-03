@@ -17,16 +17,17 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
-import { api } from '../api.js'
+import { api, isAbort } from '../api.js'
 import { avatarColor, avatarLetter } from '../avatar.js'
 import { getTheme, toggleTheme } from '../theme.js'
 import { newPagePath, pagePath, wsPath } from '../routes.js'
 import LanguageToggle from './LanguageToggle.jsx'
 import PageTree from './PageTree.jsx'
+import { TreeSkeleton } from './Skeleton.jsx'
 
 // Barra lateral: marca, selector de workspace, búsqueda en vivo, árbol de páginas,
 // botón de nueva página y, abajo, el cambio de tema + el menú de usuario.
-export default function Sidebar({ ws, pages, pagesError, onReload, onCollapse }) {
+export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, onCollapse }) {
   const { user, logout } = useAuth()
   const { t } = useI18n()
   const navigate = useNavigate()
@@ -51,13 +52,21 @@ export default function Sidebar({ ws, pages, pagesError, onReload, onCollapse })
       setResults(null)
       return
     }
+    const controller = new AbortController()
     const timer = setTimeout(() => {
       api
-        .get('/api/search?mode=hybrid&q=' + encodeURIComponent(q))
+        .get('/api/search?mode=hybrid&q=' + encodeURIComponent(q), controller.signal)
         .then(setResults)
-        .catch(() => setResults([]))
+        .catch((e) => {
+          // Sin esto, la respuesta lenta de una búsqueda anterior podía llegar
+          // después de la siguiente y dejar en pantalla resultados de otra cosa.
+          if (!isAbort(e)) setResults([])
+        })
     }, 200)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [query])
 
   // Cierra los menús desplegables al hacer clic fuera de ellos.
@@ -171,9 +180,14 @@ export default function Sidebar({ ws, pages, pagesError, onReload, onCollapse })
                 ))}
               </ul>
             ) : (
-              <p className="muted no-results">
-                {t('no_matches')} “{query}”.
-              </p>
+              <div className="no-results">
+                <p className="muted">
+                  {t('no_matches')} “{query}”.
+                </p>
+                <Link className="btn btn-sm" to={newPagePath(ws)} onClick={() => setQuery('')}>
+                  {t('create_this_page')}
+                </Link>
+              </div>
             )}
           </div>
         )}
@@ -190,6 +204,8 @@ export default function Sidebar({ ws, pages, pagesError, onReload, onCollapse })
                   {t('retry')}
                 </button>
               </p>
+            ) : !pagesReady ? (
+              <TreeSkeleton />
             ) : pages.length > 0 ? (
               <PageTree ws={ws} pages={pages} activeSlug={activeSlug} onReload={onReload} />
             ) : (

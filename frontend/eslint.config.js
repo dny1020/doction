@@ -18,6 +18,7 @@ export default [
         // Los cargan los scripts de static/vendor/, no un import.
         mermaid: 'readonly',
         hljs: 'readonly',
+        katex: 'readonly',
         // Lo sustituye vite (define) con la ruta configurada del servidor MCP.
         __DOCTION_MCP_PATH__: 'readonly',
       },

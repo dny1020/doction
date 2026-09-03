@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useI18n } from '../i18n.jsx'
+import { useDocumentTitle } from '../useDocumentTitle.js'
 
 // 404 con estilo: antes cualquier URL desconocida redirigía a la home en silencio.
 //
@@ -9,6 +10,7 @@ import { useI18n } from '../i18n.jsx'
 export default function NotFound({ standalone }) {
   const { t } = useI18n()
   const location = useLocation()
+  useDocumentTitle(t('nf_title'), null)
 
   return (
     <div className={'placeholder' + (standalone ? ' placeholder--standalone' : '')}>

@@ -2419,3 +2419,101 @@ html {
   font-family: var(--font-mono);
   overflow-wrap: anywhere;
 }
+
+/* ── Bloque 4: markdown completo ─────────────────────────────────────────────── */
+
+/* Alineacion de columnas. markdown-it la escribe como `style` en linea y el
+   saneador se lo lleva —correctamente—, asi que markdown.js la traduce a clase. */
+.prose .align-left { text-align: left; }
+.prose .align-center { text-align: center; }
+.prose .align-right { text-align: right; }
+
+/* Listas de tareas: sin vineta, la casilla alineada con la primera linea y sin
+   sangrado extra respecto a una lista normal. */
+.prose li.task-list-item { list-style: none; margin-left: -1.25em; }
+.prose li.task-list-item input[type='checkbox'] {
+  margin-right: var(--sp-2);
+  vertical-align: middle;
+  accent-color: var(--accent);
+}
+
+/* Formulas. KaTeX trae su propio CSS (vendorizado, cargado bajo demanda); esto
+   solo coloca el bloque y deja que una formula ancha haga scroll en vez de
+   ensanchar la columna de lectura. */
+.prose .math--block {
+  display: block;
+  margin: var(--sp-4) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+/* Sin estilos propios sobre .math: KaTeX pinta dentro de ese mismo nodo y trae su
+   propia tipografia. Hasta que carga se ve el origen en la fuente del texto, que
+   es un parpadeo corto y solo en las paginas que llevan formulas. */
+
+/* ── Esqueletos de carga ──────────────────────────────────────────────────────
+   Con la forma de lo que va a llegar, no con la palabra "cargando". Las medidas
+   son las reales de cada sitio: cuando llega el contenido, nada se mueve. */
+.skeleton-bar {
+  display: block;
+  height: 0.9em;
+  border-radius: var(--r-xs);
+  background: var(--surface-hover);
+  animation: skeleton-pulse 1.4s var(--ease) infinite;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-bar { animation: none; }
+}
+
+/* Arbol lateral: misma altura de fila y mismo sangrado por nivel que el arbol
+   real (14px), para que el cambio no salte. */
+.skeleton-tree { padding: 0 var(--sp-2); }
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: var(--sp-2) var(--sp-3);
+}
+.skeleton-row[data-level='1'] { padding-left: calc(var(--sp-3) + 14px); }
+.skeleton-row[data-level='2'] { padding-left: calc(var(--sp-3) + 28px); }
+.skeleton-row .skeleton-bar { width: 70%; }
+.skeleton-row:nth-child(2n) .skeleton-bar { width: 55%; }
+.skeleton-row:nth-child(3n) .skeleton-bar { width: 82%; }
+
+/* Cuerpo del documento, al ancho de la columna de lectura. */
+.skeleton-doc {
+  width: 100%;
+  max-width: var(--measure);
+  margin-top: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.skeleton-bar--title {
+  height: 1.8em;
+  width: 55%;
+  margin-bottom: var(--sp-4);
+}
+.skeleton-bar--short { width: 62%; }
+
+.skeleton-list {
+  width: 100%;
+  max-width: var(--measure);
+  margin-top: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.skeleton-list .skeleton-bar { height: 1.4em; }
+
+/* Busqueda sin resultados: el mensaje y la salida, no solo el mensaje. */
+.no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}

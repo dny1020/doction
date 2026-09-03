@@ -22,11 +22,15 @@ export function withWorkspace(url) {
   return url + (url.includes('?') ? '&' : '?') + 'ws=' + encodeURIComponent(workspace)
 }
 
-async function request(method, url, body) {
+async function request(method, url, body, signal) {
   const options = {
     method: method,
     credentials: 'same-origin',
     headers: {},
+    // `signal` cancela la petición cuando quien la pidió ya no está: navegar a
+    // otra página mientras carga la anterior, o teclear otra búsqueda. Sin esto
+    // una respuesta lenta llegaba tarde y pintaba encima de la vista nueva.
+    signal: signal,
   }
   if (body !== undefined) {
     options.headers['Content-Type'] = 'application/json'
@@ -36,7 +40,10 @@ async function request(method, url, body) {
   let response
   try {
     response = await fetch(withWorkspace(url), options)
-  } catch {
+  } catch (cause) {
+    // Cancelar no es un fallo: es que a nadie le interesa ya la respuesta. Se
+    // propaga tal cual para que quien llama lo distinga y no pinte un error.
+    if (cause && cause.name === 'AbortError') throw cause
     // fetch solo rechaza cuando la petición no llegó a salir o no volvió: servidor
     // caído, DNS, red. Un 500 sí resuelve. Se distinguen porque quien llama hace
     // cosas distintas: un error del servidor se enseña, una caída se espera.
@@ -70,8 +77,14 @@ async function request(method, url, body) {
 }
 
 export const api = {
-  get: (url) => request('GET', url),
+  get: (url, signal) => request('GET', url, undefined, signal),
   post: (url, body) => request('POST', url, body),
   put: (url, body) => request('PUT', url, body),
   del: (url) => request('DELETE', url),
+}
+
+// Una petición cancelada no es un error que enseñar. Los `.catch` que pintan algo
+// tienen que preguntar por esto antes.
+export function isAbort(error) {
+  return Boolean(error) && error.name === 'AbortError'
 }

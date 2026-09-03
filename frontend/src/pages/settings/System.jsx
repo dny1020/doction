@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api.js'
 import { useI18n } from '../../i18n.jsx'
+import { ListSkeleton } from '../../components/Skeleton.jsx'
 
 // Sistema: qué está corriendo el despliegue. Todo es de solo lectura —las banderas
 // salen del entorno del servidor—, así que se pinta como filas de datos y no como
@@ -27,7 +28,7 @@ export default function SystemSection() {
     )
   }
   if (!report) {
-    return <div className="placeholder">{t('loading')}</div>
+    return <ListSkeleton rows={6} />
   }
 
   const flag = (on) => (on ? t('enabled') : t('disabled'))

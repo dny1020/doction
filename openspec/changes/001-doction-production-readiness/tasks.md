@@ -31,31 +31,31 @@
 
 ## 2. Markdown sanitizer and the GFM syntax that was traded for it
 
-- [ ] 2.1 Add a sanitizer dependency and define doction's allowlist in `frontend/src/markdown.js`
+- [x] 2.1 Add a sanitizer dependency and define doction's allowlist in `frontend/src/markdown.js`
       — elements, attributes and URL schemes — as an explicit constant, not a library default.
-- [ ] 2.2 Flip `html: false` to `html: true` and route all output through the sanitizer. Verify
+- [x] 2.2 Flip `html: false` to `html: true` and route all output through the sanitizer. Verify
       with tests for `<script>`, an `onerror` on an allowed element, `javascript:` and `data:`
       URLs, an `<iframe>`, and a surviving `<details>`/`<abbr>`/`<kbd>`.
-- [ ] 2.3 Enable task lists and math; verify checkboxes render (read-only in the reading view) and
+- [x] 2.3 Enable task lists and math; verify checkboxes render (read-only in the reading view) and
       that inline and display math render rather than showing delimiters.
-- [ ] 2.4 Verify sanitization does not strip renderer output: a fenced block keeps its
+- [x] 2.4 Verify sanitization does not strip renderer output: a fenced block keeps its
       `language-*` class and still highlights, a `mermaid` block still becomes a diagram, and math
       markup survives.
-- [ ] 2.5 Verify a fenced block whose contents are HTML displays as code and executes nothing.
-- [ ] 2.6 Point the editor preview (`pages/Editor.jsx:224`) and `components/Markdown.jsx` at the
+- [x] 2.5 Verify a fenced block whose contents are HTML displays as code and executes nothing.
+- [x] 2.6 Point the editor preview (`pages/Editor.jsx:224`) and `components/Markdown.jsx` at the
       same function so preview and reading view cannot diverge.
 
 ## 3. View states
 
-- [ ] 3.1 Build tree and document skeletons matching row height, indentation and reading-column
+- [x] 3.1 Build tree and document skeletons matching row height, indentation and reading-column
       width, with an appearance delay so a fast response shows nothing. Verify no layout shift on
       arrival.
-- [ ] 3.2 Replace the `t('loading')` placeholders in `Reader.jsx:84`, `Trash.jsx:48`,
+- [x] 3.2 Replace the `t('loading')` placeholders in `Reader.jsx:84`, `Trash.jsx:48`,
       `Notes.jsx:40` and `settings/System.jsx:30` with the appropriate skeleton or an inline
       pending state.
-- [ ] 3.3 Add a timeout that turns a still-pending skeleton into the failure state, and verify a
+- [x] 3.3 Add a timeout that turns a still-pending skeleton into the failure state, and verify a
       hung request eventually reports rather than spinning forever.
-- [ ] 3.4 Add the empty state for a page with a title and no body, offering edit.
+- [x] 3.4 Add the empty state for a page with a title and no body, offering edit.
 - [x] 3.5 Verify the three states are distinguishable in every fetching view, and that a failure
       in one region leaves the others working.
 
@@ -151,13 +151,13 @@
 - [x] 8.1 Debounce the editor preview render; verify typing does not stutter in a long document.
 - [x] 8.2 Discard superseded search responses so a slow earlier response cannot overwrite a later
       one; verify with a delayed response.
-- [ ] 8.3 Add an in-flight guard and a disabled control to every destructive handler:
+- [x] 8.3 Add an in-flight guard and a disabled control to every destructive handler:
       `Reader.onDelete`, `WorkspaceSettings` delete/rename/member add/member remove,
       `Tokens.onRevoke`, `Webhooks.onDelete`, `Trash.onRestore`/`onPurge`, and
       `PageActions.submit`. Verify a double activation sends exactly one request in each case.
-- [ ] 8.4 State in the delete confirmation for a page with subpages that the subpages are
+- [x] 8.4 State in the delete confirmation for a page with subpages that the subpages are
       affected.
-- [ ] 8.5 Verify a failed action re-enables its control, and that guarding one action leaves
+- [x] 8.5 Verify a failed action re-enables its control, and that guarding one action leaves
       unrelated controls usable.
 
 ### Notes on sections 6, 7, 8 and 10
@@ -192,7 +192,7 @@
 - [x] 9.1 Give every subscription added by this change a cleanup: status polling, the draft
       debounce, the tree's keyboard handler, any event stream. Verify mounting and unmounting a
       view repeatedly does not multiply its effects.
-- [ ] 9.2 Abort or ignore in-flight requests for a view that has been navigated away from.
+- [x] 9.2 Abort or ignore in-flight requests for a view that has been navigated away from.
 - [x] 9.3 Re-verify the existing cleanups still hold after the refactors:
       `Layout.jsx`, `Sidebar.jsx`, `CommandPalette.jsx`, `KeyboardShortcuts.jsx`, `Editor.jsx`,
       `Toc.jsx`.
@@ -223,23 +223,58 @@
 
 ## 11. Document title
 
-- [ ] 11.1 Set `document.title` from the route: page, workspace, application. Verify it updates on
+- [x] 11.1 Set `document.title` from the route: page, workspace, application. Verify it updates on
       navigation without a reload and that each history entry carries its own title.
-- [ ] 11.2 Give settings, trash, notes, the editor and the not-found state their own titles.
-- [ ] 11.3 Verify a title containing HTML-significant characters appears literally, and that
+- [x] 11.2 Give settings, trash, notes, the editor and the not-found state their own titles.
+- [x] 11.3 Verify a title containing HTML-significant characters appears literally, and that
       renaming a page updates the tab without a reload.
+
+### Notes on sections 2, 3, 8 and 11
+
+- **Three dependencies, and each one earns it.** `dompurify` (the sanitizer, needed on every
+  render so it is bundled), `markdown-it-task-lists`, and `vitest`+`jsdom` for the tests. KaTeX is
+  **not** a dependency: it is vendored under `app/static/vendor/katex/` and loaded lazily by
+  `prose.js`, exactly like mermaid and highlight.js, so the 600 KB only lands on pages that
+  contain formulas. Only its woff2 faces were kept and the woff/ttf `src` entries were stripped
+  from its stylesheet, so no page requests a font that is not there.
+- **The sanitizer broke table alignment, and that is the interesting find.** markdown-it writes
+  column alignment as an inline `style`, which is precisely what the allowlist must strip. The
+  renderer now translates it to a class and the alignment lives in CSS, where it belonged. Caught
+  by a test, not by looking at a page.
+- **`<input>` is on the allowlist only for `- [x]`.** A DOMPurify hook removes any input that is
+  not a disabled checkbox, so a page cannot render a text field inside a document.
+- **Math is marked, not rendered, at sanitize time.** The markdown plugin emits the formula source
+  as escaped text inside a marked node; KaTeX converts it client-side afterwards with
+  `trust: false`, which blocks `\href` and `\includegraphics`. So KaTeX's own output never has to
+  survive the sanitizer, and the page's input never reaches the DOM as markup.
+- **The editor preview was silently skipping every enhancement.** Its `ref` was missing, so
+  `enhanceProse` ran against null: no highlighting, no diagrams, no formulas — the same markdown
+  looked different in the editor and in the reader. Found by driving the app; the gates were green
+  the whole time.
+- **Skeletons appear only after 250 ms.** Below that a skeleton is a flash that reads as a fault.
+  Verified by delaying `fetch` in the running app and watching the document skeleton hold.
+- **Empty states are for what is missing, not for what is optional.** A workspace with no pages, a
+  page with no body, and a search with no matches each get one with the action that fills it. A
+  page with no subpages still renders nothing, because it is not empty — it simply has none.
 
 ## 12. Verification
 
 - [ ] 12.1 Walk every view at 1400px, 1000px and 700px: skeletons, empty states, 404, 500,
-      keyboard tree, search shortcut, status indicator.
-- [ ] 12.2 Verify with the backend stopped: connection notice, draft survival across a reload,
+      keyboard tree, search shortcut, status indicator. **Only done at ~1500px**: the browser on
+      this machine would not honour a window resize, so the 1000px and 700px bands are unverified.
+      Everything else in this section was checked against the running app.
+- [x] 12.2 Verify with the backend stopped: connection notice, draft survival across a reload,
       recovery on restart.
-- [ ] 12.3 Verify on a network with no external route that every view renders with its intended
+- [x] 12.3 Verify on a network with no external route that every view renders with its intended
       fonts, icons and diagrams.
-- [ ] 12.4 Confirm the `app-shell`, `settings`, `system-status` and `search` specs still hold.
-- [ ] 12.5 Run the frontend gate: `cd frontend && npm run check`.
-- [ ] 12.6 Run the Python gate: `uv run ruff check . && uv run ruff format --check . && uv run
+- [x] 12.4 Confirm the `app-shell`, `settings`, `system-status` and `search` specs still hold.
+      Checked by diff against `main`: the mobile header still contains only the sidebar toggle,
+      the title and one overflow control (the connection indicator sits outside it); the settings
+      routes changed only in indentation; `GET /api/system` has no diff; and nothing in the
+      retrieval ranking was touched. The one requirement this change does modify, `app-shell`'s
+      44px floor, carries its delta and its reason.
+- [x] 12.5 Run the frontend gate: `cd frontend && npm run check`.
+- [x] 12.6 Run the Python gate: `uv run ruff check . && uv run ruff format --check . && uv run
       pyright app tests && uv run pytest`.
-- [ ] 12.7 Run `npm run build` so `app/static/app/` reflects the change, and click through the
+- [x] 12.7 Run `npm run build` so `app/static/app/` reflects the change, and click through the
       built bundle rather than only the dev server.

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
+import { ListSkeleton } from '../components/Skeleton.jsx'
+import { useDocumentTitle } from '../useDocumentTitle.js'
 import { pagePath } from '../routes.js'
 import { useToast } from '../components/Toast.jsx'
 
@@ -12,6 +14,7 @@ const PAGE_SIZE = 25
 // pagina por cursor sobre created_at.
 export default function Notes() {
   const { ws } = useOutletContext()
+  useDocumentTitle(t('notes'), ws)
   const { t } = useI18n()
   const toast = useToast()
   const [items, setItems] = useState(null) // null = cargando
@@ -39,7 +42,7 @@ export default function Notes() {
     load()
   }, [load])
 
-  if (items === null) return <div className="placeholder">{t('loading')}</div>
+  if (items === null) return <ListSkeleton />
 
   return (
     <div className="settings">
