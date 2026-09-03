@@ -126,7 +126,7 @@ def _sweep(embeddings, workspace_id: int, queries: list[dict]) -> None:
     """Barre los umbrales: cada uno decide algo distinto, así que se mira su curva.
 
     `SEARCH_MIN_SCORE` no ordena, esconde — su métrica es cuánto recall cuesta el
-    piso, no el MRR global. `KEYWORD_BOOST` sí es de orden.
+    piso, no el MRR global. `RRF_K` sí es de orden: aplana la curva de la fusión.
     """
     print("\n" + "─" * 45)
     print("SEARCH_MIN_SCORE (modo semantic)")
@@ -147,20 +147,20 @@ def _sweep(embeddings, workspace_id: int, queries: list[dict]) -> None:
     finally:
         embeddings.SEARCH_MIN_SCORE = original
 
-    print("\nKEYWORD_BOOST (modo semantic, piso fijo)")
-    print(f"{'boost':>7}{'MRR':>8}{'recall@1':>10}{'miss':>7}")
-    original_boost = embeddings.KEYWORD_BOOST
+    print("\nRRF_VECTOR_WEIGHT (modo hybrid)")
+    print(f"{'peso':>7}{'MRR':>8}{'recall@1':>10}{'miss':>7}")
+    original_weight = embeddings.RRF_VECTOR_WEIGHT
     try:
-        for boost in (0.0, 0.05, 0.10, 0.20, 0.30):
-            embeddings.KEYWORD_BOOST = boost
+        for weight in (1.0, 1.5, 2.0, 3.0, 5.0, 10.0):
+            embeddings.RRF_VECTOR_WEIGHT = weight
             runs = []
             for q in queries:
-                hits = embeddings.search(workspace_id, q["query"], mode="semantic")
+                hits = embeddings.search(workspace_id, q["query"], mode="hybrid")
                 runs.append((_rank_of([h["slug"] for h in hits], q["expect"]), 0.0, len(hits)))
             m = _score(runs)
-            print(f"{boost:>7.2f}{m['mrr']:>8.2f}{m['recall@1']:>10.2f}{m['misses']:>7}")
+            print(f"{weight:>7.1f}{m['mrr']:>8.2f}{m['recall@1']:>10.2f}{m['misses']:>7}")
     finally:
-        embeddings.KEYWORD_BOOST = original_boost
+        embeddings.RRF_VECTOR_WEIGHT = original_weight
 
 
 def main() -> None:

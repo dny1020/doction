@@ -112,18 +112,24 @@ def test_sgrep_ranks_by_meaning(client):
     results = _data(_call(client, token, "sgrep", {"query": "sip routing"}))
     assert results, results
     assert results[0]["slug"] == "kamailio-dispatcher"
-    assert results[0]["via"] == "semantic"
+    # La semántica la encontró: trae puntuación de coseno y posición en su lista.
     assert results[0]["score"] is not None
+    assert results[0]["vector_rank"] is not None
     # the coffee page should not be the top hit
     assert all(r["slug"] != "coffee-recipes" for r in results[:1])
 
 
-def test_sgrep_keyword_boost_flag(client):
+def test_sgrep_reports_which_retrievers_found_a_page(client):
+    """La procedencia es parte del resultado: exacto y vecino semántico se distinguen."""
     token = _token(client)
     _seed_pages(client, token)
     results = _data(_call(client, token, "sgrep", {"query": "dispatcher"}))
     top = next(r for r in results if r["slug"] == "kamailio-dispatcher")
     assert top["keyword_match"] is True
+    assert top["via"] in ("fts", "both")
+    # Y los rangos de cada lista viajan con el resultado, para poder revisar el orden.
+    assert top["lexical_rank"] is not None
+    assert "parts" not in top, "el troceado del resaltado es cosa de la interfaz"
 
 
 def test_rag_returns_chunks_with_provenance(client):
@@ -138,6 +144,7 @@ def test_rag_returns_chunks_with_provenance(client):
 
 
 def test_semantic_falls_back_to_fts_when_disabled(client, monkeypatch):
+    """Sin canal vectorial, la híbrida es la léxica: un solo canal no se fusiona consigo."""
     token = _token(client)
     _seed_pages(client, token)
     monkeypatch.setenv("SEMANTIC_SEARCH", "0")
@@ -145,6 +152,7 @@ def test_semantic_falls_back_to_fts_when_disabled(client, monkeypatch):
     assert results
     assert all(r["via"] == "fts" for r in results)
     assert all(r["score"] is None for r in results)
+    assert all(r["vector_rank"] is None for r in results)
 
 
 def test_search_endpoint_semantic_mode(client):
@@ -220,7 +228,7 @@ def test_hybrid_puts_exact_matches_first_without_duplicates(client):
     results = _search(client, token, "dispatcher", "hybrid")
     slugs = [r["slug"] for r in results]
     assert slugs[0] == "kamailio-dispatcher"
-    assert results[0]["via"] == "fts"
+    assert results[0]["via"] == "both", "sale por las dos listas"
     # FTS resalta el término exacto, y lo hace en `parts`: el snippet es texto plano.
     assert "<mark>" not in results[0]["snippet"]
     assert any(part["match"] for part in results[0]["parts"])
@@ -279,3 +287,88 @@ def test_real_onnx_embedder_similarity():
     )
     sims = vecs @ vecs[0]
     assert sims[2] > sims[1]  # sip-related closer than coffee
+
+
+# ── Fusión de rangos recíprocos ──────────────────────────────────────────────
+# Antes la híbrida concataba: los aciertos de FTS delante y los semánticos detrás,
+# así que FTS iba primero por posición y no por mérito. Ahora se combinan por rango.
+
+
+def test_rrf_combines_positions_not_scores():
+    """La fórmula, aislada: 1/(60+posición) sumado por cada lista donde sale."""
+    from app import embeddings as emb
+
+    scores = emb._rrf([(1.0, ["a", "b", "c"]), (1.0, ["c", "a"])])
+    assert scores["a"] == pytest.approx(1 / 61 + 1 / 62)
+    assert scores["c"] == pytest.approx(1 / 63 + 1 / 61)
+    assert scores["b"] == pytest.approx(1 / 62)
+    # Salir en las dos listas gana a salir primero en una sola.
+    assert scores["a"] > scores["c"] > scores["b"]
+
+
+def test_rrf_with_one_empty_list_is_the_other_list():
+    """Un canal que no devuelve no rompe la fusión ni cambia el orden del otro."""
+    from app import embeddings as emb
+
+    scores = emb._rrf([(1.0, []), (1.0, ["x", "y"])])
+    assert scores == {"x": pytest.approx(1 / 61), "y": pytest.approx(1 / 62)}
+    assert emb._rrf([(1.0, []), (1.0, [])]) == {}
+
+
+def test_hybrid_is_deterministic(client):
+    """La misma consulta sobre los mismos datos da siempre el mismo orden."""
+    from app import embeddings as emb
+
+    token = _token(client)
+    _seed_pages(client, token)
+    first = [h["slug"] for h in emb.search(1, "sip routing", mode="hybrid")]
+    second = [h["slug"] for h in emb.search(1, "sip routing", mode="hybrid")]
+    assert first == second
+
+
+def test_hybrid_carries_both_ranks(client):
+    """El orden se puede revisar, no solo creer: cada acierto trae su posición."""
+    from app import embeddings as emb
+
+    token = _token(client)
+    _seed_pages(client, token)
+    hits = emb.search(1, "dispatcher", mode="hybrid")
+    assert hits
+    for hit in hits:
+        assert hit["rrf"] > 0
+        assert (hit["lexical_rank"] is not None) == (hit["via"] in ("fts", "both"))
+        assert (hit["vector_rank"] is not None) == (hit["via"] in ("semantic", "both"))
+
+
+def test_hybrid_never_scores_a_cosine_against_a_ts_rank(client):
+    """El orden sale solo de las posiciones: dos escalas distintas nunca se suman."""
+    from app import embeddings as emb
+
+    token = _token(client)
+    _seed_pages(client, token)
+    hits = emb.search(1, "sip routing", mode="hybrid")
+    expected = sorted(hits, key=lambda h: (-h["rrf"], h["slug"]))
+    assert [h["slug"] for h in hits] == [h["slug"] for h in expected]
+    # Y la puntuación de fusión se puede recomputar desde los dos rangos solos.
+    for hit in hits:
+        total = 0.0
+        if hit["lexical_rank"]:
+            total += 1 / (emb.RRF_K + hit["lexical_rank"])
+        if hit["vector_rank"]:
+            total += emb.RRF_VECTOR_WEIGHT / (emb.RRF_K + hit["vector_rank"])
+        assert hit["rrf"] == pytest.approx(total, abs=1e-6)
+
+
+def test_ui_api_and_mcp_agree(client):
+    """Una consulta, un orden: la barra lateral, /api/search y sgrep no divergen."""
+    from app import embeddings as emb
+
+    token = _token(client)
+    _seed_pages(client, token)
+    direct = [h["slug"] for h in emb.search(1, "dispatcher", mode="hybrid")]
+    api = client.get(
+        "/api/search?mode=hybrid&q=dispatcher", headers={"Authorization": f"Bearer {token}"}
+    ).json()
+    mcp = _data(_call(client, token, "sgrep", {"query": "dispatcher", "limit": 50}))
+    assert [h["slug"] for h in api] == direct
+    assert [h["slug"] for h in mcp] == direct

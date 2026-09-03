@@ -27,16 +27,27 @@ logger = logging.getLogger(__name__)
 
 EMBED_DIM = 384
 MAX_TOKENS = 256
-# Barrido con el piso ya en 0.25 (28 consultas, evals/results/2026-08-24-minilm-en.json):
+# Constante de la fusión de rangos recíprocos. 60 es el valor del artículo original
+# (Cormack et al., 2009) y el que usa prácticamente todo el mundo. Lo que hace es
+# aplanar la curva: sin ella el primero valdría el doble que el segundo, y con ella
+# la diferencia entre los primeros puestos es pequeña y la cola sigue contando algo.
+RRF_K = 60
+# Peso de la lista vectorial dentro de la fusión. La RRF clásica no lleva pesos y sin
+# ellos la fusión sale peor que la semántica sola: las dos listas no valen lo mismo
+# sobre este corpus —FTS marca 0.46 de MRR y los vectores 0.77—, así que darles el
+# mismo voto arrastra a la buena.
 #
-#   boost   0.00   0.05   0.10   0.20   0.30
-#   MRR     0.70   0.70   0.72   0.74   0.74
+# Barrido del arnés (43 páginas, 28 consultas, 2026-09-03-rrf-weight-sweep.json):
 #
-# Con el piso bajo el boost aporta poco: 0.02 de MRR es una consulta de 28. Los
-# valores altos miden algo mejor pero dentro del ruido, y subirlo acerca el orden
-# semántico al de FTS —que es justo lo que `hybrid` ya aporta por separado—, así
-# que se queda en 0.1.
-KEYWORD_BOOST = 0.1
+#   peso       1.0   1.5   2.0   3.0   5.0  10.0
+#   MRR       0.74  0.75  0.75  0.76  0.76  0.76
+#   recall@1  0.64  0.68  0.68  0.68  0.68  0.68
+#
+# La meseta empieza en 1.5 y de ahí en adelante todo es ruido. Se coge 2.0, el
+# extremo bajo: subirlo más no mide mejor y convertiría la híbrida en una semántica
+# con adorno léxico, que sería mentir sobre lo que hace. 2.0 además coincide con la
+# proporción entre los MRR medidos de las dos listas (0.77 frente a 0.46).
+RRF_VECTOR_WEIGHT = 2.0
 # Cuántos resultados del bi-encoder repuntúa el cross-encoder. Sin barrer a
 # propósito: el reranker completo no mejora nada medible (MRR 0.73 frente a 0.72
 # sin él, y recall@1 0.57 frente a 0.61) mientras multiplica por 29 la latencia
@@ -319,10 +330,12 @@ def semantic_search(
     query: str,
     *,
     k: int = 10,
-    keyword_boost: bool = True,
     min_score: float | None = None,
 ) -> list[dict]:
-    """sgrep: similitud de embeddings + boost por keyword. Degrada a FTS si aplica.
+    """La lista vectorial: similitud de embeddings, ordenada. Degrada a FTS si aplica.
+
+    Solo el coseno. La mezcla con la búsqueda léxica vive en `search(mode="hybrid")`
+    y se hace por rango, no sumando una constante a esta puntuación.
 
     Devuelve resultados explicables: slug, title, score y el mejor chunk (plan:
     "explainability over magic").
@@ -361,17 +374,12 @@ def semantic_search(
             }
 
     results = list(best.values())
-    keyword_slugs: set[str] = set()
-    if keyword_boost:
-        for hit in db.search_pages(workspace_id, query):
-            keyword_slugs.add(hit.slug)
     for r in results:
-        r["keyword_match"] = r["slug"] in keyword_slugs
-        if r["keyword_match"]:
-            r["score"] += KEYWORD_BOOST
         r["via"] = "semantic"
 
-    results.sort(key=lambda r: r["score"], reverse=True)
+    # Desempate por slug: dos coseno idénticos ordenados por el orden de llegada de
+    # la consulta harían que la misma búsqueda diera dos órdenes distintos.
+    results.sort(key=lambda r: (-r["score"], r["slug"]))
     if min_score is not None:
         results = [r for r in results if r["score"] >= min_score]
 
@@ -395,6 +403,88 @@ def semantic_search(
     return out
 
 
+def _rrf(rankings: list[tuple[float, list[str]]]) -> dict[str, float]:
+    """Puntuación RRF por slug: suma de 1/(k + posición) en cada lista donde aparece.
+
+    Se combina por posición y no por puntuación a propósito. Un coseno y un ts_rank
+    no comparten unidad, así que cualquier constante que sume el uno al otro es
+    arbitraria en algún punto de la lista: la vieja KEYWORD_BOOST de 0.1 era enorme
+    al lado del hueco entre los puestos 3 y 4, y despreciable al lado del que hay
+    entre el 1 y el 10.
+
+    Una lista vacía no aporta nada y no rompe nada: si un canal no devuelve, la
+    fusión es el orden del otro.
+    """
+    scores: dict[str, float] = {}
+    for weight, ranking in rankings:
+        for position, slug in enumerate(ranking, start=1):
+            scores[slug] = scores.get(slug, 0.0) + weight / (RRF_K + position)
+    return scores
+
+
+def _hybrid(workspace_id: int, query: str) -> list[dict]:
+    """Búsqueda híbrida: la lista léxica y la vectorial, fusionadas por rango.
+
+    Antes esto concatenaba —los aciertos de FTS delante, los semánticos detrás— y
+    eso ponía a FTS primero por posición y no por mérito: un acierto léxico mediocre
+    tapaba uno semántico bueno. Se notaba en el arnés, donde `hybrid` perdía contra
+    `semantic` sola en las consultas conceptuales.
+
+    El fragmento que se enseña no cambia de fuente: si la página salió por FTS se
+    sigue enseñando su extracto resaltado, que es lo que la barra lateral pinta en
+    <mark>; si solo salió por la semántica, su chunk. Lo que cambia es el orden.
+    """
+    lexical = db.search_pages(workspace_id, query)
+    vector = semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE)
+    # Con la semántica apagada, o el workspace todavía sin indexar, `semantic_search`
+    # ya devuelve aciertos de FTS. Fusionar FTS consigo misma no reordena nada y
+    # además etiquetaría la procedencia como si hubieran votado dos canales: cuando
+    # solo hay uno, la híbrida ES la léxica.
+    if vector and vector[0]["via"] == "fts":
+        vector = []
+
+    lexical_rank = {hit.slug: i for i, hit in enumerate(lexical, start=1)}
+    vector_rank = {hit["slug"]: i for i, hit in enumerate(vector, start=1)}
+    scores = _rrf(
+        [
+            (1.0, [h.slug for h in lexical]),
+            (RRF_VECTOR_WEIGHT, [h["slug"] for h in vector]),
+        ]
+    )
+
+    by_slug: dict[str, dict] = {}
+    for hit in vector:
+        by_slug[hit["slug"]] = {**hit, "snippet": hit["chunk"], "parts": _one_part(hit["chunk"])}
+    for hit in lexical:
+        # El extracto de FTS gana porque trae el resaltado; el resto de campos del
+        # acierto vectorial (score, chunk, ord) se conservan si también salió por ahí.
+        existing = by_slug.get(hit.slug, {"slug": hit.slug, "title": hit.title, "score": None})
+        by_slug[hit.slug] = {**existing, "snippet": hit.snippet, "parts": hit.parts}
+
+    results = []
+    for slug, row in by_slug.items():
+        in_lexical = slug in lexical_rank
+        in_vector = slug in vector_rank
+        results.append(
+            {
+                **row,
+                "rrf": round(scores[slug], 6),
+                "keyword_match": in_lexical,
+                # La procedencia es parte del resultado: quien elige entre dos
+                # fragmentos necesita distinguir un acierto exacto de un vecino
+                # semántico, y quien depura un orden malo necesita poder revisarlo.
+                "via": "both"
+                if in_lexical and in_vector
+                else ("fts" if in_lexical else "semantic"),
+                "lexical_rank": lexical_rank.get(slug),
+                "vector_rank": vector_rank.get(slug),
+            }
+        )
+    # Desempate por slug para que la misma consulta dé siempre el mismo orden.
+    results.sort(key=lambda r: (-r["rrf"], r["slug"]))
+    return results
+
+
 def search(workspace_id: int, query: str, *, mode: str = "keyword") -> list[dict]:
     """Los tres modos del buscador: `keyword` (FTS), `semantic` y `hybrid`.
 
@@ -407,22 +497,7 @@ def search(workspace_id: int, query: str, *, mode: str = "keyword") -> list[dict
         return []
 
     if mode == "hybrid":
-        # Los exactos primero: FTS nunca falla si la palabra está en la página, algo
-        # que la semántica sola sí hace. Debajo, lo que solo ella encuentra: la
-        # paráfrasis que no comparte ninguna palabra con el texto.
-        results: list[dict] = [
-            {"slug": r.slug, "title": r.title, "snippet": r.snippet, "parts": r.parts, "via": "fts"}
-            for r in db.search_pages(workspace_id, query)
-        ]
-        seen = {r["slug"] for r in results}
-        # keyword_boost apagado: premia justo a los que ya salieron arriba por FTS y
-        # aquí se descartan por duplicados, así que solo costaría otra consulta.
-        for hit in semantic_search(
-            workspace_id, query, min_score=SEARCH_MIN_SCORE, keyword_boost=False
-        ):
-            if hit["slug"] not in seen:
-                results.append({**hit, "snippet": hit["chunk"], "parts": _one_part(hit["chunk"])})
-        return results
+        return _hybrid(workspace_id, query)
 
     if mode == "semantic":
         results = list(semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE))

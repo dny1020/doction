@@ -209,7 +209,14 @@ def _tool_sgrep(user_id: int, args: dict) -> list[dict]:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     limit = int(args.get("limit") or 10)
-    return embeddings.semantic_search(int(ws.id), query, k=limit)
+    # La misma búsqueda que sirve la barra lateral y /api/search. Antes esto llamaba
+    # a la lista vectorial con su propio boost, así que un agente por MCP y una
+    # persona mirando la interfaz veían dos órdenes distintos para la misma consulta.
+    hits = embeddings.search(int(ws.id), query, mode="hybrid")[:limit]
+    # `parts` es el troceado del extracto para pintar el resaltado en la interfaz.
+    # Un agente lee texto, no <mark>, y además son dataclasses que json.dumps no
+    # serializa: fuera.
+    return [{k: v for k, v in hit.items() if k != "parts"} for hit in hits]
 
 
 def _tool_rag(user_id: int, args: dict) -> dict:
@@ -429,8 +436,9 @@ TOOLS: list[dict] = [
     {
         "name": "sgrep",
         "description": (
-            "Semantic grep: meaning-based search (local embeddings) blended with BM25 "
-            "keyword boost. Returns slug, title, score, matched chunk. Degrades to "
+            "Hybrid search: the lexical and the vector rankings fused by reciprocal "
+            "rank. Returns slug, title, score, matched chunk, and which retrievers "
+            "found it. Identical ordering to the web UI and /api/search. Degrades to "
             "full-text search when semantic search is disabled or not yet indexed."
         ),
         "inputSchema": {
