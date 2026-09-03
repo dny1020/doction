@@ -265,3 +265,125 @@ def chunk_markdown(text: str, *, max_chars: int = 1000) -> list[Chunk]:
         for piece in _pack(_atomic_blocks(lines), max_chars):
             chunks.append(Chunk(text=piece, headings=headings))
     return chunks
+
+
+# ── Escritura por secciones ──────────────────────────────────────────────────
+# Un agente que aprende un dato tenía que leer la página entera, empalmar el texto
+# él mismo y devolverla completa, pisando lo que hubiera cambiado otro por el
+# camino. Estas funciones acotan la escritura a una sección.
+
+
+class AmbiguousSection(ValueError):
+    """La página tiene más de un encabezado que encaja: no se elige por el llamante."""
+
+
+def _headings(body: str) -> list[tuple[int, int, str]]:
+    """(índice de línea, nivel, texto) de cada encabezado, saltándose las vallas."""
+    found: list[tuple[int, int, str]] = []
+    fence: str | None = None
+    for i, line in enumerate(body.split("\n")):
+        stripped = line.strip()
+        if fence is not None:
+            if stripped.startswith(fence):
+                fence = None
+            continue
+        opening = next((f for f in _FENCES if stripped.startswith(f)), None)
+        if opening is not None:
+            fence = opening
+            continue
+        level = _heading_level(stripped)
+        if level:
+            found.append((i, level, stripped[level:].strip()))
+    return found
+
+
+def find_section(body: str, heading: str, *, level: int | None = None) -> tuple[int, int, int]:
+    """Localiza una sección por su encabezado: (línea inicial, línea final, nivel).
+
+    El final es exclusivo y cae en el siguiente encabezado de nivel igual o superior,
+    que es donde termina lo que cuelga de este. Lanza `AmbiguousSection` si encajan
+    varios y `LookupError` si no encaja ninguno.
+    """
+    wanted = heading.strip().casefold()
+    all_headings = _headings(body)
+    matches = [
+        (i, lvl, text)
+        for i, lvl, text in all_headings
+        if text.casefold() == wanted and (level is None or lvl == level)
+    ]
+    if not matches:
+        raise LookupError(heading)
+    if len(matches) > 1:
+        levels = sorted({lvl for _, lvl, _ in matches})
+        raise AmbiguousSection(
+            f"{len(matches)} headings match {heading!r} (levels {levels}); "
+            "pass `level` to disambiguate, or rename one of them"
+        )
+
+    start, found_level, _ = matches[0]
+    end = len(body.split("\n"))
+    for i, lvl, _ in all_headings:
+        if i > start and lvl <= found_level:
+            end = i
+            break
+    return start, end, found_level
+
+
+def upsert_section(
+    content: str,
+    heading: str,
+    body: str,
+    *,
+    level: int = 2,
+    parent: str | None = None,
+) -> str:
+    """Devuelve `content` con la sección `heading` puesta a `body`.
+
+    Si la sección existe se reemplaza solo su cuerpo, hasta el siguiente encabezado
+    de nivel igual o superior, y el resto del documento queda byte a byte igual. Si
+    no existe se añade: bajo `parent` cuando se indica y se encuentra, y si no al
+    final del documento.
+
+    El frontmatter no se toca nunca: es metadato de la página entera, no de ninguna
+    sección.
+    """
+    front, page_body = _split_frontmatter(content or "")
+    heading = heading.strip()
+    body = body.strip("\n")
+
+    try:
+        start, end, found_level = find_section(page_body, heading)
+        lines = page_body.split("\n")
+        block = [lines[start], "", body] if body else [lines[start]]
+        rest = lines[end:]
+        # Una línea en blanco entre la sección y lo que venga detrás, salvo al final.
+        if rest:
+            block.append("")
+        new_body = "\n".join([*lines[:start], *block, *rest])
+        return front + new_body
+    except LookupError:
+        pass
+
+    marker = "#" * max(1, min(level, 6))
+    section = f"{marker} {heading}\n\n{body}".rstrip() + "\n"
+
+    if parent:
+        try:
+            _, parent_end, _ = find_section(page_body, parent)
+        except LookupError:
+            parent_end = None
+        if parent_end is not None:
+            lines = page_body.split("\n")
+            head = "\n".join(lines[:parent_end]).rstrip("\n")
+            tail = "\n".join(lines[parent_end:])
+            return front + f"{head}\n\n{section}\n{tail}".rstrip("\n") + "\n"
+
+    return front + page_body.rstrip("\n") + f"\n\n{section}"
+
+
+def _split_frontmatter(content: str) -> tuple[str, str]:
+    """(bloque de frontmatter tal cual, resto). El bloque va vacío si no hay."""
+    match = _FRONTMATTER_RE.match(content)
+    if not match:
+        return "", content
+    return match.group(0), content[match.end() :]

@@ -422,7 +422,7 @@ def _rrf(rankings: list[tuple[float, list[str]]]) -> dict[str, float]:
     return scores
 
 
-def _hybrid(workspace_id: int, query: str) -> list[dict]:
+def _hybrid(workspace_id: int, query: str, *, tags: list[str] | None = None) -> list[dict]:
     """Búsqueda híbrida: la lista léxica y la vectorial, fusionadas por rango.
 
     Antes esto concatenaba —los aciertos de FTS delante, los semánticos detrás— y
@@ -434,8 +434,15 @@ def _hybrid(workspace_id: int, query: str) -> list[dict]:
     sigue enseñando su extracto resaltado, que es lo que la barra lateral pinta en
     <mark>; si solo salió por la semántica, su chunk. Lo que cambia es el orden.
     """
-    lexical = db.search_pages(workspace_id, query)
+    lexical = db.search_pages(workspace_id, query, tags=tags)
     vector = semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE)
+    if tags:
+        # Las dos listas se acotan antes de fusionar, no después: filtrar el
+        # resultado ya ordenado devolvería menos de lo que hay, y una página que hoy
+        # queda fuera del corte tiene que poder salir cuando el filtro quita a las de
+        # encima.
+        allowed = db.slugs_with_tags(workspace_id, tags)
+        vector = [hit for hit in vector if hit["slug"] in allowed]
     # Con la semántica apagada, o el workspace todavía sin indexar, `semantic_search`
     # ya devuelve aciertos de FTS. Fusionar FTS consigo misma no reordena nada y
     # además etiquetaría la procedencia como si hubieran votado dos canales: cuando
@@ -485,7 +492,13 @@ def _hybrid(workspace_id: int, query: str) -> list[dict]:
     return results
 
 
-def search(workspace_id: int, query: str, *, mode: str = "keyword") -> list[dict]:
+def search(
+    workspace_id: int,
+    query: str,
+    *,
+    mode: str = "keyword",
+    tags: list[str] | None = None,
+) -> list[dict]:
     """Los tres modos del buscador: `keyword` (FTS), `semantic` y `hybrid`.
 
     Vive aquí y no en la ruta porque el harness de evaluación mide exactamente lo
@@ -497,10 +510,13 @@ def search(workspace_id: int, query: str, *, mode: str = "keyword") -> list[dict
         return []
 
     if mode == "hybrid":
-        return _hybrid(workspace_id, query)
+        return _hybrid(workspace_id, query, tags=tags)
 
     if mode == "semantic":
         results = list(semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE))
+        if tags:
+            allowed = db.slugs_with_tags(workspace_id, tags)
+            results = [r for r in results if r["slug"] in allowed]
         for r in results:
             r["snippet"] = r["chunk"]
             r["parts"] = _one_part(r["chunk"])
@@ -508,8 +524,17 @@ def search(workspace_id: int, query: str, *, mode: str = "keyword") -> list[dict
 
     return [
         {"slug": r.slug, "title": r.title, "snippet": r.snippet, "parts": r.parts}
-        for r in db.search_pages(workspace_id, query)
+        for r in db.search_pages(workspace_id, query, tags=tags)
     ]
+
+
+def _context_path(workspace: str, title: str, section: str) -> str:
+    """`Workspace > Página > Sección`, saltándose los tramos vacíos.
+
+    Es lo que sitúa un fragmento leído por su cuenta. Sin él, el agente recibía
+    «corre certbot renew» sin saber de qué runbook ni de qué máquina hablaba.
+    """
+    return " > ".join(part for part in [workspace, title, section] if part)
 
 
 def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
@@ -520,6 +545,9 @@ def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
     query = (query or "").strip()
     if not query:
         return {"query": query, "mode": "empty", "chunks": []}
+
+    ws = db.get_workspace_by_id(workspace_id)
+    workspace = ws.name if ws else ""
 
     if semantic_enabled():
         rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
@@ -534,6 +562,8 @@ def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
                     "title": rows[i].title,
                     "ord": int(rows[i].ord),
                     "score": round(float(scores[i]), 4),
+                    "path": _context_path(workspace, rows[i].title, rows[i].path),
+                    "section": rows[i].path,
                     "text": rows[i].text,
                 }
                 for i in order
@@ -547,6 +577,8 @@ def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
             "title": h.title,
             "ord": None,
             "score": None,
+            "path": _context_path(workspace, h.title, ""),
+            "section": "",
             "text": h.snippet,
         }
         for h in hits

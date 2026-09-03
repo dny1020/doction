@@ -11,7 +11,7 @@ from collections.abc import Callable
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
-from app import db, embeddings, git_repo, suggest
+from app import db, embeddings, git_repo, meta, suggest
 from app.models import Workspace
 from app.version import VERSION
 
@@ -203,6 +203,89 @@ def _tool_related_pages(user_id: int, args: dict) -> list[dict]:
     if related is None:
         raise ValueError(f"Page not found: {slug}")
     return [dataclasses.asdict(page) for page in related]
+
+
+def _tool_search_knowledge(user_id: int, args: dict) -> list[dict]:
+    """Búsqueda híbrida con filtros. El orden es el mismo que sirve la interfaz."""
+    query = _require(args, "query")
+    ws = _workspace(user_id, args)
+    limit = int(args.get("limit") or 10)
+    tags = args.get("tags") or None
+    if isinstance(tags, str):
+        tags = [tags]
+    hits = embeddings.search(int(ws.id), query, mode="hybrid", tags=tags)[:limit]
+    # `parts` es el troceado del extracto para pintar el resaltado en la interfaz.
+    # Un agente lee texto, no <mark>, y además son dataclasses que json.dumps no
+    # serializa: fuera.
+    return [{k: v for k, v in hit.items() if k != "parts"} for hit in hits]
+
+
+def _tool_get_workspace_tree(user_id: int, args: dict) -> dict:
+    """El árbol de verdad, anidado. `list_pages` devolvía la lista plana con `depth`."""
+    ws = _workspace(user_id, args)
+    flat = db.list_pages_tree(int(ws.id))
+
+    roots: list[dict] = []
+    ancestors: list[dict] = []
+    for node in flat:
+        entry = {"slug": node.slug, "title": node.title, "children": []}
+        del ancestors[node.depth :]
+        if ancestors:
+            ancestors[-1]["children"].append(entry)
+        else:
+            roots.append(entry)
+        ancestors.append(entry)
+    return {"workspace": {"slug": ws.slug, "name": ws.name}, "pages": roots}
+
+
+def _tool_read_page_raw(user_id: int, args: dict) -> dict:
+    """El markdown tal cual está guardado, frontmatter incluido.
+
+    Sin renderizar, sin sanear y sin recortar: quien pide la página cruda va a
+    editarla, y necesita ver exactamente lo que tendrá que preservar. El frontmatter
+    va además parseado aparte, para no obligar a analizarlo dos veces.
+    """
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    page = db.get_page(slug, int(ws.id))
+    if page is None:
+        raise ValueError(f"Page not found: {slug}")
+    front, _ = meta.parse_frontmatter(page.content)
+    return {
+        "slug": page.slug,
+        "title": page.title,
+        "parent_slug": page.parent_slug,
+        "updated_at": page.updated_at,
+        "content": page.content,
+        "frontmatter": front,
+        "tags": meta.extract_tags(page.content),
+    }
+
+
+def _tool_upsert_page_section(user_id: int, args: dict) -> dict:
+    """Escribe una sección sin reescribir la página."""
+    slug = _require(args, "slug")
+    heading = _require(args, "heading")
+    body = str(args.get("body") or "")
+    ws = _workspace(user_id, args)
+    level = int(args.get("level") or 2)
+    parent = args.get("parent") or None
+
+    try:
+        written = db.upsert_page_section(
+            user_id, int(ws.id), slug, heading, body, level=level, parent=parent
+        )
+    except meta.AmbiguousSection as exc:
+        # Se sube como error del tool, no se resuelve por el llamante: elegir cuál de
+        # dos encabezados idénticos quería es adivinar sobre su documentación.
+        raise ValueError(str(exc)) from exc
+    if written is None:
+        raise ValueError(f"Page not found: {slug}")
+
+    page = db.get_page(slug, int(ws.id))
+    if page is not None:
+        _git_commit(user_id, ws, slug, page.title, page.content)
+    return {"slug": slug, "heading": heading, "updated": True}
 
 
 def _tool_sgrep(user_id: int, args: dict) -> list[dict]:
@@ -434,6 +517,99 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "search_knowledge",
+        "description": (
+            "Find pages. Hybrid search: the lexical and the vector rankings fused by "
+            "reciprocal rank, filterable by tag. Returns one entry per page with its "
+            "best matching passage and which retrievers found it — use this to pick "
+            "what to read, and get_rag_context to read it. Read-only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Natural language or exact terms."},
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Only pages carrying one of these tags. Applied during "
+                    "retrieval, so a page below the cut can surface once others are filtered.",
+                },
+                "limit": {"type": "integer", "default": 10},
+                **_WORKSPACE_PROP,
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_rag_context",
+        "description": (
+            "Gather passages to answer from. Returns the top-k chunks with provenance "
+            "(workspace > page > section, slug, score) so an answer can cite them. "
+            "doction does NOT generate text: every passage is verbatim from a stored "
+            "page and the synthesis is yours. Read-only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "limit": {"type": "integer", "default": 6},
+                **_WORKSPACE_PROP,
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_workspace_tree",
+        "description": (
+            "How the workspace is organised: pages and their subpages, nested. Use it "
+            "to find where a topic belongs before writing. Read-only."
+        ),
+        "inputSchema": {"type": "object", "properties": {**_WORKSPACE_PROP}},
+    },
+    {
+        "name": "read_page_raw",
+        "description": (
+            "A page's markdown exactly as stored, frontmatter block included and "
+            "unmodified, plus its parsed frontmatter and tags. Read this before "
+            "editing — it is what a write has to preserve. Read-only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"slug": {"type": "string"}, **_WORKSPACE_PROP},
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "upsert_page_section",
+        "description": (
+            "WRITE. Replace one section of a page, or add it if absent, leaving every "
+            "other byte untouched — no need to send the whole body back, so two agents "
+            "editing different sections do not overwrite each other. Refuses when the "
+            "page has more than one heading with that text; pass `level` to "
+            "disambiguate. Records a version and re-indexes like any other write."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string"},
+                "heading": {"type": "string", "description": "Section heading text, no #."},
+                "body": {"type": "string", "description": "Markdown for the section body."},
+                "level": {
+                    "type": "integer",
+                    "default": 2,
+                    "description": "Heading level when creating the section (1-6).",
+                },
+                "parent": {
+                    "type": "string",
+                    "description": "Heading to place a new section under. Appended at the "
+                    "end of the page when absent or not found.",
+                },
+                **_WORKSPACE_PROP,
+            },
+            "required": ["slug", "heading"],
+        },
+    },
+    {
         "name": "sgrep",
         "description": (
             "Hybrid search: the lexical and the vector rankings fused by reciprocal "
@@ -524,7 +700,18 @@ TOOLS: list[dict] = [
 
 # Nombre de la tool → función que la implementa. Cada función recibe
 # (user_id, args) y devuelve un dict o una lista de dicts listos para JSON.
+#
+# Los nombres viejos —`sgrep`, `rag`, `list_pages`, `get_page`— siguen aquí y siguen
+# funcionando. Un agente configurado contra ellos se rompería en mitad de una
+# conversación, con un error sobre el que no puede hacer nada. Se mantienen una
+# versión; `tools/list` ya solo anuncia los nuevos.
 TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
+    # Las cinco herramientas del contrato con los agentes.
+    "search_knowledge": _tool_search_knowledge,
+    "get_rag_context": _tool_rag,
+    "get_workspace_tree": _tool_get_workspace_tree,
+    "read_page_raw": _tool_read_page_raw,
+    "upsert_page_section": _tool_upsert_page_section,
     "list_workspaces": _tool_list_workspaces,
     "list_members": _tool_list_members,
     "list_pages": _tool_list_pages,

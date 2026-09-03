@@ -1030,6 +1030,40 @@ def update_page(user_id: int, workspace_id: int, slug: str, title: str, content:
         return slug
 
 
+def upsert_page_section(
+    user_id: int,
+    workspace_id: int,
+    slug: str,
+    heading: str,
+    body: str,
+    *,
+    level: int = 2,
+    parent: str | None = None,
+) -> str | None:
+    """Escribe una sola sección de una página. Devuelve el slug, o None si no existe.
+
+    Pasa por `update_page`, no por un UPDATE propio: así la versión queda en el
+    historial de git, la página se re-encola para indexar y el evento sale por los
+    webhooks exactamente igual que en cualquier otra escritura. Una escritura que se
+    saltara ese camino sería una página que cambia sin que nadie se entere.
+
+    Lee y escribe dentro de la misma llamada, de modo que dos agentes tocando
+    secciones distintas de una página no se pisan: cada uno reescribe solo su bloque
+    sobre el contenido más reciente, en vez de mandar el cuerpo entero que leyó hace
+    un minuto.
+
+    `AmbiguousSection` sube tal cual: elegir por el llamante cuál de dos encabezados
+    idénticos quería es peor que decirle que desambigüe.
+    """
+    page = get_page(slug, workspace_id)
+    if page is None:
+        return None
+    content = meta.upsert_section(page.content, heading, body, level=level, parent=parent)
+    if content == page.content:
+        return slug
+    return update_page(user_id, workspace_id, slug, page.title, content)
+
+
 # ── Webhooks de salida ───────────────────────────────────────────────────────
 # emit_event() se llama DENTRO de la transacción que ya hizo la escritura, así el
 # evento se encola en el mismo commit que el cambio: no hay ventana en la que la
@@ -1496,13 +1530,30 @@ def search_pages(
     workspace_id: int,
     query: str,
     limit: int = 20,
+    tags: list[str] | None = None,
 ) -> list[SearchHit]:
+    """Búsqueda léxica del workspace, opcionalmente acotada por etiquetas.
+
+    El filtro va dentro de la consulta y no sobre el resultado: filtrar después del
+    LIMIT devolvería menos páginas de las que hay, y una que hoy queda por debajo del
+    corte tiene que poder salir cuando el filtro quita a las de encima.
+    """
     match = _fts_query(query)
     if not match:
         return []
+    # Fragmentos LiteralString por el mismo motivo que en extract_pages: así el
+    # f-string sigue siéndolo y el checker prueba que no entra nada del usuario en el
+    # SQL — sus valores viajan por %s.
+    tag_join: LiteralString = ""
+    tag_params: list = []
+    if tags:
+        tag_join = (
+            " AND EXISTS (SELECT 1 FROM page_tags t WHERE t.page_id = p.id AND t.tag = ANY(%s))"
+        )
+        tag_params = [[t.strip().lstrip("#").lower() for t in tags if t.strip()]]
     with connect() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT p.slug, p.title,
                    ts_headline(
                        'doction', translate(p.title || ' ' || p.content, %s, ''),
@@ -1510,7 +1561,7 @@ def search_pages(
                    ) AS snippet
             FROM pages p
             WHERE p.search_vector @@ to_tsquery('doction', %s) AND p.workspace_id = %s
-              AND p.deleted_at IS NULL
+              AND p.deleted_at IS NULL{tag_join}
             ORDER BY ts_rank(p.search_vector, to_tsquery('doction', %s)) DESC
             LIMIT %s
             """,
@@ -1520,6 +1571,7 @@ def search_pages(
                 _HEADLINE_OPTS,
                 match,
                 workspace_id,
+                *tag_params,
                 match,
                 limit,
             ),
@@ -1529,6 +1581,25 @@ def search_pages(
             text, parts = _split_snippet(row["snippet"])
             hits.append(SearchHit(slug=row["slug"], title=row["title"], snippet=text, parts=parts))
         return hits
+
+
+def slugs_with_tags(workspace_id: int, tags: list[str]) -> set[str]:
+    """Slugs del workspace que llevan alguna de las etiquetas dadas.
+
+    La lista vectorial se filtra en memoria (ya trae el workspace entero), así que
+    necesita el conjunto permitido; la léxica lo filtra en su propio SQL.
+    """
+    wanted = [t.strip().lstrip("#").lower() for t in tags if t.strip()]
+    if not wanted:
+        return set()
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT p.slug FROM pages p "
+            "JOIN page_tags t ON t.page_id = p.id "
+            "WHERE p.workspace_id = %s AND p.deleted_at IS NULL AND t.tag = ANY(%s)",
+            (workspace_id, wanted),
+        ).fetchall()
+        return {r["slug"] for r in rows}
 
 
 def _page_tags(conn, page_id: int) -> list[str]:
