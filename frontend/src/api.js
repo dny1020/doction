@@ -33,7 +33,17 @@ async function request(method, url, body) {
     options.body = JSON.stringify(body)
   }
 
-  const response = await fetch(withWorkspace(url), options)
+  let response
+  try {
+    response = await fetch(withWorkspace(url), options)
+  } catch {
+    // fetch solo rechaza cuando la petición no llegó a salir o no volvió: servidor
+    // caído, DNS, red. Un 500 sí resuelve. Se distinguen porque quien llama hace
+    // cosas distintas: un error del servidor se enseña, una caída se espera.
+    const offline = new Error('Network request failed')
+    offline.offline = true
+    throw offline
+  }
 
   if (response.status === 204) {
     return null

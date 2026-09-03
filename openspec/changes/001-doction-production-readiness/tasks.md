@@ -56,7 +56,7 @@
 - [ ] 3.3 Add a timeout that turns a still-pending skeleton into the failure state, and verify a
       hung request eventually reports rather than spinning forever.
 - [ ] 3.4 Add the empty state for a page with a title and no body, offering edit.
-- [ ] 3.5 Verify the three states are distinguishable in every fetching view, and that a failure
+- [x] 3.5 Verify the three states are distinguishable in every fetching view, and that a failure
       in one region leaves the others working.
 
 ## 4. Routing: workspace in the URL
@@ -122,34 +122,34 @@
 
 ## 6. Integration status
 
-- [ ] 6.1 Add a backend read route for webhook delivery history over `webhook_deliveries`,
+- [x] 6.1 Add a backend read route for webhook delivery history over `webhook_deliveries`,
       grouping attempts under their event and exposing no signing secret. Verify with a test that
       no secret or signature header appears in the response.
-- [ ] 6.2 Report per-hook health in the webhooks section: failing, pending and never-fired
+- [x] 6.2 Report per-hook health in the webhooks section: failing, pending and never-fired
       distinguished, with recent attempts on open.
-- [ ] 6.3 Build the status indicator: poll `/health` or `/api/system` and the MCP endpoint's
+- [x] 6.3 Build the status indicator: poll `/health` or `/api/system` and the MCP endpoint's
       `initialize` at a fixed interval, report reachable / degraded / unreachable per surface,
       stay quiet when healthy, and stop while the document is hidden.
-- [ ] 6.4 Verify recovery clears the indicator without a reload, and that a failing surface does
+- [x] 6.4 Verify recovery clears the indicator without a reload, and that a failing surface does
       not tighten the polling interval.
 
 ## 7. Drafts and connection loss
 
-- [ ] 7.1 Write the editor's title and body to a per-workspace, per-page local draft on a debounce;
+- [x] 7.1 Write the editor's title and body to a per-workspace, per-page local draft on a debounce;
       verify two pages' drafts do not collide and that a blocked local store degrades quietly.
-- [ ] 7.2 Offer restore on mount when a local draft is newer than the server's copy, with an
+- [x] 7.2 Offer restore on mount when a local draft is newer than the server's copy, with an
       explicit choice; clear the draft on a confirmed save.
-- [ ] 7.3 Show a connection-lost notice while the server is unreachable, keep the editor usable,
+- [x] 7.3 Show a connection-lost notice while the server is unreachable, keep the editor usable,
       and clear it on reconnection. Verify by stopping the backend mid-edit, typing, reloading and
       recovering the text.
-- [ ] 7.4 Distinguish an expired session from a connection failure, and preserve unsaved work
+- [x] 7.4 Distinguish an expired session from a connection failure, and preserve unsaved work
       across signing in again.
-- [ ] 7.5 Verify the existing `useBlocker` and `beforeunload` guards still fire.
+- [x] 7.5 Verify the existing `useBlocker` and `beforeunload` guards still fire.
 
 ## 8. Debouncing and double submission
 
-- [ ] 8.1 Debounce the editor preview render; verify typing does not stutter in a long document.
-- [ ] 8.2 Discard superseded search responses so a slow earlier response cannot overwrite a later
+- [x] 8.1 Debounce the editor preview render; verify typing does not stutter in a long document.
+- [x] 8.2 Discard superseded search responses so a slow earlier response cannot overwrite a later
       one; verify with a delayed response.
 - [ ] 8.3 Add an in-flight guard and a disabled control to every destructive handler:
       `Reader.onDelete`, `WorkspaceSettings` delete/rename/member add/member remove,
@@ -160,26 +160,65 @@
 - [ ] 8.5 Verify a failed action re-enables its control, and that guarding one action leaves
       unrelated controls usable.
 
+### Notes on sections 6, 7, 8 and 10
+
+- **Two knobs, not four.** `DOCTION_APP_PATH` (where the SPA is mounted, `/app` by default, `/`
+  for the root) and `DOCTION_STATIC_PATH`, plus `DOCTION_MCP_PATH` for the status probe. The API
+  prefix stayed fixed: the same FastAPI process serves it and no deployment moves it, so making it
+  configurable would have been a knob with no user and a rewrite of a dozen call sites.
+- **The SPA catch-all now registers last.** Mounted at the root its `/{full_path:path}` would
+  otherwise shadow `/api`, `/health`, `/uploads` and `/static`, because Starlette resolves in
+  registration order. Verified by serving at the root and checking all four still answer.
+- **Autosave is local, not to the server.** Every server save is a git commit, so autosaving to
+  the API would turn a page's history into one commit per typing pause. The draft is debounced
+  into browser storage under a per-workspace, per-page key; the explicit save and its
+  unsaved-changes guards are unchanged.
+- **`api.js` now distinguishes a network failure from an HTTP error.** `fetch` only rejects when
+  the request never went out or never came back, so that rejection becomes an error carrying
+  `offline`. The editor needs the difference: one is retried when the server returns, the other
+  has to be read.
+- **`delivered_at` does not mean success.** The worker also sets it when it gives up, leaving
+  `last_error` behind, so an abandoned delivery would have read as delivered. Status is derived
+  from both columns and a test pins it.
+- **The air-gap check has an allowlist, and each entry says why.** `www.w3.org` is the SVG XML
+  namespace and `reactjs.org` is a URL inside React's error text — neither is ever fetched. It was
+  proved to fail by adding a CDN reference to the stylesheet and watching the build reject it.
+- **The status indicator started in the wrong place.** It was in the mobile app bar, which is
+  `display: none` above 820px, so it was invisible on desktop — found by driving the app, not by
+  the gates. It is now fixed to the shell, opposite the toasts.
+
 ## 9. Subscription cleanup
 
-- [ ] 9.1 Give every subscription added by this change a cleanup: status polling, the draft
+- [x] 9.1 Give every subscription added by this change a cleanup: status polling, the draft
       debounce, the tree's keyboard handler, any event stream. Verify mounting and unmounting a
       view repeatedly does not multiply its effects.
 - [ ] 9.2 Abort or ignore in-flight requests for a view that has been navigated away from.
-- [ ] 9.3 Re-verify the existing cleanups still hold after the refactors:
+- [x] 9.3 Re-verify the existing cleanups still hold after the refactors:
       `Layout.jsx`, `Sidebar.jsx`, `CommandPalette.jsx`, `KeyboardShortcuts.jsx`, `Editor.jsx`,
       `Toc.jsx`.
 
+### Notes on section 9
+
+- **Every subscription this change added has its cleanup**: the status poller (cancel flag,
+  cleared timer, removed visibility listener, and a generation counter so returning to the tab
+  cannot leave two polling chains running), and the editor's draft and preview debounces.
+- **The pre-existing cleanups still balance** after the refactors: `addEventListener` and
+  `removeEventListener` match one-for-one in all eight files that use them, and both observers
+  disconnect.
+- **One pre-existing exception, left alone**: `Toast.jsx` sets three timers per toast and clears
+  none. Its provider wraps the router and only unmounts when the document does, so the timers die
+  with the page. It predates this change and 9.2 is where in-flight work gets addressed.
+
 ## 10. Self-hosting
 
-- [ ] 10.1 Read the base path from the environment in `vite.config.js:10` and `main.jsx:15`, and
+- [x] 10.1 Read the base path from the environment in `vite.config.js:10` and `main.jsx:15`, and
       stop hardcoding `/static/` in `frontend/index.html`; default to today's values and verify an
       unchanged deployment is unaffected.
-- [ ] 10.2 Make the MCP endpoint path configurable for the status indicator's probe.
-- [ ] 10.3 Fail the build when a required configuration value is missing, naming it.
-- [ ] 10.4 Add a check that scans the built bundle, HTML and CSS for any external host and fails;
+- [x] 10.2 Make the MCP endpoint path configurable for the status indicator's probe.
+- [x] 10.3 Fail the build when a required configuration value is missing, naming it.
+- [x] 10.4 Add a check that scans the built bundle, HTML and CSS for any external host and fails;
       wire it into `npm run check` so a future CDN dependency cannot ship.
-- [ ] 10.5 Confirm the sanitizer and any math renderer added in section 2 ship no runtime fetch
+- [x] 10.5 Confirm the sanitizer and any math renderer added in section 2 ship no runtime fetch
       and no external font.
 
 ## 11. Document title

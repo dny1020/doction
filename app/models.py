@@ -128,6 +128,27 @@ class Webhook:
 
 
 @dataclass
+class Delivery:
+    """El resultado de intentar entregar un evento a un webhook.
+
+    Una fila por evento, no por intento: el worker reintenta sobre la misma fila
+    con backoff, así que `attempts` es cuántas veces se ha probado. El estado sale
+    de las dos columnas juntas — `delivered_at` sin `last_error` es entregado, con
+    `last_error` es que se agotaron los reintentos, y sin `delivered_at` sigue en
+    cola.
+    """
+
+    id: int
+    webhook_id: int
+    event: str
+    status: str  # delivered | failed | pending
+    attempts: int
+    last_error: str | None
+    next_attempt_at: str
+    delivered_at: str | None
+
+
+@dataclass
 class PendingDelivery:
     """Una entrega pendiente que el worker debe intentar."""
 

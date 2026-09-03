@@ -17,6 +17,7 @@ from app import meta
 from app.models import (
     ApiToken,
     ChunkVector,
+    Delivery,
     EmbedTarget,
     ExtractedPage,
     LinkEdge,
@@ -1124,6 +1125,68 @@ def due_deliveries(limit: int = 10) -> list[PendingDelivery]:
             )
             for r in rows
         ]
+
+
+def _delivery_status(delivered_at: str | None, last_error: str | None) -> str:
+    """`delivered_at` marca "ya no se reintenta", no "salió bien".
+
+    El worker lo pone también al agotar los reintentos, y ahí deja `last_error`.
+    Sin mirar las dos columnas, una entrega abandonada se leería como entregada.
+    """
+    if delivered_at is None:
+        return "pending"
+    return "failed" if last_error else "delivered"
+
+
+def list_deliveries(webhook_id: int, limit: int = 20) -> list[Delivery]:
+    """Las entregas recientes de un webhook, la más nueva primero.
+
+    No devuelve `payload_json`: el cuerpo del evento lleva el contenido de la
+    página, y esto es una vista de operación — qué salió y qué no.
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, webhook_id, event, attempts, last_error, next_attempt_at, delivered_at "
+            "FROM webhook_deliveries WHERE webhook_id = %s ORDER BY id DESC LIMIT %s",
+            (webhook_id, limit),
+        ).fetchall()
+        return [
+            Delivery(
+                id=r["id"],
+                webhook_id=r["webhook_id"],
+                event=r["event"],
+                status=_delivery_status(r["delivered_at"], r["last_error"]),
+                attempts=r["attempts"],
+                last_error=r["last_error"],
+                next_attempt_at=r["next_attempt_at"],
+                delivered_at=r["delivered_at"],
+            )
+            for r in rows
+        ]
+
+
+def delivery_counts(workspace_id: int) -> dict[int, dict[str, int]]:
+    """Pendientes y fallidas por webhook del workspace, para marcar la lista.
+
+    Una sola consulta agregada y no una por webhook: la lista de ajustes los pinta
+    todos, y N+1 consultas para pintar dos números no se sostienen.
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT d.webhook_id,
+                   COUNT(*) FILTER (WHERE d.delivered_at IS NULL) AS pending,
+                   COUNT(*) FILTER (
+                       WHERE d.delivered_at IS NOT NULL AND d.last_error IS NOT NULL
+                   ) AS failed
+            FROM webhook_deliveries d
+            JOIN webhooks w ON w.id = d.webhook_id
+            WHERE w.workspace_id = %s
+            GROUP BY d.webhook_id
+            """,
+            (workspace_id,),
+        ).fetchall()
+        return {r["webhook_id"]: {"pending": r["pending"], "failed": r["failed"]} for r in rows}
 
 
 def mark_delivered(delivery_id: int, webhook_id: int, status: str) -> None:

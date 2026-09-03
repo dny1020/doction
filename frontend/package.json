@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run lint && npm run format:check && npm run build"
+    "check": "npm run lint && npm run format:check && npm run build && npm run check:assets",
+    "check:assets": "node scripts/check-local-assets.js"
   },
   "dependencies": {
     "lucide-react": "^0.454.0",

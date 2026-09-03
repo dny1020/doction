@@ -18,6 +18,8 @@ export default [
         // Los cargan los scripts de static/vendor/, no un import.
         mermaid: 'readonly',
         hljs: 'readonly',
+        // Lo sustituye vite (define) con la ruta configurada del servidor MCP.
+        __DOCTION_MCP_PATH__: 'readonly',
       },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
@@ -37,8 +39,8 @@ export default [
     },
   },
   {
-    // vite.config.js corre en node, no en el navegador.
-    files: ['vite.config.js'],
+    // vite.config.js y los scripts de build corren en node, no en el navegador.
+    files: ['vite.config.js', 'scripts/**/*.js'],
     languageOptions: { globals: globals.node },
   },
 ]

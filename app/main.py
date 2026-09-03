@@ -227,7 +227,26 @@ def api_list_tokens(request: Request):
 def api_list_webhooks(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    return [dataclasses.asdict(w) for w in db.list_webhooks(wid)]
+    # Pendientes y fallidas van en la lista para que un webhook que no entrega se
+    # reconozca sin abrirlo: `last_status` solo cuenta el último intento y no dice
+    # si hay una cola atascada detrás.
+    counts = db.delivery_counts(wid)
+    hooks = []
+    for hook in db.list_webhooks(wid):
+        row = dataclasses.asdict(hook)
+        row.update(counts.get(hook.id, {"pending": 0, "failed": 0}))
+        hooks.append(row)
+    return hooks
+
+
+@api_router.get("/webhooks/{webhook_id}/deliveries")
+def api_webhook_deliveries(request: Request, webhook_id: int):
+    """Qué ha salido por este webhook y qué no. Solo lectura: mirar no reintenta."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    if not any(hook.id == webhook_id for hook in db.list_webhooks(wid)):
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    return [dataclasses.asdict(d) for d in db.list_deliveries(webhook_id)]
 
 
 @api_router.post("/webhooks", status_code=201)
@@ -960,12 +979,16 @@ async def serve_upload(request: Request, name: str) -> Response:
 app.include_router(api_router)
 app.include_router(mcp.router)
 
-# La SPA de React (carpeta frontend/) se construye en static/app/ y se sirve bajo /app.
+# La SPA de React (carpeta frontend/) se construye en static/app/ y se sirve bajo
+# APP_PATH. Por defecto /app, como siempre; `/` la monta en la raíz y cualquier otra
+# cosa la monta en esa subruta. Tiene que coincidir con el `base` con el que se
+# construyó el bundle (DOCTION_APP_PATH en vite.config.js): el HTML pide sus assets
+# por ruta absoluta, así que un bundle construido para /app servido en /wiki no
+# encuentra su propio JavaScript.
+APP_PATH = "/" + os.getenv("DOCTION_APP_PATH", "/app").strip("/")
 SPA_DIR = BASE_DIR / "static" / "app"
 
 
-@app.get("/app")
-@app.get("/app/{full_path:path}")
 async def serve_spa(full_path: str = "") -> Response:
     """Sirve la SPA de React.
 
@@ -1092,20 +1115,20 @@ async def health() -> Response:
     return JSONResponse({"status": "ok", "db": "ok", "version": version})
 
 
-@app.get("/")
-async def home() -> Response:
-    """El frontend es la SPA de React, servida en /app."""
-    return RedirectResponse("/app/", status_code=HTTP_303_SEE_OTHER)
+if APP_PATH != "/":
+    # Con la SPA en una subruta, la raíz y los atajos de siempre llevan a ella.
+    @app.get("/")
+    async def home() -> Response:
+        """El frontend es la SPA de React, servida en APP_PATH."""
+        return RedirectResponse(APP_PATH + "/", status_code=HTTP_303_SEE_OTHER)
 
+    @app.get("/login")
+    async def login_redirect() -> Response:
+        return RedirectResponse(APP_PATH + "/login", status_code=HTTP_303_SEE_OTHER)
 
-@app.get("/login")
-async def login_redirect() -> Response:
-    return RedirectResponse("/app/login", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.get("/register")
-async def register_redirect() -> Response:
-    return RedirectResponse("/app/register", status_code=HTTP_303_SEE_OTHER)
+    @app.get("/register")
+    async def register_redirect() -> Response:
+        return RedirectResponse(APP_PATH + "/register", status_code=HTTP_303_SEE_OTHER)
 
 
 # Tareas de OCR en vuelo: referencia fuerte para que el GC no las cancele a medias.
@@ -1258,3 +1281,15 @@ async def attach_user(request: Request, call_next):
         )
 
     return response
+
+
+# El catch-all de la SPA se registra el último a propósito. Starlette resuelve por
+# orden de registro, así que montada en la raíz (`DOCTION_APP_PATH=/`) su
+# `/{full_path:path}` se tragaría /api, /health, /uploads y /static si se hubiera
+# registrado donde está definida.
+if APP_PATH == "/":
+    app.get("/")(serve_spa)
+    app.get("/{full_path:path}")(serve_spa)
+else:
+    app.get(APP_PATH)(serve_spa)
+    app.get(APP_PATH + "/{full_path:path}")(serve_spa)

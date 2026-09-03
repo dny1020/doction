@@ -8,6 +8,7 @@ import { newPagePath, pagePath } from '../routes.js'
 import NotFound from '../pages/NotFound.jsx'
 import Sidebar from './Sidebar.jsx'
 import CommandPalette from './CommandPalette.jsx'
+import ConnectionStatus from './ConnectionStatus.jsx'
 import CaptureModal from './CaptureModal.jsx'
 import KeyboardShortcuts from './KeyboardShortcuts.jsx'
 
@@ -206,6 +207,10 @@ export default function Layout() {
           )}
         </div>
       </main>
+      {/* Fuera de .app-bar: esa barra solo existe por debajo de 820px, así que ahí
+          el indicador era invisible en escritorio. Va fijo sobre el shell, y como
+          se calla cuando todo va bien, no ocupa nada la mayor parte del tiempo. */}
+      <ConnectionStatus />
       <CommandPalette ws={ws} pages={pages} />
       <CaptureModal />
       <KeyboardShortcuts ws={ws} />
