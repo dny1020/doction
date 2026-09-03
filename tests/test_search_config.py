@@ -7,7 +7,7 @@ encontraba la página acentuada, en los dos caminos de recuperación a la vez.
 import psycopg
 import pytest
 
-from app import db
+from app import db, meta
 
 
 def _register(client, email="user@example.com", password="password123"):
@@ -212,12 +212,38 @@ def test_chunks_from_another_model_are_not_scored(client, monkeypatch):
     embeddings.drain_pending()
 
     current = embeddings.current_model_name()
-    assert db.workspace_chunk_vectors(1, current)
+    assert db.workspace_chunk_vectors(1, current, meta.CHUNKER_ID)
 
     with db.connect() as conn:
         conn.execute("UPDATE page_chunks SET model = 'otro-modelo'")
-    assert db.workspace_chunk_vectors(1, current) == []
+    assert db.workspace_chunk_vectors(1, current, meta.CHUNKER_ID) == []
     assert slug  # la página sigue existiendo; solo sus vectores quedan fuera
+
+
+def test_stale_chunker_pages_are_requeued(client, monkeypatch):
+    """Partir la página de otra forma invalida los vectores igual que cambiar de encoder.
+
+    Antes la obsolescencia solo miraba el modelo, así que un cambio de troceador
+    dejaba fragmentos viejos sirviéndose para siempre.
+    """
+    monkeypatch.setenv("SEMANTIC_SEARCH", "1")
+    monkeypatch.setenv("EMBED_STUB", "1")
+    from app import embeddings
+
+    embeddings.reset_embedder()
+    token = _token(client)
+    _page(client, token, "Certbot", "Renovar el certificado TLS.")
+    embeddings.drain_pending()
+    assert db.pages_to_embed(10) == []
+
+    with db.connect() as conn:
+        conn.execute("UPDATE page_chunks SET chunker = 'troceador-viejo'")
+
+    model = embeddings.current_model_name()
+    assert db.mark_stale_model_dirty(model, meta.CHUNKER_ID) >= 1
+    assert db.pages_to_embed(10), "la página debería volver a la cola"
+    # Y sus vectores no se puntúan mientras tanto.
+    assert db.workspace_chunk_vectors(1, model, meta.CHUNKER_ID) == []
 
 
 def test_stale_model_pages_are_requeued(client, monkeypatch):
@@ -239,10 +265,10 @@ def test_stale_model_pages_are_requeued(client, monkeypatch):
     assert row is not None and row["n"] >= 1
     embedded = int(row["n"])
 
-    assert db.mark_stale_model_dirty(embeddings.current_model_name()) == embedded
+    assert db.mark_stale_model_dirty(embeddings.current_model_name(), meta.CHUNKER_ID) == embedded
     assert len(db.pages_to_embed(20)) == embedded
     assert embeddings.drain_pending() == embedded
-    assert db.workspace_chunk_vectors(1, embeddings.current_model_name())
+    assert db.workspace_chunk_vectors(1, embeddings.current_model_name(), meta.CHUNKER_ID)
 
 
 def test_current_model_name_does_not_load_the_model(monkeypatch):

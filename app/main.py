@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.status import HTTP_303_SEE_OTHER
 
-from app import db, embeddings, git_repo, i18n, mcp, ocr, seed, suggest, webhooks
+from app import db, embeddings, git_repo, i18n, mcp, meta, ocr, seed, suggest, webhooks
 from app.auth import (
     TOKEN_PREFIX,
     generate_api_token,
@@ -619,7 +619,7 @@ def api_system(request: Request):
         # modelo. Los contadores solo van con la semántica activa — un 0 con la
         # función apagada no se distingue de un índice roto.
         model = embeddings.current_model_name()
-        total, indexed = db.index_counts(wid, model)
+        total, indexed = db.index_counts(wid, model, meta.CHUNKER_ID)
         report["embedding_model"] = model
         report["indexed_pages"] = indexed
         report["pending_pages"] = total - indexed

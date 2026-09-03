@@ -257,21 +257,41 @@ class HistoryEntry:
 
 
 @dataclass
+class Chunk:
+    """Un fragmento indexable y la cadena de encabezados que lo sitúa.
+
+    `headings` va de fuera hacia dentro (`["Operaciones", "Renovación TLS"]`) y puede
+    estar vacía: el preámbulo de una página, lo que va antes del primer encabezado,
+    no cuelga de ninguno.
+    """
+
+    text: str
+    headings: list[str]
+
+
+@dataclass
 class EmbedTarget:
     """Página pendiente de indexar para búsqueda semántica (`pages_to_embed`)."""
 
     id: int
     workspace_id: int
+    title: str
     content: str
 
 
 @dataclass
 class ChunkVector:
-    """Un trozo de página con su vector, para la búsqueda semántica."""
+    """Un trozo de página con su vector, para la búsqueda semántica.
+
+    `path` es la cadena de encabezados dentro del documento, ya unida (`"Operaciones
+    > Renovación TLS"`). Vacía para el preámbulo. La ruta completa que ve un agente
+    —workspace, página, sección— se compone al leer, donde el workspace ya se conoce.
+    """
 
     page_id: int
     ord: int
     text: str
+    path: str
     vector: bytes
     slug: str
     title: str

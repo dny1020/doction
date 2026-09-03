@@ -237,16 +237,35 @@ def _from_blob(blob: bytes) -> np.ndarray:
     return np.frombuffer(blob, dtype=np.float32)
 
 
-def reindex_page(page_id: int, workspace_id: int, content: str) -> int:
+def _embed_text(title: str, chunk) -> str:
+    """Lo que se embebe: la ruta del fragmento y luego su cuerpo.
+
+    La ruta va dentro del embedding y no solo en una columna al lado. Una sección
+    titulada «Renovación» solo significa algo junto a la página en la que vive, y un
+    encoder que nunca ve el título de la página no puede situarla: dos secciones
+    redactadas igual en páginas distintas producirían el mismo vector.
+
+    El workspace no entra: la recuperación filtra por workspace, así que nunca
+    desempata nada dentro de una búsqueda. La ruta completa que ve un agente se
+    compone al leer, donde el nombre del workspace ya se conoce.
+    """
+    path = " > ".join([title, *chunk.headings]) if title else " > ".join(chunk.headings)
+    return f"{path}\n\n{chunk.text}" if path else chunk.text
+
+
+def reindex_page(page_id: int, workspace_id: int, title: str, content: str) -> int:
     """Chunkea, embebe y persiste los vectores de una página. Limpia embed_dirty."""
     embedder = get_embedder()
     chunks = meta.chunk_markdown(content)
     if not chunks:
-        db.store_page_chunks(page_id, workspace_id, [], embedder.name)
+        db.store_page_chunks(page_id, workspace_id, [], embedder.name, meta.CHUNKER_ID)
         return 0
-    vectors = embedder.encode(chunks)
-    rows = [(i, chunks[i], _to_blob(vectors[i])) for i in range(len(chunks))]
-    db.store_page_chunks(page_id, workspace_id, rows, embedder.name)
+    vectors = embedder.encode([_embed_text(title, c) for c in chunks])
+    rows = [
+        (i, chunks[i].text, " > ".join(chunks[i].headings), _to_blob(vectors[i]))
+        for i in range(len(chunks))
+    ]
+    db.store_page_chunks(page_id, workspace_id, rows, embedder.name, meta.CHUNKER_ID)
     return len(rows)
 
 
@@ -258,7 +277,7 @@ def drain_pending(limit: int = 1000) -> int:
         if not pending:
             break
         for row in pending:
-            reindex_page(int(row.id), int(row.workspace_id), row.content or "")
+            reindex_page(int(row.id), int(row.workspace_id), row.title, row.content or "")
             done += 1
     return done
 
@@ -320,7 +339,7 @@ def semantic_search(
     if not semantic_enabled():
         return _fts_results(workspace_id, query, k)
 
-    rows = db.workspace_chunk_vectors(workspace_id, current_model_name())
+    rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
     if not rows:
         return _fts_results(workspace_id, query, k)
 
@@ -428,7 +447,7 @@ def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
         return {"query": query, "mode": "empty", "chunks": []}
 
     if semantic_enabled():
-        rows = db.workspace_chunk_vectors(workspace_id, current_model_name())
+        rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
         if rows:
             qvec = get_embedder().encode([query])[0]
             mat = np.stack([_from_blob(r.vector) for r in rows])
@@ -470,9 +489,11 @@ async def enrichment_worker(*, interval: float = 2.0, batch: int = 5) -> None:
     logger.info("embedding worker iniciado (model dir=%s)", _MODELS_DIR)
     # Un cambio de encoder deja vectores de otro espacio en la tabla; compararlos
     # por coseno no significa nada. Se re-encolan antes de servir nada nuevo.
-    stale = await asyncio.to_thread(db.mark_stale_model_dirty, current_model_name())
+    stale = await asyncio.to_thread(
+        db.mark_stale_model_dirty, current_model_name(), meta.CHUNKER_ID
+    )
     if stale:
-        logger.info("reindexando %d páginas: cambió el modelo de embeddings", stale)
+        logger.info("reindexando %d páginas: cambió el modelo o el troceador", stale)
     while True:
         try:
             pending = await asyncio.to_thread(db.pages_to_embed, batch)
@@ -484,7 +505,11 @@ async def enrichment_worker(*, interval: float = 2.0, batch: int = 5) -> None:
                 # encabezaba cada batch y bloqueaba la cola para siempre.
                 try:
                     await asyncio.to_thread(
-                        reindex_page, int(row.id), int(row.workspace_id), row.content or ""
+                        reindex_page,
+                        int(row.id),
+                        int(row.workspace_id),
+                        row.title,
+                        row.content or "",
                     )
                 except asyncio.CancelledError:
                     raise

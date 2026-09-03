@@ -6,6 +6,8 @@ funciones son puras; el indexado en SQLite vive en app.db.
 
 import re
 
+from app.models import Chunk
+
 _FRONTMATTER_RE = re.compile(r"^---[ \t]*\n(.*?)\n---[ \t]*\n?", re.DOTALL)
 _FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 _INLINE_CODE_RE = re.compile(r"`[^`]*`")
@@ -120,38 +122,146 @@ def page_type(content: str) -> str | None:
 # dos formas de partir una página producen fragmentos distintos, así que compararlos
 # por coseno significa tan poco como mezclar dos encoders. Cambiar el algoritmo
 # obliga a subir esto, y eso es lo que dispara el reindexado.
-CHUNKER_ID = "paragraph-v1"
+CHUNKER_ID = "markdown-header-v1"
+
+# Vallas de código. Se cierran con la misma marca con la que abren.
+_FENCES = ("```", "~~~")
 
 
-def chunk_markdown(text: str, *, max_chars: int = 1000, overlap: int = 150) -> list[str]:
-    """Parte el cuerpo en ventanas ~max_chars respetando límites de párrafo.
+def _heading_level(stripped: str) -> int:
+    """Nivel de un encabezado ATX (1-6), o 0 si la línea no lo es."""
+    level = len(stripped) - len(stripped.lstrip("#"))
+    if not 1 <= level <= 6:
+        return 0
+    rest = stripped[level:]
+    # `#tag` al principio de línea es una etiqueta, no un encabezado de nivel 1.
+    return level if rest == "" or rest[0] == " " else 0
 
-    Tonto y rápido (no usa el tokenizer): el modelo trunca de todos modos. El
-    frontmatter se descarta para no contaminar los embeddings.
+
+def _sections(body: str) -> list[tuple[list[str], list[str]]]:
+    """Parte el cuerpo por encabezados: (cadena de encabezados, líneas) por sección.
+
+    Los encabezados dentro de una valla de código no cuentan — un comentario `# TODO`
+    en un bloque de Python abría una sección donde no la hay.
     """
-    _, body = parse_frontmatter(text or "")
-    body = body.strip()
-    if not body:
-        return []
+    sections: list[tuple[list[str], list[str]]] = []
+    stack: list[tuple[int, str]] = []
+    lines: list[str] = []
+    fence: str | None = None
 
-    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", body) if p.strip()]
+    def flush() -> None:
+        if any(line.strip() for line in lines):
+            sections.append(([text for _, text in stack], lines[:]))
+        lines.clear()
+
+    for line in body.split("\n"):
+        stripped = line.strip()
+        if fence is not None:
+            lines.append(line)
+            if stripped.startswith(fence):
+                fence = None
+            continue
+        opening = next((f for f in _FENCES if stripped.startswith(f)), None)
+        if opening is not None:
+            fence = opening
+            lines.append(line)
+            continue
+        level = _heading_level(stripped)
+        if level:
+            flush()
+            while stack and stack[-1][0] >= level:
+                stack.pop()
+            stack.append((level, stripped[level:].strip()))
+            continue
+        lines.append(line)
+
+    flush()
+    return sections
+
+
+def _atomic_blocks(lines: list[str]) -> list[str]:
+    """Agrupa las líneas en bloques que no se pueden partir por dentro.
+
+    Un bloque es una valla de código entera o un párrafo. Las tablas GFM y los
+    diagramas Mermaid salen gratis de esa definición: la tabla no lleva líneas en
+    blanco, así que ya es un párrafo, y el diagrama vive dentro de una valla. Una
+    valla sin cerrar se queda entera igualmente — media valla es peor que una larga.
+    """
+    blocks: list[str] = []
+    current: list[str] = []
+    fence: str | None = None
+
+    def flush() -> None:
+        joined = "\n".join(current).strip()
+        if joined:
+            blocks.append(joined)
+        current.clear()
+
+    for line in lines:
+        stripped = line.strip()
+        if fence is not None:
+            current.append(line)
+            if stripped.startswith(fence):
+                flush()
+                fence = None
+            continue
+        opening = next((f for f in _FENCES if stripped.startswith(f)), None)
+        if opening is not None:
+            flush()
+            fence = opening
+            current.append(line)
+            continue
+        if not stripped:
+            flush()
+            continue
+        current.append(line)
+
+    flush()
+    return blocks
+
+
+def _pack(blocks: list[str], max_chars: int) -> list[str]:
+    """Junta bloques hasta el techo. Un bloque que no cabe va solo y lo desborda."""
     chunks: list[str] = []
     current = ""
-    for para in paragraphs:
-        if len(para) > max_chars:
-            # Párrafo enorme (p.ej. bloque de código): trocea por ventanas con solape.
+    for block in blocks:
+        if len(block) > max_chars:
             if current:
                 chunks.append(current)
                 current = ""
-            step = max_chars - overlap
-            for i in range(0, len(para), step):
-                chunks.append(para[i : i + max_chars])
+            # El techo cede: un fragmento largo es un embedding peor, media tabla
+            # es una respuesta equivocada.
+            chunks.append(block)
             continue
-        if current and len(current) + len(para) + 2 > max_chars:
+        if current and len(current) + len(block) + 2 > max_chars:
             chunks.append(current)
-            current = para
+            current = block
         else:
-            current = f"{current}\n\n{para}" if current else para
+            current = f"{current}\n\n{block}" if current else block
     if current:
         chunks.append(current)
+    return chunks
+
+
+def chunk_markdown(text: str, *, max_chars: int = 1000) -> list[Chunk]:
+    """Parte una página en fragmentos indexables siguiendo sus encabezados.
+
+    Antes esto partía por líneas en blanco en ventanas de tamaño fijo, con solape.
+    Un encabezado y el párrafo que introducía caían en fragmentos distintos cada vez
+    que la ventana cortaba entre ellos, y una valla de código más larga que la
+    ventana se troceaba por posición de carácter. El fragmento recuperado decía
+    «corre `certbot renew`» sin decir de qué runbook.
+
+    Ahora cada sección es un fragmento y lleva encima la cadena de encabezados que la
+    sitúa. El solape desaparece: entre secciones duplicaría contenido, y dentro de
+    una sección los cortes ya caen en límites de párrafo.
+
+    El frontmatter sigue fuera del cuerpo — es metadato, no prosa — pero ya no se
+    pierde: `parse_frontmatter` lo devuelve aparte y quien indexa lo guarda.
+    """
+    _, body = parse_frontmatter(text or "")
+    chunks: list[Chunk] = []
+    for headings, lines in _sections(body):
+        for piece in _pack(_atomic_blocks(lines), max_chars):
+            chunks.append(Chunk(text=piece, headings=headings))
     return chunks

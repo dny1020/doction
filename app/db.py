@@ -335,6 +335,12 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         created_at   TEXT NOT NULL
     )
     """,
+    # `path` es la cadena de encabezados dentro del documento; `chunker` identifica
+    # el algoritmo que produjo el fragmento. Van con ADD COLUMN IF NOT EXISTS porque
+    # page_chunks ya existe en cualquier despliegue vivo, y el CREATE de arriba no
+    # toca una tabla creada.
+    "ALTER TABLE page_chunks ADD COLUMN IF NOT EXISTS path TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE page_chunks ADD COLUMN IF NOT EXISTS chunker TEXT NOT NULL DEFAULT ''",
     "CREATE INDEX IF NOT EXISTS page_chunks_ws_idx ON page_chunks(workspace_id)",
     "CREATE INDEX IF NOT EXISTS page_chunks_page_idx ON page_chunks(page_id)",
     """
@@ -1703,19 +1709,24 @@ def pages_to_embed(limit: int = 10) -> list[EmbedTarget]:
     """Páginas marcadas como sucias (embed_dirty=1) pendientes de embedding."""
     with connect() as conn:
         rows = conn.execute(
-            "SELECT id, workspace_id, content FROM pages "
+            "SELECT id, workspace_id, title, content FROM pages "
             "WHERE embed_dirty = 1 AND workspace_id IS NOT NULL AND deleted_at IS NULL "
             "ORDER BY id LIMIT %s",
             (limit,),
         ).fetchall()
         return [
-            EmbedTarget(id=r["id"], workspace_id=r["workspace_id"], content=r["content"])
+            EmbedTarget(
+                id=r["id"],
+                workspace_id=r["workspace_id"],
+                title=r["title"] or "",
+                content=r["content"],
+            )
             for r in rows
         ]
 
 
-def index_counts(workspace_id: int, model: str) -> tuple[int, int]:
-    """(páginas vivas, páginas con chunks de `model`) del workspace.
+def index_counts(workspace_id: int, model: str, chunker: str) -> tuple[int, int]:
+    """(páginas vivas, páginas con chunks del pipeline actual) del workspace.
 
     Cuenta, no trae contenido: `pages_to_embed` devuelve el markdown entero y sirve
     para alimentar al worker, no para informar de cuánto queda por indexar.
@@ -1728,13 +1739,13 @@ def index_counts(workspace_id: int, model: str) -> tuple[int, int]:
                 count(*) FILTER (
                     WHERE EXISTS (
                         SELECT 1 FROM page_chunks c
-                        WHERE c.page_id = p.id AND c.model = %s
+                        WHERE c.page_id = p.id AND c.model = %s AND c.chunker = %s
                     )
                 ) AS indexed
             FROM pages p
             WHERE p.workspace_id = %s AND p.deleted_at IS NULL
             """,
-            (model, workspace_id),
+            (model, chunker, workspace_id),
         ).fetchone()
         assert row is not None
         return int(row["total"]), int(row["indexed"])
@@ -1743,39 +1754,50 @@ def index_counts(workspace_id: int, model: str) -> tuple[int, int]:
 def store_page_chunks(
     page_id: int,
     workspace_id: int,
-    chunks: list[tuple[int, str, bytes]],
+    chunks: list[tuple[int, str, str, bytes]],
     model: str,
+    chunker: str,
 ) -> None:
-    """Reemplaza los chunks/vectores de una página y limpia embed_dirty (atómico)."""
+    """Reemplaza los chunks/vectores de una página y limpia embed_dirty (atómico).
+
+    Cada fragmento entra como `(ord, texto, ruta, vector)`.
+    """
     now = _now()
     with connect() as conn:
         conn.execute("DELETE FROM page_chunks WHERE page_id = %s", (page_id,))
         if chunks:
             conn.cursor().executemany(
                 "INSERT INTO page_chunks "
-                "(page_id, workspace_id, ord, text, vector, model, created_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                "(page_id, workspace_id, ord, text, path, vector, model, chunker, created_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 [
-                    (page_id, workspace_id, ord_, text, vec, model, now)
-                    for ord_, text, vec in chunks
+                    (page_id, workspace_id, ord_, text, path, vec, model, chunker, now)
+                    for ord_, text, path, vec in chunks
                 ],
             )
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
-def mark_stale_model_dirty(model: str) -> int:
-    """Re-encola las páginas cuyos chunks vienen de otro encoder. Devuelve cuántas."""
+def mark_stale_model_dirty(model: str, chunker: str) -> int:
+    """Re-encola las páginas cuyos chunks no vienen del pipeline actual.
+
+    Dos vectores solo son comparables si los produjo el mismo encoder *y* el mismo
+    troceador: partir una página de otra forma cambia lo que se embebe tanto como
+    cambiar el modelo. Antes esto solo miraba el encoder, así que un cambio de
+    troceador dejaba fragmentos viejos sirviéndose para siempre.
+    """
     with connect() as conn:
         row = conn.execute(
             """
             WITH stale AS (
-                SELECT DISTINCT page_id FROM page_chunks WHERE model <> %s
+                SELECT DISTINCT page_id FROM page_chunks
+                WHERE model <> %s OR chunker <> %s
             )
             UPDATE pages SET embed_dirty = 1
             WHERE id IN (SELECT page_id FROM stale)
             RETURNING id
             """,
-            (model,),
+            (model, chunker),
         ).fetchall()
         return len(row)
 
@@ -1787,27 +1809,29 @@ def clear_embed_dirty(page_id: int) -> None:
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
-def workspace_chunk_vectors(workspace_id: int, model: str) -> list[ChunkVector]:
+def workspace_chunk_vectors(workspace_id: int, model: str, chunker: str) -> list[ChunkVector]:
     """Chunks + vectores de un workspace para la búsqueda semántica (KNN en memoria).
 
-    Filtra por `model`: durante un reindexado por cambio de encoder conviven
-    vectores de dos espacios distintos, y su coseno no significa nada.
+    Filtra por `model` y por `chunker`: durante un reindexado conviven vectores de
+    dos pipelines distintos, y su coseno no significa nada.
     """
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT c.page_id, c.ord, c.text, c.vector, p.slug, p.title
+            SELECT c.page_id, c.ord, c.text, c.path, c.vector, p.slug, p.title
             FROM page_chunks c
             JOIN pages p ON p.id = c.page_id
-            WHERE c.workspace_id = %s AND c.model = %s AND p.deleted_at IS NULL
+            WHERE c.workspace_id = %s AND c.model = %s AND c.chunker = %s
+              AND p.deleted_at IS NULL
             """,
-            (workspace_id, model),
+            (workspace_id, model, chunker),
         ).fetchall()
         return [
             ChunkVector(
                 page_id=r["page_id"],
                 ord=r["ord"],
                 text=r["text"],
+                path=r["path"],
                 vector=bytes(r["vector"]),
                 slug=r["slug"],
                 title=r["title"],

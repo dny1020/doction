@@ -102,6 +102,6 @@ def test_index_counts_helper(client):
     with db.connect() as conn:
         row = conn.execute("SELECT id FROM workspaces ORDER BY id LIMIT 1").fetchone()
     assert row is not None
-    total, indexed = db.index_counts(int(row["id"]), "cualquier-modelo")
+    total, indexed = db.index_counts(int(row["id"]), "cualquier-modelo", "cualquier-troceador")
     assert total > 0
     assert indexed == 0
