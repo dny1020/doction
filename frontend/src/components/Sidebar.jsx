@@ -171,7 +171,7 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
                     <Link to={'/p/' + r.slug} onClick={() => setQuery('')}>
                       {r.title}
                     </Link>
-                    <p className="snippet" dangerouslySetInnerHTML={{ __html: r.snippet }} />
+                    <Snippet parts={r.parts} text={r.snippet} />
                   </li>
                 ))}
               </ul>
@@ -267,5 +267,19 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
         </div>
       </div>
     </aside>
+  )
+}
+
+// El fragmento de un resultado llega ya partido en tramos por el servidor: los
+// que coincidieron van en <mark> y el resto en texto. Antes esto era un
+// dangerouslySetInnerHTML sobre el <mark> que ponía ts_headline, así que el
+// cuerpo de la página entraba en el DOM como HTML — XSS almacenado con el
+// renderer de markdown intacto. Nada del servidor vuelve a pintarse como markup.
+function Snippet({ parts, text }) {
+  if (!parts || parts.length === 0) return <p className="snippet">{text}</p>
+  return (
+    <p className="snippet">
+      {parts.map((part, i) => (part.match ? <mark key={i}>{part.text}</mark> : part.text))}
+    </p>
   )
 }

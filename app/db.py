@@ -29,6 +29,7 @@ from app.models import (
     PendingDelivery,
     RelatedPage,
     SearchHit,
+    SnippetPart,
     UploadHit,
     User,
     Webhook,
@@ -1394,6 +1395,34 @@ def _fts_query(raw: str) -> str:
     return " & ".join(f"{term}:*" for term in terms)
 
 
+# ts_headline marca las coincidencias con estos dos caracteres de control, no con
+# <mark>: el fragmento sale de aquí como texto y el resaltado como posiciones, así
+# que el contenido de la página no puede volver a entrar en el DOM como HTML. Son
+# de control porque `translate()` los borra del texto de entrada antes de resaltar
+# (ver _HEADLINE_OPTS): un tramo marcado solo puede venir del resaltador.
+_MARK_OPEN = "\x01"
+_MARK_CLOSE = "\x02"
+_HEADLINE_OPTS = (
+    f"StartSel={_MARK_OPEN}, StopSel={_MARK_CLOSE}, MaxWords=12, MinWords=1, MaxFragments=1"
+)
+
+
+def _split_snippet(marked: str) -> tuple[str, list[SnippetPart]]:
+    """Parte un fragmento de ts_headline en (texto plano, tramos)."""
+    parts: list[SnippetPart] = []
+    rest = marked or ""
+    while rest:
+        before, opened, rest = rest.partition(_MARK_OPEN)
+        if before:
+            parts.append(SnippetPart(text=before, match=False))
+        if not opened:
+            break
+        hit, _, rest = rest.partition(_MARK_CLOSE)
+        if hit:
+            parts.append(SnippetPart(text=hit, match=True))
+    return "".join(part.text for part in parts), parts
+
+
 def search_pages(
     workspace_id: int,
     query: str,
@@ -1407,9 +1436,8 @@ def search_pages(
             """
             SELECT p.slug, p.title,
                    ts_headline(
-                       'doction', p.title || ' ' || p.content, to_tsquery('doction', %s),
-                       'StartSel=<mark>, StopSel=</mark>, MaxWords=12, MinWords=1, '
-                       'MaxFragments=1'
+                       'doction', translate(p.title || ' ' || p.content, %s, ''),
+                       to_tsquery('doction', %s), %s
                    ) AS snippet
             FROM pages p
             WHERE p.search_vector @@ to_tsquery('doction', %s) AND p.workspace_id = %s
@@ -1417,11 +1445,21 @@ def search_pages(
             ORDER BY ts_rank(p.search_vector, to_tsquery('doction', %s)) DESC
             LIMIT %s
             """,
-            (match, match, workspace_id, match, limit),
+            (
+                _MARK_OPEN + _MARK_CLOSE,
+                match,
+                _HEADLINE_OPTS,
+                match,
+                workspace_id,
+                match,
+                limit,
+            ),
         ).fetchall()
-        return [
-            SearchHit(slug=row["slug"], title=row["title"], snippet=row["snippet"]) for row in rows
-        ]
+        hits = []
+        for row in rows:
+            text, parts = _split_snippet(row["snippet"])
+            hits.append(SearchHit(slug=row["slug"], title=row["title"], snippet=text, parts=parts))
+        return hits
 
 
 def _page_tags(conn, page_id: int) -> list[str]:
@@ -1741,18 +1779,29 @@ def search_uploads(workspace_id: int, query: str, limit: int = 5) -> list[Upload
             """
             SELECT name,
                    ts_headline(
-                       'doction', text, to_tsquery('doction', %s),
-                       'StartSel=<mark>, StopSel=</mark>, MaxWords=12, MinWords=1, '
-                       'MaxFragments=1'
+                       'doction', translate(text, %s, ''),
+                       to_tsquery('doction', %s), %s
                    ) AS snippet
             FROM upload_texts
             WHERE search_vector @@ to_tsquery('doction', %s) AND workspace_id = %s
             ORDER BY ts_rank(search_vector, to_tsquery('doction', %s)) DESC
             LIMIT %s
             """,
-            (match, match, workspace_id, match, limit),
+            (
+                _MARK_OPEN + _MARK_CLOSE,
+                match,
+                _HEADLINE_OPTS,
+                match,
+                workspace_id,
+                match,
+                limit,
+            ),
         ).fetchall()
-        return [UploadHit(name=r["name"], snippet=r["snippet"]) for r in rows]
+        hits = []
+        for r in rows:
+            text, parts = _split_snippet(r["snippet"])
+            hits.append(UploadHit(name=r["name"], snippet=text, parts=parts))
+        return hits
 
 
 def get_workspace_by_id(workspace_id: int) -> Workspace | None:

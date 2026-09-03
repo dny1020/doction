@@ -627,7 +627,13 @@ def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bo
     results = embeddings.search(wid, q, mode=mode)
     if uploads:
         results += [
-            {"type": "upload", "name": h.name, "url": f"/uploads/{h.name}", "snippet": h.snippet}
+            {
+                "type": "upload",
+                "name": h.name,
+                "url": f"/uploads/{h.name}",
+                "snippet": h.snippet,
+                "parts": h.parts,
+            }
             for h in db.search_uploads(wid, q)
         ]
     return results

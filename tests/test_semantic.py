@@ -221,7 +221,9 @@ def test_hybrid_puts_exact_matches_first_without_duplicates(client):
     slugs = [r["slug"] for r in results]
     assert slugs[0] == "kamailio-dispatcher"
     assert results[0]["via"] == "fts"
-    assert "<mark>" in results[0]["snippet"]  # FTS resalta el término exacto
+    # FTS resalta el término exacto, y lo hace en `parts`: el snippet es texto plano.
+    assert "<mark>" not in results[0]["snippet"]
+    assert any(part["match"] for part in results[0]["parts"])
     assert len(slugs) == len(set(slugs)), slugs
     # Lo que aporta la semántica va detrás de los exactos, nunca intercalado.
     vias = [r["via"] for r in results]

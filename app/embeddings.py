@@ -21,6 +21,7 @@ from typing import cast
 import numpy as np
 
 from app import db, meta
+from app.models import SnippetPart
 
 logger = logging.getLogger(__name__)
 
@@ -270,9 +271,13 @@ def _snippet(text: str, length: int = 240) -> str:
     return text if len(text) <= length else text[:length].rstrip() + "…"
 
 
-def _clean(snippet: str) -> str:
-    snippet = snippet or ""
-    return snippet.replace("<mark>", "").replace("</mark>", "")
+def _one_part(text: str) -> list[SnippetPart]:
+    """Un fragmento semántico entero, sin resaltar: la semántica no casa términos.
+
+    Existe para que /api/search devuelva `parts` con la misma forma en los tres
+    modos — el cliente pinta tramos y no tiene que saber de dónde vino el hit.
+    """
+    return [SnippetPart(text=text, match=False)]
 
 
 def _fts_results(workspace_id: int, query: str, k: int) -> list[dict]:
@@ -282,7 +287,7 @@ def _fts_results(workspace_id: int, query: str, k: int) -> list[dict]:
             "slug": r.slug,
             "title": r.title,
             "score": None,
-            "chunk": _clean(r.snippet),
+            "chunk": r.snippet,
             "keyword_match": True,
             "via": "fts",
         }
@@ -387,7 +392,7 @@ def search(workspace_id: int, query: str, *, mode: str = "keyword") -> list[dict
         # que la semántica sola sí hace. Debajo, lo que solo ella encuentra: la
         # paráfrasis que no comparte ninguna palabra con el texto.
         results: list[dict] = [
-            {"slug": r.slug, "title": r.title, "snippet": r.snippet, "via": "fts"}
+            {"slug": r.slug, "title": r.title, "snippet": r.snippet, "parts": r.parts, "via": "fts"}
             for r in db.search_pages(workspace_id, query)
         ]
         seen = {r["slug"] for r in results}
@@ -397,17 +402,18 @@ def search(workspace_id: int, query: str, *, mode: str = "keyword") -> list[dict
             workspace_id, query, min_score=SEARCH_MIN_SCORE, keyword_boost=False
         ):
             if hit["slug"] not in seen:
-                results.append({**hit, "snippet": hit["chunk"]})
+                results.append({**hit, "snippet": hit["chunk"], "parts": _one_part(hit["chunk"])})
         return results
 
     if mode == "semantic":
         results = list(semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE))
         for r in results:
             r["snippet"] = r["chunk"]
+            r["parts"] = _one_part(r["chunk"])
         return results
 
     return [
-        {"slug": r.slug, "title": r.title, "snippet": r.snippet}
+        {"slug": r.slug, "title": r.title, "snippet": r.snippet, "parts": r.parts}
         for r in db.search_pages(workspace_id, query)
     ]
 
@@ -447,7 +453,7 @@ def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
             "title": h.title,
             "ord": None,
             "score": None,
-            "text": _clean(h.snippet),
+            "text": h.snippet,
         }
         for h in hits
     ]

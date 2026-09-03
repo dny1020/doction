@@ -27,3 +27,4 @@ app/static/app/
 graphify-out/
 .graphifyignore
 .claudeignore
+.agents/

@@ -175,15 +175,32 @@ class RelatedPage:
 
 
 @dataclass
+class SnippetPart:
+    """Un tramo de un fragmento de búsqueda; `match` marca lo que coincidió.
+
+    El resaltado viaja como tramos y no como HTML: el cliente decide cómo pintar
+    una coincidencia y el texto de la página nunca vuelve a entrar en el DOM como
+    markup. Ver `db._split_snippet`.
+    """
+
+    text: str
+    match: bool
+
+
+@dataclass
 class SearchHit:
     """Un resultado de la búsqueda de texto (`search_pages`).
 
-    `snippet` es el fragmento con la coincidencia resaltada en <mark>…</mark>.
+    `snippet` es el fragmento en texto plano —sin ningún markup— y `parts` es el
+    mismo fragmento partido en tramos para poder resaltar las coincidencias. Se
+    mandan los dos porque quien solo quiere leer el fragmento (un agente por MCP,
+    un `jq` sobre /api/search) sigue leyendo una cadena.
     """
 
     slug: str
     title: str
     snippet: str
+    parts: list[SnippetPart]
 
 
 @dataclass
@@ -245,6 +262,7 @@ class UploadHit:
 
     name: str
     snippet: str
+    parts: list[SnippetPart]
 
 
 @dataclass
