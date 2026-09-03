@@ -152,6 +152,7 @@ _EN: dict[str, str] = {
     "msg_moved": "Page moved.",
     "msg_renamed": "Page renamed. The old link still works.",
     "page_actions": "Page actions",
+    "toggle_subpages": "Show or hide subpages",
     # Editor en móvil: la vista previa se alterna, no se apila.
     "preview": "Preview",
     "write": "Write",
@@ -331,6 +332,7 @@ _ES: dict[str, str] = {
     "msg_moved": "Página movida.",
     "msg_renamed": "Página renombrada. El enlace anterior sigue funcionando.",
     "page_actions": "Acciones de la página",
+    "toggle_subpages": "Mostrar u ocultar subpáginas",
     "preview": "Vista previa",
     "write": "Escribir",
     "webhooks": "Webhooks",

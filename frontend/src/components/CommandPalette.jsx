@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n.jsx'
+import { pagePath } from '../routes.js'
 
 // Paleta de comandos (⌘K / Ctrl-K): un buscador rápido para saltar a cualquier
 // página por título, navegable con el teclado. Recibe el árbol de páginas del
 // Layout. Reusa las clases `.palette*` del design system.
-export default function CommandPalette({ pages }) {
+export default function CommandPalette({ ws, pages }) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -52,7 +53,7 @@ export default function CommandPalette({ pages }) {
 
   function go(page) {
     setOpen(false)
-    navigate('/p/' + page.slug)
+    navigate(pagePath(ws, page.slug))
   }
 
   // Teclas dentro del input: flechas para moverse, Enter para abrir, Esc para cerrar.
@@ -112,7 +113,7 @@ export default function CommandPalette({ pages }) {
                     e.preventDefault()
                     go(p)
                   }}
-                  href={'/app/p/' + p.slug}
+                  href={'/app' + pagePath(ws, p.slug)}
                 >
                   {p.title}
                 </a>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
+import { pagePath } from '../routes.js'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 
@@ -25,7 +26,7 @@ function diffLineClass(line) {
 // verse como diff en línea y restaurarse (crea una versión nueva con ese contenido).
 export default function History() {
   const { slug } = useParams()
-  const { pages, reloadPages } = useOutletContext()
+  const { ws, pages, reloadPages } = useOutletContext()
   const { t } = useI18n()
   const navigate = useNavigate()
   const toast = useToast()
@@ -40,7 +41,7 @@ export default function History() {
       .get('/api/pages/' + slug + '/history')
       .then(setHistory)
       .catch((e) => setError(e.message))
-  }, [slug])
+  }, [slug, ws])
 
   // El título lo sacamos del árbol que ya tiene el Layout; si no, usamos el slug.
   const treePage = pages.find((p) => p.slug === slug)
@@ -55,7 +56,7 @@ export default function History() {
       return
     }
     reloadPages()
-    navigate('/p/' + slug)
+    navigate(pagePath(ws, slug))
   }
 
   return (
@@ -67,7 +68,7 @@ export default function History() {
             <span className="crumb-sep" aria-hidden="true">
               ›
             </span>
-            <Link to={'/p/' + slug}>{title}</Link>
+            <Link to={pagePath(ws, slug)}>{title}</Link>
             <span className="crumb-sep" aria-hidden="true">
               ›
             </span>
@@ -75,7 +76,7 @@ export default function History() {
           </nav>
           <h1>{t('history')}</h1>
           <div className="page-actions">
-            <Link className="btn" to={'/p/' + slug}>
+            <Link className="btn" to={pagePath(ws, slug)}>
               {title}
             </Link>
           </div>

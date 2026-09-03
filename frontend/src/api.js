@@ -5,6 +5,23 @@
 // - Si la respuesta no es OK, lanza un Error con el mensaje del backend
 //   (el campo `detail`) y el código en `error.status`.
 
+// El workspace activo viaja en cada petición como ?ws=<slug>, no en el estado de
+// la sesión. Así dos pestañas abiertas en workspaces distintos no se pisan, y un
+// enlace a una página abre esa página y no la del workspace que hubiera activo.
+// Lo fija el shell desde la URL antes de que ningún hijo pida nada: aquí porque
+// olvidarlo en una sola llamada significa leer del workspace equivocado, y hay
+// una docena de llamadas.
+let workspace = null
+
+export function setWorkspace(slug) {
+  workspace = slug || null
+}
+
+export function withWorkspace(url) {
+  if (!workspace) return url
+  return url + (url.includes('?') ? '&' : '?') + 'ws=' + encodeURIComponent(workspace)
+}
+
 async function request(method, url, body) {
   const options = {
     method: method,
@@ -16,7 +33,7 @@ async function request(method, url, body) {
     options.body = JSON.stringify(body)
   }
 
-  const response = await fetch(url, options)
+  const response = await fetch(withWorkspace(url), options)
 
   if (response.status === 204) {
     return null

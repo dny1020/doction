@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
+import { newPagePath, pagePath, wsPath } from '../routes.js'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 import Markdown from '../components/Markdown.jsx'
@@ -11,7 +12,7 @@ import Toc from '../components/Toc.jsx'
 // contenido + migas + subpáginas + backlinks + relacionadas en una sola llamada.
 export default function Reader() {
   const { slug } = useParams()
-  const { pages, pagesError, reloadPages } = useOutletContext()
+  const { ws, pages, pagesReady, pagesError, reloadPages } = useOutletContext()
   const { t } = useI18n()
   const navigate = useNavigate()
   const toast = useToast()
@@ -22,21 +23,25 @@ export default function Reader() {
   const proseRef = useRef(null)
 
   const load = useCallback(() => {
-    if (!slug) return
+    if (!slug || !ws) return
     setView(null)
     setError(null)
     api
       .get('/api/pages/' + slug + '/view')
       .then(setView)
       .catch(setError)
-  }, [slug])
+    // `ws` cuenta: el mismo slug en otro workspace es otra página.
+  }, [slug, ws])
 
   useEffect(load, [load])
 
   // Ruta home (/): si hay páginas, abre la primera; si no, estado vacío — salvo
   // que el árbol no cargara (red caída ≠ workspace vacío).
   if (!slug) {
-    if (pages && pages.length > 0) return <Navigate to={'/p/' + pages[0].slug} replace />
+    // Sin el árbol de ESTE workspace no se decide nada: redirigir con el del
+    // anterior manda a una página que aquí no existe.
+    if (!pagesReady && !pagesError) return <div className="placeholder">{t('loading')}</div>
+    if (pages && pages.length > 0) return <Navigate to={pagePath(ws, pages[0].slug)} replace />
     if (pagesError) {
       return (
         <div className="placeholder placeholder--error">
@@ -50,7 +55,7 @@ export default function Reader() {
     return (
       <div className="placeholder">
         <h1>{t('empty_title')}</h1>
-        <Link className="btn btn-primary" to="/new">
+        <Link className="btn btn-primary" to={newPagePath(ws)}>
           {t('create_this_page')}
         </Link>
       </div>
@@ -64,7 +69,7 @@ export default function Reader() {
         <p className="muted">
           {t('nf_desc')} <code>/{slug}</code>
         </p>
-        <Link className="btn btn-primary" to="/">
+        <Link className="btn btn-primary" to={wsPath(ws)}>
           {t('back_home')}
         </Link>
       </div>
@@ -93,7 +98,7 @@ export default function Reader() {
       return
     }
     reloadPages()
-    navigate('/')
+    navigate(wsPath(ws))
   }
 
   const updatedDate = view.updated_at ? view.updated_at.slice(0, 10) : ''
@@ -104,13 +109,13 @@ export default function Reader() {
       <article className="page">
         <header className="page-header">
           <nav className="breadcrumbs" aria-label="Breadcrumb">
-            <Link to="/">{t('home')}</Link>
+            <Link to={wsPath(ws)}>{t('home')}</Link>
             {view.breadcrumbs.map((crumb) => (
               <span key={crumb.slug}>
                 <span className="crumb-sep" aria-hidden="true">
                   ›
                 </span>
-                <Link to={'/p/' + crumb.slug}>{crumb.title}</Link>
+                <Link to={pagePath(ws, crumb.slug)}>{crumb.title}</Link>
               </span>
             ))}
             <span className="crumb-sep" aria-hidden="true">
@@ -122,13 +127,13 @@ export default function Reader() {
           <h1>{view.title}</h1>
 
           <div className="page-actions">
-            <Link className="btn" to={'/p/' + slug + '/edit'}>
+            <Link className="btn" to={pagePath(ws, slug, '/edit')}>
               {t('edit')}
             </Link>
-            <Link className="btn" to={'/new?parent=' + slug}>
+            <Link className="btn" to={newPagePath(ws, slug)}>
               {t('new_subpage')}
             </Link>
-            <Link className="btn" to={'/p/' + slug + '/history'}>
+            <Link className="btn" to={pagePath(ws, slug, '/history')}>
               {t('history')}
             </Link>
             <button className="btn btn-danger" type="button" onClick={onDelete}>
@@ -155,13 +160,13 @@ export default function Reader() {
           <section className="subpages">
             <div className="subpages-hd">
               <span className="subpages-eyebrow">{t('subpages')}</span>
-              <Link className="btn btn-sm" to={'/new?parent=' + slug}>
+              <Link className="btn btn-sm" to={newPagePath(ws, slug)}>
                 {t('new_short')}
               </Link>
             </div>
             <div className="subpages-grid">
               {view.children.map((child) => (
-                <Link className="subpage-card" key={child.slug} to={'/p/' + child.slug}>
+                <Link className="subpage-card" key={child.slug} to={pagePath(ws, child.slug)}>
                   <div className="subpage-info">
                     <span className="subpage-name">{child.title}</span>
                     <span className="subpage-date">
@@ -182,7 +187,7 @@ export default function Reader() {
                 <ul className="relations-list">
                   {view.backlinks.map((b) => (
                     <li key={b.slug}>
-                      <Link to={'/p/' + b.slug}>{b.title}</Link>
+                      <Link to={pagePath(ws, b.slug)}>{b.title}</Link>
                     </li>
                   ))}
                 </ul>
@@ -194,7 +199,7 @@ export default function Reader() {
                 <ul className="relations-list">
                   {view.related.map((r) => (
                     <li key={r.slug}>
-                      <Link to={'/p/' + r.slug}>{r.title}</Link>
+                      <Link to={pagePath(ws, r.slug)}>{r.title}</Link>
                       <span className="relations-meta">{r.shared_tags}</span>
                     </li>
                   ))}

@@ -524,7 +524,8 @@ a { color: inherit; }
   overflow-y: auto;
   padding: 0 var(--sp-2) var(--sp-3);
 }
-.page-list ul { list-style: none; margin: 0; padding: 0; }
+.page-list ul,
+.page-list [role='tree'] { list-style: none; margin: 0; padding: 0; }
 .page-list li { margin: 1px 0; }
 .page-list a {
   display: block;
@@ -544,10 +545,41 @@ a { color: inherit; }
   color: var(--accent-press);
   font-weight: 500;
 }
-.page-list a[data-depth="1"] { padding-left: calc(var(--sp-3) + 14px); }
-.page-list a[data-depth="2"] { padding-left: calc(var(--sp-3) + 28px); }
-.page-list a[data-depth="3"] { padding-left: calc(var(--sp-3) + 42px); }
+/* El sangrado por nivel lo pone el arbol (aria-level), no data-depth: la lista
+   plana con sangrado paso a ser jerarquia plegable. Misma escala de 14px por
+   nivel que antes, para que la densidad de la barra no cambie. */
+.page-list [aria-level='2'] { padding-left: calc(var(--sp-3) + 14px); }
+.page-list [aria-level='3'] { padding-left: calc(var(--sp-3) + 28px); }
+.page-list [aria-level='4'] { padding-left: calc(var(--sp-3) + 42px); }
 .muted { color: var(--fg-3); }
+
+/* Control de plegado de cada rama. Ocupa su hueco tambien en las filas sin hijos
+   (disabled + sin icono) para que todos los titulos del mismo nivel arranquen en
+   la misma columna. */
+.page-row-twisty {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+}
+.page-row-twisty:disabled {
+  cursor: default;
+  visibility: hidden;
+}
+.page-row-twisty:hover { color: var(--fg-1); background: var(--surface-hover); }
+.page-row-twisty .lucide,
+.page-row-twisty svg {
+  transition: transform var(--dur-fast) var(--ease);
+}
+.page-row-twisty.open svg { transform: rotate(90deg); }
 
 /* === Sidebar footer ======================================================= */
 .sidebar-foot {
@@ -2122,6 +2154,16 @@ html {
   .search-clear,
   .btn {
     position: relative;
+  }
+  /* El twisty es la excepcion al cuadrado de 44px, y es geometria y no descuido:
+     la fila mide 44px de alto pero el control vive en un canalon de ~24px a la
+     izquierda del titulo. Un cuadrado de 44px centrado en el se comeria el
+     principio del titulo, y entonces tocar el texto plegaria la rama en vez de
+     abrir la pagina. Se le da toda la altura de la fila y el ancho del canalon:
+     nada de solape con el enlace ni con el menu "..." del otro extremo. */
+  .page-row-twisty {
+    width: 24px;
+    height: 44px;
   }
   .page-row-actions-btn::after,
   .sidebar-toggle::after,

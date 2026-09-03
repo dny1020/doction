@@ -7,11 +7,12 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom'
-import { api } from '../api.js'
+import { api, withWorkspace } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 import { renderMarkdown } from '../markdown.js'
+import { pagePath, wsPath } from '../routes.js'
 
 // Editor dividido: fuente markdown a la izquierda, preview en vivo a la derecha.
 // `mode` es "new" (crear) o "edit" (editar una página existente).
@@ -21,7 +22,7 @@ export default function Editor({ mode }) {
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
   const parentSlug = searchParams.get('parent') || ''
-  const { reloadPages } = useOutletContext()
+  const { ws, reloadPages } = useOutletContext()
   const navigate = useNavigate()
   const toast = useToast()
   const confirm = useConfirm()
@@ -68,7 +69,7 @@ export default function Editor({ mode }) {
         setError(e.message)
         setLoaded(true)
       })
-  }, [isEdit, slug])
+  }, [isEdit, slug, ws])
 
   // Navegación interna con cambios sin guardar → diálogo de confirmación.
   const blocker = useBlocker(() => isDirty())
@@ -122,7 +123,7 @@ export default function Editor({ mode }) {
       }
       savedRef.current = true
       reloadPages()
-      navigate('/p/' + targetSlug)
+      navigate(pagePath(ws, targetSlug))
     } catch (e) {
       setError(e.message)
       setBusy(false)
@@ -151,7 +152,8 @@ export default function Editor({ mode }) {
         form.append('file', file, file.name || 'pasted.png')
         setUploading(true)
         try {
-          const res = await fetch('/api/uploads', {
+          // fetch a pelo (FormData), así que el workspace hay que ponerlo a mano.
+          const res = await fetch(withWorkspace('/api/uploads'), {
             method: 'POST',
             body: form,
             credentials: 'same-origin',
@@ -200,7 +202,7 @@ export default function Editor({ mode }) {
           >
             {showPreview ? t('write') : t('preview')}
           </button>
-          <Link className="btn" to={isEdit ? '/p/' + slug : '/'}>
+          <Link className="btn" to={isEdit ? pagePath(ws, slug) : wsPath(ws)}>
             {t('cancel')}
           </Link>
           <button className="btn btn-primary" type="submit" disabled={busy}>

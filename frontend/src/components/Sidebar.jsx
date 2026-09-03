@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Check,
   ChevronsUpDown,
@@ -17,21 +17,20 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
-import { useToast } from './Toast.jsx'
 import { api } from '../api.js'
 import { avatarColor, avatarLetter } from '../avatar.js'
 import { getTheme, toggleTheme } from '../theme.js'
+import { newPagePath, pagePath, wsPath } from '../routes.js'
 import LanguageToggle from './LanguageToggle.jsx'
-import PageActions from './PageActions.jsx'
+import PageTree from './PageTree.jsx'
 
 // Barra lateral: marca, selector de workspace, búsqueda en vivo, árbol de páginas,
 // botón de nueva página y, abajo, el cambio de tema + el menú de usuario.
-export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
+export default function Sidebar({ ws, pages, pagesError, onReload, onCollapse }) {
   const { user, logout } = useAuth()
   const { t } = useI18n()
-  const toast = useToast()
   const navigate = useNavigate()
-  const location = useLocation()
+  const params = useParams()
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(null) // null = mostrar árbol; [] = sin resultados
@@ -42,9 +41,8 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
   const wsRef = useRef(null)
   const avatarRef = useRef(null)
 
-  // slug de la página activa, sacado de la URL (/p/<slug>), para resaltarla.
-  const routeMatch = location.pathname.match(/^\/p\/([^/]+)/)
-  const activeSlug = routeMatch ? decodeURIComponent(routeMatch[1]) : null
+  // slug de la página activa, sacado de la ruta, para resaltarla en el árbol.
+  const activeSlug = params.slug || null
 
   // Búsqueda en vivo con un pequeño retardo, para no pegar a la API en cada tecla.
   useEffect(() => {
@@ -72,16 +70,13 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
     return () => document.removeEventListener('click', onDocClick)
   }, [])
 
-  async function switchWorkspace(slug) {
+  function switchWorkspace(slug) {
     setWsOpen(false)
-    try {
-      await api.post('/api/workspaces/' + slug + '/switch')
-      // Recarga completa: re-arranca usuario, árbol y página activa con el nuevo workspace.
-      window.location.assign('/app/')
-    } catch (e) {
-      // Antes fallaba en silencio: el clic no hacía nada y no se sabía por qué.
-      toast(e.message, 'error')
-    }
+    navigate(wsPath(slug))
+    // El servidor guarda cuál fue el último para que una visita a `/` a secas
+    // vuelva aquí. No se espera: quién manda es la URL, y si esto falla lo único
+    // que se pierde es esa memoria.
+    api.post('/api/workspaces/' + slug + '/switch').catch(() => {})
   }
 
   async function onLogout() {
@@ -93,7 +88,7 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
     setTheme(toggleTheme())
   }
 
-  const active = user ? user.active_workspace : null
+  const active = user ? user.workspaces.find((w) => w.slug === ws) : null
   const letter = user ? avatarLetter(user.display_name, user.email) : '?'
 
   return (
@@ -127,7 +122,7 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
                   <button
                     key={w.slug}
                     type="button"
-                    className={'ws-option' + (active && w.slug === active.slug ? ' active' : '')}
+                    className={'ws-option' + (w.slug === ws ? ' active' : '')}
                     onClick={() => switchWorkspace(w.slug)}
                   >
                     <span className="ws-option-name">{w.name}</span>
@@ -168,7 +163,7 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
               <ul className="results">
                 {results.map((r) => (
                   <li key={r.slug}>
-                    <Link to={'/p/' + r.slug} onClick={() => setQuery('')}>
+                    <Link to={pagePath(ws, r.slug)} onClick={() => setQuery('')}>
                       {r.title}
                     </Link>
                     <Snippet parts={r.parts} text={r.snippet} />
@@ -188,40 +183,27 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
         <>
           <div className="sidebar-eyebrow">{t('pages')}</div>
           <nav className="page-list">
-            <ul>
-              {pagesError ? (
-                <li className="muted">
-                  {t('tree_error')}{' '}
-                  <button className="btn btn-sm" type="button" onClick={onReload}>
-                    {t('retry')}
-                  </button>
-                </li>
-              ) : pages.length > 0 ? (
-                pages.map((p) => (
-                  <li key={p.slug} className="page-row">
-                    <Link
-                      to={'/p/' + p.slug}
-                      data-depth={p.depth}
-                      className={p.slug === activeSlug ? 'active' : undefined}
-                    >
-                      {p.title}
-                    </Link>
-                    <PageActions page={p} pages={pages} onDone={onReload} />
-                  </li>
-                ))
-              ) : (
-                <li className="muted">{t('no_pages_yet')}</li>
-              )}
-            </ul>
+            {pagesError ? (
+              <p className="muted">
+                {t('tree_error')}{' '}
+                <button className="btn btn-sm" type="button" onClick={onReload}>
+                  {t('retry')}
+                </button>
+              </p>
+            ) : pages.length > 0 ? (
+              <PageTree ws={ws} pages={pages} activeSlug={activeSlug} onReload={onReload} />
+            ) : (
+              <p className="muted">{t('no_pages_yet')}</p>
+            )}
           </nav>
         </>
       )}
 
       <div className="sidebar-foot">
-        <Link className="inbox-link" to="/notes">
+        <Link className="inbox-link" to={wsPath(ws, '/notes')}>
           <Inbox className="lucide" size={15} /> {t('notes')}
         </Link>
-        <Link className="new-btn" to="/new">
+        <Link className="new-btn" to={newPagePath(ws)}>
           <Plus className="lucide" size={15} /> {t('new_page')}
         </Link>
         <div className="sidebar-user">
@@ -255,7 +237,11 @@ export default function Sidebar({ pages, pagesError, onReload, onCollapse }) {
               <Link className="avatar-menu-item" to="/settings" onClick={() => setMenuOpen(false)}>
                 <Settings size={14} /> {t('settings')}
               </Link>
-              <Link className="avatar-menu-item" to="/trash" onClick={() => setMenuOpen(false)}>
+              <Link
+                className="avatar-menu-item"
+                to={wsPath(ws, '/trash')}
+                onClick={() => setMenuOpen(false)}
+              >
                 <Trash2 size={14} /> {t('trash')}
               </Link>
               <div className="avatar-menu-divider" />

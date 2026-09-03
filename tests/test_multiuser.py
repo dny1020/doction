@@ -137,3 +137,48 @@ def test_workspace_slugs_are_globally_unique(client):
     _register(client, "b@test.com")
     ta, tb = _token(client, "a@test.com"), _token(client, "b@test.com")
     assert _default_slug(client, ta) != _default_slug(client, tb)
+
+
+# ── El workspace pedido en la URL manda ───────────────────────────────────────
+# La SPA saca el workspace de la ruta (/w/<slug>/…) y lo manda en cada petición.
+# Antes un ?ws= que no resolvía caía en silencio al primer workspace del usuario,
+# así que un enlace compartido enseñaba una página de otro sitio en vez de decir
+# que no la había.
+
+
+def test_unknown_workspace_is_404_not_a_fallback(client):
+    _register(client, "a@test.com")
+    ta = _token(client, "a@test.com")
+    client.post("/api/pages", json={"title": "Mine", "content": "x"}, headers=_h(ta))
+
+    r = client.get("/api/pages?ws=no-such-workspace", headers=_h(ta))
+    assert r.status_code == 404
+    # Sin ?ws= la misma petición sigue funcionando.
+    assert client.get("/api/pages", headers=_h(ta)).status_code == 200
+
+
+def test_someone_elses_workspace_reads_as_missing(client):
+    _register(client, "a@test.com")
+    _register(client, "b@test.com")
+    ta, tb = _token(client, "a@test.com"), _token(client, "b@test.com")
+    a_slug = _default_slug(client, ta)
+
+    r = client.get(f"/api/pages?ws={a_slug}", headers=_h(tb))
+    assert r.status_code == 404
+    assert client.get("/api/pages?ws=no-such-workspace", headers=_h(tb)).status_code == 404
+
+
+def test_explicit_workspace_beats_the_cookie(client):
+    """Dos pestañas en workspaces distintos no se pisan: manda la URL."""
+    _register(client, "a@test.com")
+    ta = _token(client, "a@test.com")
+    first = _default_slug(client, ta)
+    second = client.post("/api/workspaces", json={"name": "Second"}, headers=_h(ta)).json()["slug"]
+
+    client.post(f"/api/workspaces/{second}/switch", headers=_h(ta))
+    client.post("/api/pages", json={"title": "In second", "content": "x"}, headers=_h(ta))
+
+    titles = [p["title"] for p in client.get(f"/api/pages?ws={first}", headers=_h(ta)).json()]
+    assert "In second" not in titles
+    titles = [p["title"] for p in client.get(f"/api/pages?ws={second}", headers=_h(ta)).json()]
+    assert "In second" in titles

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n.jsx'
+import { newPagePath, pagePath } from '../routes.js'
 
 // Atajos de teclado globales + modal de ayuda (?). Equivale a los atajos del
 // frontend Jinja, adaptados a las rutas de la SPA. (⌘K vive en CommandPalette.)
 //   /  enfocar la búsqueda · e  editar la página actual · n  nueva página
 //   ?  esta ayuda · Esc  cerrar la ayuda
-export default function KeyboardShortcuts() {
+export default function KeyboardShortcuts({ ws }) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
@@ -17,6 +18,8 @@ export default function KeyboardShortcuts() {
   // Ruta actual en un ref para que el listener (montado una vez) la lea fresca.
   const locRef = useRef(location)
   locRef.current = location
+  const wsRef = useRef(ws)
+  wsRef.current = ws
 
   // Al abrir, foco al botón de cerrar; al cerrar, de vuelta a donde estaba (a11y).
   useEffect(() => {
@@ -50,10 +53,10 @@ export default function KeyboardShortcuts() {
         setHelpOpen((open) => !open)
       } else if (event.key === 'e') {
         // Editar la página actual solo si estamos en su vista de lectura (/p/slug).
-        const match = locRef.current.pathname.match(/^\/p\/([^/]+)$/)
-        if (match) navigate('/p/' + match[1] + '/edit')
+        const match = locRef.current.pathname.match(/\/p\/([^/]+)$/)
+        if (match) navigate(pagePath(wsRef.current, match[1], '/edit'))
       } else if (event.key === 'n') {
-        navigate('/new')
+        navigate(newPagePath(wsRef.current))
       } else if (event.key === '/') {
         event.preventDefault()
         const search = document.getElementById('sidebar-search')

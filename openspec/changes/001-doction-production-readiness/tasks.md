@@ -61,37 +61,64 @@
 
 ## 4. Routing: workspace in the URL
 
-- [ ] 4.1 Change the route shape to carry the workspace and update every internal link:
+- [x] 4.1 Change the route shape to carry the workspace and update every internal link:
       `Sidebar.jsx`, `Reader.jsx`, `Layout.jsx`, `CommandPalette.jsx`, `Notes.jsx`, `History.jsx`,
       `PageActions.jsx`.
-- [ ] 4.2 Resolve the workspace from the route rather than from the session on every page fetch;
+- [x] 4.2 Resolve the workspace from the route rather than from the session on every page fetch;
       verify opening a page in a non-active workspace shows the page and makes that workspace
       active.
-- [ ] 4.3 Redirect old page-only addresses to the new shape; verify a bookmark still resolves.
-- [ ] 4.4 Make workspace switching an in-application navigation — drop the
+- [x] 4.3 Redirect old page-only addresses to the new shape; verify a bookmark still resolves.
+- [x] 4.4 Make workspace switching an in-application navigation — drop the
       `window.location.assign` at `Sidebar.jsx:80`. Verify back returns to the previous workspace
       and that the unsaved-changes guard fires when switching from a dirty editor.
-- [ ] 4.5 Add the not-found state for an unknown or unreadable workspace segment, and verify it is
+- [x] 4.5 Add the not-found state for an unknown or unreadable workspace segment, and verify it is
       indistinguishable from the workspace not existing.
 
 ## 5. The page tree
 
-- [ ] 5.1 Render `list_pages_tree()`'s depth as real nesting with a disclosure control on rows
+- [x] 5.1 Render `list_pages_tree()`'s depth as real nesting with a disclosure control on rows
       that have children and none on rows that do not; verify labels align across both.
-- [ ] 5.2 Persist collapse state for the session and always expand the path to the active page;
+- [x] 5.2 Persist collapse state for the session and always expand the path to the active page;
       verify a collapsed branch survives navigating elsewhere.
-- [ ] 5.3 Implement keyboard operation on a roving tabindex: one Tab stop, up/down between visible
+- [x] 5.3 Implement keyboard operation on a roving tabindex: one Tab stop, up/down between visible
       rows, right to expand then descend, left to collapse then ascend, Enter to open. Verify each
       with the keyboard alone.
-- [ ] 5.4 Expose the tree to assistive technology with level and expanded state per row; verify
+- [x] 5.4 Expose the tree to assistive technology with level and expanded state per row; verify
       with a screen reader that both are announced.
-- [ ] 5.5 Keep focus on an existing row when the tree reloads after create, move, rename or
+- [x] 5.5 Keep focus on an existing row when the tree reloads after create, move, rename or
       delete.
-- [ ] 5.6 Add the coarse-pointer 44px targets for the disclosure, subpage and overflow controls in
+- [x] 5.6 Add the coarse-pointer 44px targets for the disclosure, subpage and overflow controls in
       `app/static/style.css`, and verify under `@media (pointer: coarse)` that no two targets
       overlap and that touching a label never toggles disclosure.
-- [ ] 5.7 Verify row height, per-level indentation and sidebar density are unchanged on a fine
+- [x] 5.7 Verify row height, per-level indentation and sidebar density are unchanged on a fine
       pointer.
+
+### Notes on sections 4 and 5
+
+- **Pages live at `/w/<ws>/p/<slug>`, not `/w/<ws>/<slug>`.** The slug is chosen by whoever writes
+  the page, so a page titled "new", "trash" or "notes" would shadow those routes without anyone
+  noticing. One extra segment buys immunity from that.
+- **The backend already accepted `?ws=`.** `attach_user` read a `ws` query parameter ahead of the
+  workspace cookie, so carrying the workspace per request needed no new endpoint. What it did need
+  was strictness: an explicit `ws` that does not resolve is now a 404 instead of a silent fallback
+  to the user's first workspace, which is the whole point of putting it in the URL. The cookie
+  still falls back, because it is memory rather than a request.
+- **The frontend sends `ws` from one place.** `api.js` appends it to every request and the shell
+  sets it from the route during render, before any child fetches. Threading it through a dozen
+  call sites was the alternative, and forgetting one would read the wrong workspace silently.
+- **The tree needed no API change.** `list_pages_tree()` already returns DFS order with a `depth`
+  field, which is enough to rebuild the hierarchy in the client.
+- **Collapse state is stored as what is collapsed, not what is expanded**, so the default state is
+  the whole tree open — exactly what the sidebar showed before this change.
+- **Two defects were found by driving the real app, not by the gates.** Switching workspaces
+  redirected using the previous workspace's tree, landing on a page that does not exist in the new
+  one; the shell now tracks which workspace its tree belongs to and the reader waits for a matching
+  one. And collapsing a branch with the focus inside it sent focus back to the first row, so
+  toggling now moves focus to the branch being toggled.
+- **The workspace 404 keeps the shell.** It first rendered bare, which left no way out; it now
+  renders in the content area with the sidebar of the user's own workspace still usable.
+- **Reordering is still out of scope** and 5.x contains no task for it: `pages` has no ordering
+  column. The touch-target work covers the controls that exist.
 
 ## 6. Integration status
 

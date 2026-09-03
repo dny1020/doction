@@ -1,5 +1,6 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './auth.jsx'
+import { wsPath } from './routes.js'
 import { useI18n } from './i18n.jsx'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
@@ -35,6 +36,34 @@ function GuestOnly({ children }) {
   return children
 }
 
+// El workspace de quien llega sin decir cuál: el último que usó, que el servidor
+// recuerda en `active_workspace`.
+function useHomeWorkspace() {
+  const { user } = useAuth()
+  const active = user && user.active_workspace
+  if (active) return active.slug
+  return user && user.workspaces.length > 0 ? user.workspaces[0].slug : null
+}
+
+// `/` no tiene contenido propio: lleva al workspace de la última visita.
+function HomeRedirect() {
+  const slug = useHomeWorkspace()
+  if (!slug) return <NotFound />
+  return <Navigate to={wsPath(slug)} replace />
+}
+
+// Las URLs del esquema anterior (/p/<slug>, /new, /trash, /notes) siguen siendo
+// válidas: se resuelven contra el workspace de la última visita. Un marcador
+// viejo abre la página, no un 404.
+function LegacyRedirect({ to }) {
+  const slug = useHomeWorkspace()
+  const params = useParams()
+  const location = useLocation()
+  if (!slug) return <NotFound />
+  const rest = to.replace(':slug', params.slug || '')
+  return <Navigate to={wsPath(slug, rest) + location.search} replace />
+}
+
 // Árbol de rutas para createBrowserRouter (main.jsx). Una URL desconocida cae en
 // el 404 con estilo (antes se redirigía a la home en silencio).
 export const routes = [
@@ -61,11 +90,17 @@ export const routes = [
       </RequireAuth>
     ),
     children: [
-      { path: '/', element: <Reader /> },
-      { path: '/new', element: <Editor mode="new" /> },
-      { path: '/p/:slug', element: <Reader /> },
-      { path: '/p/:slug/edit', element: <Editor mode="edit" /> },
-      { path: '/p/:slug/history', element: <History /> },
+      // Contenido: todo cuelga del workspace, así que un enlace lleva a la página
+      // que nombra y no a la que tuviera activa quien lo abre.
+      { path: '/w/:ws', element: <Reader /> },
+      { path: '/w/:ws/new', element: <Editor mode="new" /> },
+      { path: '/w/:ws/p/:slug', element: <Reader /> },
+      { path: '/w/:ws/p/:slug/edit', element: <Editor mode="edit" /> },
+      { path: '/w/:ws/p/:slug/history', element: <History /> },
+      { path: '/w/:ws/trash', element: <Trash /> },
+      { path: '/w/:ws/notes', element: <Notes /> },
+      // Ajustes no son de un workspace: son de la cuenta y del despliegue. El
+      // shell usa el de la última visita para pintar el árbol.
       {
         path: '/settings',
         element: <Settings />,
@@ -85,8 +120,13 @@ export const routes = [
           { path: '*', element: <NotFound /> },
         ],
       },
-      { path: '/trash', element: <Trash /> },
-      { path: '/notes', element: <Notes /> },
+      { path: '/', element: <HomeRedirect /> },
+      { path: '/p/:slug', element: <LegacyRedirect to="/p/:slug" /> },
+      { path: '/p/:slug/edit', element: <LegacyRedirect to="/p/:slug/edit" /> },
+      { path: '/p/:slug/history', element: <LegacyRedirect to="/p/:slug/history" /> },
+      { path: '/new', element: <LegacyRedirect to="/new" /> },
+      { path: '/trash', element: <LegacyRedirect to="/trash" /> },
+      { path: '/notes', element: <LegacyRedirect to="/notes" /> },
     ],
   },
   { path: '*', element: <NotFound /> },

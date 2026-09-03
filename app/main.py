@@ -166,6 +166,10 @@ def _api_user(request: Request) -> int:
 
 
 def _api_workspace(request: Request, user_id: int) -> int:
+    if getattr(request.state, "workspace_denied", False):
+        # Existir y no ser tuyo se responde igual que no existir: un 403 diría que
+        # el workspace está ahí.
+        raise HTTPException(status_code=404, detail="Workspace not found")
     ws = getattr(request.state, "workspace", None)
     if ws is None:
         ws = db.ensure_default_workspace(user_id)
@@ -1175,6 +1179,7 @@ async def attach_user(request: Request, call_next):
     request.state.user_avatar_color = None
     request.state.workspaces = []
     request.state.workspace = None
+    request.state.workspace_denied = False
     request.state.lang = i18n.resolve_lang(
         request.cookies.get("lang"), request.headers.get("accept-language")
     )
@@ -1217,14 +1222,24 @@ async def attach_user(request: Request, call_next):
                 workspaces = db.list_workspaces(user_id)
             request.state.workspaces = workspaces
 
-            requested_slug = request.query_params.get("ws") or request.cookies.get("workspace")
+            # ?ws= lo manda quien sabe qué workspace quiere —la SPA lo saca de la
+            # URL—; la cookie es solo memoria de la última visita. Por eso un ?ws=
+            # que no resuelve es un error y una cookie que no resuelve no lo es:
+            # caer en otro workspace haría que un enlace compartido enseñara la
+            # página equivocada, que es justo lo que este esquema viene a arreglar.
+            requested_slug = (request.query_params.get("ws") or "").strip()
+            explicit = bool(requested_slug)
+            if not requested_slug:
+                requested_slug = request.cookies.get("workspace") or ""
+
             workspace = None
             if requested_slug:
                 for ws in workspaces:
                     if ws.slug == requested_slug:
                         workspace = ws
                         break
-            if workspace is None and workspaces:
+            request.state.workspace_denied = explicit and workspace is None
+            if workspace is None and workspaces and not request.state.workspace_denied:
                 workspace = workspaces[0]
             request.state.workspace = workspace
 

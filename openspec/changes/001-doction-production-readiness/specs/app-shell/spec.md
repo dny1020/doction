@@ -6,10 +6,17 @@ On devices whose primary pointer is coarse, every interactive control in the she
 present a hit area of at least 44 by 44 CSS pixels. The control's rendered size MUST NOT
 change; only the area that responds to a touch grows.
 
-This includes the controls each page row carries in the tree — its disclosure control, its
-overflow control, and any control for creating a subpage under it. These sit adjacent to one
-another in a row shorter than 44px, so their hit areas MUST NOT overlap: a touch intended for one
-must never activate another, and a touch on a row's label must never toggle its disclosure.
+This includes the controls each page row carries in the tree — its disclosure control and its
+overflow control. These sit at opposite ends of a row narrower than three 44px squares, so
+non-overlap takes precedence over the square: their hit areas MUST NOT overlap each other or the
+row's navigation area, and a touch on a row's label MUST NOT toggle its disclosure.
+
+Where the two cannot both hold, a control SHALL take the full 44px height of the row and only as
+much width as its own gutter allows. The disclosure control is the case this covers: it lives in a
+gutter of about 24px to the left of the title, and a 44px square centred on it would cover the
+first characters of the title, so tapping the text would collapse the branch instead of opening
+the page. A short, full-height target that never steals a touch is worth more than a square one
+that does.
 
 On devices with a fine pointer, control sizes and spacing MUST remain exactly as they are
 today.
@@ -25,8 +32,8 @@ today.
 
 - **WHEN** a page row carrying a disclosure control and an overflow control is displayed on a
   coarse-pointer device
-- **THEN** each control responds to a touch within its own 44px target
-- **AND** neither target overlaps the other, nor the row's navigation area
+- **THEN** each control responds to a touch anywhere in a target at least 44px tall
+- **AND** no target overlaps another, nor the row's navigation area
 
 #### Scenario: Expanding does not navigate
 
