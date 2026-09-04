@@ -50,6 +50,9 @@ def load(workspace: str) -> tuple[int, int]:
     workspace_id = int(db.ensure_default_workspace(user_id).id or 0)
 
     files = sorted(path for source in sources for path in source.glob("*.md"))
+    origins: dict[str, str] = {}
+    for path in files:
+        origins[path.stem] = path.parent.name
     for path in files:
         title_file = path.with_suffix(".title")
         title = title_file.read_text().strip() if title_file.exists() else ""
@@ -60,4 +63,28 @@ def load(workspace: str) -> tuple[int, int]:
             path.read_text(),
             requested_slug=path.stem,
         )
+
+    _tag_by_origin(workspace_id, origins)
     return workspace_id, len(files)
+
+
+def _tag_by_origin(workspace_id: int, origins: dict[str, str]) -> None:
+    """Etiqueta cada página con el volcado del que salió, para poder medir el filtro.
+
+    El corpus real no trae etiquetas —una sola página tiene una, y es un color
+    hexadecimal que el parser confundió con un `#tag`—, así que sin esto el filtro de
+    `search_knowledge` no se puede puntuar contra nada.
+
+    Se escriben directamente en `page_tags` y no en el markdown a propósito: tocar el
+    cuerpo cambiaría el texto que se embebe, y con ello los vectores y toda la tabla.
+    Las corridas anteriores dejarían de ser comparables por añadir una etiqueta. La
+    procedencia es un hecho real de cada página; lo sintético es solo dónde se guarda.
+    """
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT id, slug FROM pages WHERE workspace_id = %s", (workspace_id,)
+        ).fetchall()
+        conn.cursor().executemany(
+            "INSERT INTO page_tags (page_id, tag) VALUES (%s, %s)",
+            [(r["id"], origins[r["slug"]]) for r in rows if r["slug"] in origins],
+        )

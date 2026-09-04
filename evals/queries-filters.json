@@ -1,0 +1,50 @@
+[
+  {
+    "query": "certbot",
+    "tags": [
+      "personal"
+    ],
+    "expect": [
+      "rpi-operaciones-renovacion-tls-con-certbot"
+    ],
+    "note": "el filtro no debe estorbar: la página vive en el volcado filtrado"
+  },
+  {
+    "query": "renovacion tls",
+    "tags": [
+      "personal"
+    ],
+    "expect": [
+      "rpi-operaciones-renovacion-tls-con-certbot"
+    ],
+    "note": "el filtro quita 16 distractores de los otros dos volcados"
+  },
+  {
+    "query": "docker",
+    "tags": [
+      "personal"
+    ],
+    "expect": [
+      "rpi-operaciones-actualizar-imagenes-docker"
+    ],
+    "note": "término compartido entre volcados: sin filtro compite con work/bussisnes"
+  },
+  {
+    "query": "logging",
+    "tags": [
+      "personal"
+    ],
+    "expect": [
+      "rpi-arquitectura-logging"
+    ],
+    "note": "término compartido entre volcados: el filtro deja solo la página correcta"
+  },
+  {
+    "query": "certbot",
+    "tags": [
+      "work"
+    ],
+    "expect": [],
+    "note": "un filtro que excluye la única respuesta devuelve vacío, no la lista sin filtrar"
+  }
+]

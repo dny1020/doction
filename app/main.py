@@ -613,6 +613,13 @@ def api_system(request: Request):
         "semantic_search": semantic,
         "rerank": embeddings.rerank_enabled(),
         "ocr_uploads": ocr.ocr_enabled(),
+        # Las constantes que deciden el orden de todo resultado híbrido. Van sin
+        # condición aunque la semántica esté apagada: son configuración del proceso,
+        # no un contador de índice. Dos despliegues de la misma versión pueden
+        # ordenar distinto, y sin esto ninguno de los dos podía decirlo.
+        "rrf_k": embeddings.RRF_K,
+        "rrf_vector_weight": embeddings.RRF_VECTOR_WEIGHT,
+        "search_min_score": embeddings.SEARCH_MIN_SCORE,
     }
     if semantic and db_state == "ok":
         # current_model_name() lee un atributo de clase: informar no debe cargar el

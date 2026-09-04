@@ -54,6 +54,15 @@ export default function SystemSection() {
         )}
       </dl>
 
+      {/* Las constantes que ordenan cada resultado híbrido. Solo lectura, como el
+          resto: son configuración del despliegue y no una preferencia. */}
+      <h3 className="settings-group-title">{t('system_ranking')}</h3>
+      <dl className="settings-facts">
+        <Fact label={t('rrf_k')} value={String(report.rrf_k)} />
+        <Fact label={t('rrf_vector_weight')} value={String(report.rrf_vector_weight)} />
+        <Fact label={t('search_min_score')} value={String(report.search_min_score)} />
+      </dl>
+
       <h3 className="settings-group-title">{t('system_server')}</h3>
       <dl className="settings-facts">
         <Fact label={t('version')} value={report.version} />

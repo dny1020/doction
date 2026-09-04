@@ -295,6 +295,12 @@ class ChunkVector:
     vector: bytes
     slug: str
     title: str
+    # Tipo y etiquetas de la página, para que un agente sepa si el pasaje viene de un
+    # runbook o de un acta sin una segunda llamada. Se leen de page_meta/page_tags al
+    # consultar, no se copian aquí: si alguien reetiqueta la página, el fragmento lo
+    # refleja al instante en vez de esperar a un reindexado.
+    page_type: str | None
+    tags: list[str]
 
 
 @dataclass

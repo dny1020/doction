@@ -372,6 +372,10 @@ def semantic_search(
                 "score": score,
                 "chunk": row.text,
                 "ord": int(row.ord),
+                # De dónde salió dentro de la página, y de qué clase de página.
+                "section": row.path,
+                "page_type": row.page_type,
+                "tags": row.tags,
             }
 
     results = list(best.values())
@@ -650,6 +654,7 @@ def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> l
         if best is None:
             continue
         section = " > ".join(best.headings)
+        front, _ = meta.parse_frontmatter(page.content)
         candidates.append(
             {
                 "slug": hit.slug,
@@ -660,6 +665,8 @@ def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> l
                 "score": None,
                 "path": _context_path(workspace, hit.title, section),
                 "section": section,
+                "page_type": front.get("type"),
+                "tags": meta.extract_tags(page.content),
                 "text": best.text,
             }
         )
@@ -712,6 +719,8 @@ def rag_context(
                     "score": round(float(scores[i]), 4),
                     "path": _context_path(workspace, rows[i].title, rows[i].path),
                     "section": rows[i].path,
+                    "page_type": rows[i].page_type,
+                    "tags": rows[i].tags,
                     "text": rows[i].text,
                 }
                 for i in np.argsort(-scores)[:pool]

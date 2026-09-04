@@ -212,6 +212,10 @@ _EN: dict[str, str] = {
         "What this deployment is running. Read-only — these come from the server environment."
     ),
     "system_retrieval": "Retrieval",
+    "system_ranking": "Ranking",
+    "rrf_k": "Fusion constant (k)",
+    "rrf_vector_weight": "Vector weight",
+    "search_min_score": "Score floor",
     "system_server": "Server",
     "version": "Version",
     "database": "Database",
@@ -416,6 +420,10 @@ _ES: dict[str, str] = {
         "Qué está corriendo este despliegue. Solo lectura: viene del entorno del servidor."
     ),
     "system_retrieval": "Recuperación",
+    "system_ranking": "Ordenación",
+    "rrf_k": "Constante de fusión (k)",
+    "rrf_vector_weight": "Peso vectorial",
+    "search_min_score": "Piso de puntuación",
     "system_server": "Servidor",
     "version": "Versión",
     "database": "Base de datos",

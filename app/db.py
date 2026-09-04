@@ -1889,9 +1889,16 @@ def workspace_chunk_vectors(workspace_id: int, model: str, chunker: str) -> list
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT c.page_id, c.ord, c.text, c.path, c.vector, p.slug, p.title
+            SELECT c.page_id, c.ord, c.text, c.path, c.vector, p.slug, p.title,
+                   m.type AS page_type,
+                   COALESCE(
+                       (SELECT array_agg(t.tag ORDER BY t.id) FROM page_tags t
+                        WHERE t.page_id = p.id),
+                       ARRAY[]::text[]
+                   ) AS tags
             FROM page_chunks c
             JOIN pages p ON p.id = c.page_id
+            LEFT JOIN page_meta m ON m.page_id = p.id
             WHERE c.workspace_id = %s AND c.model = %s AND c.chunker = %s
               AND p.deleted_at IS NULL
             """,
@@ -1904,6 +1911,8 @@ def workspace_chunk_vectors(workspace_id: int, model: str, chunker: str) -> list
                 text=r["text"],
                 path=r["path"],
                 vector=bytes(r["vector"]),
+                page_type=r["page_type"],
+                tags=list(r["tags"] or []),
                 slug=r["slug"],
                 title=r["title"],
             )
