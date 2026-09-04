@@ -15,6 +15,7 @@ import logging
 import os
 import re
 import threading
+import unicodedata
 from pathlib import Path
 from typing import cast
 
@@ -528,6 +529,88 @@ def search(
     ]
 
 
+# Presupuesto del contexto ensamblado, en caracteres. Antes eran seis fragmentos
+# fijos, que no es una cota de nada: seis secciones cortas caben en cualquier sitio y
+# seis largas se comen la ventana del modelo que las va a leer. 6000 caracteres son
+# ~1500 tokens, que dejan sitio de sobra para la pregunta y la respuesta, y coinciden
+# más o menos con seis fragmentos del techo del troceador — así el comportamiento por
+# defecto se parece al de antes sin ser una cuenta.
+CONTEXT_BUDGET = 6000
+
+# Por encima de esta proporción de palabras en común, dos fragmentos dicen lo mismo.
+# Alto a propósito: el error caro es descartar una sección que respondía.
+DUPLICATE_OVERLAP = 0.8
+# Por debajo de estas palabras el solape no significa nada —dos frases cortas del
+# mismo tema comparten casi todo—, así que ahí solo cuenta la contención literal.
+_MIN_WORDS_FOR_OVERLAP = 20
+
+
+def _fold(text: str) -> str:
+    """Minúsculas y sin tildes, para comparar como compara la búsqueda."""
+    normalized = unicodedata.normalize("NFKD", text.casefold())
+    return "".join(c for c in normalized if not unicodedata.combining(c))
+
+
+def _words(text: str) -> set[str]:
+    """Palabras del texto, plegadas y sin puntuación pegada.
+
+    Mismo criterio que `db._fts_query`: sin esto `` `certbot `` con la comilla pegada
+    no casaba con `certbot`, y la sección que respondía perdía contra la primera.
+    """
+    return set(re.findall(r"[\w]+", _fold(text), flags=re.UNICODE))
+
+
+def _says_the_same(first: dict, second: dict) -> bool:
+    """¿Estos dos fragmentos repiten el mismo pasaje?
+
+    Tres formas de que lo hagan: venir de la misma sección de la misma página —son
+    trozos de un mismo bloque partido por el techo—, que uno esté contenido en el
+    otro, o que compartan casi todas sus palabras.
+
+    Dos secciones *distintas* de una misma página no son duplicados: responden a
+    partes distintas de la pregunta, y colapsarlas sería el error contrario.
+    """
+    if first["slug"] == second["slug"] and first["section"] == second["section"]:
+        return True
+
+    a, b = _fold(" ".join(first["text"].split())), _fold(" ".join(second["text"].split()))
+    if a in b or b in a:
+        return True
+
+    words_a, words_b = _words(first["text"]), _words(second["text"])
+    smaller = min(len(words_a), len(words_b))
+    if smaller < _MIN_WORDS_FOR_OVERLAP:
+        return False
+    return len(words_a & words_b) / smaller >= DUPLICATE_OVERLAP
+
+
+def _pack_context(
+    candidates: list[dict], budget: int, limit: int | None
+) -> tuple[list[dict], bool]:
+    """Escoge fragmentos en orden hasta agotar el presupuesto. (elegidos, se recortó).
+
+    Un fragmento que no cabe se deja fuera entero y se sigue con el siguiente: cortarlo
+    por la mitad devolvería un texto que la página no dice, y pararse en seco dejaría
+    el presupuesto sin usar porque justo el segundo era enorme.
+    """
+    kept: list[dict] = []
+    used = 0
+    truncated = False
+    for candidate in candidates:
+        if limit is not None and len(kept) >= limit:
+            truncated = True
+            break
+        if any(_says_the_same(candidate, chosen) for chosen in kept):
+            continue
+        size = len(candidate["text"])
+        if used + size > budget:
+            truncated = True
+            continue
+        kept.append(candidate)
+        used += size
+    return kept, truncated
+
+
 def _context_path(workspace: str, title: str, section: str) -> str:
     """`Workspace > Página > Sección`, saltándose los tramos vacíos.
 
@@ -537,26 +620,91 @@ def _context_path(workspace: str, title: str, section: str) -> str:
     return " > ".join(part for part in [workspace, title, section] if part)
 
 
-def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
-    """rag como tubería de retrieval: top-k chunks + procedencia, SIN generar texto.
+def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> list[dict]:
+    """Candidatos del canal léxico: secciones enteras, no extractos de ranking.
 
-    El agente sintetiza la respuesta a partir de estos fragmentos.
+    `ts_headline` devuelve doce palabras elegidas para enseñarle a una persona por qué
+    coincidió un resultado. Sirve para ordenar y no para responder: un agente que
+    recibía eso recibía trozos de frase. Aquí se trocea la página igual que la trocea
+    el indexador y se elige la sección que más términos de la consulta contiene, de
+    modo que el fragmento sea el mismo que devolvería el canal vectorial.
+
+    Se trocea al vuelo porque con la semántica apagada no corre el worker y no hay
+    fragmentos guardados. Es el camino degradado y solo paga quien está en él.
+    """
+    terms = {word for word in _words(query) if len(word) > 2}
+    candidates: list[dict] = []
+    for hit in db.search_pages(workspace_id, query, limit=pages):
+        page = db.get_page(hit.slug, workspace_id)
+        if page is None:
+            continue
+        # Empate a cero —la coincidencia de FTS venía de un stem que la comparación
+        # literal no ve— se resuelve con la primera sección, que es la apertura de la
+        # página y lo más parecido a un resumen que hay sin inventar nada.
+        best = None
+        best_score = -1.0
+        for chunk in meta.chunk_markdown(page.content):
+            score = len(terms & _words(chunk.text)) / len(terms) if terms else 0.0
+            if score > best_score:
+                best, best_score = chunk, score
+        if best is None:
+            continue
+        section = " > ".join(best.headings)
+        candidates.append(
+            {
+                "slug": hit.slug,
+                "title": hit.title,
+                "ord": None,
+                # Sin vectores no hay coseno que informar. None y no un número
+                # inventado: un score falso se compararía con los de verdad.
+                "score": None,
+                "path": _context_path(workspace, hit.title, section),
+                "section": section,
+                "text": best.text,
+            }
+        )
+    return candidates
+
+
+def rag_context(
+    workspace_id: int,
+    query: str,
+    *,
+    budget: int = CONTEXT_BUDGET,
+    limit: int | None = None,
+) -> dict:
+    """rag como tubería de retrieval: fragmentos + procedencia, SIN generar texto.
+
+    El agente sintetiza la respuesta a partir de estos fragmentos. Todo lo que sale de
+    aquí está literalmente en una página guardada.
+
+    Acotado por presupuesto de caracteres y no por número de fragmentos, y sin repetir
+    un pasaje dos veces: el contexto de un agente es un recurso escaso y gastarlo dos
+    veces en la misma frase es gastarlo mal. `limit` sigue aceptándose como tope de
+    piezas para quien quiera menos, pero la cota es el presupuesto.
     """
     query = (query or "").strip()
     if not query:
-        return {"query": query, "mode": "empty", "chunks": []}
+        return {"query": query, "mode": "empty", "chunks": [], "truncated": False}
 
     ws = db.get_workspace_by_id(workspace_id)
     workspace = ws.name if ws else ""
 
+    # Cuántos candidatos mirar antes de empaquetar. Con el techo del troceador en
+    # 1000 caracteres, el doble del presupuesto siempre trae de sobra para llenarlo
+    # aunque la mitad se caiga por duplicada.
+    pool = max(1, (2 * budget) // 500)
+
+    candidates: list[dict] = []
+    mode = "fts"
     if semantic_enabled():
         rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
         if rows:
+            mode = "semantic"
             qvec = get_embedder().encode([query])[0]
             mat = np.stack([_from_blob(r.vector) for r in rows])
             scores = mat @ qvec
-            order = np.argsort(-scores)[:k]
-            chunks = [
+            candidates = [
                 {
                     "slug": rows[i].slug,
                     "title": rows[i].title,
@@ -566,24 +714,14 @@ def rag_context(workspace_id: int, query: str, *, k: int = 6) -> dict:
                     "section": rows[i].path,
                     "text": rows[i].text,
                 }
-                for i in order
+                for i in np.argsort(-scores)[:pool]
             ]
-            return {"query": query, "mode": "semantic", "chunks": chunks}
 
-    hits = db.search_pages(workspace_id, query, limit=k)
-    chunks = [
-        {
-            "slug": h.slug,
-            "title": h.title,
-            "ord": None,
-            "score": None,
-            "path": _context_path(workspace, h.title, ""),
-            "section": "",
-            "text": h.snippet,
-        }
-        for h in hits
-    ]
-    return {"query": query, "mode": "fts", "chunks": chunks}
+    if mode == "fts":
+        candidates = _fts_context(workspace_id, query, workspace, pool)
+
+    chunks, truncated = _pack_context(candidates, budget, limit)
+    return {"query": query, "mode": mode, "chunks": chunks, "truncated": truncated}
 
 
 # ── Background enrichment (sin broker; plan §5 "queue job, enrich later") ──────

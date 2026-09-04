@@ -1,25 +1,47 @@
 ## 1. Assembled context: deduplicate and bound
 
-- [ ] 1.1 Add a size budget to `rag_context()` in characters, replacing the fixed `k=6`. Verify a
+- [x] 1.1 Add a size budget to `rag_context()` in characters, replacing the fixed `k=6`. Verify a
       long workspace returns fewer, whole fragments rather than six of arbitrary length.
-- [ ] 1.2 Leave a fragment out entirely when it does not fit, never truncated, and say in the
+- [x] 1.2 Leave a fragment out entirely when it does not fit, never truncated, and say in the
       response that the context was cut. Verify no returned fragment is a prefix of a stored one.
-- [ ] 1.3 Deduplicate fragments that repeat a passage: same section, or bodies overlapping past a
+- [x] 1.3 Deduplicate fragments that repeat a passage: same section, or bodies overlapping past a
       threshold. Verify two near-identical fragments from one page collapse to one.
-- [ ] 1.4 Verify two *distinct* sections of the same page both survive — they answer different
+- [x] 1.4 Verify two *distinct* sections of the same page both survive — they answer different
       parts of the question, and collapsing them would be the opposite bug.
-- [ ] 1.5 Verify every fragment still carries its page, its heading path and its score, and that
+- [x] 1.5 Verify every fragment still carries its page, its heading path and its score, and that
       each appears verbatim in a stored page.
 
 ## 2. Keyword fallback returns page text
 
-- [ ] 2.1 Make `rag_context()`'s fallback return section text from the page body instead of
+- [x] 2.1 Make `rag_context()`'s fallback return section text from the page body instead of
       `ts_headline` output. Verify on a deployment with semantic search off that a fragment is a
       whole section, not twelve words.
-- [ ] 2.2 Leave search results alone: `/api/search` and `search_knowledge` keep their highlighted
+- [x] 2.2 Leave search results alone: `/api/search` and `search_knowledge` keep their highlighted
       extracts, which is what the sidebar renders in `<mark>`. Verify the highlight still works.
-- [ ] 2.3 Verify the fallback honours the same budget and deduplication as the vector path — one
+- [x] 2.3 Verify the fallback honours the same budget and deduplication as the vector path — one
       contract, two sources.
+
+### Notes on sections 1 and 2
+
+- **The budget is 6000 characters**, about 1500 tokens, which leaves room for a question and an
+  answer and lands close to the six fragments it replaces — so the default behaviour resembles the
+  old one without being a count. `limit` still works for a caller that wants fewer.
+- **A fragment that does not fit is skipped, not stopped at.** Stopping would leave the budget
+  unused because one large fragment happened to sit second; truncating would return text the page
+  does not contain. Skipping is the only option that does neither.
+- **Deduplication recognises three shapes**: two chunks of one section (pieces of a block the
+  ceiling split), literal containment, and 80% shared words. The threshold is high and only applies
+  above twenty words, because two short sentences on one topic share almost everything and the
+  expensive mistake is dropping a section that answered.
+- **The lexical fallback chunks the page on the fly**, since no worker runs and no chunks are stored
+  when semantic search is off. It picks the section with the most query terms, so the fragment is
+  the one the vector channel would have returned. It costs one page fetch per hit, on the degraded
+  path only.
+- **Tokenising caught a real bug.** Folding case and accents was not enough: `` `certbot `` with its
+  backtick attached did not match `certbot`, so the section that answered lost to the page's
+  opening paragraph. The picker now tokenises the way `db._fts_query` does.
+- **Search results were left alone.** The sidebar still renders `ts_headline` extracts with their
+  highlight; only assembled context changed. A test pins that.
 
 ## 3. Ranking parameters in the system report
 

@@ -305,8 +305,12 @@ def _tool_sgrep(user_id: int, args: dict) -> list[dict]:
 def _tool_rag(user_id: int, args: dict) -> dict:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
-    limit = int(args.get("limit") or 6)
-    return embeddings.rag_context(int(ws.id), query, k=limit)
+    budget = int(args.get("budget") or embeddings.CONTEXT_BUDGET)
+    # `limit` sigue aceptándose —lo llevaba el `rag` de siempre y algún agente estará
+    # configurado con él— pero ya no es la cota: solo un tope de piezas para quien
+    # quiera menos de lo que cabe.
+    limit = int(args["limit"]) if args.get("limit") else None
+    return embeddings.rag_context(int(ws.id), query, budget=budget, limit=limit)
 
 
 def _tool_suggest_links(user_id: int, args: dict) -> dict:
@@ -543,16 +547,27 @@ TOOLS: list[dict] = [
     {
         "name": "get_rag_context",
         "description": (
-            "Gather passages to answer from. Returns the top-k chunks with provenance "
-            "(workspace > page > section, slug, score) so an answer can cite them. "
-            "doction does NOT generate text: every passage is verbatim from a stored "
-            "page and the synthesis is yours. Read-only."
+            "Gather passages to answer from. Returns whole sections with provenance "
+            "(workspace > page > section, slug, score), packed to a character budget "
+            "rather than a fixed count, with repeated passages collapsed. `truncated` "
+            "says whether anything was left out. doction does NOT generate text: every "
+            "passage is verbatim from a stored page and the synthesis is yours. "
+            "Read-only."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "query": {"type": "string"},
-                "limit": {"type": "integer", "default": 6},
+                "budget": {
+                    "type": "integer",
+                    "description": "Maximum characters of context. Fragments are never "
+                    "truncated to fit; one that does not fit is left out.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Optional cap on the number of fragments. The budget "
+                    "is the real bound.",
+                },
                 **_WORKSPACE_PROP,
             },
             "required": ["query"],

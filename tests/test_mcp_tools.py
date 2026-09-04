@@ -149,15 +149,24 @@ def test_get_rag_context_carries_the_hierarchy(semantic_client):
     assert chunk["path"].endswith(chunk["section"])
 
 
-def test_get_rag_context_locates_a_chunk_even_without_vectors(client):
-    """Con la semántica apagada la ruta sigue llegando, hasta donde el canal sabe."""
+def test_get_rag_context_without_vectors_returns_sections_not_extracts(client):
+    """El canal degradado devuelve la sección entera, no el recorte de doce palabras.
+
+    `ts_headline` elige palabras para enseñarle a una persona por qué coincidió un
+    resultado. Un agente que recibía eso recibía trozos de frase.
+    """
     token = _token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
     out = _data(_call(client, token, "get_rag_context", {"query": "certbot"}))
     assert out["mode"] == "fts"
     assert out["chunks"], out
-    assert out["chunks"][0]["path"] == "Personal > Renovación TLS"
+    chunk = out["chunks"][0]
+    # La sección de Certbot, entera y literal.
+    assert chunk["text"] == "Corre `certbot renew --dry-run` y luego recarga nginx."
+    assert chunk["section"] == "Renovación TLS > Certbot"
+    assert chunk["path"] == "Personal > Renovación TLS > Renovación TLS > Certbot"
+    assert "<mark>" not in chunk["text"]
 
 
 def test_get_rag_context_quotes_and_never_composes(client):
