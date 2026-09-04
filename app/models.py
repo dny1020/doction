@@ -128,6 +128,27 @@ class Webhook:
 
 
 @dataclass
+class Delivery:
+    """El resultado de intentar entregar un evento a un webhook.
+
+    Una fila por evento, no por intento: el worker reintenta sobre la misma fila
+    con backoff, así que `attempts` es cuántas veces se ha probado. El estado sale
+    de las dos columnas juntas — `delivered_at` sin `last_error` es entregado, con
+    `last_error` es que se agotaron los reintentos, y sin `delivered_at` sigue en
+    cola.
+    """
+
+    id: int
+    webhook_id: int
+    event: str
+    status: str  # delivered | failed | pending
+    attempts: int
+    last_error: str | None
+    next_attempt_at: str
+    delivered_at: str | None
+
+
+@dataclass
 class PendingDelivery:
     """Una entrega pendiente que el worker debe intentar."""
 
@@ -175,15 +196,32 @@ class RelatedPage:
 
 
 @dataclass
+class SnippetPart:
+    """Un tramo de un fragmento de búsqueda; `match` marca lo que coincidió.
+
+    El resaltado viaja como tramos y no como HTML: el cliente decide cómo pintar
+    una coincidencia y el texto de la página nunca vuelve a entrar en el DOM como
+    markup. Ver `db._split_snippet`.
+    """
+
+    text: str
+    match: bool
+
+
+@dataclass
 class SearchHit:
     """Un resultado de la búsqueda de texto (`search_pages`).
 
-    `snippet` es el fragmento con la coincidencia resaltada en <mark>…</mark>.
+    `snippet` es el fragmento en texto plano —sin ningún markup— y `parts` es el
+    mismo fragmento partido en tramos para poder resaltar las coincidencias. Se
+    mandan los dos porque quien solo quiere leer el fragmento (un agente por MCP,
+    un `jq` sobre /api/search) sigue leyendo una cadena.
     """
 
     slug: str
     title: str
     snippet: str
+    parts: list[SnippetPart]
 
 
 @dataclass
@@ -219,24 +257,50 @@ class HistoryEntry:
 
 
 @dataclass
+class Chunk:
+    """Un fragmento indexable y la cadena de encabezados que lo sitúa.
+
+    `headings` va de fuera hacia dentro (`["Operaciones", "Renovación TLS"]`) y puede
+    estar vacía: el preámbulo de una página, lo que va antes del primer encabezado,
+    no cuelga de ninguno.
+    """
+
+    text: str
+    headings: list[str]
+
+
+@dataclass
 class EmbedTarget:
     """Página pendiente de indexar para búsqueda semántica (`pages_to_embed`)."""
 
     id: int
     workspace_id: int
+    title: str
     content: str
 
 
 @dataclass
 class ChunkVector:
-    """Un trozo de página con su vector, para la búsqueda semántica."""
+    """Un trozo de página con su vector, para la búsqueda semántica.
+
+    `path` es la cadena de encabezados dentro del documento, ya unida (`"Operaciones
+    > Renovación TLS"`). Vacía para el preámbulo. La ruta completa que ve un agente
+    —workspace, página, sección— se compone al leer, donde el workspace ya se conoce.
+    """
 
     page_id: int
     ord: int
     text: str
+    path: str
     vector: bytes
     slug: str
     title: str
+    # Tipo y etiquetas de la página, para que un agente sepa si el pasaje viene de un
+    # runbook o de un acta sin una segunda llamada. Se leen de page_meta/page_tags al
+    # consultar, no se copian aquí: si alguien reetiqueta la página, el fragmento lo
+    # refleja al instante en vez de esperar a un reindexado.
+    page_type: str | None
+    tags: list[str]
 
 
 @dataclass
@@ -245,6 +309,7 @@ class UploadHit:
 
     name: str
     snippet: str
+    parts: list[SnippetPart]
 
 
 @dataclass

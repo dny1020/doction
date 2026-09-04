@@ -13,7 +13,7 @@ import { api } from '../api.js'
 // El menú es un <dialog> modal, no un desplegable absoluto: el árbol tiene su
 // propio scroll, y un desplegable colgado de la fila se recortaba contra el
 // borde de .page-list en cuanto la fila quedaba cerca del final visible.
-export default function PageActions({ page, pages, onDone }) {
+export default function PageActions({ page, pages, onDone, tabIndex }) {
   const { t } = useI18n()
   const toast = useToast()
   const [dialog, setDialog] = useState(null) // 'menu' | 'move' | 'rename' | null
@@ -62,6 +62,7 @@ export default function PageActions({ page, pages, onDone }) {
       <button
         className="page-row-actions-btn"
         type="button"
+        tabIndex={tabIndex}
         aria-label={t('page_actions')}
         title={t('page_actions')}
         onClick={(e) => {

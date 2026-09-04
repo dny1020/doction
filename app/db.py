@@ -17,6 +17,7 @@ from app import meta
 from app.models import (
     ApiToken,
     ChunkVector,
+    Delivery,
     EmbedTarget,
     ExtractedPage,
     LinkEdge,
@@ -29,6 +30,7 @@ from app.models import (
     PendingDelivery,
     RelatedPage,
     SearchHit,
+    SnippetPart,
     UploadHit,
     User,
     Webhook,
@@ -333,6 +335,12 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         created_at   TEXT NOT NULL
     )
     """,
+    # `path` es la cadena de encabezados dentro del documento; `chunker` identifica
+    # el algoritmo que produjo el fragmento. Van con ADD COLUMN IF NOT EXISTS porque
+    # page_chunks ya existe en cualquier despliegue vivo, y el CREATE de arriba no
+    # toca una tabla creada.
+    "ALTER TABLE page_chunks ADD COLUMN IF NOT EXISTS path TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE page_chunks ADD COLUMN IF NOT EXISTS chunker TEXT NOT NULL DEFAULT ''",
     "CREATE INDEX IF NOT EXISTS page_chunks_ws_idx ON page_chunks(workspace_id)",
     "CREATE INDEX IF NOT EXISTS page_chunks_page_idx ON page_chunks(page_id)",
     """
@@ -1022,6 +1030,40 @@ def update_page(user_id: int, workspace_id: int, slug: str, title: str, content:
         return slug
 
 
+def upsert_page_section(
+    user_id: int,
+    workspace_id: int,
+    slug: str,
+    heading: str,
+    body: str,
+    *,
+    level: int = 2,
+    parent: str | None = None,
+) -> str | None:
+    """Escribe una sola sección de una página. Devuelve el slug, o None si no existe.
+
+    Pasa por `update_page`, no por un UPDATE propio: así la versión queda en el
+    historial de git, la página se re-encola para indexar y el evento sale por los
+    webhooks exactamente igual que en cualquier otra escritura. Una escritura que se
+    saltara ese camino sería una página que cambia sin que nadie se entere.
+
+    Lee y escribe dentro de la misma llamada, de modo que dos agentes tocando
+    secciones distintas de una página no se pisan: cada uno reescribe solo su bloque
+    sobre el contenido más reciente, en vez de mandar el cuerpo entero que leyó hace
+    un minuto.
+
+    `AmbiguousSection` sube tal cual: elegir por el llamante cuál de dos encabezados
+    idénticos quería es peor que decirle que desambigüe.
+    """
+    page = get_page(slug, workspace_id)
+    if page is None:
+        return None
+    content = meta.upsert_section(page.content, heading, body, level=level, parent=parent)
+    if content == page.content:
+        return slug
+    return update_page(user_id, workspace_id, slug, page.title, content)
+
+
 # ── Webhooks de salida ───────────────────────────────────────────────────────
 # emit_event() se llama DENTRO de la transacción que ya hizo la escritura, así el
 # evento se encola en el mismo commit que el cambio: no hay ventana en la que la
@@ -1123,6 +1165,68 @@ def due_deliveries(limit: int = 10) -> list[PendingDelivery]:
             )
             for r in rows
         ]
+
+
+def _delivery_status(delivered_at: str | None, last_error: str | None) -> str:
+    """`delivered_at` marca "ya no se reintenta", no "salió bien".
+
+    El worker lo pone también al agotar los reintentos, y ahí deja `last_error`.
+    Sin mirar las dos columnas, una entrega abandonada se leería como entregada.
+    """
+    if delivered_at is None:
+        return "pending"
+    return "failed" if last_error else "delivered"
+
+
+def list_deliveries(webhook_id: int, limit: int = 20) -> list[Delivery]:
+    """Las entregas recientes de un webhook, la más nueva primero.
+
+    No devuelve `payload_json`: el cuerpo del evento lleva el contenido de la
+    página, y esto es una vista de operación — qué salió y qué no.
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, webhook_id, event, attempts, last_error, next_attempt_at, delivered_at "
+            "FROM webhook_deliveries WHERE webhook_id = %s ORDER BY id DESC LIMIT %s",
+            (webhook_id, limit),
+        ).fetchall()
+        return [
+            Delivery(
+                id=r["id"],
+                webhook_id=r["webhook_id"],
+                event=r["event"],
+                status=_delivery_status(r["delivered_at"], r["last_error"]),
+                attempts=r["attempts"],
+                last_error=r["last_error"],
+                next_attempt_at=r["next_attempt_at"],
+                delivered_at=r["delivered_at"],
+            )
+            for r in rows
+        ]
+
+
+def delivery_counts(workspace_id: int) -> dict[int, dict[str, int]]:
+    """Pendientes y fallidas por webhook del workspace, para marcar la lista.
+
+    Una sola consulta agregada y no una por webhook: la lista de ajustes los pinta
+    todos, y N+1 consultas para pintar dos números no se sostienen.
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT d.webhook_id,
+                   COUNT(*) FILTER (WHERE d.delivered_at IS NULL) AS pending,
+                   COUNT(*) FILTER (
+                       WHERE d.delivered_at IS NOT NULL AND d.last_error IS NOT NULL
+                   ) AS failed
+            FROM webhook_deliveries d
+            JOIN webhooks w ON w.id = d.webhook_id
+            WHERE w.workspace_id = %s
+            GROUP BY d.webhook_id
+            """,
+            (workspace_id,),
+        ).fetchall()
+        return {r["webhook_id"]: {"pending": r["pending"], "failed": r["failed"]} for r in rows}
 
 
 def mark_delivered(delivery_id: int, webhook_id: int, status: str) -> None:
@@ -1394,34 +1498,108 @@ def _fts_query(raw: str) -> str:
     return " & ".join(f"{term}:*" for term in terms)
 
 
+# ts_headline marca las coincidencias con estos dos caracteres de control, no con
+# <mark>: el fragmento sale de aquí como texto y el resaltado como posiciones, así
+# que el contenido de la página no puede volver a entrar en el DOM como HTML. Son
+# de control porque `translate()` los borra del texto de entrada antes de resaltar
+# (ver _HEADLINE_OPTS): un tramo marcado solo puede venir del resaltador.
+_MARK_OPEN = "\x01"
+_MARK_CLOSE = "\x02"
+_HEADLINE_OPTS = (
+    f"StartSel={_MARK_OPEN}, StopSel={_MARK_CLOSE}, MaxWords=12, MinWords=1, MaxFragments=1"
+)
+
+
+def _split_snippet(marked: str) -> tuple[str, list[SnippetPart]]:
+    """Parte un fragmento de ts_headline en (texto plano, tramos)."""
+    parts: list[SnippetPart] = []
+    rest = marked or ""
+    while rest:
+        before, opened, rest = rest.partition(_MARK_OPEN)
+        if before:
+            parts.append(SnippetPart(text=before, match=False))
+        if not opened:
+            break
+        hit, _, rest = rest.partition(_MARK_CLOSE)
+        if hit:
+            parts.append(SnippetPart(text=hit, match=True))
+    return "".join(part.text for part in parts), parts
+
+
 def search_pages(
     workspace_id: int,
     query: str,
     limit: int = 20,
+    tags: list[str] | None = None,
 ) -> list[SearchHit]:
+    """Búsqueda léxica del workspace, opcionalmente acotada por etiquetas.
+
+    El filtro va dentro de la consulta y no sobre el resultado: filtrar después del
+    LIMIT devolvería menos páginas de las que hay, y una que hoy queda por debajo del
+    corte tiene que poder salir cuando el filtro quita a las de encima.
+    """
     match = _fts_query(query)
     if not match:
         return []
+    # Fragmentos LiteralString por el mismo motivo que en extract_pages: así el
+    # f-string sigue siéndolo y el checker prueba que no entra nada del usuario en el
+    # SQL — sus valores viajan por %s.
+    tag_join: LiteralString = ""
+    tag_params: list = []
+    if tags:
+        tag_join = (
+            " AND EXISTS (SELECT 1 FROM page_tags t WHERE t.page_id = p.id AND t.tag = ANY(%s))"
+        )
+        tag_params = [[t.strip().lstrip("#").lower() for t in tags if t.strip()]]
     with connect() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT p.slug, p.title,
                    ts_headline(
-                       'doction', p.title || ' ' || p.content, to_tsquery('doction', %s),
-                       'StartSel=<mark>, StopSel=</mark>, MaxWords=12, MinWords=1, '
-                       'MaxFragments=1'
+                       'doction', translate(p.title || ' ' || p.content, %s, ''),
+                       to_tsquery('doction', %s), %s
                    ) AS snippet
             FROM pages p
             WHERE p.search_vector @@ to_tsquery('doction', %s) AND p.workspace_id = %s
-              AND p.deleted_at IS NULL
+              AND p.deleted_at IS NULL{tag_join}
             ORDER BY ts_rank(p.search_vector, to_tsquery('doction', %s)) DESC
             LIMIT %s
             """,
-            (match, match, workspace_id, match, limit),
+            (
+                _MARK_OPEN + _MARK_CLOSE,
+                match,
+                _HEADLINE_OPTS,
+                match,
+                workspace_id,
+                *tag_params,
+                match,
+                limit,
+            ),
         ).fetchall()
-        return [
-            SearchHit(slug=row["slug"], title=row["title"], snippet=row["snippet"]) for row in rows
-        ]
+        hits = []
+        for row in rows:
+            text, parts = _split_snippet(row["snippet"])
+            hits.append(SearchHit(slug=row["slug"], title=row["title"], snippet=text, parts=parts))
+        return hits
+
+
+def slugs_with_tags(workspace_id: int, tags: list[str]) -> set[str]:
+    """Slugs del workspace que llevan alguna de las etiquetas dadas.
+
+    La lista vectorial se filtra en memoria (ya trae el workspace entero), así que
+    necesita el conjunto permitido; la léxica lo filtra en su propio SQL.
+    """
+    wanted = [t.strip().lstrip("#").lower() for t in tags if t.strip()]
+    if not wanted:
+        return set()
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT p.slug FROM pages p "
+            "JOIN page_tags t ON t.page_id = p.id "
+            "WHERE p.workspace_id = %s AND p.deleted_at IS NULL AND t.tag = ANY(%s)",
+            (workspace_id, wanted),
+        ).fetchall()
+        return {r["slug"] for r in rows}
 
 
 def _page_tags(conn, page_id: int) -> list[str]:
@@ -1602,19 +1780,24 @@ def pages_to_embed(limit: int = 10) -> list[EmbedTarget]:
     """Páginas marcadas como sucias (embed_dirty=1) pendientes de embedding."""
     with connect() as conn:
         rows = conn.execute(
-            "SELECT id, workspace_id, content FROM pages "
+            "SELECT id, workspace_id, title, content FROM pages "
             "WHERE embed_dirty = 1 AND workspace_id IS NOT NULL AND deleted_at IS NULL "
             "ORDER BY id LIMIT %s",
             (limit,),
         ).fetchall()
         return [
-            EmbedTarget(id=r["id"], workspace_id=r["workspace_id"], content=r["content"])
+            EmbedTarget(
+                id=r["id"],
+                workspace_id=r["workspace_id"],
+                title=r["title"] or "",
+                content=r["content"],
+            )
             for r in rows
         ]
 
 
-def index_counts(workspace_id: int, model: str) -> tuple[int, int]:
-    """(páginas vivas, páginas con chunks de `model`) del workspace.
+def index_counts(workspace_id: int, model: str, chunker: str) -> tuple[int, int]:
+    """(páginas vivas, páginas con chunks del pipeline actual) del workspace.
 
     Cuenta, no trae contenido: `pages_to_embed` devuelve el markdown entero y sirve
     para alimentar al worker, no para informar de cuánto queda por indexar.
@@ -1627,13 +1810,13 @@ def index_counts(workspace_id: int, model: str) -> tuple[int, int]:
                 count(*) FILTER (
                     WHERE EXISTS (
                         SELECT 1 FROM page_chunks c
-                        WHERE c.page_id = p.id AND c.model = %s
+                        WHERE c.page_id = p.id AND c.model = %s AND c.chunker = %s
                     )
                 ) AS indexed
             FROM pages p
             WHERE p.workspace_id = %s AND p.deleted_at IS NULL
             """,
-            (model, workspace_id),
+            (model, chunker, workspace_id),
         ).fetchone()
         assert row is not None
         return int(row["total"]), int(row["indexed"])
@@ -1642,39 +1825,50 @@ def index_counts(workspace_id: int, model: str) -> tuple[int, int]:
 def store_page_chunks(
     page_id: int,
     workspace_id: int,
-    chunks: list[tuple[int, str, bytes]],
+    chunks: list[tuple[int, str, str, bytes]],
     model: str,
+    chunker: str,
 ) -> None:
-    """Reemplaza los chunks/vectores de una página y limpia embed_dirty (atómico)."""
+    """Reemplaza los chunks/vectores de una página y limpia embed_dirty (atómico).
+
+    Cada fragmento entra como `(ord, texto, ruta, vector)`.
+    """
     now = _now()
     with connect() as conn:
         conn.execute("DELETE FROM page_chunks WHERE page_id = %s", (page_id,))
         if chunks:
             conn.cursor().executemany(
                 "INSERT INTO page_chunks "
-                "(page_id, workspace_id, ord, text, vector, model, created_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                "(page_id, workspace_id, ord, text, path, vector, model, chunker, created_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 [
-                    (page_id, workspace_id, ord_, text, vec, model, now)
-                    for ord_, text, vec in chunks
+                    (page_id, workspace_id, ord_, text, path, vec, model, chunker, now)
+                    for ord_, text, path, vec in chunks
                 ],
             )
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
-def mark_stale_model_dirty(model: str) -> int:
-    """Re-encola las páginas cuyos chunks vienen de otro encoder. Devuelve cuántas."""
+def mark_stale_model_dirty(model: str, chunker: str) -> int:
+    """Re-encola las páginas cuyos chunks no vienen del pipeline actual.
+
+    Dos vectores solo son comparables si los produjo el mismo encoder *y* el mismo
+    troceador: partir una página de otra forma cambia lo que se embebe tanto como
+    cambiar el modelo. Antes esto solo miraba el encoder, así que un cambio de
+    troceador dejaba fragmentos viejos sirviéndose para siempre.
+    """
     with connect() as conn:
         row = conn.execute(
             """
             WITH stale AS (
-                SELECT DISTINCT page_id FROM page_chunks WHERE model <> %s
+                SELECT DISTINCT page_id FROM page_chunks
+                WHERE model <> %s OR chunker <> %s
             )
             UPDATE pages SET embed_dirty = 1
             WHERE id IN (SELECT page_id FROM stale)
             RETURNING id
             """,
-            (model,),
+            (model, chunker),
         ).fetchall()
         return len(row)
 
@@ -1686,28 +1880,39 @@ def clear_embed_dirty(page_id: int) -> None:
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
-def workspace_chunk_vectors(workspace_id: int, model: str) -> list[ChunkVector]:
+def workspace_chunk_vectors(workspace_id: int, model: str, chunker: str) -> list[ChunkVector]:
     """Chunks + vectores de un workspace para la búsqueda semántica (KNN en memoria).
 
-    Filtra por `model`: durante un reindexado por cambio de encoder conviven
-    vectores de dos espacios distintos, y su coseno no significa nada.
+    Filtra por `model` y por `chunker`: durante un reindexado conviven vectores de
+    dos pipelines distintos, y su coseno no significa nada.
     """
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT c.page_id, c.ord, c.text, c.vector, p.slug, p.title
+            SELECT c.page_id, c.ord, c.text, c.path, c.vector, p.slug, p.title,
+                   m.type AS page_type,
+                   COALESCE(
+                       (SELECT array_agg(t.tag ORDER BY t.id) FROM page_tags t
+                        WHERE t.page_id = p.id),
+                       ARRAY[]::text[]
+                   ) AS tags
             FROM page_chunks c
             JOIN pages p ON p.id = c.page_id
-            WHERE c.workspace_id = %s AND c.model = %s AND p.deleted_at IS NULL
+            LEFT JOIN page_meta m ON m.page_id = p.id
+            WHERE c.workspace_id = %s AND c.model = %s AND c.chunker = %s
+              AND p.deleted_at IS NULL
             """,
-            (workspace_id, model),
+            (workspace_id, model, chunker),
         ).fetchall()
         return [
             ChunkVector(
                 page_id=r["page_id"],
                 ord=r["ord"],
                 text=r["text"],
+                path=r["path"],
                 vector=bytes(r["vector"]),
+                page_type=r["page_type"],
+                tags=list(r["tags"] or []),
                 slug=r["slug"],
                 title=r["title"],
             )
@@ -1741,18 +1946,29 @@ def search_uploads(workspace_id: int, query: str, limit: int = 5) -> list[Upload
             """
             SELECT name,
                    ts_headline(
-                       'doction', text, to_tsquery('doction', %s),
-                       'StartSel=<mark>, StopSel=</mark>, MaxWords=12, MinWords=1, '
-                       'MaxFragments=1'
+                       'doction', translate(text, %s, ''),
+                       to_tsquery('doction', %s), %s
                    ) AS snippet
             FROM upload_texts
             WHERE search_vector @@ to_tsquery('doction', %s) AND workspace_id = %s
             ORDER BY ts_rank(search_vector, to_tsquery('doction', %s)) DESC
             LIMIT %s
             """,
-            (match, match, workspace_id, match, limit),
+            (
+                _MARK_OPEN + _MARK_CLOSE,
+                match,
+                _HEADLINE_OPTS,
+                match,
+                workspace_id,
+                match,
+                limit,
+            ),
         ).fetchall()
-        return [UploadHit(name=r["name"], snippet=r["snippet"]) for r in rows]
+        hits = []
+        for r in rows:
+            text, parts = _split_snippet(r["snippet"])
+            hits.append(UploadHit(name=r["name"], snippet=text, parts=parts))
+        return hits
 
 
 def get_workspace_by_id(workspace_id: int) -> Workspace | None:

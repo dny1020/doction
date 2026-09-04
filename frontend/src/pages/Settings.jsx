@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import { useI18n } from '../i18n.jsx'
+import { useDocumentTitle } from '../useDocumentTitle.js'
 
 // Ajustes por secciones: una ruta por sección, una sección en pantalla.
 //
@@ -31,6 +32,7 @@ export default function Settings() {
   // useOutletContext resuelve al proveedor más cercano: sin reenviarlo, las
   // secciones quedarían aisladas de él.
   const shellContext = useOutletContext()
+  useDocumentTitle(t('settings'), null)
 
   return (
     <div className="settings">

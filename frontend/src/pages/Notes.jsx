@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
+import { ListSkeleton } from '../components/Skeleton.jsx'
+import { useDocumentTitle } from '../useDocumentTitle.js'
+import { pagePath } from '../routes.js'
 import { useToast } from '../components/Toast.jsx'
 
 const PAGE_SIZE = 25
@@ -10,6 +13,8 @@ const PAGE_SIZE = 25
 // a propósito — el árbol no pagina y la captura rápida crece sin límite — y se
 // pagina por cursor sobre created_at.
 export default function Notes() {
+  const { ws } = useOutletContext()
+  useDocumentTitle(t('notes'), ws)
   const { t } = useI18n()
   const toast = useToast()
   const [items, setItems] = useState(null) // null = cargando
@@ -37,7 +42,7 @@ export default function Notes() {
     load()
   }, [load])
 
-  if (items === null) return <div className="placeholder">{t('loading')}</div>
+  if (items === null) return <ListSkeleton />
 
   return (
     <div className="settings">
@@ -48,7 +53,7 @@ export default function Notes() {
           <ul className="results">
             {items.map((n) => (
               <li key={n.slug}>
-                <Link to={'/p/' + n.slug}>{n.title}</Link>
+                <Link to={pagePath(ws, n.slug)}>{n.title}</Link>
                 <p className="snippet">{n.excerpt}</p>
                 <p className="muted">{n.created_at}</p>
               </li>

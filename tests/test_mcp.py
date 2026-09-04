@@ -70,6 +70,12 @@ def test_tools_list(client):
     r = _rpc(client, "tools/list")
     tools = {t["name"] for t in r.json()["result"]["tools"]}
     assert tools == {
+        # Las cinco del contrato con los agentes.
+        "search_knowledge",
+        "get_rag_context",
+        "get_workspace_tree",
+        "read_page_raw",
+        "upsert_page_section",
         "list_workspaces",
         "list_members",
         "list_pages",

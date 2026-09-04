@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api.js'
 import { useI18n } from '../../i18n.jsx'
+import { ListSkeleton } from '../../components/Skeleton.jsx'
 
 // Sistema: qué está corriendo el despliegue. Todo es de solo lectura —las banderas
 // salen del entorno del servidor—, así que se pinta como filas de datos y no como
@@ -27,7 +28,7 @@ export default function SystemSection() {
     )
   }
   if (!report) {
-    return <div className="placeholder">{t('loading')}</div>
+    return <ListSkeleton rows={6} />
   }
 
   const flag = (on) => (on ? t('enabled') : t('disabled'))
@@ -51,6 +52,15 @@ export default function SystemSection() {
         {report.pending_pages !== undefined && (
           <Fact label={t('pending_pages')} value={String(report.pending_pages)} />
         )}
+      </dl>
+
+      {/* Las constantes que ordenan cada resultado híbrido. Solo lectura, como el
+          resto: son configuración del despliegue y no una preferencia. */}
+      <h3 className="settings-group-title">{t('system_ranking')}</h3>
+      <dl className="settings-facts">
+        <Fact label={t('rrf_k')} value={String(report.rrf_k)} />
+        <Fact label={t('rrf_vector_weight')} value={String(report.rrf_vector_weight)} />
+        <Fact label={t('search_min_score')} value={String(report.search_min_score)} />
       </dl>
 
       <h3 className="settings-group-title">{t('system_server')}</h3>

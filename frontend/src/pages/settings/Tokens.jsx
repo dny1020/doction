@@ -13,6 +13,7 @@ export default function TokensSection() {
   const [name, setName] = useState('')
   const [newToken, setNewToken] = useState(null) // texto plano, mostrado una sola vez
   const [busy, setBusy] = useState(false)
+  const [revoking, setRevoking] = useState(null)
 
   function reload() {
     api
@@ -38,14 +39,18 @@ export default function TokensSection() {
   }
 
   async function onRevoke(id) {
+    if (revoking) return
     if (!(await confirm(t('confirm_revoke_token'), { confirmLabel: t('revoke'), danger: true })))
       return
+    setRevoking(id)
     try {
       await api.del('/api/tokens/' + id)
       reload()
       toast(t('msg_token_revoked'))
     } catch (e) {
       toast(e.message, 'error')
+    } finally {
+      setRevoking(null)
     }
   }
 
@@ -97,6 +102,7 @@ export default function TokensSection() {
                 className="btn btn-sm btn-danger"
                 type="button"
                 onClick={() => onRevoke(tok.id)}
+                disabled={revoking === tok.id}
               >
                 {t('revoke')}
               </button>

@@ -524,7 +524,8 @@ a { color: inherit; }
   overflow-y: auto;
   padding: 0 var(--sp-2) var(--sp-3);
 }
-.page-list ul { list-style: none; margin: 0; padding: 0; }
+.page-list ul,
+.page-list [role='tree'] { list-style: none; margin: 0; padding: 0; }
 .page-list li { margin: 1px 0; }
 .page-list a {
   display: block;
@@ -544,10 +545,41 @@ a { color: inherit; }
   color: var(--accent-press);
   font-weight: 500;
 }
-.page-list a[data-depth="1"] { padding-left: calc(var(--sp-3) + 14px); }
-.page-list a[data-depth="2"] { padding-left: calc(var(--sp-3) + 28px); }
-.page-list a[data-depth="3"] { padding-left: calc(var(--sp-3) + 42px); }
+/* El sangrado por nivel lo pone el arbol (aria-level), no data-depth: la lista
+   plana con sangrado paso a ser jerarquia plegable. Misma escala de 14px por
+   nivel que antes, para que la densidad de la barra no cambie. */
+.page-list [aria-level='2'] { padding-left: calc(var(--sp-3) + 14px); }
+.page-list [aria-level='3'] { padding-left: calc(var(--sp-3) + 28px); }
+.page-list [aria-level='4'] { padding-left: calc(var(--sp-3) + 42px); }
 .muted { color: var(--fg-3); }
+
+/* Control de plegado de cada rama. Ocupa su hueco tambien en las filas sin hijos
+   (disabled + sin icono) para que todos los titulos del mismo nivel arranquen en
+   la misma columna. */
+.page-row-twisty {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+}
+.page-row-twisty:disabled {
+  cursor: default;
+  visibility: hidden;
+}
+.page-row-twisty:hover { color: var(--fg-1); background: var(--surface-hover); }
+.page-row-twisty .lucide,
+.page-row-twisty svg {
+  transition: transform var(--dur-fast) var(--ease);
+}
+.page-row-twisty.open svg { transform: rotate(90deg); }
 
 /* === Sidebar footer ======================================================= */
 .sidebar-foot {
@@ -2123,6 +2155,16 @@ html {
   .btn {
     position: relative;
   }
+  /* El twisty es la excepcion al cuadrado de 44px, y es geometria y no descuido:
+     la fila mide 44px de alto pero el control vive en un canalon de ~24px a la
+     izquierda del titulo. Un cuadrado de 44px centrado en el se comeria el
+     principio del titulo, y entonces tocar el texto plegaria la rama en vez de
+     abrir la pagina. Se le da toda la altura de la fila y el ancho del canalon:
+     nada de solape con el enlace ni con el menu "..." del otro extremo. */
+  .page-row-twisty {
+    width: 24px;
+    height: 44px;
+  }
   .page-row-actions-btn::after,
   .sidebar-toggle::after,
   .theme-toggle::after,
@@ -2222,4 +2264,256 @@ html {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   transition: outline-color var(--dur-fast) var(--ease);
+}
+
+/* ── Bloque 3: estados de vista, conexion y entregas ──────────────────────────
+   Todo reusa los tokens del design system: nada de colores nuevos, nada de
+   tipografias nuevas. Lo que se anade es forma, no vocabulario. */
+
+/* Un error que cae fuera del shell (URL desconocida, fallo de ruta) no tiene
+   barra lateral alrededor: se centra como pagina entera en vez de quedarse
+   pegado al borde del hueco de contenido. */
+.placeholder--standalone {
+  /* `.placeholder` se limita a --measure porque dentro del shell es la columna de
+     lectura. Fuera de él no hay columna: la pagina es todo el ancho y lo que se
+     centra es su contenido. */
+  max-width: none;
+  margin-top: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  text-align: center;
+}
+
+/* Aviso dentro del editor: borrador recuperable, o servidor que no responde.
+   Va sobre el texto y no lo tapa; el editor sigue usandose por debajo. */
+.editor-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin: 0 var(--sp-4) var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+}
+.editor-notice--warn {
+  border-color: var(--accent);
+  color: var(--fg-1);
+}
+.editor-notice-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex: none;
+}
+
+/* Estado de la API y de MCP. Callado cuando todo va —no se pinta nada—, asi que
+   estas reglas solo aplican cuando algo pasa. */
+/* Abajo a la izquierda: los toasts ya viven abajo a la derecha, y el shell no
+   tiene un sitio visible en todos los anchos —.app-bar solo existe en movil—. */
+.conn {
+  position: fixed;
+  left: var(--sp-4);
+  bottom: var(--sp-4);
+  z-index: 400;
+}
+@media (max-width: 820px) {
+  /* En movil la barra lateral es un cajon y su pie llega hasta abajo del todo. */
+  .conn {
+    left: auto;
+    right: var(--sp-4);
+    bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
+  }
+}
+.conn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  color: var(--fg-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.conn-badge--down {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.conn-detail {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--sp-1));
+  z-index: 20;
+  min-width: 200px;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+}
+.conn-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 2px 0;
+  color: var(--fg-2);
+}
+
+/* Entregas de un webhook: la salud en la fila, el detalle al abrirla. */
+.token-row--stacked {
+  display: block;
+}
+.token-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.token-row-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex: none;
+}
+.hook-health--bad {
+  color: var(--danger);
+}
+.delivery-list {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+.delivery-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.delivery {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  padding: 2px 0;
+  font-size: var(--text-sm);
+  color: var(--fg-3);
+}
+.delivery-event {
+  color: var(--fg-2);
+  font-family: var(--font-mono);
+}
+.delivery--failed .delivery-status {
+  color: var(--danger);
+}
+.delivery-error {
+  flex-basis: 100%;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+/* ── Bloque 4: markdown completo ─────────────────────────────────────────────── */
+
+/* Alineacion de columnas. markdown-it la escribe como `style` en linea y el
+   saneador se lo lleva —correctamente—, asi que markdown.js la traduce a clase. */
+.prose .align-left { text-align: left; }
+.prose .align-center { text-align: center; }
+.prose .align-right { text-align: right; }
+
+/* Listas de tareas: sin vineta, la casilla alineada con la primera linea y sin
+   sangrado extra respecto a una lista normal. */
+.prose li.task-list-item { list-style: none; margin-left: -1.25em; }
+.prose li.task-list-item input[type='checkbox'] {
+  margin-right: var(--sp-2);
+  vertical-align: middle;
+  accent-color: var(--accent);
+}
+
+/* Formulas. KaTeX trae su propio CSS (vendorizado, cargado bajo demanda); esto
+   solo coloca el bloque y deja que una formula ancha haga scroll en vez de
+   ensanchar la columna de lectura. */
+.prose .math--block {
+  display: block;
+  margin: var(--sp-4) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+/* Sin estilos propios sobre .math: KaTeX pinta dentro de ese mismo nodo y trae su
+   propia tipografia. Hasta que carga se ve el origen en la fuente del texto, que
+   es un parpadeo corto y solo en las paginas que llevan formulas. */
+
+/* ── Esqueletos de carga ──────────────────────────────────────────────────────
+   Con la forma de lo que va a llegar, no con la palabra "cargando". Las medidas
+   son las reales de cada sitio: cuando llega el contenido, nada se mueve. */
+.skeleton-bar {
+  display: block;
+  height: 0.9em;
+  border-radius: var(--r-xs);
+  background: var(--surface-hover);
+  animation: skeleton-pulse 1.4s var(--ease) infinite;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-bar { animation: none; }
+}
+
+/* Arbol lateral: misma altura de fila y mismo sangrado por nivel que el arbol
+   real (14px), para que el cambio no salte. */
+.skeleton-tree { padding: 0 var(--sp-2); }
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: var(--sp-2) var(--sp-3);
+}
+.skeleton-row[data-level='1'] { padding-left: calc(var(--sp-3) + 14px); }
+.skeleton-row[data-level='2'] { padding-left: calc(var(--sp-3) + 28px); }
+.skeleton-row .skeleton-bar { width: 70%; }
+.skeleton-row:nth-child(2n) .skeleton-bar { width: 55%; }
+.skeleton-row:nth-child(3n) .skeleton-bar { width: 82%; }
+
+/* Cuerpo del documento, al ancho de la columna de lectura. */
+.skeleton-doc {
+  width: 100%;
+  max-width: var(--measure);
+  margin-top: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.skeleton-bar--title {
+  height: 1.8em;
+  width: 55%;
+  margin-bottom: var(--sp-4);
+}
+.skeleton-bar--short { width: 62%; }
+
+.skeleton-list {
+  width: 100%;
+  max-width: var(--measure);
+  margin-top: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.skeleton-list .skeleton-bar { height: 1.4em; }
+
+/* Busqueda sin resultados: el mensaje y la salida, no solo el mensaje. */
+.no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
 }

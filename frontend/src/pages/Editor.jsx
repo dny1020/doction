@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Link,
   useBlocker,
@@ -7,11 +7,15 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom'
-import { api } from '../api.js'
+import { api, withWorkspace } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 import { renderMarkdown } from '../markdown.js'
+import { enhanceProse } from '../prose.js'
+import { pagePath, wsPath } from '../routes.js'
+import { clearDraft, readDraft, writeDraft } from '../drafts.js'
+import { useDocumentTitle } from '../useDocumentTitle.js'
 
 // Editor dividido: fuente markdown a la izquierda, preview en vivo a la derecha.
 // `mode` es "new" (crear) o "edit" (editar una página existente).
@@ -21,12 +25,13 @@ export default function Editor({ mode }) {
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
   const parentSlug = searchParams.get('parent') || ''
-  const { reloadPages } = useOutletContext()
+  const { ws, reloadPages } = useOutletContext()
   const navigate = useNavigate()
   const toast = useToast()
   const confirm = useConfirm()
   const textareaRef = useRef(null)
   const formRef = useRef(null)
+  const previewRef = useRef(null)
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -34,6 +39,14 @@ export default function Editor({ mode }) {
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
+  // Un guardado fallido por red caída no es lo mismo que uno rechazado por el
+  // servidor: el primero se reintenta cuando vuelva, el segundo hay que leerlo.
+  const [offline, setOffline] = useState(false)
+  // Borrador local de una sesión anterior, ofrecido para restaurar.
+  const [draft, setDraft] = useState(null)
+  // El markdown que se está pintando en la vista previa: va por detrás de lo que
+  // se teclea, con retardo, para no re-renderizar un documento largo en cada tecla.
+  const [preview, setPreview] = useState('')
   // Solo cuenta en móvil, donde el panel partido se apila: el botón que la
   // alterna está oculto por CSS a partir de 820px.
   const [showPreview, setShowPreview] = useState(false)
@@ -61,14 +74,54 @@ export default function Editor({ mode }) {
       .then((page) => {
         setTitle(page.title)
         setContent(page.content)
+        setPreview(page.content)
         initialRef.current = { title: page.title, content: page.content }
+        const saved = readDraft(ws, slug)
+        if (saved && (saved.title !== page.title || saved.content !== page.content)) {
+          setDraft(saved)
+        }
         setLoaded(true)
       })
       .catch((e) => {
         setError(e.message)
         setLoaded(true)
       })
-  }, [isEdit, slug])
+  }, [isEdit, slug, ws])
+
+  // Una página nueva a medio escribir también deja borrador.
+  useEffect(() => {
+    if (isEdit) return
+    const saved = readDraft(ws, null)
+    if (saved && (saved.title || saved.content)) setDraft(saved)
+  }, [isEdit, ws])
+
+  // Escribir el borrador con retardo: a ritmo acotado y no en cada tecla.
+  useEffect(() => {
+    if (!loaded || savedRef.current || draft) return
+    if (title === initialRef.current.title && content === initialRef.current.content) return
+    const timer = setTimeout(() => writeDraft(ws, slug, { title, content }), 600)
+    return () => clearTimeout(timer)
+  }, [ws, slug, title, content, loaded, draft])
+
+  // La vista previa también va con retardo. Sin esto, teclear en un documento
+  // largo re-renderiza todo el markdown en cada pulsación y se nota.
+  useEffect(() => {
+    const timer = setTimeout(() => setPreview(content), 150)
+    return () => clearTimeout(timer)
+  }, [content])
+
+  const previewHtml = useMemo(() => renderMarkdown(preview), [preview])
+
+  // Editando, el título sigue al campo: renombrar una página se ve en la pestaña
+  // antes de guardar.
+  useDocumentTitle(title ? t('edit') + ': ' + title : t('new_page'), ws)
+
+  // La vista previa pasa por las mismas mejoras que la de lectura: resaltado,
+  // diagramas y fórmulas. Sin esto el editor y el lector enseñaban cosas distintas
+  // para el mismo markdown, que es justo lo que una vista previa no debe hacer.
+  useEffect(() => {
+    enhanceProse(previewRef.current)
+  }, [previewHtml])
 
   // Navegación interna con cambios sin guardar → diálogo de confirmación.
   const blocker = useBlocker(() => isDirty())
@@ -121,12 +174,27 @@ export default function Editor({ mode }) {
         targetSlug = created.slug
       }
       savedRef.current = true
+      clearDraft(ws, isEdit ? slug : null)
+      setOffline(false)
       reloadPages()
-      navigate('/p/' + targetSlug)
+      navigate(pagePath(ws, targetSlug))
     } catch (e) {
-      setError(e.message)
+      // El borrador se queda: es justo cuando hace falta.
+      setOffline(Boolean(e.offline))
+      setError(e.status === 401 ? t('session_expired') : e.offline ? t('offline_desc') : e.message)
       setBusy(false)
     }
+  }
+
+  function restoreDraft() {
+    setTitle(draft.title)
+    setContent(draft.content)
+    setDraft(null)
+  }
+
+  function discardDraft() {
+    clearDraft(ws, isEdit ? slug : null)
+    setDraft(null)
   }
 
   function insertAtCursor(text) {
@@ -151,7 +219,8 @@ export default function Editor({ mode }) {
         form.append('file', file, file.name || 'pasted.png')
         setUploading(true)
         try {
-          const res = await fetch('/api/uploads', {
+          // fetch a pelo (FormData), así que el workspace hay que ponerlo a mano.
+          const res = await fetch(withWorkspace('/api/uploads'), {
             method: 'POST',
             body: form,
             credentials: 'same-origin',
@@ -200,7 +269,7 @@ export default function Editor({ mode }) {
           >
             {showPreview ? t('write') : t('preview')}
           </button>
-          <Link className="btn" to={isEdit ? '/p/' + slug : '/'}>
+          <Link className="btn" to={isEdit ? pagePath(ws, slug) : wsPath(ws)}>
             {t('cancel')}
           </Link>
           <button className="btn btn-primary" type="submit" disabled={busy}>
@@ -208,6 +277,33 @@ export default function Editor({ mode }) {
           </button>
         </div>
       </div>
+      {draft && (
+        <div className="editor-notice">
+          <span>{t('draft_found')}</span>
+          <span className="editor-notice-actions">
+            <button className="btn btn-sm btn-primary" type="button" onClick={restoreDraft}>
+              {t('draft_restore')}
+            </button>
+            <button className="btn btn-sm" type="button" onClick={discardDraft}>
+              {t('draft_discard')}
+            </button>
+          </span>
+        </div>
+      )}
+      {offline && (
+        <div className="editor-notice editor-notice--warn">
+          <span>{t('offline_title')}</span>
+          <span className="editor-notice-actions">
+            <button
+              className="btn btn-sm"
+              type="button"
+              onClick={() => formRef.current?.requestSubmit()}
+            >
+              {t('retry')}
+            </button>
+          </span>
+        </div>
+      )}
       {error && <p className="auth-error">{error}</p>}
       <div className={'editor-split' + (showPreview ? ' editor-split--preview' : '')}>
         <textarea
@@ -220,8 +316,9 @@ export default function Editor({ mode }) {
         />
         {content ? (
           <div
+            ref={previewRef}
             className="prose preview"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
           />
         ) : (
           <div className="prose preview preview-empty">{t('preview_hint')}</div>

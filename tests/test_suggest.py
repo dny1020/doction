@@ -219,7 +219,21 @@ def test_insights_graph_sections(client):
 
 def test_insights_detects_duplicates(client):
     _register(client)
-    same = "identical content about kamailio dispatcher failover and sip routing here"
+    # Un cuerpo de tamaño realista, no una frase. El encoder de pruebas es una bolsa
+    # de palabras, así que lo que el troceador antepone —el encabezado y el
+    # identificador de página, que por definición difieren entre dos páginas— pesa
+    # tanto como el contenido cuando el contenido son doce palabras. Con el modelo
+    # real dos páginas idénticas miden 0.976 y el umbral es 0.90; con doce palabras el
+    # stub bajaba a 0.87 y el test medía su propia escala, no el comportamiento.
+    same = " ".join(
+        [
+            "identical content about kamailio dispatcher failover and sip routing here",
+            "the dispatcher module distributes calls across a set of gateways",
+            "failover happens when a destination stops answering options pings",
+            "sip routing rules live in the kamailio configuration file",
+            "load balancing uses the algorithm configured per dispatcher set",
+        ]
+    )
     a = _create(client, "Copy one", same)
     b = _create(client, "Copy two", same)
     _drain()

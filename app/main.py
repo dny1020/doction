@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.status import HTTP_303_SEE_OTHER
 
-from app import db, embeddings, git_repo, i18n, mcp, ocr, seed, suggest, webhooks
+from app import db, embeddings, git_repo, i18n, mcp, meta, ocr, seed, suggest, webhooks
 from app.auth import (
     TOKEN_PREFIX,
     generate_api_token,
@@ -166,6 +166,10 @@ def _api_user(request: Request) -> int:
 
 
 def _api_workspace(request: Request, user_id: int) -> int:
+    if getattr(request.state, "workspace_denied", False):
+        # Existir y no ser tuyo se responde igual que no existir: un 403 diría que
+        # el workspace está ahí.
+        raise HTTPException(status_code=404, detail="Workspace not found")
     ws = getattr(request.state, "workspace", None)
     if ws is None:
         ws = db.ensure_default_workspace(user_id)
@@ -223,7 +227,26 @@ def api_list_tokens(request: Request):
 def api_list_webhooks(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    return [dataclasses.asdict(w) for w in db.list_webhooks(wid)]
+    # Pendientes y fallidas van en la lista para que un webhook que no entrega se
+    # reconozca sin abrirlo: `last_status` solo cuenta el último intento y no dice
+    # si hay una cola atascada detrás.
+    counts = db.delivery_counts(wid)
+    hooks = []
+    for hook in db.list_webhooks(wid):
+        row = dataclasses.asdict(hook)
+        row.update(counts.get(hook.id, {"pending": 0, "failed": 0}))
+        hooks.append(row)
+    return hooks
+
+
+@api_router.get("/webhooks/{webhook_id}/deliveries")
+def api_webhook_deliveries(request: Request, webhook_id: int):
+    """Qué ha salido por este webhook y qué no. Solo lectura: mirar no reintenta."""
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    if not any(hook.id == webhook_id for hook in db.list_webhooks(wid)):
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    return [dataclasses.asdict(d) for d in db.list_deliveries(webhook_id)]
 
 
 @api_router.post("/webhooks", status_code=201)
@@ -590,13 +613,20 @@ def api_system(request: Request):
         "semantic_search": semantic,
         "rerank": embeddings.rerank_enabled(),
         "ocr_uploads": ocr.ocr_enabled(),
+        # Las constantes que deciden el orden de todo resultado híbrido. Van sin
+        # condición aunque la semántica esté apagada: son configuración del proceso,
+        # no un contador de índice. Dos despliegues de la misma versión pueden
+        # ordenar distinto, y sin esto ninguno de los dos podía decirlo.
+        "rrf_k": embeddings.RRF_K,
+        "rrf_vector_weight": embeddings.RRF_VECTOR_WEIGHT,
+        "search_min_score": embeddings.SEARCH_MIN_SCORE,
     }
     if semantic and db_state == "ok":
         # current_model_name() lee un atributo de clase: informar no debe cargar el
         # modelo. Los contadores solo van con la semántica activa — un 0 con la
         # función apagada no se distingue de un índice roto.
         model = embeddings.current_model_name()
-        total, indexed = db.index_counts(wid, model)
+        total, indexed = db.index_counts(wid, model, meta.CHUNKER_ID)
         report["embedding_model"] = model
         report["indexed_pages"] = indexed
         report["pending_pages"] = total - indexed
@@ -627,7 +657,13 @@ def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bo
     results = embeddings.search(wid, q, mode=mode)
     if uploads:
         results += [
-            {"type": "upload", "name": h.name, "url": f"/uploads/{h.name}", "snippet": h.snippet}
+            {
+                "type": "upload",
+                "name": h.name,
+                "url": f"/uploads/{h.name}",
+                "snippet": h.snippet,
+                "parts": h.parts,
+            }
             for h in db.search_uploads(wid, q)
         ]
     return results
@@ -950,12 +986,16 @@ async def serve_upload(request: Request, name: str) -> Response:
 app.include_router(api_router)
 app.include_router(mcp.router)
 
-# La SPA de React (carpeta frontend/) se construye en static/app/ y se sirve bajo /app.
+# La SPA de React (carpeta frontend/) se construye en static/app/ y se sirve bajo
+# APP_PATH. Por defecto /app, como siempre; `/` la monta en la raíz y cualquier otra
+# cosa la monta en esa subruta. Tiene que coincidir con el `base` con el que se
+# construyó el bundle (DOCTION_APP_PATH en vite.config.js): el HTML pide sus assets
+# por ruta absoluta, así que un bundle construido para /app servido en /wiki no
+# encuentra su propio JavaScript.
+APP_PATH = "/" + os.getenv("DOCTION_APP_PATH", "/app").strip("/")
 SPA_DIR = BASE_DIR / "static" / "app"
 
 
-@app.get("/app")
-@app.get("/app/{full_path:path}")
 async def serve_spa(full_path: str = "") -> Response:
     """Sirve la SPA de React.
 
@@ -1082,20 +1122,20 @@ async def health() -> Response:
     return JSONResponse({"status": "ok", "db": "ok", "version": version})
 
 
-@app.get("/")
-async def home() -> Response:
-    """El frontend es la SPA de React, servida en /app."""
-    return RedirectResponse("/app/", status_code=HTTP_303_SEE_OTHER)
+if APP_PATH != "/":
+    # Con la SPA en una subruta, la raíz y los atajos de siempre llevan a ella.
+    @app.get("/")
+    async def home() -> Response:
+        """El frontend es la SPA de React, servida en APP_PATH."""
+        return RedirectResponse(APP_PATH + "/", status_code=HTTP_303_SEE_OTHER)
 
+    @app.get("/login")
+    async def login_redirect() -> Response:
+        return RedirectResponse(APP_PATH + "/login", status_code=HTTP_303_SEE_OTHER)
 
-@app.get("/login")
-async def login_redirect() -> Response:
-    return RedirectResponse("/app/login", status_code=HTTP_303_SEE_OTHER)
-
-
-@app.get("/register")
-async def register_redirect() -> Response:
-    return RedirectResponse("/app/register", status_code=HTTP_303_SEE_OTHER)
+    @app.get("/register")
+    async def register_redirect() -> Response:
+        return RedirectResponse(APP_PATH + "/register", status_code=HTTP_303_SEE_OTHER)
 
 
 # Tareas de OCR en vuelo: referencia fuerte para que el GC no las cancele a medias.
@@ -1169,6 +1209,7 @@ async def attach_user(request: Request, call_next):
     request.state.user_avatar_color = None
     request.state.workspaces = []
     request.state.workspace = None
+    request.state.workspace_denied = False
     request.state.lang = i18n.resolve_lang(
         request.cookies.get("lang"), request.headers.get("accept-language")
     )
@@ -1211,14 +1252,24 @@ async def attach_user(request: Request, call_next):
                 workspaces = db.list_workspaces(user_id)
             request.state.workspaces = workspaces
 
-            requested_slug = request.query_params.get("ws") or request.cookies.get("workspace")
+            # ?ws= lo manda quien sabe qué workspace quiere —la SPA lo saca de la
+            # URL—; la cookie es solo memoria de la última visita. Por eso un ?ws=
+            # que no resuelve es un error y una cookie que no resuelve no lo es:
+            # caer en otro workspace haría que un enlace compartido enseñara la
+            # página equivocada, que es justo lo que este esquema viene a arreglar.
+            requested_slug = (request.query_params.get("ws") or "").strip()
+            explicit = bool(requested_slug)
+            if not requested_slug:
+                requested_slug = request.cookies.get("workspace") or ""
+
             workspace = None
             if requested_slug:
                 for ws in workspaces:
                     if ws.slug == requested_slug:
                         workspace = ws
                         break
-            if workspace is None and workspaces:
+            request.state.workspace_denied = explicit and workspace is None
+            if workspace is None and workspaces and not request.state.workspace_denied:
                 workspace = workspaces[0]
             request.state.workspace = workspace
 
@@ -1237,3 +1288,15 @@ async def attach_user(request: Request, call_next):
         )
 
     return response
+
+
+# El catch-all de la SPA se registra el último a propósito. Starlette resuelve por
+# orden de registro, así que montada en la raíz (`DOCTION_APP_PATH=/`) su
+# `/{full_path:path}` se tragaría /api, /health, /uploads y /static si se hubiera
+# registrado donde está definida.
+if APP_PATH == "/":
+    app.get("/")(serve_spa)
+    app.get("/{full_path:path}")(serve_spa)
+else:
+    app.get(APP_PATH)(serve_spa)
+    app.get(APP_PATH + "/{full_path:path}")(serve_spa)

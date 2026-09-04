@@ -103,7 +103,9 @@ def suggest_links(workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
 
     if embeddings.semantic_enabled():
         entries, mat = _page_vectors(
-            db.workspace_chunk_vectors(workspace_id, embeddings.current_model_name())
+            db.workspace_chunk_vectors(
+                workspace_id, embeddings.current_model_name(), meta.CHUNKER_ID
+            )
         )
         pos = next((i for i, (pid, _, _) in enumerate(entries) if pid == page.id), None)
         if pos is not None and len(entries) > 1:
@@ -139,7 +141,7 @@ def find_duplicates(workspace_id: int, *, threshold: float = DUP_THRESHOLD, k: i
     if not embeddings.semantic_enabled():
         return {"mode": "off", "pairs": []}
     entries, mat = _page_vectors(
-        db.workspace_chunk_vectors(workspace_id, embeddings.current_model_name())
+        db.workspace_chunk_vectors(workspace_id, embeddings.current_model_name(), meta.CHUNKER_ID)
     )
     if len(entries) < 2:
         return {"mode": "semantic", "pairs": []}
@@ -251,7 +253,7 @@ def _topic_clusters(workspace_id: int, *, max_clusters: int = 5) -> dict:
     """Agrupa las páginas por tema (k-means sobre vectores) y etiqueta cada grupo
     con sus términos TF-IDF más característicos."""
     entries, mat = _page_vectors(
-        db.workspace_chunk_vectors(workspace_id, embeddings.current_model_name())
+        db.workspace_chunk_vectors(workspace_id, embeddings.current_model_name(), meta.CHUNKER_ID)
     )
     if len(entries) < MIN_CLUSTER_PAGES:
         return {"mode": "semantic", "groups": []}
