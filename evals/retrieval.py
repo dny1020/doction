@@ -294,6 +294,21 @@ def main() -> None:
             per_query[label] = detail
         os.environ.pop("RERANK", None)
 
+        # `rag` mide el contexto ensamblado, que es lo que recibe un agente. Las filas
+        # `semantic` y `hybrid` miden `embeddings.search`, así que un cambio dentro de
+        # `rag_context` no las mueve: sin esta fila el efecto sería invisible.
+        runs, sections = [], []
+        for q in queries:
+            start = time.perf_counter()
+            out = embeddings.rag_context(workspace_id, q["query"])
+            elapsed = (time.perf_counter() - start) * 1000
+            chunks = out["chunks"]
+            rank = _rank_of([c["slug"] for c in chunks], q["expect"])
+            runs.append((rank, elapsed, len(chunks)))
+            found = next((c for c in chunks if c["slug"] in q["expect"]), None)
+            sections.append((q.get("expected_heading"), found.get("section") if found else None))
+        table["rag"] = {**_score(runs), **_section_recall(sections)}
+
         filters = _filter_cases(embeddings, workspace_id)
         if filters:
             table["hybrid+tags"] = filters

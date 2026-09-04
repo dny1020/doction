@@ -22,7 +22,7 @@ from typing import cast
 import numpy as np
 
 from app import db, meta
-from app.models import SnippetPart
+from app.models import ChunkVector, SnippetPart
 
 logger = logging.getLogger(__name__)
 
@@ -718,6 +718,82 @@ def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> l
     return candidates
 
 
+def _section_candidates(workspace_id: int, query: str, workspace: str, pool: int) -> list[dict]:
+    """Fragmentos candidatos: las páginas las elige la fusión, la sección el coseno.
+
+    Antes esto ordenaba fragmentos por coseno a secas, así que el contexto que recibía
+    un agente heredaba el ranking de páginas del canal vectorial puro — el más débil
+    desde que el título de la página salió del embedding. La fusión sí tiene la señal
+    léxica de los títulos, y es la misma que ya sirve la barra lateral y MCP.
+
+    Dentro de cada página manda el coseno con el desempate por encabezado, que es donde
+    ese criterio es bueno: elegir *qué sección* responde.
+
+    Se recorre por rondas —la mejor sección de cada página, luego la segunda de cada
+    una— para que el presupuesto se reparta primero a lo ancho. Un agente que junta
+    contexto quiere una sección de cada página relevante antes que cinco de la primera.
+    """
+    rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
+    if not rows:
+        return []
+
+    # El trabajo vectorial se hace una vez y se reutiliza para las dos decisiones.
+    # Llamar a `_hybrid` aquí habría cargado los vectores y codificado la consulta por
+    # segunda vez: medido, 187 ms de mediana contra los 12 del canal vectorial solo.
+    qvec = get_embedder().encode([query])[0]
+    mat = np.stack([_from_blob(r.vector) for r in rows])
+    scores = mat @ qvec
+    terms = {word for word in _words(query) if len(word) > 2}
+
+    by_page: dict[str, list[tuple[float, float, ChunkVector]]] = {}
+    top: dict[str, float] = {}
+    for i, row in enumerate(rows):
+        score = float(scores[i])
+        pick = score + HEADING_MATCH_BOOST * _heading_match(terms, row.path)
+        by_page.setdefault(row.slug, []).append((pick, score, row))
+        top[row.slug] = max(top.get(row.slug, score), score)
+    for chunks in by_page.values():
+        chunks.sort(key=lambda item: -item[0])
+
+    # Las páginas se ordenan por la misma fusión que sirve la interfaz y MCP: la mitad
+    # léxica trae la señal de los títulos, que es justo la que el canal vectorial perdió
+    # al salir el título del embedding.
+    vector_order = sorted(top, key=lambda slug: (-top[slug], slug))
+    lexical_order = [hit.slug for hit in db.search_pages(workspace_id, query)]
+    fused = _rrf([(1.0, lexical_order), (RRF_VECTOR_WEIGHT, vector_order)])
+    if not fused:
+        return []
+    order = {slug: i for i, slug in enumerate(sorted(fused, key=lambda s: (-fused[s], s)))}
+
+    # `pool` acota los candidatos, no las páginas: la deduplicación compara cada
+    # candidato con los ya elegidos, así que una lista larga se paga al cuadrado.
+    # Con el recorrido por rondas, los primeros `pool` son la mejor sección de las
+    # `pool` páginas mejor colocadas, que es justo lo que se quiere.
+    pages = sorted((s for s in by_page if s in order), key=lambda slug: order[slug])
+    candidates: list[dict] = []
+    for round_ in range(max(len(by_page[slug]) for slug in pages)):
+        for slug in pages:
+            if round_ >= len(by_page[slug]):
+                continue
+            _, score, row = by_page[slug][round_]
+            if len(candidates) >= pool:
+                return candidates
+            candidates.append(
+                {
+                    "slug": row.slug,
+                    "title": row.title,
+                    "ord": int(row.ord),
+                    "score": round(score, 4),
+                    "path": _context_path(workspace, row.title, row.path),
+                    "section": row.path,
+                    "page_type": row.page_type,
+                    "tags": row.tags,
+                    "text": row.text,
+                }
+            )
+    return candidates
+
+
 def rag_context(
     workspace_id: int,
     query: str,
@@ -750,35 +826,9 @@ def rag_context(
     candidates: list[dict] = []
     mode = "fts"
     if semantic_enabled():
-        rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
-        if rows:
+        candidates = _section_candidates(workspace_id, query, workspace, pool)
+        if candidates:
             mode = "semantic"
-            qvec = get_embedder().encode([query])[0]
-            mat = np.stack([_from_blob(r.vector) for r in rows])
-            scores = mat @ qvec
-            terms = {word for word in _words(query) if len(word) > 2}
-            picks = np.array(
-                [
-                    scores[i] + HEADING_MATCH_BOOST * _heading_match(terms, rows[i].path)
-                    for i in range(len(rows))
-                ]
-            )
-            candidates = [
-                {
-                    "slug": rows[i].slug,
-                    "title": rows[i].title,
-                    "ord": int(rows[i].ord),
-                    "score": round(float(scores[i]), 4),
-                    "path": _context_path(workspace, rows[i].title, rows[i].path),
-                    "section": rows[i].path,
-                    "page_type": rows[i].page_type,
-                    "tags": rows[i].tags,
-                    "text": rows[i].text,
-                }
-                # Ordenado con el impulso de encabezado: aquí lo que se elige *es*
-                # la sección, así que es justo donde ese criterio manda.
-                for i in np.argsort(-picks)[:pool]
-            ]
 
     if mode == "fts":
         candidates = _fts_context(workspace_id, query, workspace, pool)

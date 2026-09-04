@@ -51,6 +51,42 @@
       this is the case the mechanism exists for. Verify search keeps working mid-reindex and that a
       converged deployment re-queues nothing.
 
+### Where the change landed after the rag_context refactor
+
+`rag_context` now selects pages through the fused ordering and sections by cosine with the heading
+tiebreak. The harness gained a `rag` row, because `semantic` and `hybrid` measure
+`embeddings.search` and no change inside `rag_context` can move them — without the row the effect
+would be invisible.
+
+| | recall@1 | MRR | section | p50 |
+|---|---|---|---|---|
+| semantic | 0.71 → 0.64 | 0.77 → 0.73 | 0.38 → **0.75** | 14 → 17 ms |
+| hybrid | 0.68 → **0.68** | 0.75 → **0.75** | 0.38 → **0.75** | 17 → 20 ms |
+| hybrid+tags | 1.00 → 0.60 | 1.00 → 0.75 | — | 22 → 25 ms |
+| **rag** (new row) | **0.68** | **0.77** | **0.75** | 60 ms |
+
+**What recovered.** Assembled context — the thing an agent actually receives — now matches hybrid
+on page recall, beats every other row on MRR at 0.77, misses one query out of 28 where the vector
+channel missed four, and keeps section recall at 0.75. That was the point of the option.
+
+**What did not, and cannot from here.** `semantic` and `hybrid+tags` are unmoved, because they
+measure `embeddings.search`. Nothing in this refactor touches that path. Two consequences remain
+open and are not fixed by this change:
+
+- `search(mode="semantic")` is now the weaker mode: 0.64 against hybrid's 0.68. It is an
+  explicitly-named API mode a caller opts into, and no doction surface uses it — the sidebar, the
+  REST default and every MCP tool use hybrid or `rag`.
+- `hybrid+tags` at 0.60 is the real open regression. Filtering to one dump leaves the lexical half
+  with fewer hits to carry the fused order, so the weakened vector channel shows through. It is
+  measured by the filter cases and not addressed here.
+
+**Latency.** The first version of the refactor called `_hybrid`, which loaded the vectors and
+encoded the query a second time: 187 ms. Doing the vector work once and fusing inline took it to
+60 ms. A second pass was needed after that, because bounding `pool` by pages rather than by
+candidates left ~150 fragments for a deduplication that compares each against every kept one — 418
+ms. Bounded by candidates, 60 ms. Three times hybrid's cost, for a call that assembles context
+rather than ranking a keystroke.
+
 ### Where fases 1 and 2 landed
 
 Measured against `2026-09-04-003-final.json`, 43 pages, 28 queries:
