@@ -32,6 +32,16 @@ MAX_TOKENS = 256
 # (Cormack et al., 2009) y el que usa prácticamente todo el mundo. Lo que hace es
 # aplanar la curva: sin ella el primero valdría el doble que el segundo, y con ella
 # la diferencia entre los primeros puestos es pequeña y la cola sigue contando algo.
+# Impulso por coincidencia con el encabezado, para elegir *qué sección* de una página
+# se devuelve. Dos consultas del conjunto fallaban con cualquier empaquetado —«where
+# are the secrets stored» y «how do I update a docker image»— y las dos tienen la misma
+# forma: el encabezado que responde solapa con la consulta y su cuerpo no.
+#
+# Solo desempata dentro de una página. El orden de las páginas se calcula aparte, con
+# el coseno a secas, así que este término no entra nunca en la fusión ni compara dos
+# escalas distintas: cambia qué sección sale, no qué página gana.
+HEADING_MATCH_BOOST = 0.15
+
 RRF_K = 60
 # Peso de la lista vectorial dentro de la fusión. La RRF clásica no lleva pesos y sin
 # ellos la fusión sale peor que la semántica sola: las dos listas no valen lo mismo
@@ -250,19 +260,27 @@ def _from_blob(blob: bytes) -> np.ndarray:
 
 
 def _embed_text(title: str, chunk) -> str:
-    """Lo que se embebe: la ruta del fragmento y luego su cuerpo.
+    """Lo que se embebe: el encabezado inmediato de la sección y luego su cuerpo.
 
-    La ruta va dentro del embedding y no solo en una columna al lado. Una sección
-    titulada «Renovación» solo significa algo junto a la página en la que vive, y un
-    encoder que nunca ve el título de la página no puede situarla: dos secciones
-    redactadas igual en páginas distintas producirían el mismo vector.
+    Antes iba delante la ruta entera —título de la página más toda la cadena de
+    ancestros— y eso resultó ser el motivo de que el recall de sección fuera 0.38.
+    Ese prefijo lo comparten todas las secciones de una página, así que no dice nada
+    sobre cuál de ellas responde: medido sobre el corpus real, dejaba a dos hermanas a
+    0.685 de coseno de media y a un par en 0.943. Dos secciones que contestan preguntas
+    distintas eran casi el mismo vector.
 
-    El workspace no entra: la recuperación filtra por workspace, así que nunca
-    desempata nada dentro de una búsqueda. La ruta completa que ve un agente se
-    compone al leer, donde el nombre del workspace ya se conoce.
+    Quitarlo entero tampoco vale, y eso lo dijo el control del experimento: sin
+    encabezado la similitud entre hermanas baja más todavía y el recall no mejora,
+    porque se va la señal con el ruido. Lo que se quita es lo que las hermanas
+    comparten; lo que se queda es lo único que las distingue.
+
+    El título de la página se cae del embedding y sigue guardado en `path`, que es lo
+    que se devuelve. Que dos secciones idénticas de páginas distintas no colisionen —la
+    razón por la que el título entró aquí en su día— pasa a ser una propiedad medida y
+    no una consecuencia del formato: ver `test_chunking_properties`.
     """
-    path = " > ".join([title, *chunk.headings]) if title else " > ".join(chunk.headings)
-    return f"{path}\n\n{chunk.text}" if path else chunk.text
+    heading = chunk.headings[-1] if chunk.headings else title
+    return f"# {heading}\n\n{chunk.text}" if heading else chunk.text
 
 
 def reindex_page(page_id: int, workspace_id: int, title: str, content: str) -> int:
@@ -361,11 +379,20 @@ def semantic_search(
     mat = np.stack([_from_blob(r.vector) for r in rows])
     scores = mat @ qvec  # coseno (todo normalizado)
 
+    terms = {word for word in _words(query) if len(word) > 2}
+
     best: dict[int, dict] = {}
     for idx, row in enumerate(rows):
         pid = int(row.page_id)
         score = float(scores[idx])
-        if pid not in best or score > best[pid]["score"]:
+        # Dos criterios a propósito. `score` es el coseno puro y es lo que ordena las
+        # páginas: meter aquí el impulso movería el ranking de páginas, que no es lo
+        # que falla. `pick` solo decide cuál de las secciones de esta página la
+        # representa, y ahí el encabezado sí cuenta.
+        pick = score + HEADING_MATCH_BOOST * _heading_match(terms, row.path)
+        previous = best.get(pid)
+        top = max(score, previous["score"]) if previous else score
+        if previous is None or pick > previous["_pick"]:
             best[pid] = {
                 "slug": row.slug,
                 "title": row.title,
@@ -376,10 +403,16 @@ def semantic_search(
                 "section": row.path,
                 "page_type": row.page_type,
                 "tags": row.tags,
+                "_pick": pick,
             }
+        # La página puntúa siempre con su mejor coseno, mire a qué sección mire. Se
+        # arrastra aparte porque al cambiar de sección representativa se reconstruye el
+        # diccionario, y con él se perdía el máximo anterior.
+        best[pid]["score"] = top
 
     results = list(best.values())
     for r in results:
+        r.pop("_pick", None)
         r["via"] = "semantic"
 
     # Desempate por slug: dos coseno idénticos ordenados por el orden de llegada de
@@ -564,6 +597,18 @@ def _words(text: str) -> set[str]:
     return set(re.findall(r"[\w]+", _fold(text), flags=re.UNICODE))
 
 
+def _heading_match(terms: set[str], path: str) -> float:
+    """Qué proporción de los términos de la consulta aparece en el encabezado.
+
+    Suave y no binaria: media consulta en el encabezado vale la mitad. Sobre la ruta
+    entera de encabezados, porque un ancestro también sitúa —«Copiar la llave pública»
+    encima de «Método A» es parte de lo que hace a esa sección la que responde.
+    """
+    if not terms or not path:
+        return 0.0
+    return len(terms & _words(path)) / len(terms)
+
+
 def _says_the_same(first: dict, second: dict) -> bool:
     """¿Estos dos fragmentos repiten el mismo pasaje?
 
@@ -711,6 +756,13 @@ def rag_context(
             qvec = get_embedder().encode([query])[0]
             mat = np.stack([_from_blob(r.vector) for r in rows])
             scores = mat @ qvec
+            terms = {word for word in _words(query) if len(word) > 2}
+            picks = np.array(
+                [
+                    scores[i] + HEADING_MATCH_BOOST * _heading_match(terms, rows[i].path)
+                    for i in range(len(rows))
+                ]
+            )
             candidates = [
                 {
                     "slug": rows[i].slug,
@@ -723,7 +775,9 @@ def rag_context(
                     "tags": rows[i].tags,
                     "text": rows[i].text,
                 }
-                for i in np.argsort(-scores)[:pool]
+                # Ordenado con el impulso de encabezado: aquí lo que se elige *es*
+                # la sección, así que es justo donde ese criterio manda.
+                for i in np.argsort(-picks)[:pool]
             ]
 
     if mode == "fts":

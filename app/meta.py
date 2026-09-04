@@ -122,7 +122,7 @@ def page_type(content: str) -> str | None:
 # dos formas de partir una página producen fragmentos distintos, así que compararlos
 # por coseno significa tan poco como mezclar dos encoders. Cambiar el algoritmo
 # obliga a subir esto, y eso es lo que dispara el reindexado.
-CHUNKER_ID = "markdown-header-v1"
+CHUNKER_ID = "section-heading-v1"
 
 # Vallas de código. Se cierran con la misma marca con la que abren.
 _FENCES = ("```", "~~~")

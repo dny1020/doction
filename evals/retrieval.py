@@ -322,7 +322,11 @@ def main() -> None:
         print("\npor clase (MRR):")
         classes = sorted({q["class"] for q in queries})
         print(f"{'config':<18}" + "".join(f"{c:>8}" for c in classes))
-        for label in table:
+        # Solo las filas del conjunto principal: `hybrid+tags` puntúa otras consultas
+        # y no tiene detalle por clase. Sin este filtro reventaba con un KeyError
+        # después de imprimir la tabla y antes de escribir el JSON, así que la corrida
+        # se veía bien en pantalla y no dejaba resultado.
+        for label in per_query:
             row = f"{label:<18}"
             for cls in classes:
                 members = [q for q in queries if q["class"] == cls]
