@@ -106,7 +106,9 @@
   /* Tinta. Tres niveles, todos legibles: el terciario de antes (#8C887F) medía
      3.4:1 y se usaba para texto, no solo para adorno. */
   --fg-1: #1A1B18;  /* 16.42:1 sobre el lienzo */
-  --fg-2: #2E302B;  /* 12.67:1 */
+  /* Secundario. Estaba en 12.67:1 y apenas se distinguía del principal, así que
+     el nivel no servía de nada: si dos tintas se ven igual, hay una tinta. */
+  --fg-2: #4A4D45;  /*  8.17:1 */
   --fg-3: #5A5D55;  /*  6.37:1 */
   --fg-on-accent: #FAF9F5;
 
@@ -128,6 +130,15 @@
   /* Estado. Peligro tiene tono propio: destruir no es enfatizar. */
   --danger:      #A03328;  /* 6.65:1 */
   --danger-soft: #F6E3E0;
+
+  /* Sintaxis. Antes eran seis hex sueltos que no se movían con el tema y venían
+     de otra paleta. Todos medidos contra el fondo del bloque de código. */
+  --syn-keyword:  #6B4FA0;  /* 5.52:1 */
+  --syn-string:   #376944;  /* 5.50:1 */
+  --syn-number:   #8A5A22;  /* 5.04:1 */
+  --syn-title:    #1B4FA0;  /* 6.72:1 */
+  --syn-variable: #A03328;  /* 5.99:1 */
+  --syn-comment:  #5A5D55;  /* 5.74:1 */
 
   /* Radii */
   --r-xs:   4px;
@@ -193,7 +204,7 @@
   --surface-hover:  #262620;
 
   --fg-1: #EDEAE2;  /* 15.07:1 sobre el lienzo */
-  --fg-2: #CBC7BD;  /* 10.74:1 */
+  --fg-2: #ABA79D;  /*  7.55:1 */
   --fg-3: #9A968C;  /*  6.14:1 */
   --fg-on-accent: #161614;
 
@@ -210,6 +221,13 @@
 
   --danger:      #E08578;  /* 6.73:1 */
   --danger-soft: #341C18;
+
+  --syn-keyword:  #C2A8E8;  /* 8.36:1 */
+  --syn-string:   #8FC79E;  /* 9.00:1 */
+  --syn-number:   #D9A566;  /* 7.91:1 */
+  --syn-title:    #8AB0E8;  /* 7.85:1 */
+  --syn-variable: #E08578;  /* 6.47:1 */
+  --syn-comment:  #9A968C;  /* 5.91:1 */
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.22);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22);
@@ -386,7 +404,7 @@ a { color: inherit; }
   width: 100%;
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   color: var(--fg-1);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
@@ -725,7 +743,8 @@ a { color: inherit; }
 }
 
 /* === Theme toggle ========================================================= */
-.theme-toggle {
+.theme-toggle,
+.lang-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -739,8 +758,10 @@ a { color: inherit; }
   padding: 0;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.theme-toggle:hover { background: var(--surface-hover); color: var(--fg-1); border-color: var(--border-strong); }
-.theme-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+.theme-toggle:hover,
+.lang-toggle:hover { background: var(--surface-hover); color: var(--fg-1); border-color: var(--border-strong); }
+.theme-toggle:focus-visible,
+.lang-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
 
 .theme-icon-sun { display: none; }
 [data-theme="dark"] .theme-icon-moon { display: none; }
@@ -1284,15 +1305,15 @@ a { color: inherit; }
 
 /* highlight.js — tema propio sobre la paleta de la app (sirve en claro y oscuro). */
 .hljs { color: var(--fg-1); background: transparent; }
-.hljs-comment, .hljs-quote { color: var(--fg-3); font-style: italic; }
-.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section { color: #8b5fc0; }
-.hljs-string, .hljs-attr, .hljs-meta .hljs-string { color: #4aab6e; }
-.hljs-number, .hljs-symbol, .hljs-bullet { color: #c0914a; }
-.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-title.class_ { color: #4a7fc0; }
-.hljs-variable, .hljs-template-variable, .hljs-attribute { color: #c0604a; }
+.hljs-comment, .hljs-quote { color: var(--syn-comment); }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section { color: var(--syn-keyword); }
+.hljs-string, .hljs-attr, .hljs-meta .hljs-string { color: var(--syn-string); }
+.hljs-number, .hljs-symbol, .hljs-bullet { color: var(--syn-number); }
+.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-title.class_ { color: var(--syn-title); }
+.hljs-variable, .hljs-template-variable, .hljs-attribute { color: var(--syn-variable); }
 .hljs-meta, .hljs-tag { color: var(--fg-3); }
 .hljs-deletion { color: var(--danger); }
-.hljs-addition { color: #4aab6e; }
+.hljs-addition { color: var(--syn-string); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 600; }
 .hljs-link { color: var(--accent); }
@@ -1726,7 +1747,7 @@ kbd {
 .settings-input {
   width: 100%;
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   background: var(--surface);
   color: var(--fg-1);
   font-family: var(--font-sans);
@@ -2138,7 +2159,7 @@ html {
   width: 100%;
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   color: var(--fg-1);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
@@ -2247,6 +2268,7 @@ html {
   .page-row-actions-btn,
   .sidebar-toggle,
   .theme-toggle,
+  .lang-toggle,
   .search-clear,
   .btn {
     position: relative;
@@ -2264,6 +2286,7 @@ html {
   .page-row-actions-btn::after,
   .sidebar-toggle::after,
   .theme-toggle::after,
+  .lang-toggle::after,
   .search-clear::after,
   .btn::after {
     content: '';
@@ -2335,6 +2358,7 @@ html {
 .inbox-link,
 .sidebar-toggle,
 .theme-toggle,
+.lang-toggle,
 .avatar,
 .ws-trigger,
 .page-row-actions-btn {
@@ -2349,6 +2373,7 @@ html {
 .inbox-link:active,
 .sidebar-toggle:active,
 .theme-toggle:active,
+.lang-toggle:active,
 .avatar:active,
 .ws-trigger:active,
 .page-row-actions-btn:active {

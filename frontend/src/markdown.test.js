@@ -129,3 +129,23 @@ describe('GFM: lo que faltaba', () => {
     expect(html).not.toContain('class="math"')
   })
 })
+
+describe('frontmatter', () => {
+  it('no se pinta como encabezado', () => {
+    const html = renderMarkdown('---\ntype: runbook\nowner: sre\n---\n\nEl cuerpo.')
+    expect(html).not.toContain('type: runbook')
+    expect(html).not.toContain('<h2>')
+    expect(html).toContain('El cuerpo.')
+  })
+
+  it('solo se recorta al principio', () => {
+    const html = renderMarkdown('Texto.\n\n---\n\nMás texto.')
+    expect(html).toContain('Texto.')
+    expect(html).toContain('Más texto.')
+    expect(html).toContain('<hr>')
+  })
+
+  it('un documento sin frontmatter no cambia', () => {
+    expect(renderMarkdown('# Hola\n\nQué tal.')).toContain('<h1>Hola</h1>')
+  })
+})

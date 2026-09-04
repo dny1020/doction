@@ -33,6 +33,39 @@ function loadScript(src) {
   return loaded[src]
 }
 
+function token(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+// Las variables de Mermaid, sacadas de los tokens del design system. Solo se
+// nombran las que el motor usa para nodos, aristas y etiquetas; el resto las deriva
+// él a partir de estas.
+function mermaidPalette() {
+  const ink = token('--fg-1')
+  const line = token('--border-strong')
+  return {
+    background: token('--bg'),
+    primaryColor: token('--accent-soft'),
+    primaryTextColor: ink,
+    primaryBorderColor: token('--accent'),
+    secondaryColor: token('--surface-sunken'),
+    secondaryTextColor: ink,
+    secondaryBorderColor: line,
+    tertiaryColor: token('--surface'),
+    tertiaryTextColor: ink,
+    tertiaryBorderColor: line,
+    lineColor: line,
+    textColor: ink,
+    mainBkg: token('--accent-soft'),
+    nodeBorder: token('--accent'),
+    nodeTextColor: ink,
+    edgeLabelBackground: token('--bg'),
+    clusterBkg: token('--surface-sunken'),
+    clusterBorder: token('--border'),
+    titleColor: ink,
+  }
+}
+
 // Convierte los bloques ```mermaid en <div class="mermaid"> y los renderiza.
 function renderMermaid(root) {
   const blocks = root.querySelectorAll('pre > code.language-mermaid')
@@ -46,10 +79,16 @@ function renderMermaid(root) {
   loadScript('/static/vendor/mermaid.min.js')
     .then(() => {
       if (typeof mermaid === 'undefined') return
-      const dark = document.documentElement.getAttribute('data-theme') === 'dark'
       mermaid.initialize({
         startOnLoad: false,
-        theme: dark ? 'dark' : 'default',
+        // `base` más variables propias en lugar de `default`/`dark`: los temas de
+        // Mermaid traen su lavanda y su gris azulado, que sobre papel cálido se ven
+        // como una captura pegada de otra aplicación. Los valores salen de los
+        // mismos tokens que pinta el resto de la interfaz, así que el diagrama
+        // cambia con el tema sin que aquí haya un solo color escrito.
+        theme: 'base',
+        themeVariables: mermaidPalette(),
+        fontFamily: token('--font-sans'),
         securityLevel: 'strict',
       })
       mermaid.run({ nodes: root.querySelectorAll('.mermaid') })

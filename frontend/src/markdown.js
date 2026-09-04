@@ -171,8 +171,22 @@ function tableAlignPlugin(instance) {
 }
 md.use(tableAlignPlugin)
 
+// Un bloque de frontmatter al principio del documento no es prosa: es metadato de
+// la página. Y markdown-it no lo sabe — para él `type: runbook` seguido de `---` es
+// un encabezado setext, así que la vista de lectura enseñaba «type: runbook owner:
+// sre» como si fuera un título de sección.
+//
+// Se recorta antes de renderizar y no en el servidor: la API devuelve el markdown
+// tal cual está guardado, que es lo que el editor edita y lo que `read_page_raw`
+// promete a un agente. El frontmatter sigue ahí; lo que cambia es que no se pinta.
+const FRONTMATTER = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/
+
+function stripFrontmatter(text) {
+  return text.replace(FRONTMATTER, '')
+}
+
 export function renderMarkdown(text) {
-  return DOMPurify.sanitize(md.render(text || ''), {
+  return DOMPurify.sanitize(md.render(stripFrontmatter(text || '')), {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
     ALLOWED_URI_REGEXP: ALLOWED_URI,
