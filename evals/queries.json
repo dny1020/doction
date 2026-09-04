@@ -33,7 +33,8 @@
     "query": "arbol de decision",
     "expect": [
       "rpi-troubleshooting"
-    ]
+    ],
+    "expected_heading": "Árbol de decisión rápida"
   },
   {
     "class": "A",
@@ -41,7 +42,8 @@
     "expect": [
       "rpi-troubleshooting-contenedor-caido-o-en-error"
     ],
-    "note": "dirección inversa: consulta acentuada contra contenido sin acento"
+    "note": "dirección inversa: consulta acentuada contra contenido sin acento",
+    "expected_heading": "Diagnostico rapido"
   },
   {
     "class": "A",
@@ -49,7 +51,8 @@
     "expect": [
       "rpi-operaciones-actualizar-imagenes-docker"
     ],
-    "note": "dirección inversa"
+    "note": "dirección inversa",
+    "expected_heading": "Actualizar un servicio especifico"
   },
   {
     "class": "B",
@@ -64,7 +67,8 @@
     "query": "donde guardo las contraseñas del servidor",
     "expect": [
       "rpi-operaciones-gestion-de-secretos"
-    ]
+    ],
+    "expected_heading": "Archivos de secretos"
   },
   {
     "class": "B",
@@ -78,7 +82,8 @@
     "query": "como enlazar mis archivos de configuracion",
     "expect": [
       "dotfiles-arquitectura-gnu-stow"
-    ]
+    ],
+    "expected_heading": "Cómo funciona Stow"
   },
   {
     "class": "B",
@@ -93,7 +98,8 @@
     "query": "renew the TLS certificate",
     "expect": [
       "rpi-operaciones-renovacion-tls-con-certbot"
-    ]
+    ],
+    "expected_heading": "Renovar el certificado manualmente"
   },
   {
     "class": "C",
@@ -124,7 +130,8 @@
     "expect": [
       "rpi-arquitectura-red-y-proxy",
       "rpi-troubleshooting-red-y-proxy-nginx"
-    ]
+    ],
+    "expected_heading": "Nginx como proxy reverso"
   },
   {
     "class": "D",
@@ -139,7 +146,8 @@
     "expect": [
       "rpi-troubleshooting-errores-fstab-y-montajes-ssd-usb",
       "rpi-arquitectura-almacenamiento"
-    ]
+    ],
+    "expected_heading": "Contexto del fstab"
   },
   {
     "class": "D",
@@ -147,14 +155,16 @@
     "expect": [
       "rpi-arquitectura-red-y-proxy",
       "rpi-troubleshooting-red-y-proxy-nginx"
-    ]
+    ],
+    "expected_heading": "Nginx como proxy reverso"
   },
   {
     "class": "D",
     "query": "stow",
     "expect": [
       "dotfiles-arquitectura-gnu-stow"
-    ]
+    ],
+    "expected_heading": "Cómo funciona Stow"
   },
   {
     "class": "D",
@@ -207,6 +217,7 @@
     "query": "set up a new laptop with my shell config",
     "expect": [
       "dotfiles-operaciones-instalacion-debian-wsl"
-    ]
+    ],
+    "expected_heading": "Pasos"
   }
 ]

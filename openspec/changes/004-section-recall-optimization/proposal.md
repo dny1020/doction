@@ -70,6 +70,19 @@ Out of scope, deliberately:
 - **No change to what a chunk *is*.** Section boundaries, block integrity and the stored heading
   path all stay; only the string handed to the encoder is under test.
 
+## Decisions taken during implementation
+
+- **`search(mode="semantic")` is accepted as the weaker mode**, at 0.64 recall@1 against hybrid's
+  0.68. It is an explicitly named API mode a caller opts into, and no doction surface uses it: the
+  sidebar, the REST default and every MCP tool go through hybrid or through assembled context. The
+  alternative was keeping page context in the embedding, which is what made siblings
+  indistinguishable in the first place. Recorded rather than fixed.
+- **Assembled context targets 60 ms**, three times hybrid's 20 ms. It loads the workspace's vectors
+  once, fuses, then packs and deduplicates, and deduplication compares each candidate against every
+  fragment already kept. That is the cost of assembling an answer's worth of context rather than
+  ordering a list, and it is paid by an agent-facing call, not by a keystroke in the sidebar. Two
+  earlier versions cost 187 ms and 418 ms; both were defects, not the price of the design.
+
 ## Capabilities
 
 ### Modified Capabilities

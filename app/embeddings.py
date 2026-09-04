@@ -329,8 +329,10 @@ def _one_part(text: str) -> list[SnippetPart]:
     return [SnippetPart(text=text, match=False)]
 
 
-def _fts_results(workspace_id: int, query: str, k: int) -> list[dict]:
-    rows = db.search_pages(workspace_id, query, limit=k)
+def _fts_results(
+    workspace_id: int, query: str, k: int, tags: list[str] | None = None
+) -> list[dict]:
+    rows = db.search_pages(workspace_id, query, limit=k, tags=tags)
     return [
         {
             "slug": r.slug,
@@ -350,6 +352,7 @@ def semantic_search(
     *,
     k: int = 10,
     min_score: float | None = None,
+    tags: list[str] | None = None,
 ) -> list[dict]:
     """La lista vectorial: similitud de embeddings, ordenada. Degrada a FTS si aplica.
 
@@ -369,11 +372,17 @@ def semantic_search(
     if not query:
         return []
     if not semantic_enabled():
-        return _fts_results(workspace_id, query, k)
+        return _fts_results(workspace_id, query, k, tags=tags)
 
     rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
+    if tags:
+        # Se acota antes de puntuar, no después. Filtrar la lista ya ordenada deja a
+        # las páginas excluidas ocupando puestos, y la fusión combina por posición: un
+        # hueco en el ranking vectorial vale tanto como un resultado.
+        allowed = db.slugs_with_tags(workspace_id, tags)
+        rows = [row for row in rows if row.slug in allowed]
     if not rows:
-        return _fts_results(workspace_id, query, k)
+        return _fts_results(workspace_id, query, k, tags=tags)
 
     qvec = get_embedder().encode([query])[0]
     mat = np.stack([_from_blob(r.vector) for r in rows])
@@ -472,15 +481,11 @@ def _hybrid(workspace_id: int, query: str, *, tags: list[str] | None = None) -> 
     sigue enseñando su extracto resaltado, que es lo que la barra lateral pinta en
     <mark>; si solo salió por la semántica, su chunk. Lo que cambia es el orden.
     """
+    # Las dos listas se acotan dentro de su propia extracción, cada una en su motor:
+    # la léxica en su SQL, la vectorial antes de puntuar. Fusionar posiciones exige que
+    # las posiciones se cuenten ya sobre el conjunto filtrado.
     lexical = db.search_pages(workspace_id, query, tags=tags)
-    vector = semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE)
-    if tags:
-        # Las dos listas se acotan antes de fusionar, no después: filtrar el
-        # resultado ya ordenado devolvería menos de lo que hay, y una página que hoy
-        # queda fuera del corte tiene que poder salir cuando el filtro quita a las de
-        # encima.
-        allowed = db.slugs_with_tags(workspace_id, tags)
-        vector = [hit for hit in vector if hit["slug"] in allowed]
+    vector = semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE, tags=tags)
     # Con la semántica apagada, o el workspace todavía sin indexar, `semantic_search`
     # ya devuelve aciertos de FTS. Fusionar FTS consigo misma no reordena nada y
     # además etiquetaría la procedencia como si hubieran votado dos canales: cuando
@@ -551,10 +556,7 @@ def search(
         return _hybrid(workspace_id, query, tags=tags)
 
     if mode == "semantic":
-        results = list(semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE))
-        if tags:
-            allowed = db.slugs_with_tags(workspace_id, tags)
-            results = [r for r in results if r["slug"] in allowed]
+        results = list(semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE, tags=tags))
         for r in results:
             r["snippet"] = r["chunk"]
             r["parts"] = _one_part(r["chunk"])

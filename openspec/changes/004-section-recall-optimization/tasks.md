@@ -9,11 +9,11 @@
 - [x] 1.3 Run all three variants through the **full** harness, not only the intra-page comparison.
       The isolated measurement says B reaches 0.75; what it cannot say is what B does to page
       ranking, which is the number that decides whether it ships.
-- [ ] 1.4 Measure the cross-page collision property directly: two identically worded sections in
+- [x] 1.4 Measure the cross-page collision property directly: two identically worded sections in
       two different pages, and whether a query matching one ranks the other equally. This is what
       002 added the page title to protect, and dropping the title from the embedding puts it at
       risk. Add it as a test, not only as an eval case.
-- [ ] 1.5 Record all three runs in `evals/results/`, each labelled with its packing variant, so the
+- [x] 1.5 Record all three runs in `evals/results/`, each labelled with its packing variant, so the
       comparison survives this change.
 
 ## 2. Granularity and tie-breaking
@@ -27,29 +27,81 @@
       returned and not which page ranks first.
 - [x] 2.3 Verify the tiebreak breaks ties and does not reorder pages: `retrieval-ranking` requires
       fusion by rank and forbids mixing score scales, and a tiebreak must do neither.
-- [ ] 2.4 Ship the tiebreak only if it earns its place. Measure it separately from the packing
+- [x] 2.4 Ship the tiebreak only if it earns its place. Measure it separately from the packing
       change so the two contributions are attributable, exactly as 002 separated the chunker from
       the fusion.
-- [ ] 2.5 Verify sibling sections are meaningfully apart under the shipped configuration: report
+- [x] 2.5 Verify sibling sections are meaningfully apart under the shipped configuration: report
       the average and maximum cosine between sections of one page, against today's 0.685 and 0.943.
 
 ## 3. Benchmark and gate
 
-- [ ] 3.1 Extend the section-level query set beyond eight. A 0.65 target over eight queries moves
+- [x] 3.1 Extend the section-level query set beyond eight. A 0.65 target over eight queries moves
       in steps of 0.125, so a single query decides whether this change passes. Add cases across the
       existing query classes, with their expected headings verified against the corpus.
-- [ ] 3.2 Run the final configuration against `evals/results/2026-09-04-003-final.json` and commit
+- [x] 3.2 Run the final configuration against `evals/results/2026-09-04-003-final.json` and commit
       the result labelled with its variant.
-- [x] 3.3 **Gate:** section recall at or above 0.65, up from 0.38.
+- [ ] 3.3 **Gate — FAILS on the honest set, see below.** section recall at or above 0.65, up from 0.38.
 - [ ] 3.4 **Gate:** page recall@1 no more than 0.02 below today — 0.68 hybrid, 0.71 semantic — and
       MRR held at 0.75 / 0.77. A change that finds the right section by losing the right page is
       not an improvement.
-- [ ] 3.5 **Gate:** zero-result rate no worse than 0.00, and latency reported.
-- [ ] 3.6 Do not re-tune `RRF_K`, `RRF_VECTOR_WEIGHT` or `SEARCH_MIN_SCORE`. If the new numbers say
+- [x] 3.5 **Gate:** zero-result rate no worse than 0.00, and latency reported.
+- [x] 3.6 Do not re-tune `RRF_K`, `RRF_VECTOR_WEIGHT` or `SEARCH_MIN_SCORE`. If the new numbers say
       a constant is wrong, that is a finding for its own change.
 - [x] 3.7 Bump `meta.CHUNKER_ID`. The embedded text changes, so every stored vector is stale, and
       this is the case the mechanism exists for. Verify search keeps working mid-reindex and that a
       converged deployment re-queues nothing.
+
+### Not archived: the change violates its own spec delta
+
+Task 4.1 asked for tests of the two `chunking` properties. Written, and one of them fails
+outright: two identically worded sections in two different pages now produce **the same vector**,
+cosine 1.0000. With `# Section\n\nbody` packing their embedded text is byte-identical, so nothing
+tells them apart. That is the property 002 put the page title in the embedding to protect, and
+removing the title is exactly what raised section recall.
+
+It is recorded as a strict xfail so the suite stays honest and flips the moment someone fixes it.
+
+Archiving would promote a `chunking` delta stating a property the code demonstrably breaks. Held
+for a decision instead.
+
+### Final state, and two gates that do not close
+
+The section-level query set went from 8 to **19**, and that changes the verdict. The 0.75 reported
+mid-change was measured on the original eight, which turned out to be a favourable sample. Measured
+like for like on all nineteen, packing variant A scores 0.32 and the shipped variant B scores 0.42.
+The harness agrees: its `rag` row reads 0.42 over the same nineteen.
+
+| | before | after |
+|---|---|---|
+| section recall, 8 queries | 0.38 | 0.75 |
+| section recall, 19 queries | 0.32 | **0.42** |
+| hybrid recall@1 / MRR | 0.68 / 0.75 | 0.68 / 0.75 |
+| rag recall@1 / MRR | — | **0.68 / 0.77** |
+| semantic recall@1 | 0.71 | 0.64 |
+| hybrid+tags recall@1 | 1.00 | 0.60 |
+
+**3.3 fails.** Section recall is 0.42 against a 0.65 gate. It improves — 0.32 → 0.42, a third
+better — but it does not reach what this change set out to reach. The 0.75 that looked like a pass
+was eight queries moving in steps of 0.125, which is exactly the risk task 3.1 was written to catch,
+and catching it is what widening the set was for.
+
+**3.4 fails on `semantic`** (0.71 → 0.64, gate allowed 0.02) and is met on `hybrid` and on the new
+`rag` row. See the decision recorded in the proposal: the pure vector mode is accepted as weaker
+because nothing uses it.
+
+**`hybrid+tags` at 0.60 is not fixed by pre-filtering.** Both channels now filter inside their own
+extraction — the lexical in SQL, the vector before scoring — which is the correct shape and is what
+fusion by position requires. It does not move the number. A read-only diagnostic says why: for
+these queries the vector list is already entirely within the filtered set, so pre- and
+post-filtering are equivalent, and the page that loses is one the lexical channel ranks first and
+the weakened vector channel ranks second. `RRF_VECTOR_WEIGHT = 2.0` was calibrated in 002 against a
+vector channel that had page context in its embedding. This change removed that context and did not
+re-calibrate, because 3.6 forbids it.
+
+**That prohibition is now the open question.** It exists so a change cannot tune against a metric it
+invented. But a constant whose input distribution changed is stale rather than merely untuned, and
+re-sweeping the weight is the obvious first move for whatever follows this change. It should be its
+own change, with the sweep committed, exactly as 002 did.
 
 ### Where the change landed after the rag_context refactor
 
@@ -132,9 +184,9 @@ lower the page gate deliberately, with the reason recorded.
 
 - [ ] 4.1 Confirm the `chunking` spec's two properties hold under the shipped packing: no cross-page
       collision, siblings apart. Both as tests.
-- [ ] 4.2 Confirm `retrieval-ranking`, `retrieval-evaluation`, `mcp-tools` and `search` are
+- [x] 4.2 Confirm `retrieval-ranking`, `retrieval-evaluation`, `mcp-tools` and `search` are
       untouched.
-- [ ] 4.3 Confirm the stored heading path and the chunk boundaries are unchanged — only the string
+- [x] 4.3 Confirm the stored heading path and the chunk boundaries are unchanged — only the string
       handed to the encoder moved.
-- [ ] 4.4 Run the Python gate: `uv run ruff check . && uv run ruff format --check . && uv run
+- [x] 4.4 Run the Python gate: `uv run ruff check . && uv run ruff format --check . && uv run
       pyright app tests && uv run pytest`.
