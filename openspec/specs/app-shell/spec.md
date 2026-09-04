@@ -164,8 +164,10 @@ first characters of the title, so tapping the text would collapse the branch ins
 the page. A short, full-height target that never steals a touch is worth more than a square one
 that does.
 
-On devices with a fine pointer, control sizes and spacing MUST remain exactly as they are
-today.
+Adapting for touch SHALL NOT change control sizes or spacing on a device with a fine pointer. The
+constraint is on the adaptation, not on the interface: a deliberate change to the visual language
+may alter density on both pointers together, and remains bound by the 44px floor. What is forbidden
+is density drifting as a side effect of making something touchable.
 
 #### Scenario: Buttons on a touch device
 
@@ -200,8 +202,9 @@ today.
 
 #### Scenario: Desktop density is preserved
 
-- **WHEN** the interface is displayed on a device with a fine primary pointer
-- **THEN** no control's height, padding or spacing differs from the current interface
+- **WHEN** a control is adapted for coarse pointers
+- **THEN** no control's height, padding or spacing differs on a fine pointer from what it was
+  before that adaptation
 
 ### Requirement: The shell reflows across three viewport bands
 
