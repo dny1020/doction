@@ -28,10 +28,6 @@ logger = logging.getLogger(__name__)
 
 EMBED_DIM = 384
 MAX_TOKENS = 256
-# Constante de la fusión de rangos recíprocos. 60 es el valor del artículo original
-# (Cormack et al., 2009) y el que usa prácticamente todo el mundo. Lo que hace es
-# aplanar la curva: sin ella el primero valdría el doble que el segundo, y con ella
-# la diferencia entre los primeros puestos es pequeña y la cola sigue contando algo.
 # Impulso por coincidencia con el encabezado, para elegir *qué sección* de una página
 # se devuelve. Dos consultas del conjunto fallaban con cualquier empaquetado —«where
 # are the secrets stored» y «how do I update a docker image»— y las dos tienen la misma
@@ -42,6 +38,10 @@ MAX_TOKENS = 256
 # escalas distintas: cambia qué sección sale, no qué página gana.
 HEADING_MATCH_BOOST = 0.15
 
+# Constante de la fusión de rangos recíprocos. 60 es el valor del artículo original
+# (Cormack et al., 2009) y el que usa prácticamente todo el mundo. Lo que hace es
+# aplanar la curva: sin ella el primero valdría el doble que el segundo, y con ella
+# la diferencia entre los primeros puestos es pequeña y la cola sigue contando algo.
 RRF_K = 60
 # Peso de la lista vectorial dentro de la fusión. La RRF clásica no lleva pesos y sin
 # ellos la fusión sale peor que la semántica sola: las dos listas no valen lo mismo
@@ -274,10 +274,17 @@ def _embed_text(title: str, chunk) -> str:
     porque se va la señal con el ruido. Lo que se quita es lo que las hermanas
     comparten; lo que se queda es lo único que las distingue.
 
-    El título de la página se cae del embedding y sigue guardado en `path`, que es lo
-    que se devuelve. Que dos secciones idénticas de páginas distintas no colisionen —la
-    razón por la que el título entró aquí en su día— pasa a ser una propiedad medida y
-    no una consecuencia del formato: ver `test_chunking_properties`.
+    El título de la página se cae del embedding y sigue guardado en `path`. Dos secciones
+    redactadas igual en páginas distintas producen aquí el mismo vector, y eso es
+    correcto: con el mismo texto no hay nada en la sección que las distinga. Lo que las
+    separa es el ranking de páginas, donde el canal léxico sí ve el título — que es
+    justo la propiedad que la spec pide y la que se comprueba en
+    `test_chunking_properties`.
+
+    Se probó meter un identificador corto de la página en el prefijo para romper esa
+    igualdad de vectores. Medido, cuesta 0.07 de recall@1 de página en hybrid y en el
+    contexto ensamblado, y no mueve el recall de sección: el identificador es ruido
+    aleatorio que ensucia la comparación con la consulta. Descartado con el número.
     """
     heading = chunk.headings[-1] if chunk.headings else title
     return f"# {heading}\n\n{chunk.text}" if heading else chunk.text

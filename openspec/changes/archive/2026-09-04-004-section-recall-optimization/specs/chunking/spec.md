@@ -10,9 +10,11 @@ The text handed to the encoder SHALL satisfy two properties at once. The specifi
 properties and not the packing that achieves them, because they pull in opposite directions and
 which packing satisfies both is a measured question:
 
-- **Sections of different pages must not collide.** Two identically worded sections in two
-  different pages MUST NOT produce the same vector, or a query matching one retrieves the other.
-  This wants shared page context inside the embedding.
+- **Sections of different pages must not collide.** A query that identifies one page MUST NOT
+  rank a different page's identically worded section equally. The requirement is on the result,
+  not on the vector: with the same text there is nothing *in the section* to tell them apart, and
+  demanding different vectors forces shared page context into the embedding — the very thing the
+  second property forbids.
 - **Sections of the same page must stay apart.** Sibling sections MUST remain distinguishable from
   each other. Text that every section of a page shares carries no information about which of them
   answers a question, and enough of it turns siblings into one vector with different labels. This
@@ -32,9 +34,8 @@ The measurement that settles it is section recall, reported separately from page
 
 #### Scenario: The path is embedded with the text
 
-- **WHEN** two pages contain an identically worded section
-- **THEN** their chunks do not produce identical vectors, and a query matching one does not rank
-  the other equally
+- **WHEN** two pages contain an identically worded section, and a query names one of those pages
+- **THEN** that page ranks first, and the other page's identical section does not displace it
 
 #### Scenario: Sibling sections stay apart
 

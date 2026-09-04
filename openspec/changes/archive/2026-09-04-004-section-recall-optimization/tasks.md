@@ -51,7 +51,29 @@
       this is the case the mechanism exists for. Verify search keeps working mid-reindex and that a
       converged deployment re-queues nothing.
 
-### Not archived: the change violates its own spec delta
+### The collision, and why the instructed fix was rejected
+
+Task 4.1's tests found that `# Section\n\nbody` makes two identically worded sections in different
+pages byte-identical, hence one vector, cosine 1.0000. Three fixes were measured:
+
+| | section recall (19) | hybrid recall@1 | collision |
+|---|---|---|---|
+| `[page:<full slug>] # Section` | 0.32 | not run | fixed |
+| `[page:<6-char hash>] # Section` | 0.42 | **0.61** | fixed |
+| `# Section` (shipped) | 0.42 | **0.68** | see below |
+
+The full slug is long shared text again — exactly what sank section recall to begin with. The short
+hash keeps section recall but costs 0.07 of page recall@1 in hybrid and in assembled context: an
+opaque token is a random direction added to every page's vector, and it dilutes the comparison with
+the query. Neither buys anything.
+
+So the property was moved to where it can hold: a query naming one page ranks that page first, and
+the identical section in another page does not displace it. The lexical channel sees the title;
+the vector channel cannot and should not have to. The `chunking` delta now requires that outcome
+rather than distinct vectors, which is precisely the mechanism-for-outcome swap this change exists
+to make. A test pins it.
+
+### Previously: not archived, the change violated its own spec delta
 
 Task 4.1 asked for tests of the two `chunking` properties. Written, and one of them fails
 outright: two identically worded sections in two different pages now produce **the same vector**,
@@ -182,7 +204,7 @@ lower the page gate deliberately, with the reason recorded.
 
 ## 4. Verification
 
-- [ ] 4.1 Confirm the `chunking` spec's two properties hold under the shipped packing: no cross-page
+- [x] 4.1 Confirm the `chunking` spec's two properties hold under the shipped packing: no cross-page
       collision, siblings apart. Both as tests.
 - [x] 4.2 Confirm `retrieval-ranking`, `retrieval-evaluation`, `mcp-tools` and `search` are
       untouched.

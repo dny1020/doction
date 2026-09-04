@@ -83,6 +83,15 @@ Out of scope, deliberately:
   ordering a list, and it is paid by an agent-facing call, not by a keystroke in the sidebar. Two
   earlier versions cost 187 ms and 418 ms; both were defects, not the price of the design.
 
+- **The cross-page collision is resolved at retrieval, not in the vector.** Two identically worded
+  sections do produce the same vector, and that is correct: with the same text there is nothing
+  *in the section* to tell them apart. What separates them is page ranking, where the lexical
+  channel sees the title. Putting a page identifier back into the embedded text was tried and
+  measured — the full slug costs 0.10 of section recall, a six-character hash costs 0.07 of page
+  recall@1 in hybrid and in assembled context and buys nothing in section recall, because an opaque
+  token is random direction added to every comparison. The `chunking` delta was amended to require
+  the outcome instead of the mechanism, which is what this change existed to do.
+
 ## Capabilities
 
 ### Modified Capabilities

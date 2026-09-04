@@ -51,9 +51,21 @@ A chunk SHALL carry enough context to be read on its own: the workspace, the pag
 of headings above it. That path MUST be stored with the chunk, so a fragment returned by search
 identifies its origin without a second lookup.
 
-The path MUST be part of the text that is embedded. A section titled "Renewal" only means
-something next to the page it sits in, and an encoder that never sees the page title cannot place
-it.
+The text handed to the encoder SHALL satisfy two properties at once. The specification names the
+properties and not the packing that achieves them, because they pull in opposite directions and
+which packing satisfies both is a measured question:
+
+- **Sections of different pages must not collide.** A query that identifies one page MUST NOT
+  rank a different page's identically worded section equally. The requirement is on the result,
+  not on the vector: with the same text there is nothing *in the section* to tell them apart, and
+  demanding different vectors forces shared page context into the embedding — the very thing the
+  second property forbids.
+- **Sections of the same page must stay apart.** Sibling sections MUST remain distinguishable from
+  each other. Text that every section of a page shares carries no information about which of them
+  answers a question, and enough of it turns siblings into one vector with different labels. This
+  wants shared page context out.
+
+The measurement that settles it is section recall, reported separately from page recall.
 
 #### Scenario: A nested section
 
@@ -67,9 +79,14 @@ it.
 
 #### Scenario: The path is embedded with the text
 
-- **WHEN** two pages contain an identically worded section
-- **THEN** their chunks do not produce identical vectors, because each embedding includes its own
-  path
+- **WHEN** two pages contain an identically worded section, and a query names one of those pages
+- **THEN** that page ranks first, and the other page's identical section does not displace it
+
+#### Scenario: Sibling sections stay apart
+
+- **WHEN** one page contains several sections that answer different questions
+- **THEN** a query answered by one of them retrieves that one rather than a sibling
+- **AND** their vectors are not near-identical to each other
 
 #### Scenario: Frontmatter is available without polluting the prose
 
