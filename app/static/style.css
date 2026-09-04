@@ -1,9 +1,19 @@
 /* ── Tipografía ──────────────────────────────────────────────────────────────
-   Inter autohospedada (variable, 400-700 en un solo fichero por rango), igual
-   que highlight.js y mermaid: doction se sirve en LAN/VPN y una petición a
-   fonts.gstatic.com fallaría justo donde más se usa. Antes los tokens nombraban
-   familias que nadie cargaba, así que el navegador caía a Georgia.
-   font-display: swap — texto legible desde el primer pintado. */
+   Tres familias con papeles estrictos, todas autohospedadas: doction se sirve en
+   LAN, en VPN y a veces sin salida a internet, así que una petición a
+   fonts.gstatic.com fallaría justo donde más se usa.
+
+     Inter              todo lo legible: interfaz, prosa, botones, navegación.
+     Instrument Serif   el encabezado mayor de una vista y los del documento.
+     JetBrains Mono     datos y código. Nunca una frase.
+
+   Esa última regla es la que hace que esto se lea como documentación y no como
+   una aplicación con contenido dentro: un slug, una etiqueta, una ruta de
+   sección o una fecha se reconocen sin leerlos.
+
+   Solo se vendorizan las caras que se pintan: la serif en regular, la mono en
+   400 y 500, ninguna cursiva. font-display: swap — texto legible desde el primer
+   pintado. */
 @font-face {
   font-family: 'Inter';
   font-style: normal;
@@ -24,41 +34,107 @@
     U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
     U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/vendor/fonts/instrument-serif-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/vendor/fonts/instrument-serif-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/vendor/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/static/vendor/fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/vendor/fonts/jetbrains-mono-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/static/vendor/fonts/jetbrains-mono-latin-ext-500-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
 /* === Light tokens ========================================================= */
 :root {
-  /* Surfaces */
+  /* Superficies — papel cálido. Sin cambio: el lienzo ya era este. */
   --bg:             #FAF9F5;
   --surface:        #FFFFFF;
-  --surface-sunken: #F2F0E8;
-  --surface-hover:  #EFEDE4;
+  --surface-sunken: #F0EDE6;
+  --surface-hover:  #EAE6DD;
 
-  /* Ink */
-  --fg-1: #23221F;
-  --fg-2: #57544E;
-  --fg-3: #8C887F;
-  --fg-on-accent: #FBF7F2;
+  /* Tinta. Tres niveles, todos legibles: el terciario de antes (#8C887F) medía
+     3.4:1 y se usaba para texto, no solo para adorno. */
+  --fg-1: #1A1B18;  /* 16.42:1 sobre el lienzo */
+  --fg-2: #2E302B;  /* 12.67:1 */
+  --fg-3: #5A5D55;  /*  6.37:1 */
+  --fg-on-accent: #FAF9F5;
 
-  /* Lines */
-  --border:        #E6E2D8;
-  --border-strong: #D6D0C2;
+  /* Líneas. `border` es decorativa y puede no verse; `border-strong` delimita
+     controles y tiene que verse. Perder la primera solo cuesta orden; perder la
+     segunda es un control que alguien no encuentra. */
+  --border:        #E2DED4;  /* 1.28:1 — decorativa */
+  --border-strong: #8A8D83;  /* 3.21:1 — bordes de control */
 
-  /* Accent — orange */
-  --accent:       #E07020;
-  --accent-hover: #C76018;
-  --accent-press: #AE5314;
-  --accent-soft:  #FEF0E0;
-  --accent-ring:  rgba(224, 112, 32, 0.32);
+  /* Acento — un solo tono, y retrocede. El naranja de antes competía con el
+     texto sobre un papel igual de cálido; en documentación la atención es de las
+     palabras. */
+  --accent:       #1B4FA0;  /* 7.46:1 sobre el lienzo */
+  --accent-hover: #174185;
+  --accent-press: #143771;
+  --accent-soft:  #E8EEF7;
+  --accent-ring:  rgba(27, 79, 160, 0.32);
 
-  /* Status */
-  --danger:      #B3452F;
-  --danger-soft: #F6E2DC;
+  /* Estado. Peligro tiene tono propio: destruir no es enfatizar. */
+  --danger:      #A03328;  /* 6.65:1 */
+  --danger-soft: #F6E3E0;
 
   /* Radii */
   --r-xs:   4px;
-  --r-sm:   6px;
-  --r-md:   10px;
-  --r-lg:   14px;
+  --r-sm:   8px;
+  --r-md:   12px;
+  --r-lg:   16px;
+  --r-xl:   24px;
   --r-pill: 999px;
 
   /* Shadows */
@@ -85,10 +161,16 @@
   --dur:      200ms;
 
   /* Type */
+  /* Tres familias, tres papeles. El fallback de cada una es de su misma clase:
+     si una cara no carga, el texto sigue leyéndose como lo que es. */
   --font-sans:  'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  /* Memos no usa serif en ningún sitio; se conserva el token por si vuelve. */
-  --font-serif: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-mono:  ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  /* Alias por papel, para que una regla diga por qué usa la fuente y no cuál.
+     `data` es todo lo que es un valor —slug, etiqueta, ruta, fecha, contador— y
+     `code` es código. Comparten cara; separarlos deja cambiar una sin la otra. */
+  --font-data:  var(--font-mono);
+  --font-code:  var(--font-mono);
 
   --text-xs:   12px;
   --text-sm:   13px;
@@ -102,23 +184,33 @@
 
 /* === Dark tokens ========================================================== */
 [data-theme="dark"] {
-  --bg:             #1a1815;
-  --surface:        #222019;
-  --surface-sunken: #1e1c18;
-  --surface-hover:  #2a2720;
-  --fg-1: #e8e4dc;
-  --fg-2: #a09b93;
-  --fg-3: #6b6760;
-  --fg-on-accent: #FBF7F2;
-  --border:        #2e2b26;
-  --border-strong: #3a3730;
-  --accent:       #E8812A;
-  --accent-hover: #D07220;
-  --accent-press: #B8641A;
-  --accent-soft:  #281605;
-  --accent-ring:  rgba(232, 129, 42, 0.32);
-  --danger:      #e07060;
-  --danger-soft: #3a1a14;
+  /* El oscuro no es el claro invertido: la referencia de la que sale este
+     lenguaje es solo clara, así que esto es trabajo propio sujeto a las mismas
+     ratios. Papel apagado y cálido, no gris azulado. */
+  --bg:             #161614;
+  --surface:        #1E1E1B;
+  --surface-sunken: #1A1A17;
+  --surface-hover:  #262620;
+
+  --fg-1: #EDEAE2;  /* 15.07:1 sobre el lienzo */
+  --fg-2: #CBC7BD;  /* 10.74:1 */
+  --fg-3: #9A968C;  /*  6.14:1 */
+  --fg-on-accent: #161614;
+
+  --border:        #2A2A25;  /* 1.26:1 — decorativa, misma relación que en claro */
+  --border-strong: #6E6B63;  /* 3.40:1 — bordes de control */
+
+  /* El mismo azul no vale aquí: #1B4FA0 sobre #161614 no llega a 4.5:1. Se sube
+     la luminosidad manteniendo el tono, para que siga siendo el mismo acento. */
+  --accent:       #8AB0E8;  /* 8.16:1 */
+  --accent-hover: #A3C1EE;
+  --accent-press: #B9D0F3;
+  --accent-soft:  #16233A;
+  --accent-ring:  rgba(138, 176, 232, 0.32);
+
+  --danger:      #E08578;  /* 6.73:1 */
+  --danger-soft: #341C18;
+
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.22);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
@@ -2517,3 +2609,67 @@ html {
   gap: var(--sp-2);
   margin-top: var(--sp-2);
 }
+
+/* ── Datos frente a prosa ─────────────────────────────────────────────────────
+   La regla que hace que esto se lea como documentación. Un valor de máquina
+   —slug, etiqueta, ruta de sección, fecha, contador, versión, estado de una
+   entrega, una constante de recuperación— va en la cara de datos; una frase
+   nunca. Quien busca un dato lo encuentra sin leer, y quien lee una frase no
+   tiene que analizar una ruta.
+
+   Se aplica por clase existente: ninguna de estas reglas necesita tocar el JSX. */
+.token-meta,
+.member-role,
+.subpage-date,
+.relations-meta,
+.delivery-event,
+.delivery-when,
+.delivery-status,
+.delivery-error,
+.settings-fact-value,
+.hook-health,
+.conn-row span:last-child,
+.page-meta,
+.meta,
+.history-sha,
+.history-date {
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* La ruta de encabezados de un fragmento es la coordenada de un dato, no prosa. */
+.snippet mark,
+.crumb-current {
+  font-family: inherit;
+}
+
+/* El token de un PAT y el secreto de un webhook ya iban en <code>; se les da el
+   tamaño de dato para que no compitan con el texto que los rodea. */
+.token-value {
+  font-family: var(--font-data);
+}
+
+/* ── Encabezados en serif ─────────────────────────────────────────────────────
+   El título de la página y los encabezados del documento. La serif es lo que
+   dice «esto es un documento» antes de leer una palabra; la interfaz alrededor
+   sigue en la cara de texto, que es la que se lee mejor a tamaño pequeño. */
+.page-header h1,
+.prose h1,
+.prose h2,
+.prose h3,
+.settings-h1,
+.placeholder h1 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* La serif tiene ojo pequeño: a los tamaños de la interfaz necesita algo más de
+   cuerpo para pesar lo mismo que pesaba Inter en negrita. */
+.page-header h1 { font-size: calc(var(--text-3xl) * 1.15); line-height: 1.08; }
+.prose h1 { font-size: calc(var(--text-2xl) * 1.15); }
+.prose h2 { font-size: calc(var(--text-xl) * 1.15); }
+.prose h3 { font-size: calc(var(--text-lg) * 1.12); }
+.settings-h1 { font-size: calc(var(--text-2xl) * 1.1); }
