@@ -38,7 +38,7 @@
 - [ ] 2.2 Sweep the stylesheet for hardcoded colours and for rules that assume the orange accent.
 - [ ] 2.3 Move radii to the new family, keeping the pill, and verify nothing that relied on a tight
       radius now reads as a pill — the tag, the badge, the avatar, the code fence.
-- [ ] 2.4 Apply the data/prose rule: tags, slugs, heading paths, dates, counts, versions, delivery
+- [x] 2.4 Apply the data/prose rule: tags, slugs, heading paths, dates, counts, versions, delivery
       statuses, the retrieval constants and the system report's values move to the data face;
       confirm no descriptive sentence moved with them.
 - [x] 2.5 Give controls the boundary token. Inputs, selects, bordered buttons, the workspace
@@ -47,6 +47,29 @@
       with the surrounding text, mermaid's light and dark themes.
 - [x] 2.7 Remove the `--font-serif` token if no role uses it, or make it hold a serif if one does.
       It currently names a serif and holds Inter.
+
+### Del recorrido visual
+
+Hecho en ambos temas sobre una pagina que ejercita todo: frontmatter, tablas con alineacion,
+codigo, KaTeX en linea y en bloque, listas de tareas, mermaid y `<details>`.
+
+- **La regla de datos frente a prosa funciona y se ve.** En Ajustes / Sistema la columna de valores
+  se escanea sin leer las etiquetas. Es el efecto que motivo el change.
+- **Un defecto encontrado y arreglado en el recorrido**: `.prose` pedia `--font-serif` desde
+  siempre, y como el token contenia Inter nadie lo noto. Hacerlo honesto puso Instrument Serif en
+  parrafos de 15px. El cuerpo vuelve a la cara de texto; la serif se queda en los encabezados.
+- **Mermaid sigue con su lavanda** y desentona: es la tarea 2.6 y pertenece al bloque 2.
+- **`--fg-2` a 12.67:1 puede ser demasiado oscuro** para texto secundario: apenas se distingue del
+  principal. Es decision de diseno, no de accesibilidad, y merece mirarse en el bloque 2.
+
+Dos hallazgos ajenos a este change, anotados para no perderlos:
+
+- **El frontmatter se pinta como un encabezado.** Para markdown-it, `type: runbook` seguido de
+  `---` es sintaxis de encabezado setext, asi que la vista de lectura lo muestra como un titulo. El
+  troceador si lo quita antes de embeber; el renderizador no. Es anterior a este change y la serif
+  solo lo hace mas evidente.
+- **`LanguageToggle` reutiliza la clase `.theme-toggle`**, asi que un selector por esa clase acierta
+  el control equivocado. Cosmetico hasta que alguien escribe un test.
 
 ## 3. What must not move
 

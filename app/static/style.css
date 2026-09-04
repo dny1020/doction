@@ -1233,7 +1233,11 @@ a { color: inherit; }
 
 /* === Prose (reading view) ================================================= */
 .prose {
-  font-family: var(--font-serif);
+  /* El cuerpo en la cara de texto. Esta regla decía `--font-serif` desde siempre,
+     pero el token contenía Inter, así que nadie lo notó: hacerlo honesto puso un
+     serif de verdad en párrafos de 15px, que se lee peor en pantalla. La serif es
+     de los encabezados, y es ahí donde dice «esto es un documento». */
+  font-family: var(--font-sans);
   font-size: var(--text-lg);
   line-height: 1.7;
   color: var(--fg-1);
