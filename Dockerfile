@@ -64,8 +64,13 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-# `check` = eslint + prettier --check + build: el mismo gate que se corre en local,
-# así que el bundle solo se genera si el front pasa lint y formato.
+# El CSS del design system lo sirve el backend, pero el chequeo de assets locales
+# —la última parte de `npm run check`— tiene que leerlo: es donde viven las @font-face
+# y por tanto donde aparecería una fuente pedida a un CDN. Sin esta copia el chequeo
+# no encontraba el fichero y la etapa fallaba solo aquí, no en local.
+COPY app/static/style.css /build/app/static/style.css
+# `check` = eslint + prettier --check + build + assets: el mismo gate que se corre en
+# local, así que el bundle solo se genera si el front pasa lint, formato y air-gap.
 RUN npm run check
 
 FROM base AS runtime
