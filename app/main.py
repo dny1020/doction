@@ -32,6 +32,7 @@ from app.auth import (
 )
 from app.auth import hash_password as _hash_password
 from app.auth import verify_password as _verify_password
+from app.avatar import normalize_color
 from app.logging_config import configure_logging
 from app.models import Workspace
 from app.version import VERSION
@@ -71,17 +72,6 @@ SECURITY_HEADERS = {
 }
 
 # Paleta de colores para el avatar (debe coincidir con frontend/src/avatar.js).
-AVATAR_COLORS = [
-    "#c0604a",
-    "#4a7fc0",
-    "#4aab6e",
-    "#8b5fc0",
-    "#c0914a",
-    "#4aabc0",
-    "#c05473",
-    "#7a9c4a",
-]
-
 # Imágenes embebibles en documentos. Validamos por content-type + magic bytes.
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 _IMAGE_SIGNATURES = {
@@ -825,7 +815,7 @@ class _PasswordIn(BaseModel):
 def api_update_profile(request: Request, body: _ProfileIn):
     uid = _api_user(request)
     name = body.display_name.strip()[:40]
-    color = body.avatar_color if body.avatar_color in AVATAR_COLORS else None
+    color = normalize_color(body.avatar_color)
     db.update_user_profile(uid, name or None, color)
     active = getattr(request.state, "workspace", None)
     return _me_payload(uid, active.slug if active else None)

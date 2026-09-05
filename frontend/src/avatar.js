@@ -3,16 +3,17 @@
 // Cuando el usuario no elige un color, derivamos uno estable a partir de su email
 // (mismo hash que usa el frontend Jinja, para que el color no cambie entre vistas).
 
-// Misma paleta que AVATAR_COLORS en app/main.py.
+// Misma paleta que AVATAR_COLORS en app/avatar.py, donde vive la razon de estos
+// ocho valores y el mapa de los antiguos.
 export const AVATAR_COLORS = [
-  '#c0604a',
-  '#4a7fc0',
-  '#4aab6e',
-  '#8b5fc0',
-  '#c0914a',
-  '#4aabc0',
-  '#c05473',
-  '#7a9c4a',
+  '#B8523B',
+  '#3B73B8',
+  '#347F50',
+  '#895AC2',
+  '#926A2F',
+  '#2D7B8C',
+  '#C04669',
+  '#5E7A37',
 ]
 
 // Color automático y estable a partir del email.

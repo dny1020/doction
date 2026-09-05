@@ -14,6 +14,7 @@ from psycopg.rows import DictRow, dict_row
 from psycopg_pool import ConnectionPool
 
 from app import meta
+from app.avatar import normalize_color
 from app.models import (
     ApiToken,
     ChunkVector,
@@ -125,7 +126,7 @@ def _to_user(row: dict) -> User:
         password_hash=row["password_hash"],
         created_at=row["created_at"],
         display_name=row.get("display_name"),
-        avatar_color=row.get("avatar_color"),
+        avatar_color=normalize_color(row.get("avatar_color")),
         token_version=row.get("token_version") or 0,
     )
 

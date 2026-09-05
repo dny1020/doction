@@ -85,15 +85,26 @@ def test_update_profile(client):
     _register(client)
     r = client.post(
         "/api/settings/profile",
-        json={"display_name": "Ada", "avatar_color": "#4a7fc0"},
+        json={"display_name": "Ada", "avatar_color": "#3B73B8"},
     )
     assert r.status_code == 200
     body = r.json()
     assert body["display_name"] == "Ada"
-    assert body["avatar_color"] == "#4a7fc0"
+    assert body["avatar_color"] == "#3B73B8"
     # Un color fuera de la paleta se ignora (queda en automático).
     r2 = client.post("/api/settings/profile", json={"display_name": "Ada", "avatar_color": "#000"})
     assert r2.json()["avatar_color"] is None
+
+
+def test_legacy_avatar_color_maps_forward(client):
+    """Quien ya había elegido un color de la paleta vieja no se queda con el
+    ilegible: se traduce al de la posición equivalente, no se descarta."""
+    _register(client)
+    r = client.post(
+        "/api/settings/profile",
+        json={"display_name": "Ada", "avatar_color": "#4a7fc0"},
+    )
+    assert r.json()["avatar_color"] == "#3B73B8"
 
 
 def test_update_password(client):

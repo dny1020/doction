@@ -127,9 +127,21 @@
   --accent-soft:  #E8EEF7;
   --accent-ring:  rgba(27, 79, 160, 0.32);
 
-  /* Estado. Peligro tiene tono propio: destruir no es enfatizar. */
+  /* Estado. Peligro tiene tono propio: destruir no es enfatizar. `.diff-add`
+     pedia un --ok-soft que nunca existio y caia en un verde literal de otra
+     paleta. Existe el tinte, no el tono pleno: el acento sigue siendo uno. */
   --danger:      #A03328;  /* 6.65:1 */
   --danger-soft: #F6E3E0;
+  --ok-soft: #E4EFE7;
+
+  /* Velo de lo que esta delante: cajon movil, modales y la paleta de comandos.
+     Un solo valor, porque los tres son el mismo gesto. */
+  --scrim: rgba(35, 34, 31, 0.45);
+
+  /* Tinta sobre un color de identidad (avatar). No es --fg-on-accent: ese gira
+     con el tema y el color del avatar no, asi que en oscuro escribia tinta
+     negra sobre el mismo fondo de siempre. */
+  --fg-on-identity: #FAF9F5;
 
   /* Sintaxis. Antes eran seis hex sueltos que no se movían con el tema y venían
      de otra paleta. Todos medidos contra el fondo del bloque de código. */
@@ -145,7 +157,6 @@
   --r-sm:   8px;
   --r-md:   12px;
   --r-lg:   16px;
-  --r-xl:   24px;
   --r-pill: 999px;
 
   /* Shadows */
@@ -181,12 +192,10 @@
      `data` es todo lo que es un valor —slug, etiqueta, ruta, fecha, contador— y
      `code` es código. Comparten cara; separarlos deja cambiar una sin la otra. */
   --font-data:  var(--font-mono);
-  --font-code:  var(--font-mono);
 
   --text-xs:   12px;
   --text-sm:   13px;
   --text-base: 15px;
-  --text-md:   16px;
   --text-lg:   18px;
   --text-xl:   22px;
   --text-2xl:  28px;
@@ -221,6 +230,10 @@
 
   --danger:      #E08578;  /* 6.73:1 */
   --danger-soft: #341C18;
+  --ok-soft: #18291D;
+
+  /* Mas opaco que en claro: sobre un lienzo ya oscuro, 0.45 no separa nada. */
+  --scrim: rgba(0, 0, 0, 0.62);
 
   --syn-keyword:  #C2A8E8;  /* 8.36:1 */
   --syn-string:   #8FC79E;  /* 9.00:1 */
@@ -363,7 +376,7 @@ a { color: inherit; }
 .sidebar-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(35, 34, 31, 0.3);
+  background: var(--scrim);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur) var(--ease);
@@ -775,7 +788,7 @@ a { color: inherit; }
   height: 32px;
   border-radius: var(--r-pill);
   background: var(--accent);
-  color: var(--fg-on-accent);
+  color: var(--fg-on-identity);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1124,7 +1137,7 @@ a { color: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   overflow-x: auto;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   line-height: 1.5;
   background: var(--surface);
@@ -1136,8 +1149,8 @@ a { color: inherit; }
   min-height: 1.5em;
   color: var(--fg-2);
 }
-.diff-add { background: var(--ok-soft, rgba(74, 171, 110, 0.14)); color: var(--fg-1); }
-.diff-del { background: var(--danger-soft, rgba(192, 84, 74, 0.14)); color: var(--fg-1); }
+.diff-add { background: var(--ok-soft); color: var(--fg-1); }
+.diff-del { background: var(--danger-soft); color: var(--fg-1); }
 .diff-hunk { color: var(--accent); background: var(--surface-hover); }
 .diff-meta { color: var(--fg-3); }
 
@@ -1184,7 +1197,7 @@ a { color: inherit; }
 .history-author { color: var(--fg-2); }
 .history-sep { color: var(--fg-3); }
 .history-sha {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   color: var(--fg-3);
 }
 
@@ -1644,7 +1657,7 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   align-items: center;
   justify-content: center;
   padding: var(--sp-4);
-  background: rgba(35, 34, 31, 0.45);
+  background: var(--scrim);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-fast) var(--ease);
@@ -1771,7 +1784,7 @@ kbd {
   flex-shrink: 0;
   border-radius: var(--r-pill);
   background: var(--accent);
-  color: var(--fg-on-accent);
+  color: var(--fg-on-identity);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1923,7 +1936,7 @@ kbd {
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-lg);
 }
-.confirm-dialog::backdrop { background: rgba(35, 34, 31, 0.45); }
+.confirm-dialog::backdrop { background: var(--scrim); }
 .confirm-dialog-msg { margin: 0 0 var(--sp-4); color: var(--fg-1); }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
 
@@ -1940,7 +1953,7 @@ kbd {
   align-items: flex-start;
   justify-content: center;
   padding: 12vh var(--sp-4) var(--sp-4);
-  background: rgba(35, 34, 31, 0.45);
+  background: var(--scrim);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-fast) var(--ease);

@@ -1,7 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- El prompt sigue siendo la marca: esto es una herramienta de terminal para
+       agentes. Lo que cambia es el color, que era naranja de otra paleta y sobre
+       papel claro medía 3.06:1. Los dos valores son --accent de cada tema. -->
   <style>
-    polyline, line { stroke: #E07020; }
-    @media (prefers-color-scheme: dark) { polyline, line { stroke: #E8812A; } }
+    polyline, line { stroke: #1B4FA0; }
+    @media (prefers-color-scheme: dark) { polyline, line { stroke: #8AB0E8; } }
   </style>
   <polyline points="4 17 10 11 4 5"/>
   <line x1="12" y1="19" x2="20" y2="19"/>
