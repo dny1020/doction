@@ -22,6 +22,9 @@ container + a Postgres container — no API keys, no SaaS, no LLM inside doction
 ## Features
 
 - **Markdown-first** — pages, workspaces, `[[wikilinks]]`, `#tags`, and YAML frontmatter.
+- **A knowledge graph you can see** — wikilinks are followable links, every page lists the
+  pages that mention it with the sentence they sit in, and `/w/<ws>/graph` draws the whole
+  workspace: pages as nodes, wikilinks as edges, orphans and broken links called out.
 - **Full-text search** — PostgreSQL native FTS (`tsvector`/GIN), ranked with `ts_rank`.
 - **Local semantic search** (opt-in) — ONNX embeddings (MiniLM) baked into the image:
   `sgrep` (meaning-based search) and `rag` (retrieval with provenance). Fully offline, no
@@ -34,7 +37,7 @@ container + a Postgres container — no API keys, no SaaS, no LLM inside doction
   they show up in search.
 - **Cross-encoder reranker** (opt-in) — a second tiny ONNX model re-scores the top
   semantic hits for noticeably better precision.
-- **REST API** + **native MCP server** (JSON-RPC 2.0, 17 tools) for agents.
+- **REST API** + **native MCP server** (JSON-RPC 2.0, 27 tools) for agents.
 - **No LLM inside doction** — retrieval only; the connected agent does the generation.
 
 ## How it works
@@ -133,6 +136,7 @@ GET    /api/pages/{slug}/suggest-links   wikilink suggestions (embeddings / titl
 GET    /api/pages/{slug}/suggest-tags    tag suggestions (TF-IDF vs the workspace)
 GET    /api/pages/{slug}/summary         extractive summary (TextRank, no LLM)
 GET    /api/insights                     workspace health: graph + duplicates + clusters
+GET    /api/graph                        wikilink graph as nodes + edges (for drawing)
 GET    /api/pages/{slug}/history         git history
 GET    /api/pages/{slug}/history/{sha}   content at a commit
 POST   /api/mcp                          MCP (JSON-RPC 2.0)
@@ -168,29 +172,51 @@ claude mcp add --transport http doction $DOCTION/api/mcp \
   --header "Authorization: Bearer doction_..."
 ```
 
-Once connected, the agent sees all 17 tools:
+Once connected, the agent sees all 27 tools:
 
 ![doction MCP server connected inside an agent — authenticated](docs/assets/mcp.png)
+
+Five tools cover an agent's working loop — find something, gather context, understand the
+shape of the workspace, read a document exactly as stored, write back what you learned:
+
+| Tool | What it does |
+|---|---|
+| `search_knowledge` | ranked pages for a query; lexical and vector rankings fused by reciprocal rank, filterable by tag and type |
+| `get_rag_context` | the assembled top-k passages with their provenance, within a character budget |
+| `get_workspace_tree` | workspaces, pages and subpages as a hierarchy |
+| `read_page_raw` | a page's markdown exactly as stored, frontmatter included |
+| `upsert_page_section` | create or replace one section of a page without rewriting the rest |
+
+The rest, by what they answer:
 
 | Tool | What it does |
 |---|---|
 | `list_workspaces` | list workspaces |
 | `list_members` | list members of a workspace |
 | `list_pages` | page tree |
+| `list_children` | direct subpages of a page |
 | `get_page` | read a page (markdown + metadata) |
-| `search_pages` | full-text search (PostgreSQL `tsvector`/`ts_rank`) |
 | `create_page` | create a page + git commit |
 | `update_page` | update a page + git commit |
+| `move_page` | reparent a page (cycle-safe) |
+| `rename_page` | change a slug, leaving an alias so old links resolve |
+| `delete_page` | soft-delete to the trash |
 | `get_page_history` | a page's git history |
+| `search_pages` | full-text search (PostgreSQL `tsvector`/`ts_rank`) |
 | `extract` | structured query by frontmatter `type:` / tags (no LLM) |
-| `list_backlinks` | pages linking here via `[[wikilink]]` |
-| `related_pages` | neighbor pages by shared tags (knowledge graph) |
+| `list_backlinks` | pages linking here via `[[wikilink]]` — one hop, incoming |
+| `get_linked_knowledge` | the wikilink neighbourhood up to 3 hops, each page with its distance, direction, path, and whether it exists |
+| `related_pages` | neighbours by shared tags — same subject, not necessarily a reference |
 | `sgrep` | semantic search blended with keyword boost (reranked when `RERANK=1`) |
 | `rag` | top-k chunks with provenance for the agent to synthesize |
 | `suggest_links` | pages this page should link to but doesn't yet |
 | `suggest_tags` | candidate tags via TF-IDF against the workspace corpus |
 | `summarize_page` | extractive TextRank summary (no LLM) |
 | `workspace_insights` | PageRank, orphans, hubs, broken links, duplicates, topic clusters |
+
+`list_backlinks` and `get_linked_knowledge` traverse links; `related_pages` traverses tags.
+Two pages can share every tag and never reference each other, so they are different answers
+to different questions.
 
 `initialize` and `tools/list` are open; `tools/call` requires a Bearer token. Probe the
 deployed version without auth:
@@ -214,6 +240,10 @@ uv run ruff check . && uv run ruff format --check . && uv run pyright app tests
 
 Stack: FastAPI (REST + native MCP) serving a React SPA (Vite, built into the image at
 `/app`), PostgreSQL (no ORM, raw SQL), and ONNX embeddings via onnxruntime + tokenizers.
+
+Everything the browser loads is served by this deployment — fonts, KaTeX, mermaid,
+highlight.js and d3-force included. There is no CDN and no external request at runtime, and
+`npm run check` fails the build if one creeps in, so doction runs air-gapped.
 
 The test suite starts its own throwaway Postgres container, so `uv run pytest` needs
 nothing set up beyond Docker.
