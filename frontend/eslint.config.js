@@ -37,6 +37,11 @@ export default [
       // Sin PropTypes a propósito: son una dependencia más y un validador en runtime
       // para un proyecto que ya decidió no tipar (JSX plano, sin TypeScript).
       'react/prop-types': 'off',
+      // Usar una variable antes de declararla es un ReferenceError en cuanto se
+      // ejecuta, no un aviso de estilo: la bandeja llamaba a `t` una línea antes
+      // de `useI18n()` y la pantalla entera caía en el error boundary. Las
+      // funciones quedan fuera porque se elevan y llamarlas antes es normal.
+      'no-use-before-define': ['error', { functions: false }],
     },
   },
   {

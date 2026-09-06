@@ -26,7 +26,13 @@ export default function CommandPalette({ ws, pages }) {
   // Esc la cierra aunque el foco esté fuera de su input.
   useEffect(() => {
     function onKey(event) {
-      if ((event.metaKey || event.ctrlKey) && (event.key === 'k' || event.key === 'K')) {
+      // Sin Shift: con él, ⌘⇧K es la captura rápida, y como `event.key` llega
+      // como 'K' mayúscula esto abría las dos cosas, una encima de la otra.
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        !event.shiftKey &&
+        (event.key === 'k' || event.key === 'K')
+      ) {
         event.preventDefault()
         setOpen((isOpen) => !isOpen)
       } else if (event.key === 'Escape') {

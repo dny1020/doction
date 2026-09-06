@@ -265,3 +265,14 @@ def test_children_lists_direct_descendants_only(client):
 
     kids = client.get(f"/api/pages/{raiz['slug']}/children", headers=_h(token)).json()
     assert [k["slug"] for k in kids] == [hijo["slug"]]
+
+
+def test_inbox_excerpt_hides_the_frontmatter(client):
+    """La captura rápida existe para no escribir metadatos; enseñarlos en el
+    extracto convierte `--- type: memo ---` en el texto de la nota."""
+    token = _token(client)
+    _create(client, token, content="---\ntype: memo\n---\n\nrevisar el dispatcher del SBC")
+
+    note = client.get("/api/notes", headers=_h(token)).json()[0]
+    assert note["excerpt"] == "revisar el dispatcher del SBC"
+    assert "type: memo" not in note["excerpt"]

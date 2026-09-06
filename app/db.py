@@ -1392,7 +1392,7 @@ def list_notes(workspace_id: int, *, limit: int = 50, before: str | None = None)
     """
     limit = max(1, min(limit, 200))
     sql = """
-        SELECT p.slug, p.title, p.created_at, LEFT(p.content, 200) AS excerpt
+        SELECT p.slug, p.title, p.created_at, p.content
         FROM pages p
         JOIN page_meta m ON m.page_id = p.id
         WHERE p.workspace_id = %s AND p.deleted_at IS NULL
@@ -1411,7 +1411,10 @@ def list_notes(workspace_id: int, *, limit: int = 50, before: str | None = None)
                 slug=r["slug"],
                 title=r["title"],
                 created_at=r["created_at"],
-                excerpt=r["excerpt"],
+                # El extracto se recorta después de quitar el frontmatter: cortarlo
+                # en SQL enseñaba `--- type: memo ---` como si fuera el texto de la
+                # nota, que es justo lo que la captura rápida evita escribir.
+                excerpt=meta.parse_frontmatter(r["content"] or "")[1].strip()[:200],
             )
             for r in rows
         ]

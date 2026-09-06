@@ -14,11 +14,12 @@ const PAGE_SIZE = 25
 // pagina por cursor sobre created_at.
 export default function Notes() {
   const { ws } = useOutletContext()
-  useDocumentTitle(t('notes'), ws)
   const { t } = useI18n()
   const toast = useToast()
   const [items, setItems] = useState(null) // null = cargando
   const [done, setDone] = useState(false)
+
+  useDocumentTitle(t('notes'), ws)
 
   const load = useCallback(
     (before) => {
@@ -55,7 +56,7 @@ export default function Notes() {
               <li key={n.slug}>
                 <Link to={pagePath(ws, n.slug)}>{n.title}</Link>
                 <p className="snippet">{n.excerpt}</p>
-                <p className="muted">{n.created_at}</p>
+                <p className="subpage-date">{n.created_at?.slice(0, 10)}</p>
               </li>
             ))}
           </ul>
