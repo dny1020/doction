@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { api, isAbort } from '../api.js'
 import { useI18n } from '../i18n.jsx'
@@ -25,6 +25,9 @@ export default function Reader() {
   // Borrar es irreversible desde la vista: mientras la petición está en vuelo el
   // botón se deshabilita, para que dos clics no manden dos borrados.
   const [deleting, setDeleting] = useState(false)
+  // Los wikilinks necesitan saber qué slugs existen para distinguir un enlace de
+  // uno que aún no lleva a ninguna parte. El árbol ya está cargado en el Layout.
+  const slugSet = useMemo(() => new Set(pages.map((p) => p.slug)), [pages])
   const wrapRef = useRef(null)
   const proseRef = useRef(null)
 
@@ -181,7 +184,7 @@ export default function Reader() {
         </header>
 
         {view.content.trim() ? (
-          <Markdown ref={proseRef} text={view.content} />
+          <Markdown ref={proseRef} text={view.content} ws={ws} slugs={slugSet} />
         ) : (
           <div className="prose" ref={proseRef}>
             <p className="muted">{t('empty_page')}</p>
@@ -223,6 +226,13 @@ export default function Reader() {
                   {view.backlinks.map((b) => (
                     <li key={b.slug}>
                       <Link to={pagePath(ws, b.slug)}>{b.title}</Link>
+                      {b.context?.length > 0 && (
+                        <p className="mention-context">
+                          {b.context.map((part, i) =>
+                            part.match ? <mark key={i}>{part.text}</mark> : part.text,
+                          )}
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>

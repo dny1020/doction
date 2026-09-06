@@ -485,3 +485,152 @@ def test_find_section_ignores_headings_inside_a_fence():
     with pytest.raises(LookupError):
         meta.find_section(doc, "Falso")
     assert meta.find_section(doc, "Real")[0] == 0
+
+
+# ── Navegación del grafo de conocimiento ─────────────────────────────────────
+#
+# Lo que se prueba aquí es la pregunta que hace un agente que explora: partiendo
+# de esta página, qué hay cerca, en qué dirección y por qué camino. Un salto lo
+# responde `list_backlinks`; más de uno solo lo responde el recorrido, y sin él
+# el agente paga una ida y vuelta por arista sin saber dónde acaba el vecindario.
+
+
+def _graph_fixture(client, token):
+    """kamailio ←→ rtpengine, kamailio → asterisk → dialplan, y un destino roto."""
+    _data(_call(client, token, "create_page", {"title": "Dialplan", "content": "hojas"}))
+    _data(
+        _call(
+            client,
+            token,
+            "create_page",
+            {"title": "Asterisk", "content": "PBX. Consulta [[dialplan]]."},
+        )
+    )
+    _data(
+        _call(
+            client,
+            token,
+            "create_page",
+            {"title": "Kamailio", "content": "SBC. Ver [[rtpengine]] y [[asterisk]]."},
+        )
+    )
+    _data(
+        _call(
+            client,
+            token,
+            "create_page",
+            {"title": "rtpengine", "content": "Media. Depende de [[kamailio]] y de [[nunca]]."},
+        )
+    )
+
+
+def test_agent_walks_one_hop_in_both_directions(client):
+    token = _token(client)
+    _graph_fixture(client, token)
+
+    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
+    assert out["slug"] == "kamailio"
+    assert out["depth"] == 1
+    reached = {n["slug"]: n for n in out["neighbors"]}
+    # Salientes y entrantes en la misma respuesta: rtpengine llega por los dos
+    # lados, y basta con que el recorrido lo cuente una vez.
+    assert {"rtpengine", "asterisk"} <= set(reached)
+    assert all(n["distance"] == 1 for n in out["neighbors"])
+    assert reached["rtpengine"]["via"] == "both"  # se citan la una a la otra
+    assert reached["asterisk"]["via"] == "outgoing"
+    assert reached["asterisk"]["path"] == ["kamailio", "asterisk"]
+
+
+def test_agent_walks_two_hops_and_gets_the_path(client):
+    token = _token(client)
+    _graph_fixture(client, token)
+
+    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio", "depth": 2}))
+    reached = {n["slug"]: n for n in out["neighbors"]}
+    assert "dialplan" in reached
+    assert reached["dialplan"]["distance"] == 2
+    # El camino es lo que deja al agente justificar por qué mira esta página.
+    assert reached["dialplan"]["path"] == ["kamailio", "asterisk", "dialplan"]
+
+
+def test_agent_sees_whether_a_target_exists(client):
+    token = _token(client)
+    _graph_fixture(client, token)
+
+    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "rtpengine"}))
+    reached = {n["slug"]: n for n in out["neighbors"]}
+    assert reached["kamailio"]["exists"] is True
+    # El destino roto se devuelve, no se calla: es la señal de que alguien contaba
+    # con una página que no está.
+    assert reached["nunca"]["exists"] is False
+
+
+def test_traversal_terminates_on_a_cycle(client):
+    token = _token(client)
+    _data(_call(client, token, "create_page", {"title": "Uno", "content": "voy a [[dos]]"}))
+    _data(_call(client, token, "create_page", {"title": "Dos", "content": "voy a [[tres]]"}))
+    _data(_call(client, token, "create_page", {"title": "Tres", "content": "vuelvo a [[uno]]"}))
+
+    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "uno", "depth": 3}))
+    slugs = [n["slug"] for n in out["neighbors"]]
+    assert sorted(slugs) == ["dos", "tres"]  # cada una una vez, y "uno" no vuelve
+    assert len(slugs) == len(set(slugs))
+
+
+def test_a_self_link_reaches_nobody(client):
+    token = _token(client)
+    _data(_call(client, token, "create_page", {"title": "Sola", "content": "me cito: [[sola]]"}))
+
+    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "sola"}))
+    assert out["neighbors"] == []
+
+
+def test_depth_is_capped_and_the_cap_is_declared(client):
+    token = _token(client)
+    _graph_fixture(client, token)
+
+    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio", "depth": 99}))
+    assert out["depth"] == 3
+
+    listed = client.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    tool = next(t for t in listed.json()["result"]["tools"] if t["name"] == "get_linked_knowledge")
+    assert "capped at" in tool["description"]
+
+
+def test_a_truncated_neighbourhood_says_so(client):
+    token = _token(client)
+    _graph_fixture(client, token)
+
+    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio", "limit": 1}))
+    assert len(out["neighbors"]) == 1
+    assert out["truncated"] is True
+
+    whole = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
+    assert whole["truncated"] is False
+
+
+def test_unknown_page_is_a_tool_error(client):
+    token = _token(client)
+    result = _call(client, token, "get_linked_knowledge", {"slug": "no-existe"})
+    assert result["isError"] is True
+
+
+def test_the_relational_tools_say_which_relation_they_traverse(client):
+    """Un agente elige leyendo solo las descripciones: tags y enlaces responden
+    preguntas distintas y no puede tener que probarlas para averiguarlo."""
+    listed = client.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    tools = {t["name"]: t["description"] for t in listed.json()["result"]["tools"]}
+    assert "not tags" in tools["list_backlinks"]
+    assert "not tags" in tools["get_linked_knowledge"]
+    assert "not links" in tools["related_pages"]
+
+
+def test_backlinks_and_traversal_agree_at_one_hop(client):
+    token = _token(client)
+    _graph_fixture(client, token)
+
+    back = {p["slug"] for p in _data(_call(client, token, "list_backlinks", {"slug": "kamailio"}))}
+    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
+    # `both` cuenta como entrante: las dos se citan, así que sigue siendo backlink.
+    incoming = {n["slug"] for n in out["neighbors"] if n["via"] in ("incoming", "both")}
+    assert back == incoming

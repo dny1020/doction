@@ -23,6 +23,7 @@ from app.models import (
     ExtractedPage,
     LinkEdge,
     Member,
+    Mention,
     NoteRef,
     Page,
     PageMeta,
@@ -1694,6 +1695,45 @@ def backlinks(workspace_id: int, slug: str) -> list[PageRef]:
             (workspace_id, slug, slug),
         ).fetchall()
         return [PageRef(slug=r["slug"], title=r["title"]) for r in rows]
+
+
+def mentions(workspace_id: int, slug: str) -> list[Mention]:
+    """Los backlinks de `slug` con la frase en la que está escrito cada enlace.
+
+    Misma pregunta que `backlinks`, una respuesta más larga: el lector no debería
+    abrir tres páginas para saber si una referencia le sirve. La frase se corta en
+    Python y no en SQL porque el corte es por sintaxis de wikilink, no por texto.
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT p.slug, p.title, p.content
+            FROM page_links l
+            JOIN pages p ON p.id = l.src_page_id
+            LEFT JOIN pages dst ON dst.id = l.dst_page_id
+            WHERE l.workspace_id = %s AND p.deleted_at IS NULL
+              AND (dst.slug = %s OR (l.dst_page_id IS NULL AND l.dst_slug = %s))
+            ORDER BY p.title
+            """,
+            (workspace_id, slug, slug),
+        ).fetchall()
+
+    out: list[Mention] = []
+    for row in rows:
+        # El enlace puede estar escrito contra el slug actual o contra uno anterior
+        # que un renombrado dejó atrás; si no se encuentra, la mención sigue siendo
+        # cierta y lo único que falta es la frase.
+        found = meta.mention_context(row["content"] or "", slug)
+        context: list[SnippetPart] = []
+        if found:
+            before, label, after = found
+            if before:
+                context.append(SnippetPart(text=before, match=False))
+            context.append(SnippetPart(text=label, match=True))
+            if after:
+                context.append(SnippetPart(text=after, match=False))
+        out.append(Mention(slug=row["slug"], title=row["title"], context=context))
+    return out
 
 
 def related_pages(workspace_id: int, slug: str, limit: int = 10) -> list[RelatedPage] | None:

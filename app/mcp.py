@@ -11,7 +11,7 @@ from collections.abc import Callable
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
-from app import db, embeddings, git_repo, meta, suggest
+from app import db, embeddings, git_repo, graph, meta, suggest
 from app.models import Workspace
 from app.version import VERSION
 
@@ -194,6 +194,21 @@ def _tool_list_backlinks(user_id: int, args: dict) -> list[dict]:
     if db.get_page(slug, int(ws.id)) is None:
         raise ValueError(f"Page not found: {slug}")
     return [dataclasses.asdict(ref) for ref in db.backlinks(int(ws.id), slug)]
+
+
+def _tool_get_linked_knowledge(user_id: int, args: dict) -> dict:
+    """El vecindario de una página en el grafo de wikilinks, en una sola llamada."""
+    slug = _require(args, "slug")
+    ws = _workspace(user_id, args)
+    out = graph.linked_knowledge(
+        int(ws.id),
+        slug,
+        depth=int(args.get("depth") or 1),
+        limit=int(args.get("limit") or graph.LINKED_NODE_LIMIT),
+    )
+    if out is None:
+        raise ValueError(f"Page not found: {slug}")
+    return out
 
 
 def _tool_related_pages(user_id: int, args: dict) -> list[dict]:
@@ -504,7 +519,11 @@ TOOLS: list[dict] = [
     },
     {
         "name": "list_backlinks",
-        "description": "Pages that link to this page via [[wikilink]] (incoming edges).",
+        "description": (
+            "Pages that link to this page via [[wikilink]] — incoming edges, one hop. "
+            "Traverses links, not tags: use related_pages for pages about the same "
+            "subject, and get_linked_knowledge to walk further than one hop. Read-only."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {"slug": {"type": "string"}, **_WORKSPACE_PROP},
@@ -512,8 +531,39 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "get_linked_knowledge",
+        "description": (
+            "The wikilink neighbourhood of a page in one call: every page reachable "
+            "within `depth` hops in either direction, each with its distance, the "
+            "direction of the hop that reached it (outgoing, incoming, or both when "
+            "the two pages cite each other), the path that got there, and "
+            "whether the target exists. Traverses links, not tags. Depth is capped at "
+            "3 and results at 100; a truncated result says so. Read-only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string"},
+                "depth": {
+                    "type": "integer",
+                    "description": "Hops to walk, 1-3. Default 1.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum neighbours to return. Default 100.",
+                },
+                **_WORKSPACE_PROP,
+            },
+            "required": ["slug"],
+        },
+    },
+    {
         "name": "related_pages",
-        "description": "Neighbor pages ranked by shared-tag overlap (knowledge graph).",
+        "description": (
+            "Neighbor pages ranked by shared-tag overlap. Traverses tags, not links: "
+            "these pages are about the same subject but need not reference each other. "
+            "Use list_backlinks or get_linked_knowledge for actual references. Read-only."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {"slug": {"type": "string"}, **_WORKSPACE_PROP},
@@ -741,6 +791,7 @@ TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
     "get_page_history": _tool_get_page_history,
     "extract": _tool_extract,
     "list_backlinks": _tool_list_backlinks,
+    "get_linked_knowledge": _tool_get_linked_knowledge,
     "related_pages": _tool_related_pages,
     "sgrep": _tool_sgrep,
     "rag": _tool_rag,

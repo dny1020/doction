@@ -149,3 +149,86 @@ describe('frontmatter', () => {
     expect(renderMarkdown('# Hola\n\nQué tal.')).toContain('<h1>Hola</h1>')
   })
 })
+
+describe('wikilinks', () => {
+  const env = { ws: 'telco', slugs: new Set(['failover', 'sbc-runbook']) }
+
+  it('convierte [[destino]] en un ancla a la página del workspace', () => {
+    const html = renderMarkdown('ver [[failover]] para el detalle', env)
+    expect(html).toContain('href="/app/w/telco/p/failover"')
+    expect(html).toContain('class="wikilink"')
+    expect(html).toContain('>failover</a>')
+  })
+
+  it('usa la etiqueta de [[destino|texto]] y conserva el destino', () => {
+    const html = renderMarkdown('ver [[failover|el procedimiento]]', env)
+    expect(html).toContain('href="/app/w/telco/p/failover"')
+    expect(html).toContain('>el procedimiento</a>')
+  })
+
+  it('marca el destino inexistente y lleva a escribirlo', () => {
+    const html = renderMarkdown('falta [[nunca-escrita]]', env)
+    expect(html).toContain('wikilink--missing')
+    expect(html).toContain('href="/app/w/telco/new?title=nunca-escrita"')
+  })
+
+  it('no afirma que falte nada si aún no se sabe qué slugs existen', () => {
+    const html = renderMarkdown('ver [[cualquiera]]', { ws: 'telco' })
+    expect(html).toContain('class="wikilink"')
+    expect(html).not.toContain('wikilink--missing')
+  })
+
+  it('sin workspace se queda como texto, que es lo que se veía antes', () => {
+    const html = renderMarkdown('ver [[failover]]', {})
+    expect(html).not.toContain('<a')
+    expect(html).toContain('[[failover]]')
+  })
+
+  // ── inyección ──────────────────────────────────────────────────────────────
+
+  it('un destino con esquema ejecutable acaba como ruta relativa, no como esquema', () => {
+    const html = renderMarkdown('[[javascript:alert(1)]]', env)
+    expect(html).not.toContain('href="javascript:')
+    expect(html).toContain('/app/w/telco/new?title=javascript')
+  })
+
+  // Aquí no vale buscar cadenas: `onclick=` aparece legítimamente como texto
+  // visible del enlace. Lo que importa es qué atributos acaba teniendo el ancla.
+  const anchorOf = (html) => {
+    const host = document.createElement('div')
+    host.innerHTML = html
+    return host.querySelector('a')
+  }
+
+  it('un destino con comillas no puede salirse del atributo', () => {
+    const a = anchorOf(renderMarkdown('[[a" onclick="alert(1)]]', env))
+    expect([...a.attributes].map((x) => x.name).sort()).toEqual(['class', 'href'])
+    expect(a.getAttribute('href')).not.toContain('"')
+    expect(a.textContent).toBe('a" onclick="alert(1)')
+  })
+
+  it('un destino con ángulos no puede abrir una etiqueta', () => {
+    const a = anchorOf(renderMarkdown('[[<img src=x onerror=alert(1)>]]', env))
+    expect([...a.attributes].map((x) => x.name).sort()).toEqual(['class', 'href'])
+    expect(a.querySelector('img')).toBeNull()
+    expect(a.getAttribute('href').startsWith('/app/w/telco/')).toBe(true)
+  })
+
+  it('una etiqueta con markup se escapa como texto', () => {
+    const html = renderMarkdown('[[failover|<b>negrita</b>]]', env)
+    expect(html).not.toContain('<b>negrita</b>')
+    expect(html).toContain('href="/app/w/telco/p/failover"')
+  })
+
+  it('no cruza líneas ni se come el párrafo', () => {
+    const html = renderMarkdown('[[sin cerrar\ny más texto', env)
+    expect(html).toContain('y más texto')
+    expect(html).not.toContain('<a')
+  })
+
+  it('un wikilink dentro de un bloque de código sigue siendo código', () => {
+    const html = renderMarkdown('```\n[[failover]]\n```', env)
+    expect(html).toContain('<code')
+    expect(html).not.toContain('<a')
+  })
+})

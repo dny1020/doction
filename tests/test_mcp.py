@@ -90,6 +90,7 @@ def test_tools_list(client):
         "get_page_history",
         "extract",
         "list_backlinks",
+        "get_linked_knowledge",
         "related_pages",
         "sgrep",
         "rag",

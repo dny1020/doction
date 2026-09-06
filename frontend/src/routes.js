@@ -17,3 +17,10 @@ export function pagePath(ws, slug, suffix = '') {
 export function newPagePath(ws, parentSlug) {
   return wsPath(ws, parentSlug ? '/new?parent=' + parentSlug : '/new')
 }
+
+// Un wikilink a una página que aún no existe lleva a escribirla, con el destino
+// ya puesto como título. El slug lo deriva el servidor del título, que es la
+// única forma que tiene el editor de proponer un nombre.
+export function newPageWithTitlePath(ws, title) {
+  return wsPath(ws, '/new?title=' + encodeURIComponent(title))
+}

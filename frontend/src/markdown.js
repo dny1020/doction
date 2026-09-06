@@ -1,6 +1,8 @@
 import MarkdownIt from 'markdown-it'
 import taskLists from 'markdown-it-task-lists'
 import DOMPurify from 'dompurify'
+import { APP_BASE } from './config.js'
+import { newPageWithTitlePath, pagePath } from './routes.js'
 
 // El render de markdown vive solo en el cliente: el backend guarda markdown crudo y
 // no renderiza nada, así que cada decisión de aquí es un límite de seguridad.
@@ -151,6 +153,71 @@ function mathPlugin(instance) {
 }
 md.use(mathPlugin)
 
+// ── Wikilinks ────────────────────────────────────────────────────────────────
+// `[[destino]]` y `[[destino|texto]]` se convierten en anclas a la página. El
+// servidor lleva desde siempre estas aristas en `page_links`; lo que faltaba era
+// que el lector pudiera seguirlas.
+//
+// La regla emite tokens (`link_open` / `text` / `link_close`) y no una cadena de
+// HTML. La diferencia no es de estilo: pegar un destino sacado del documento
+// dentro de `<a href="...">` es exactamente la forma del XSS almacenado que cerró
+// el change 001. Como token, el destino es un valor de atributo que markdown-it
+// escapa y el saneador ve un ancla normal.
+//
+// El href se construye siempre como prefijo de ruta más un segmento codificado,
+// así que un destino como `javascript:alert(1)` acaba siendo la ruta relativa
+// `/w/<ws>/p/javascript%3Aalert(1)` y no un esquema ejecutable.
+function wikilinkPlugin(instance) {
+  instance.inline.ruler.before('link', 'doction_wikilink', (state, silent) => {
+    const start = state.pos
+    if (state.src.charCodeAt(start) !== 0x5b || state.src.charCodeAt(start + 1) !== 0x5b) {
+      return false
+    }
+    const end = state.src.indexOf(']]', start + 2)
+    if (end === -1) return false
+
+    const inner = state.src.slice(start + 2, end)
+    // Un wikilink no cruza líneas ni anida corchetes: sin esto, un `[` suelto
+    // dentro se comería el resto del párrafo.
+    if (inner.includes('\n') || inner.includes('[')) return false
+
+    const bar = inner.indexOf('|')
+    const target = (bar === -1 ? inner : inner.slice(0, bar)).trim()
+    const label = (bar === -1 ? '' : inner.slice(bar + 1).trim()) || target
+    if (!target) return false
+
+    // Sin workspace no hay ruta que construir. Se deja pasar como texto, que es
+    // lo que se veía antes de existir esta regla.
+    const ws = state.env && state.env.ws
+    if (!ws) return false
+
+    if (!silent) {
+      // `slugs` puede no estar (el árbol aún cargando): entonces no se afirma que
+      // falte nada. Marcar de rojo una página que sí existe es peor que no marcar.
+      const slugs = state.env.slugs
+      const missing = slugs ? !slugs.has(target) : false
+      // Con APP_BASE por delante: los ayudantes de routes.js devuelven la ruta
+      // que espera <Link>, a la que el router le pone el basename. Aquí sale un
+      // <a href> de verdad dentro del HTML del documento, y sin el prefijo el
+      // navegador lo pide al backend, que no sirve la SPA en esa ruta.
+      const href = missing
+        ? newPageWithTitlePath(ws, target)
+        : pagePath(ws, encodeURIComponent(target))
+      const open = state.push('link_open', 'a', 1)
+      open.attrs = [
+        ['href', APP_BASE + href],
+        ['class', missing ? 'wikilink wikilink--missing' : 'wikilink'],
+      ]
+      const text = state.push('text', '', 0)
+      text.content = label
+      state.push('link_close', 'a', -1)
+    }
+    state.pos = end + 2
+    return true
+  })
+}
+md.use(wikilinkPlugin)
+
 // ── Alineación de tablas ─────────────────────────────────────────────────────
 // markdown-it escribe la alineación de cada columna como `style` en línea, y el
 // saneador quita `style` — con razón: es la vía por la que una página se pinta
@@ -185,8 +252,10 @@ function stripFrontmatter(text) {
   return text.replace(FRONTMATTER, '')
 }
 
-export function renderMarkdown(text) {
-  return DOMPurify.sanitize(md.render(stripFrontmatter(text || '')), {
+// `env` lleva el contexto que una regla necesita y el markdown no tiene: el
+// workspace al que pertenece el documento y los slugs que existen en él.
+export function renderMarkdown(text, env = {}) {
+  return DOMPurify.sanitize(md.render(stripFrontmatter(text || ''), env), {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
     ALLOWED_URI_REGEXP: ALLOWED_URI,

@@ -92,6 +92,38 @@ def extract_links(content: str) -> list[str]:
     return out
 
 
+_SENTENCE_END = ".!?\n"
+
+
+def mention_context(content: str, target: str, *, width: int = 160) -> tuple[str, str, str] | None:
+    """La frase donde `content` enlaza a `target`, partida en (antes, enlace, después).
+
+    Devuelve el texto de la etiqueta, no `[[destino]]`: es lo que el lector ve en la
+    página que enlaza. None si no hay ninguna mención.
+    """
+    text = strip_code(content)
+    for m in _WIKILINK_RE.finditer(text):
+        if m.group(1).strip() != target:
+            continue
+        inner = m.group(0)[2:-2]
+        bar = inner.find("|")
+        label = (inner[bar + 1 :].strip() if bar != -1 else "") or inner.strip()
+
+        lo = max(0, m.start() - width)
+        cut = max(text.rfind(c, lo, m.start()) for c in _SENTENCE_END)
+        start = cut + 1 if cut != -1 else lo
+
+        hi = min(len(text), m.end() + width)
+        ends = [i for i in (text.find(c, m.end(), hi) for c in _SENTENCE_END) if i != -1]
+        end = min(ends) + 1 if ends else hi
+
+        # Se recortan solo los bordes exteriores. El espacio que hay entre la
+        # palabra y el enlace es del documento, y reponerlo a mano metía uno de
+        # más cuando la frase seguía con un punto.
+        return text[start : m.start()].lstrip(), label, text[m.end() : end].rstrip()
+    return None
+
+
 UNTITLED = "Untitled"
 
 

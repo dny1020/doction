@@ -25,7 +25,9 @@ export default function Editor({ mode }) {
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
   const parentSlug = searchParams.get('parent') || ''
-  const { ws, reloadPages } = useOutletContext()
+  // Un wikilink a una página inexistente trae aquí el destino como título.
+  const seededTitle = searchParams.get('title') || ''
+  const { ws, pages, reloadPages } = useOutletContext()
   const navigate = useNavigate()
   const toast = useToast()
   const confirm = useConfirm()
@@ -33,6 +35,7 @@ export default function Editor({ mode }) {
   const formRef = useRef(null)
   const previewRef = useRef(null)
 
+  const slugSet = useMemo(() => new Set(pages.map((p) => p.slug)), [pages])
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [loaded, setLoaded] = useState(!isEdit) // en modo "new" no hay nada que cargar
@@ -95,6 +98,21 @@ export default function Editor({ mode }) {
     if (saved && (saved.title || saved.content)) setDraft(saved)
   }, [isEdit, ws])
 
+  // Llegar desde un wikilink roto precarga el título. No pisa un borrador ni lo
+  // que ya se esté escribiendo: solo rellena el campo vacío al abrir.
+  //
+  // También mueve la línea base de «sin guardar». El título lo puso el enlace, no
+  // quien escribe, así que salir sin tocar nada no debería preguntar si se
+  // descartan cambios; a partir de aquí sí, en cuanto se escriba algo.
+  useEffect(() => {
+    if (isEdit || !seededTitle) return
+    setTitle((current) => {
+      if (current) return current
+      initialRef.current = { ...initialRef.current, title: seededTitle }
+      return seededTitle
+    })
+  }, [isEdit, seededTitle])
+
   // Escribir el borrador con retardo: a ritmo acotado y no en cada tecla.
   useEffect(() => {
     if (!loaded || savedRef.current || draft) return
@@ -110,7 +128,10 @@ export default function Editor({ mode }) {
     return () => clearTimeout(timer)
   }, [content])
 
-  const previewHtml = useMemo(() => renderMarkdown(preview), [preview])
+  const previewHtml = useMemo(
+    () => renderMarkdown(preview, { ws, slugs: slugSet }),
+    [preview, ws, slugSet],
+  )
 
   // Editando, el título sigue al campo: renombrar una página se ve en la pestaña
   // antes de guardar.

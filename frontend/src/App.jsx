@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './auth.jsx'
 import { wsPath } from './routes.js'
@@ -17,6 +18,10 @@ import WebhooksSection from './pages/settings/Webhooks.jsx'
 import SystemSection from './pages/settings/System.jsx'
 import Trash from './pages/Trash.jsx'
 import Notes from './pages/Notes.jsx'
+import { ListSkeleton } from './components/Skeleton.jsx'
+// El grafo carga aparte: d3-force y el dibujo solo hacen falta en esta ruta, y
+// quien nunca la abre no debería pagar el bulto en el arranque.
+const Graph = lazy(() => import('./pages/Graph.jsx'))
 import NotFound from './pages/NotFound.jsx'
 import ErrorPage from './pages/ErrorPage.jsx'
 
@@ -109,6 +114,14 @@ export const routes = [
           { path: '/w/:ws/p/:slug/history', element: <History /> },
           { path: '/w/:ws/trash', element: <Trash /> },
           { path: '/w/:ws/notes', element: <Notes /> },
+          {
+            path: '/w/:ws/graph',
+            element: (
+              <Suspense fallback={<ListSkeleton rows={6} />}>
+                <Graph />
+              </Suspense>
+            ),
+          },
           // Ajustes no son de un workspace: son de la cuenta y del despliegue. El
           // shell usa el de la última visita para pintar el árbol.
           {

@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.status import HTTP_303_SEE_OTHER
 
-from app import db, embeddings, git_repo, i18n, mcp, meta, ocr, seed, suggest, webhooks
+from app import db, embeddings, git_repo, graph, i18n, mcp, meta, ocr, seed, suggest, webhooks
 from app.auth import (
     TOKEN_PREFIX,
     generate_api_token,
@@ -573,6 +573,19 @@ def api_insights(request: Request):
     return suggest.workspace_insights(wid)
 
 
+@api_router.get("/graph")
+def api_graph(request: Request):
+    """Nodos y aristas del grafo de wikilinks, para dibujarlo.
+
+    Aparte de `/insights`, que resume: allí la pregunta es la salud del workspace
+    y aquí es su forma. El workspace sale del contexto de la petición como en el
+    resto de la API, no de la ruta.
+    """
+    uid = _api_user(request)
+    wid = _api_workspace(request, uid)
+    return graph.workspace_graph(wid)
+
+
 @api_router.get("/system")
 def api_system(request: Request):
     """Qué está corriendo este despliegue: versión, base de datos y recuperación.
@@ -790,7 +803,16 @@ def api_page_view(request: Request, slug: str):
         "children": [
             {"slug": c.slug, "title": c.title, "updated_at": c.updated_at} for c in children
         ],
-        "backlinks": [{"slug": b.slug, "title": b.title} for b in db.backlinks(wid, slug)],
+        # Cada mención lleva la frase donde está escrito el enlace, en tramos: el
+        # texto de una página nunca vuelve a entrar en el DOM de otra como markup.
+        "backlinks": [
+            {
+                "slug": m.slug,
+                "title": m.title,
+                "context": [{"text": part.text, "match": part.match} for part in m.context],
+            }
+            for m in db.mentions(wid, slug)
+        ],
         "related": [
             {"slug": r.slug, "title": r.title, "shared_tags": r.shared_tags} for r in related
         ],

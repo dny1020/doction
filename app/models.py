@@ -187,6 +187,20 @@ class PageRef:
 
 
 @dataclass
+class Mention:
+    """Un backlink con la frase donde está escrito el enlace.
+
+    Una lista de títulos dice quién apunta aquí; no dice si la referencia importa.
+    El contexto viaja como tramos, igual que los fragmentos de búsqueda, para que
+    el texto de una página no pueda meter markup en el renderizado de otra.
+    """
+
+    slug: str
+    title: str
+    context: list["SnippetPart"]
+
+
+@dataclass
 class RelatedPage:
     """Una página relacionada por etiquetas en común (`related_pages`)."""
 

@@ -1124,6 +1124,21 @@ a { color: inherit; }
 }
 .relations-list a { color: var(--fg-1); text-decoration: none; }
 .relations-list a:hover { color: var(--accent); }
+/* La frase donde vive la mención. Es prosa citada de otra página, así que va en
+   la cara de texto y apagada: acompaña al título, no compite con él. */
+.mention-context {
+  margin: var(--sp-1) 0 0;
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.mention-context mark {
+  background: var(--accent-soft);
+  color: var(--accent-press);
+  border-radius: var(--r-xs);
+  padding: 0 2px;
+}
+
 .relations-meta {
   margin-left: auto;
   font-size: var(--text-xs);
@@ -1289,6 +1304,17 @@ a { color: inherit; }
 .prose p  { margin: 0 0 var(--sp-4); text-wrap: pretty; }
 .prose a  { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: 1px; }
 .prose a:hover { color: var(--accent-hover); }
+
+/* Wikilinks. Un enlace a una página que aún no existe no es un error: en un wiki
+   que crece es el estado normal de algo que se va a escribir. Por eso se apaga a
+   la tinta terciaria con subrayado discontinuo en vez de usar el tono de peligro,
+   que en el resto de la interfaz significa destruir. La vista de grafo sí lo
+   marca como hallazgo, porque allí la pregunta es la salud del conjunto. */
+.prose a.wikilink--missing {
+  color: var(--fg-3);
+  text-decoration-style: dashed;
+}
+.prose a.wikilink--missing:hover { color: var(--fg-2); }
 .prose ul, .prose ol { padding-left: var(--sp-5); }
 .prose li { margin: var(--sp-1) 0; }
 .prose code {
@@ -2715,3 +2741,102 @@ html {
 .prose h2 { font-size: calc(var(--text-xl) * 1.15); }
 .prose h3 { font-size: calc(var(--text-lg) * 1.12); }
 .settings-h1 { font-size: calc(var(--text-2xl) * 1.1); }
+
+/* === Vista de grafo ======================================================= */
+/* Todo el color sale de las variables del tema y ninguno del JavaScript: el SVG
+   lo escribe la aplicación, así que el modo oscuro es la misma cascada de siempre
+   y no hace falta puentear paleta como con mermaid. */
+
+.graph-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.graph-header { flex-shrink: 0; }
+
+.graph-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+  margin: var(--sp-4) 0 0;
+}
+.graph-fact { display: flex; align-items: baseline; gap: var(--sp-2); }
+.graph-fact-value {
+  margin: 0;
+  font-family: var(--font-data);
+  font-size: var(--text-lg);
+  color: var(--fg-1);
+}
+.graph-fact-label {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+}
+.graph-fact--alert .graph-fact-value { color: var(--danger); }
+
+.graph-note {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+}
+
+.graph-canvas {
+  flex: 1;
+  min-height: 320px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  touch-action: none;      /* el arrastre es nuestro, no del navegador */
+  cursor: grab;
+}
+.graph-canvas:active { cursor: grabbing; }
+.graph-edge {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-opacity: 0.55;
+}
+/* Un enlace a una página que no existe: aquí sí es un hallazgo, porque la
+   pregunta de esta vista es la salud del conjunto. En la prosa el mismo enlace se
+   pinta apagado, porque allí es algo que aún no se ha escrito. */
+.graph-edge--broken {
+  stroke: var(--danger);
+  stroke-dasharray: 3 3;
+  stroke-opacity: 0.75;
+}
+
+.graph-node { cursor: pointer; }
+.graph-node circle {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+  transition: fill var(--dur-fast) var(--ease);
+}
+.graph-node text {
+  font-family: var(--font-data);
+  font-size: 10px;
+  fill: var(--fg-2);
+  pointer-events: none;
+  user-select: none;
+}
+/* Huérfana: sin enlaces en ningún sentido. No es un error, es una página que
+   nadie ha conectado todavía, así que se apaga en vez de alarmar. */
+.graph-node--orphan circle { fill: var(--border-strong); }
+.graph-node--broken { cursor: default; }
+.graph-node--broken circle {
+  fill: none;
+  stroke: var(--danger);
+  stroke-dasharray: 2 2;
+}
+.graph-node--broken text { fill: var(--danger); }
+.graph-node.is-hover circle { fill: var(--accent-hover); }
+.graph-node.is-hover text { fill: var(--fg-1); }
+
+@media (max-width: 820px) {
+  .graph-facts { gap: var(--sp-4); }
+  .graph-canvas { min-height: 260px; }
+}

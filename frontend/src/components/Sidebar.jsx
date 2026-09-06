@@ -4,6 +4,7 @@ import {
   Check,
   ChevronsUpDown,
   Inbox,
+  Share2,
   LogOut,
   Moon,
   PanelLeftClose,
@@ -218,6 +219,9 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
       <div className="sidebar-foot">
         <Link className="inbox-link" to={wsPath(ws, '/notes')}>
           <Inbox className="lucide" size={15} /> {t('notes')}
+        </Link>
+        <Link className="inbox-link" to={wsPath(ws, '/graph')}>
+          <Share2 className="lucide" size={15} /> {t('graph')}
         </Link>
         <Link className="new-btn" to={newPagePath(ws)}>
           <Plus className="lucide" size={15} /> {t('new_page')}
