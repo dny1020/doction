@@ -21,9 +21,9 @@ export default function SystemSection() {
 
   if (failed) {
     return (
-      <section className="settings-card">
-        <h2 className="settings-card-title">{t('sec_system')}</h2>
-        <p className="settings-card-desc">{t('system_unavailable')}</p>
+      <section className="card">
+        <h2 className="card-title">{t('sec_system')}</h2>
+        <p className="card-desc">{t('system_unavailable')}</p>
       </section>
     )
   }
@@ -34,12 +34,12 @@ export default function SystemSection() {
   const flag = (on) => (on ? t('enabled') : t('disabled'))
 
   return (
-    <section className="settings-card">
-      <h2 className="settings-card-title">{t('sec_system')}</h2>
-      <p className="settings-card-desc">{t('system_desc')}</p>
+    <section className="card">
+      <h2 className="card-title">{t('sec_system')}</h2>
+      <p className="card-desc">{t('system_desc')}</p>
 
-      <h3 className="settings-group-title">{t('system_retrieval')}</h3>
-      <dl className="settings-facts">
+      <h3 className="eyebrow">{t('system_retrieval')}</h3>
+      <dl className="rows rows--divided">
         <Fact label={t('semantic_search')} value={flag(report.semantic_search)} />
         <Fact label={t('reranker')} value={flag(report.rerank)} />
         <Fact label={t('ocr_uploads')} value={flag(report.ocr_uploads)} />
@@ -56,15 +56,15 @@ export default function SystemSection() {
 
       {/* Las constantes que ordenan cada resultado híbrido. Solo lectura, como el
           resto: son configuración del despliegue y no una preferencia. */}
-      <h3 className="settings-group-title">{t('system_ranking')}</h3>
-      <dl className="settings-facts">
+      <h3 className="eyebrow">{t('system_ranking')}</h3>
+      <dl className="rows rows--divided">
         <Fact label={t('rrf_k')} value={String(report.rrf_k)} />
         <Fact label={t('rrf_vector_weight')} value={String(report.rrf_vector_weight)} />
         <Fact label={t('search_min_score')} value={String(report.search_min_score)} />
       </dl>
 
-      <h3 className="settings-group-title">{t('system_server')}</h3>
-      <dl className="settings-facts">
+      <h3 className="eyebrow">{t('system_server')}</h3>
+      <dl className="rows rows--divided">
         <Fact label={t('version')} value={report.version} />
         <Fact label={t('database')} value={report.db === 'ok' ? t('db_ok') : t('db_unreachable')} />
       </dl>
@@ -74,9 +74,9 @@ export default function SystemSection() {
 
 function Fact({ label, value }) {
   return (
-    <div className="settings-fact">
-      <dt className="settings-fact-label">{label}</dt>
-      <dd className="settings-fact-value">{value}</dd>
+    <div className="row">
+      <dt className="row-name">{label}</dt>
+      <dd className="meta meta--strong">{value}</dd>
     </div>
   )
 }

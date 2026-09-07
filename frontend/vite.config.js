@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -21,6 +23,25 @@ const appPath = path('DOCTION_APP_PATH', '/app')
 const staticPath = path('DOCTION_STATIC_PATH', '/static')
 const mcpPath = path('DOCTION_MCP_PATH', '/api/mcp')
 
+// El CSS lo sirve el backend desde una ruta fija, así que no puede llevar el hash
+// en el nombre como los assets de Vite. Lleva el mismo hash de contenido en la
+// consulta, calculado igual y en el mismo momento: un navegador con la hoja vieja
+// cacheada y el bundle nuevo pinta el marcado nuevo con las reglas viejas, que es
+// una pantalla rota y no un estilo desactualizado.
+function styleHash() {
+  try {
+    return createHash('sha256')
+      .update(readFileSync(new URL('../app/static/style.css', import.meta.url)))
+      .digest('hex')
+      .slice(0, 8)
+  } catch {
+    // En el stage `web` del Dockerfile el CSS se copia antes de construir, así que
+    // esto solo salta en un árbol incompleto: sin hash se sigue sirviendo, igual
+    // que antes de este cambio.
+    return ''
+  }
+}
+
 // index.html referencia el CSS, el favicon y el manifest del backend por ruta
 // absoluta, y Vite no toca las URLs absolutas: la sustitución va aquí. Corre en
 // 'pre' porque Vite decodifica los href como URI al parsear el HTML, y un
@@ -29,7 +50,12 @@ const staticUrls = {
   name: 'doction-static-urls',
   transformIndexHtml: {
     order: 'pre',
-    handler: (html) => html.replaceAll('__STATIC__', staticPath),
+    handler: (html) => {
+      const hash = styleHash()
+      return html
+        .replaceAll('__STATIC__/style.css', staticPath + '/style.css' + (hash ? '?v=' + hash : ''))
+        .replaceAll('__STATIC__', staticPath)
+    },
   },
 }
 

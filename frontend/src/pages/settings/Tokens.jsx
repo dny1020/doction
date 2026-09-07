@@ -55,15 +55,15 @@ export default function TokensSection() {
   }
 
   return (
-    <section className="settings-card">
-      <h2 className="settings-card-title">{t('api_tokens')}</h2>
-      <p className="settings-card-desc">{t('api_tokens_desc')}</p>
+    <section className="card">
+      <h2 className="card-title">{t('api_tokens')}</h2>
+      <p className="card-desc">{t('api_tokens_desc')}</p>
 
       {newToken && (
-        <div className="token-reveal">
-          <p className="token-reveal-label">{t('token_shown_once')}</p>
-          <div className="token-reveal-row">
-            <code className="token-value">{newToken}</code>
+        <div className="secret-reveal">
+          <p className="secret-note">{t('token_shown_once')}</p>
+          <div className="secret-row">
+            <code className="secret-value">{newToken}</code>
             <button
               className="btn btn-sm"
               type="button"
@@ -83,12 +83,12 @@ export default function TokensSection() {
       )}
 
       {tokens.length > 0 && (
-        <ul className="token-list">
+        <ul className="rows rows--divided">
           {tokens.map((tok) => (
-            <li className="token-row" key={tok.id}>
-              <div className="token-info">
-                <span className="token-name">{tok.name}</span>
-                <span className="token-meta">
+            <li className="row" key={tok.id}>
+              <div className="row-name">
+                <span className="row-title">{tok.name}</span>
+                <span className="meta">
                   {t('created')} {tok.created_at.slice(0, 10)}
                   <span className="crumb-sep" aria-hidden="true">
                     ·
@@ -111,9 +111,9 @@ export default function TokensSection() {
         </ul>
       )}
 
-      <form className="token-add" onSubmit={onCreate}>
+      <form className="add-form" onSubmit={onCreate}>
         <input
-          className="settings-input"
+          className="field"
           type="text"
           maxLength={60}
           placeholder={t('token_name_ph')}

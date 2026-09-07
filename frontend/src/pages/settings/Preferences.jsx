@@ -32,20 +32,20 @@ export default function PreferencesSection() {
   }
 
   return (
-    <section className="settings-card">
-      <h2 className="settings-card-title">{t('sec_preferences')}</h2>
-      <p className="settings-card-desc">{t('preferences_desc')}</p>
+    <section className="card">
+      <h2 className="card-title">{t('sec_preferences')}</h2>
+      <p className="card-desc">{t('preferences_desc')}</p>
 
-      <div className="settings-row">
-        <span className="settings-row-label">{t('theme')}</span>
+      <div className="row">
+        <span className="row-name">{t('theme')}</span>
         <button className="btn" type="button" onClick={onToggleTheme}>
           {theme === 'dark' ? t('theme_dark') : t('theme_light')}
         </button>
       </div>
 
-      <div className="settings-row">
-        <span className="settings-row-label">{t('language')}</span>
-        <div className="settings-row-actions">
+      <div className="row">
+        <span className="row-name">{t('language')}</span>
+        <div className="row-actions">
           {langs.map((code) => (
             <button
               key={code}

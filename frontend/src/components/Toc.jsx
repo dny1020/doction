@@ -74,7 +74,7 @@ export default function Toc({ proseRef, wrapRef, content }) {
 
   return (
     <aside className="toc" aria-label="Table of contents">
-      <div className="toc-label">{t('on_this_page')}</div>
+      <div className="eyebrow">{t('on_this_page')}</div>
       <nav id="toc-nav">
         {items.map((item) => (
           <a

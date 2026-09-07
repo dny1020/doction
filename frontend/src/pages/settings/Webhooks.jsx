@@ -55,15 +55,15 @@ export default function WebhooksSection() {
   }
 
   return (
-    <section className="settings-card">
-      <h2 className="settings-card-title">{t('webhooks')}</h2>
-      <p className="settings-card-desc">{t('webhooks_desc')}</p>
+    <section className="card">
+      <h2 className="card-title">{t('webhooks')}</h2>
+      <p className="card-desc">{t('webhooks_desc')}</p>
 
       {newSecret && (
-        <div className="token-reveal">
-          <p className="token-reveal-label">{t('secret_shown_once')}</p>
-          <div className="token-reveal-row">
-            <code className="token-value">{newSecret}</code>
+        <div className="secret-reveal">
+          <p className="secret-note">{t('secret_shown_once')}</p>
+          <div className="secret-row">
+            <code className="secret-value">{newSecret}</code>
             <button
               className="btn btn-sm"
               type="button"
@@ -81,7 +81,7 @@ export default function WebhooksSection() {
       )}
 
       {hooks.length > 0 && (
-        <ul className="token-list">
+        <ul className="rows rows--divided">
           {hooks.map((h) => (
             <WebhookRow
               key={h.id}
@@ -93,9 +93,9 @@ export default function WebhooksSection() {
         </ul>
       )}
 
-      <form className="token-add" onSubmit={onCreate}>
+      <form className="add-form" onSubmit={onCreate}>
         <input
-          className="settings-input"
+          className="field"
           type="url"
           required
           placeholder={t('webhook_url_ph')}
@@ -103,7 +103,7 @@ export default function WebhooksSection() {
           onChange={(e) => setUrl(e.target.value)}
         />
         <input
-          className="settings-input"
+          className="field"
           type="text"
           placeholder={t('webhook_events_ph')}
           value={events}
@@ -143,11 +143,11 @@ function WebhookRow({ hook, onDelete, busy }) {
   else if (hook.last_status) health = t('hook_delivering')
 
   return (
-    <li className="token-row token-row--stacked">
-      <div className="token-row-head">
-        <div className="token-info">
-          <span className="token-name">{hook.url}</span>
-          <span className="token-meta">
+    <li>
+      <div className="row">
+        <div className="row-name">
+          <span className="row-title">{hook.url}</span>
+          <span className="meta">
             {hook.events || t('all_events')}
             <span className="crumb-sep" aria-hidden="true">
               ·
@@ -157,7 +157,7 @@ function WebhookRow({ hook, onDelete, busy }) {
             </span>
           </span>
         </div>
-        <div className="token-row-actions">
+        <div className="row-actions">
           <button
             className="btn btn-sm"
             type="button"

@@ -43,20 +43,20 @@ function ProfileSection() {
   }
 
   return (
-    <section className="settings-card">
-      <h2 className="settings-card-title">{t('profile')}</h2>
-      <p className="settings-card-desc">{t('profile_desc')}</p>
+    <section className="card">
+      <h2 className="card-title">{t('profile')}</h2>
+      <p className="card-desc">{t('profile_desc')}</p>
       <form className="settings-form" onSubmit={onSave}>
         <div className="profile-row">
           <div className="profile-preview" style={{ background: previewColor }}>
             {previewLetter}
           </div>
           <div className="profile-fields">
-            <label className="settings-label" htmlFor="display_name">
+            <label className="field-label" htmlFor="display_name">
               {t('name')}
             </label>
             <input
-              className="settings-input"
+              className="field"
               id="display_name"
               type="text"
               maxLength={40}
@@ -67,7 +67,7 @@ function ProfileSection() {
           </div>
         </div>
 
-        <label className="settings-label">{t('avatar_color')}</label>
+        <label className="field-label">{t('avatar_color')}</label>
         <div className="color-swatches">
           <label className={'swatch swatch--auto' + (color === '' ? ' selected' : '')}>
             <input
@@ -133,15 +133,15 @@ function PasswordSection() {
   }
 
   return (
-    <section className="settings-card">
-      <h2 className="settings-card-title">{t('password')}</h2>
-      <p className="settings-card-desc">{t('password_desc')}</p>
+    <section className="card">
+      <h2 className="card-title">{t('password')}</h2>
+      <p className="card-desc">{t('password_desc')}</p>
       <form className="settings-form" onSubmit={onSave}>
-        <label className="settings-label" htmlFor="current_password">
+        <label className="field-label" htmlFor="current_password">
           {t('current_password')}
         </label>
         <input
-          className="settings-input"
+          className="field"
           id="current_password"
           type="password"
           autoComplete="current-password"
@@ -149,11 +149,11 @@ function PasswordSection() {
           onChange={(e) => setCurrent(e.target.value)}
           required
         />
-        <label className="settings-label" htmlFor="new_password">
+        <label className="field-label" htmlFor="new_password">
           {t('new_password')}
         </label>
         <input
-          className="settings-input"
+          className="field"
           id="new_password"
           type="password"
           autoComplete="new-password"
@@ -162,11 +162,11 @@ function PasswordSection() {
           onChange={(e) => setNext(e.target.value)}
           required
         />
-        <label className="settings-label" htmlFor="confirm_password">
+        <label className="field-label" htmlFor="confirm_password">
           {t('repeat_new_password')}
         </label>
         <input
-          className="settings-input"
+          className="field"
           id="confirm_password"
           type="password"
           autoComplete="new-password"

@@ -196,7 +196,7 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
 
       {results === null && (
         <>
-          <div className="sidebar-eyebrow">{t('pages')}</div>
+          <div className="eyebrow">{t('pages')}</div>
           <nav className="page-list">
             {pagesError ? (
               <p className="muted">

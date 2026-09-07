@@ -197,17 +197,17 @@ export default function Reader() {
         {view.children.length > 0 && (
           <section className="subpages">
             <div className="subpages-hd">
-              <span className="subpages-eyebrow">{t('subpages')}</span>
+              <span className="eyebrow">{t('subpages')}</span>
               <Link className="btn btn-sm" to={newPagePath(ws, slug)}>
                 {t('new_short')}
               </Link>
             </div>
             <div className="subpages-grid">
               {view.children.map((child) => (
-                <Link className="subpage-card" key={child.slug} to={pagePath(ws, child.slug)}>
-                  <div className="subpage-info">
-                    <span className="subpage-name">{child.title}</span>
-                    <span className="subpage-date">
+                <Link className="card subpage-card" key={child.slug} to={pagePath(ws, child.slug)}>
+                  <div className="row-name">
+                    <span className="row-title">{child.title}</span>
+                    <span className="meta">
                       {child.updated_at ? child.updated_at.slice(0, 10) : ''}
                     </span>
                   </div>
@@ -221,18 +221,20 @@ export default function Reader() {
           <section className="relations">
             {view.backlinks.length > 0 && (
               <div className="relations-group">
-                <span className="subpages-eyebrow">{t('referenced_by')}</span>
-                <ul className="relations-list">
+                <span className="eyebrow">{t('referenced_by')}</span>
+                <ul className="rows">
                   {view.backlinks.map((b) => (
-                    <li key={b.slug}>
-                      <Link to={pagePath(ws, b.slug)}>{b.title}</Link>
-                      {b.context?.length > 0 && (
-                        <p className="mention-context">
-                          {b.context.map((part, i) =>
-                            part.match ? <mark key={i}>{part.text}</mark> : part.text,
-                          )}
-                        </p>
-                      )}
+                    <li className="row" key={b.slug}>
+                      <div className="row-name">
+                        <Link to={pagePath(ws, b.slug)}>{b.title}</Link>
+                        {b.context?.length > 0 && (
+                          <p className="mention-context">
+                            {b.context.map((part, i) =>
+                              part.match ? <mark key={i}>{part.text}</mark> : part.text,
+                            )}
+                          </p>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -240,12 +242,14 @@ export default function Reader() {
             )}
             {view.related.length > 0 && (
               <div className="relations-group">
-                <span className="subpages-eyebrow">{t('related')}</span>
-                <ul className="relations-list">
+                <span className="eyebrow">{t('related')}</span>
+                <ul className="rows">
                   {view.related.map((r) => (
-                    <li key={r.slug}>
-                      <Link to={pagePath(ws, r.slug)}>{r.title}</Link>
-                      <span className="relations-meta">{r.shared_tags}</span>
+                    <li className="row" key={r.slug}>
+                      <span className="row-name">
+                        <Link to={pagePath(ws, r.slug)}>{r.title}</Link>
+                      </span>
+                      <span className="meta">{r.shared_tags}</span>
                     </li>
                   ))}
                 </ul>
