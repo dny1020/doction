@@ -99,17 +99,13 @@ export default function PageActions({ page, pages, onDone, tabIndex }) {
             </p>
             {dialog === 'rename' ? (
               <input
-                className="settings-input"
+                className="field"
                 autoFocus
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
               />
             ) : (
-              <select
-                className="settings-input"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-              >
+              <select className="field" value={value} onChange={(e) => setValue(e.target.value)}>
                 <option value="">{t('move_to_root')}</option>
                 {targets.map((p) => (
                   <option key={p.slug} value={p.slug}>

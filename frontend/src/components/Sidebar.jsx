@@ -170,13 +170,15 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
         {results !== null && (
           <div id="search-results">
             {results.length > 0 ? (
-              <ul className="results">
+              <ul className="rows results">
                 {results.map((r) => (
-                  <li key={r.slug}>
-                    <Link to={pagePath(ws, r.slug)} onClick={() => setQuery('')}>
-                      {r.title}
-                    </Link>
-                    <Snippet parts={r.parts} text={r.snippet} />
+                  <li className="row" key={r.slug}>
+                    <span className="row-name">
+                      <Link to={pagePath(ws, r.slug)} onClick={() => setQuery('')}>
+                        {r.title}
+                      </Link>
+                      <Snippet parts={r.parts} text={r.snippet} />
+                    </span>
                   </li>
                 ))}
               </ul>

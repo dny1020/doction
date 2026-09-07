@@ -152,3 +152,14 @@ tokens card lost its surface and its list grew bullet markers.
 This is not a visual-polish defect, and it is not in this change's scope, but this change makes it
 matter: a large CSS rewrite is precisely when a stale stylesheet does visible damage. The fix is
 to version the href the way the bundle already is. Raised for a decision rather than done here.
+
+## The rule for variants
+
+A list that uses `row` keeps `row`'s behaviour unless there is a clear *functional* reason to
+differ. Saving a screen some vertical space is not one.
+
+This came up over the reader's mentions list, which is taller now that it respects the 44px touch
+floor like every other row. The compact variant was declined: introducing an exception because a
+screen could occupy fewer pixels is how a design system stops being one. If a document with very
+many backlinks turns out to need something else, that is a density-and-collapsing problem to solve
+on its own terms, not a reason to reopen the row.

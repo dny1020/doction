@@ -228,7 +228,7 @@ export default function Reader() {
                       <div className="row-name">
                         <Link to={pagePath(ws, b.slug)}>{b.title}</Link>
                         {b.context?.length > 0 && (
-                          <p className="mention-context">
+                          <p className="snippet">
                             {b.context.map((part, i) =>
                               part.match ? <mark key={i}>{part.text}</mark> : part.text,
                             )}

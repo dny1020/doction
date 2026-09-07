@@ -67,12 +67,14 @@ export default function Trash() {
       <p className="settings-card-desc">{t('trash_desc')}</p>
 
       {items.length > 0 ? (
-        <ul className="ws-manage">
+        <ul className="rows rows--divided">
           {items.map((p) => (
-            <li className="ws-manage-item" key={p.slug}>
-              <div className="ws-manage-row">
-                <span className="ws-name-static">{p.title}</span>
-                <span className="member-role">{p.deleted_at ? p.deleted_at.slice(0, 10) : ''}</span>
+            <li className="row" key={p.slug}>
+              <div className="row-name">
+                <span className="row-title">{p.title}</span>
+                <span className="meta">{p.deleted_at ? p.deleted_at.slice(0, 10) : ''}</span>
+              </div>
+              <div className="row-actions">
                 <button
                   className="btn"
                   type="button"

@@ -1561,7 +1561,16 @@ def search_pages(
             f"""
             SELECT p.slug, p.title,
                    ts_headline(
-                       'doction', translate(p.title || ' ' || p.content, %s, ''),
+                       'doction',
+                       translate(
+                           p.title || ' ' ||
+                           -- El frontmatter se recorta solo para lo que se enseña,
+                           -- no para lo que se indexa: un fragmento que empieza por
+                           -- `--- type: memo ---` es metadato, no la nota. Buscar
+                           -- por `type:` sigue encontrando la página.
+                           regexp_replace(p.content, '^---\n.*?\n---\n', ''),
+                           %s, ''
+                       ),
                        to_tsquery('doction', %s), %s
                    ) AS snippet
             FROM pages p

@@ -273,7 +273,7 @@ export default function Editor({ mode }) {
     <form className="editor" onSubmit={onSave} ref={formRef}>
       <div className="editor-bar">
         <input
-          className="title-input"
+          className="field field--bare title-input"
           type="text"
           placeholder={t('title')}
           value={title}
@@ -329,7 +329,7 @@ export default function Editor({ mode }) {
       <div className={'editor-split' + (showPreview ? ' editor-split--preview' : '')}>
         <textarea
           ref={textareaRef}
-          className="editor-textarea"
+          className="field field--bare editor-textarea"
           placeholder={t('write_markdown')}
           value={content}
           onChange={(e) => setContent(e.target.value)}

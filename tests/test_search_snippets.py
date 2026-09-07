@@ -112,3 +112,15 @@ def test_semantic_and_hybrid_snippets_carry_no_markup(semantic_client):
             assert "<mark>" not in hit["snippet"], mode
             assert isinstance(hit["parts"], list) and hit["parts"], mode
             assert "".join(part["text"] for part in hit["parts"]) == hit["snippet"], mode
+
+
+def test_snippet_does_not_lead_with_frontmatter(client):
+    """Una captura rápida empieza por `--- type: memo ---`; enseñar eso como el
+    texto de la página convierte el metadato en el resultado."""
+    token = _token(client)
+    _page(client, token, "Captura", "---\ntype: memo\n---\n\nrevisar el dispatcher del SBC")
+
+    hits = _search(client, token, "dispatcher", "keyword")
+    hit = next(h for h in hits if "dispatcher" in h["snippet"])
+    assert "type: memo" not in hit["snippet"]
+    assert "---" not in hit["snippet"]

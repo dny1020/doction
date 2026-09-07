@@ -673,22 +673,6 @@ a { color: inherit; }
   padding: 0 var(--sp-2) var(--sp-2);
 }
 
-.workspace-input {
-  width: 100%;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--fg-1);
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  height: 30px;
-  padding: 0 var(--sp-2);
-}
-.workspace-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
-}
 
 .workspace-add {
   border: 1px solid var(--border-strong);
@@ -754,21 +738,13 @@ a { color: inherit; }
 
 
 /* === Search results ======================================================= */
-#search-results .results {
-  list-style: none;
-  margin: var(--sp-2) 0 0;
-  padding: 0;
-}
-#search-results .results li { margin-bottom: var(--sp-2); }
-#search-results .results a {
-  text-decoration: none;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--fg-2);
-}
-#search-results .results a:hover { color: var(--accent); }
+/* Lo que queda propio de aquí es solo el aire de arriba: la lista, la fila y el
+   enlace ya los define `.rows`. */
+#search-results .results { margin-top: var(--sp-2); }
+/* El fragmento de un resultado y la frase de una mención son lo mismo: texto
+   citado, con lo que coincidió marcado. */
 .snippet {
-  margin: 2px 0 0;
+  margin: var(--sp-1) 0 0;
   font-size: var(--text-xs);
   color: var(--fg-3);
   line-height: 1.45;
@@ -1218,20 +1194,6 @@ a { color: inherit; }
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--sp-5);
 }
-/* La frase donde vive la mención. Es prosa citada de otra página, así que va en
-   la cara de texto y apagada: acompaña al título, no compite con él. */
-.mention-context {
-  margin: var(--sp-1) 0 0;
-  color: var(--fg-2);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-}
-.mention-context mark {
-  background: var(--accent-soft);
-  color: var(--accent-press);
-  border-radius: var(--r-xs);
-  padding: 0 2px;
-}
 
 
 /* === Diff ================================================================= */
@@ -1521,19 +1483,14 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   padding-bottom: var(--sp-4);
   border-bottom: 1px solid var(--border);
 }
+/* El título de una página se escribe en la misma serif con la que se lee. */
 .title-input {
   flex: 1;
   font-family: var(--font-serif);
   font-size: var(--text-2xl);
   font-weight: 600;
   letter-spacing: -0.01em;
-  border: none;
-  background: transparent;
-  color: var(--fg-1);
-  padding: 0;
-  outline: none;
 }
-.title-input::placeholder { color: var(--fg-3); }
 .editor-actions { display: flex; gap: var(--sp-2); }
 .editor-preview-toggle { display: none; }
 
@@ -1547,17 +1504,14 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   overflow: hidden;
 }
 
+/* Escribir markdown es leer datos: cara mono y el papel hundido del panel. */
 .editor-textarea {
-  width: 100%;
   resize: none;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
   line-height: 1.65;
   padding: var(--sp-4) var(--sp-5) var(--sp-7);
-  border: none;
   border-right: 1px solid var(--border);
   background: var(--surface-sunken);
-  color: var(--fg-1);
   min-height: 78vh;
   tab-size: 2;
 }
@@ -1838,15 +1792,6 @@ kbd {
   margin: 0 0 var(--sp-5);
   color: var(--fg-1);
 }
-.settings-flash {
-  border-radius: var(--r-md);
-  padding: var(--sp-3) var(--sp-4);
-  font-size: var(--text-sm);
-  margin-bottom: var(--sp-5);
-  border: 1px solid var(--border);
-}
-.settings-flash--ok    { background: var(--accent-soft); color: var(--accent-press); border-color: var(--accent); }
-.settings-flash--error { background: var(--danger-soft); color: var(--danger);       border-color: var(--danger); }
 .settings-form { display: flex; flex-direction: column; gap: var(--sp-2); }
 .settings-actions { margin-top: var(--sp-4); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -1894,14 +1839,18 @@ kbd {
 .swatch.selected .swatch-dot { border-color: var(--fg-1); }
 .swatch input:focus-visible + .swatch-dot { box-shadow: 0 0 0 3px var(--accent-ring); }
 
-.ws-manage { list-style: none; margin: 0; padding: 0; }
-.ws-manage-row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .ws-rename { display: flex; gap: var(--sp-2); flex: 1; min-width: 220px; margin: 0; }
 .ws-delete { margin: 0; }
 
 /* Cada workspace es una fila colapsable (<details>) → escala a muchos sin saturar. */
+.ws-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
 .ws-item { border-bottom: 1px solid var(--border); }
-.ws-manage > li:last-child .ws-item { border-bottom: none; }
 .ws-summary {
   display: flex;
   align-items: center;
@@ -1923,16 +1872,6 @@ kbd {
   padding: 0 0 var(--sp-4) var(--sp-3);
 }
 .ws-members { padding-left: var(--sp-3); border-left: 2px solid var(--border); }
-.member-list { list-style: none; margin: 0 0 var(--sp-2); padding: 0; }
-.member-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-1) 0;
-  font-size: var(--text-sm);
-}
-.member-row form { margin: 0 0 0 auto; }
-.member-id { color: var(--fg-1); }
 .member-role {
   font-size: var(--text-xs);
   color: var(--fg-3);
@@ -2385,15 +2324,15 @@ html {
 
 /* Las listas entran escalonadas: 30ms por fila, tope a la sexta para que una
    lista larga no tarde un segundo en terminar de aparecer. */
-.results li {
+.results .row {
   animation: rise var(--dur) var(--ease) both;
 }
-.results li:nth-child(1) { animation-delay: 0ms; }
-.results li:nth-child(2) { animation-delay: 30ms; }
-.results li:nth-child(3) { animation-delay: 60ms; }
-.results li:nth-child(4) { animation-delay: 90ms; }
-.results li:nth-child(5) { animation-delay: 120ms; }
-.results li:nth-child(n + 6) { animation-delay: 150ms; }
+.results .row:nth-child(1) { animation-delay: 0ms; }
+.results .row:nth-child(2) { animation-delay: 30ms; }
+.results .row:nth-child(3) { animation-delay: 60ms; }
+.results .row:nth-child(4) { animation-delay: 90ms; }
+.results .row:nth-child(5) { animation-delay: 120ms; }
+.results .row:nth-child(n + 6) { animation-delay: 150ms; }
 
 /* Respuesta al pulsar. En movil es lo unico que confirma el toque, porque no
    hay hover que preceda al clic. */

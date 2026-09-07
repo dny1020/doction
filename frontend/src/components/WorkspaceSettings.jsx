@@ -39,7 +39,7 @@ export default function WorkspaceSettings() {
       <h2 className="settings-card-title">{t('workspaces')}</h2>
       <p className="settings-card-desc">{t('workspaces_desc')}</p>
 
-      <ul className="ws-manage">
+      <ul className="rows">
         {workspaces.map((ws) => (
           <WorkspaceRow
             key={ws.slug}
@@ -52,7 +52,7 @@ export default function WorkspaceSettings() {
 
       <form className="token-add" onSubmit={onCreate}>
         <input
-          className="settings-input"
+          className="field"
           type="text"
           maxLength={60}
           placeholder={t('new_workspace')}
@@ -124,11 +124,11 @@ function WorkspaceRow({ ws, ownedCount, isActive }) {
           <span className="member-role">{t(ws.role)}</span>
         </summary>
         <div className="ws-body">
-          <div className="ws-manage-row">
+          <div className="ws-actions">
             {isOwner && (
               <form className="ws-rename" onSubmit={onRename}>
                 <input
-                  className="settings-input"
+                  className="field"
                   type="text"
                   maxLength={60}
                   value={name}
@@ -211,10 +211,10 @@ function MemberList({ slug }) {
 
   return (
     <div className="ws-members">
-      <ul className="member-list">
+      <ul className="rows">
         {members.map((m) => (
-          <li className="member-row" key={m.user_id}>
-            <span className="member-id">{m.display_name || m.email}</span>
+          <li className="row" key={m.user_id}>
+            <span className="row-name">{m.display_name || m.email}</span>
             <span className="member-role">{t(m.role)}</span>
             {m.role !== 'owner' && (
               <button
@@ -230,7 +230,7 @@ function MemberList({ slug }) {
       </ul>
       <form className="member-add" onSubmit={onAdd}>
         <input
-          className="settings-input"
+          className="field"
           type="email"
           placeholder={t('member_email_ph')}
           value={email}

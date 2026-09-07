@@ -42,8 +42,11 @@ No screen changes what it renders. Each one stops naming its own classes and nam
       las menciones y las relacionadas pasan a `.rows`/`.row`, y los tres «eyebrow» de la
       aplicación (barra lateral, subpáginas, índice) eran la misma etiqueta escrita tres veces,
       dos de ellas a 10.5px, por debajo del suelo de la escala.
-- [ ] 3.3 Sidebar: tree, search results, workspace switcher, footer.
-- [ ] 3.4 Editor and history.
+- [x] 3.3 Sidebar: tree, search results, workspace switcher, footer.
+- [x] 3.4 Editor and history. Los dos campos del editor pasan a `field field--bare`, conservando
+      solo lo suyo: la serif del título y la mono del cuerpo. `.settings-flash` y sus dos estados
+      resultaron ser código muerto — ninguna pantalla los nombraba — así que el editor se queda
+      como el único aviso y no hizo falta unificar dos bandas en una pieza nueva.
 - [ ] 3.5 Inbox, trash, graph.
 - [ ] 3.6 Login, register, and the standalone 404.
 - [ ] 3.7 Every empty case renders `EmptyState`, including the ones that are a bare paragraph now.

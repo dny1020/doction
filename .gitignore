@@ -23,6 +23,10 @@ frontend/node_modules/
 frontend/dist/
 app/static/app/
 
+# Maquetas y prototipos sueltos: artefactos locales de diseño, no parte de doction.
+# El repo es público y una maqueta empaquetada pesa más que todo el frontend.
+/*.html
+
 # graphify knowledge-graph output (regenerable analysis artifacts)
 graphify-out/
 .graphifyignore
