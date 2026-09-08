@@ -77,14 +77,31 @@ No screen changes what it renders. Each one stops naming its own classes and nam
 
 ## 5. Verify
 
-- [ ] 5.1 Class count has gone down, and the number is recorded. Evidence that the primitives are
+- [~] 5.0 **Recorrido por debajo de 820px: NO REALIZADO.** El navegador de esta sesión no propaga
+      el redimensionado al viewport — `resize_window` responde bien pero `innerWidth` no cambia —
+      y las otras dos vías se descartaron: un iframe del ancho objetivo lo bloquean
+      `X-Frame-Options: DENY` y `frame-ancestors 'none'`, que no se tocan.
+      En su lugar: un escaneo de desbordamiento horizontal en cinco pantallas (ninguno), y una
+      auditoría estática de las media queries. Esa auditoría encontró dos regresiones mías y las
+      dos están corregidas: `.row` había perdido el `flex-wrap` que tenían las filas que sustituye,
+      así que en pantalla estrecha las acciones aplastarían el nombre en vez de bajar debajo; y
+      `.row-name` no partía cadenas sin espacios, así que un correo o una URL empujarían la fila a
+      lo ancho. Queda pendiente mirarlo en un móvil de verdad.
+
+- [x] 5.1 Class count has gone down, and the number is recorded. Evidence that the primitives are
       used, not a target: two things that mean different things stay separate whatever it costs
       the count.
-- [ ] 5.2 No rule sets spacing, font size or radius outside the scale.
-- [ ] 5.3 Every elevated surface matches its role's pairing.
-- [ ] 5.4 One focus treatment remains.
-- [ ] 5.5 Both gates green, plus `npm run test`.
-- [ ] 5.6 Browser walkthrough of every screen in both themes, compared against the 1.2 screenshots.
-      Any difference that is not the intended consistency is a regression.
-- [ ] 5.7 Contrast holds: re-measure the pairs 005 fixed, and any new one this change introduces.
-- [ ] 5.8 Sync the specs and archive.
+- [x] 5.2 No rule sets spacing, font size or radius outside the scale.
+- [x] 5.3 Every elevated surface matches its role's pairing.
+- [x] 5.4 One focus treatment remains.
+- [x] 5.5 Las dos puertas en verde más `npm run test`: 293 tests de Python, 42 de frontend,
+      `pyright` sin avisos, air-gap intacto.
+- [x] 5.6 Recorrido en navegador de cada pantalla en los dos temas, contra las 27 capturas de 1.2.
+      Sin regresiones: las pantallas hacen lo mismo y se ven como se veían, con menos definiciones
+      detrás. Dos defectos propios aparecieron durante el recorrido y se corrigieron ahí mismo —
+      la fila de la papelera apilando sus botones, y cinco clases renombradas en Ajustes que no
+      seguí hasta las pantallas que las tomaban prestadas.
+- [x] 5.7 Contraste: este cambio no toca ningún token de color, así que los pares que midió 005
+      siguen valiendo. Lo único que altera el contraste percibido es que dos controles de auth
+      dejan de estar por debajo del suelo táctil.
+- [x] 5.8 Sync the specs and archive.

@@ -163,3 +163,28 @@ floor like every other row. The compact variant was declined: introducing an exc
 screen could occupy fewer pixels is how a design system stops being one. If a document with very
 many backlinks turns out to need something else, that is a density-and-collapsing problem to solve
 on its own terms, not a reason to reopen the row.
+
+## What this change was, and what it was not
+
+The goal was visual and UX polish over the application that already existed: **keep the product,
+redesign the experience**. Nothing about architecture, the data model, URLs, navigation, the
+page and subpage structure, workspaces, search, the editor, the graph, backlinks, tags, MCP or
+authentication was touched. No screen was added or removed and no interaction learned a new
+behaviour.
+
+## The criteria that were settled
+
+- **Consistency is not uniformity.** Screens compose differently because they do different jobs.
+  What they share is the vocabulary: surfaces, type, spacing, metadata, fields, focus, density.
+- **A piece with one caller is not a piece.** It lives with the screen that uses it.
+- **An exception is declared, not absorbed.** A subpage tile is a card that is also a link in a
+  grid, so it says so in one class that changes padding and pointer response. Forcing it into a
+  generic component with variants would have been worse than the exception.
+- **A `row` keeps `row`'s behaviour** unless there is a clear functional reason to differ. Saving a
+  screen some vertical space is not one.
+- **A literal value needs a written reason.** Two font sizes survive because they have one; the
+  rest went, and the 1-2px optical nudges got a scale step rather than staying hand-written.
+- **Focus is indicated by what a thing is.** Where two indicators exist the split is by kind and
+  stated, never by which elements someone remembered to cover.
+- **The class count is evidence, never a target.** 310 to 276 says the pieces are being used. It
+  was never a reason to merge two things that mean different things.

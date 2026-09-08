@@ -345,9 +345,12 @@ a { color: inherit; }
   padding: 0;
 }
 
+/* `flex-wrap` porque las filas que esto sustituye lo tenían: en una pantalla
+   estrecha las acciones bajan bajo el nombre en vez de aplastarlo. */
 .row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--sp-3);
   padding: var(--sp-3) 0;
   min-height: 44px;
@@ -365,6 +368,9 @@ a { color: inherit; }
   flex-direction: column;
   gap: var(--sp-0);
   color: var(--fg-1);
+  /* Un correo o una URL no tienen espacios donde partir: sin esto empujan la
+     fila a lo ancho en cuanto la pantalla se estrecha. */
+  overflow-wrap: anywhere;
 }
 
 /* El nombre en sí, cuando la fila lleva además un dato debajo. */
