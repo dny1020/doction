@@ -735,6 +735,15 @@ a { color: inherit; }
 .search-clear:hover { background: var(--surface-hover); color: var(--fg-1); }
 
 
+/* El rótulo de la barra lateral necesita el mismo margen lateral que sus
+   hermanos: la pieza compartida no lo trae porque los demás rótulos viven dentro
+   de contenedores que ya lo ponen, y aquí no. Posicionar es de la pantalla; el
+   rótulo sigue siendo el mismo. */
+.sidebar > .eyebrow {
+  padding: var(--sp-2) var(--sp-4) var(--sp-1);
+  flex-shrink: 0;
+}
+
 /* === Search results ======================================================= */
 /* Lo que queda propio de aquí es solo el aire de arriba: la lista, la fila y el
    enlace ya los define `.rows`. */
