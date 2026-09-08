@@ -24,8 +24,10 @@ Each block ends with a number that can be checked by grep, so "done" is not a ma
 - [x] 2.4 Section label: one, replacing the four eyebrow and card-title variants.
 - [x] 2.5 Meta: one, in the data face at the smallest scale size, replacing the nine per-screen
       spellings.
-- [ ] 2.6 Focus: keep the accent ring, remove the outline-with-offset, and check every focusable
-      element still shows it.
+- [x] 2.6 Focus: dos indicadores, y la división es por lo que es cada cosa. Los controles llevan
+      el anillo del acento; los enlaces dentro del texto llevan `outline`, porque un enlace que
+      parte en dos líneas se anillaría por la caja que une los dos fragmentos, que no es donde
+      está. Se retiraron las ocho reglas por elemento que solo repetían el anillo.
 
 ## 3. Re-express the screens
 
@@ -47,9 +49,12 @@ No screen changes what it renders. Each one stops naming its own classes and nam
       solo lo suyo: la serif del título y la mono del cuerpo. `.settings-flash` y sus dos estados
       resultaron ser código muerto — ninguna pantalla los nombraba — así que el editor se queda
       como el único aviso y no hizo falta unificar dos bandas en una pieza nueva.
-- [ ] 3.5 Inbox, trash, graph.
-- [ ] 3.6 Login, register, and the standalone 404.
-- [ ] 3.7 Every empty case renders `EmptyState`, including the ones that are a bare paragraph now.
+- [x] 3.5 Inbox, trash, graph.
+- [x] 3.6 Login, register, and the standalone 404.
+- [x] 3.7 Auditados los 16 usos de `.muted`. La bandeja pasa a `EmptyState`; el resto no son
+      estados vacíos sino prosa secundaria (subtítulos, pistas) o secciones vacías dentro de una
+      pantalla que sí tiene contenido — un árbol sin páginas en 220px de barra lateral no quiere
+      un bloque centrado con encabezado. La distinción ya existía y se respeta.
 
 ## 3b. Entrega del CSS
 
@@ -60,9 +65,15 @@ No screen changes what it renders. Each one stops naming its own classes and nam
 
 ## 4. Cleanup
 
-- [ ] 4.1 Remove the 25 raw-pixel spacing declarations.
-- [ ] 4.2 Remove the 7 literal font sizes; nothing below the smallest token.
-- [ ] 4.3 Delete every class no screen names any more.
+- [x] 4.1 Cero declaraciones de espaciado en píxeles crudos, desde 25. La mayoría eran ajustes
+      ópticos de 1-2px que no tenían token porque la escala empieza en 4: se añadió `--sp-0: 2px`,
+      un escalón por debajo de la base. Definirlo es lo que los mete en la escala; fingir que no
+      hacen falta los habría dejado escritos a mano para siempre.
+- [x] 4.2 De los 7 tamaños literales quedan 2, los dos con razón funcional escrita: `0.85em` en
+      el código en línea, que debe ir un punto por debajo del texto que lo rodea sea cual sea, y
+      `16px` en los campos bajo puntero grueso, que es el umbral por debajo del cual Safari hace
+      zoom al enfocar y ya no vuelve.
+- [x] 4.3 Delete every class no screen names any more.
 
 ## 5. Verify
 

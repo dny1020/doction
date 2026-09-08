@@ -29,16 +29,16 @@ export default function Login() {
 
   return (
     <div className="auth">
-      <div className="auth-card">
+      <div className="card auth-card">
         <h1 className="auth-brand">DOCTION</h1>
         <p className="muted">{t('login_subtitle')}</p>
         {error && <div className="auth-error">{error}</div>}
         <form onSubmit={onSubmit}>
-          <label className="auth-label" htmlFor="email">
+          <label className="field-label" htmlFor="email">
             {t('email')}
           </label>
           <input
-            className="auth-input"
+            className="field"
             id="email"
             type="email"
             value={email}
@@ -46,11 +46,11 @@ export default function Login() {
             required
             autoFocus
           />
-          <label className="auth-label" htmlFor="password">
+          <label className="field-label" htmlFor="password">
             {t('password')}
           </label>
           <input
-            className="auth-input"
+            className="field"
             id="password"
             type="password"
             value={password}

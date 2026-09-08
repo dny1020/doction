@@ -3,6 +3,7 @@ import { Link, useOutletContext } from 'react-router-dom'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { ListSkeleton } from '../components/Skeleton.jsx'
+import EmptyState from '../components/EmptyState.jsx'
 import { useDocumentTitle } from '../useDocumentTitle.js'
 import { pagePath } from '../routes.js'
 import { useToast } from '../components/Toast.jsx'
@@ -48,15 +49,20 @@ export default function Notes() {
   return (
     <div className="settings">
       <h1 className="settings-h1">{t('notes')}</h1>
+      <p className="card-desc">{t('notes_desc')}</p>
 
       {items.length > 0 ? (
         <>
-          <ul className="results">
+          <ul className="rows rows--divided">
             {items.map((n) => (
-              <li key={n.slug}>
-                <Link to={pagePath(ws, n.slug)}>{n.title}</Link>
-                <p className="snippet">{n.excerpt}</p>
-                <p className="subpage-date">{n.created_at?.slice(0, 10)}</p>
+              <li className="row" key={n.slug}>
+                <div className="row-name">
+                  <Link to={pagePath(ws, n.slug)}>{n.title}</Link>
+                  {/* El título de una captura se deriva de su primera línea, así
+                      que en una nota corta el extracto repetiría el título. */}
+                  {n.excerpt && n.excerpt !== n.title && <p className="snippet">{n.excerpt}</p>}
+                </div>
+                <span className="meta">{n.created_at?.slice(0, 10)}</span>
               </li>
             ))}
           </ul>
@@ -71,7 +77,7 @@ export default function Notes() {
           )}
         </>
       ) : (
-        <p className="muted">{t('no_notes')}</p>
+        <EmptyState title={t('no_notes')} hint={t('notes_desc')} />
       )}
     </div>
   )

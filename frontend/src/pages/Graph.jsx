@@ -244,7 +244,7 @@ export default function Graph() {
     <div className="graph-page">
       <header className="graph-header">
         <h1 className="settings-h1">{t('graph')}</h1>
-        <p className="settings-card-desc">{t('graph_desc')}</p>
+        <p className="card-desc">{t('graph_desc')}</p>
         <dl className="graph-facts">
           <Fact value={counts.nodes} label={t('graph_nodes')} />
           <Fact value={counts.edges} label={t('graph_edges')} />
@@ -260,7 +260,7 @@ export default function Graph() {
 
       <svg
         ref={svgRef}
-        className="graph-canvas"
+        className="card graph-canvas"
         role="img"
         aria-label={t('graph_desc')}
         onPointerDown={(e) => onPointerDown(e, null)}

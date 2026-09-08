@@ -91,7 +91,7 @@ export default function History() {
         )}
 
         {history && history.length > 0 && (
-          <ul className="history-list">
+          <ul className="rows rows--divided">
             {history.map((commit, index) => (
               <HistoryItem
                 key={commit.sha}
@@ -131,19 +131,19 @@ function HistoryItem({ slug, commit, canRestore, onRestore }) {
   }
 
   return (
-    <li className="history-item">
-      <div className="history-main">
-        <span className="history-msg">{commit.message}</span>
-        <div className="history-sub">
-          <span className="history-author">{commit.author}</span>
+    <li className="row">
+      <div className="row-name">
+        <span className="row-title">{commit.message}</span>
+        <div className="meta history-sub">
+          <span>{commit.author}</span>
           <span className="history-sep" aria-hidden="true">
             ·
           </span>
-          <time className="history-date">{commit.timestamp.slice(0, 16)}</time>
+          <time>{commit.timestamp.slice(0, 16)}</time>
           <span className="history-sep" aria-hidden="true">
             ·
           </span>
-          <code className="history-sha">{commit.sha}</code>
+          <code>{commit.sha}</code>
         </div>
         {diff !== null && (
           <div className="diff">
@@ -155,7 +155,7 @@ function HistoryItem({ slug, commit, canRestore, onRestore }) {
           </div>
         )}
       </div>
-      <div className="history-actions">
+      <div className="row-actions">
         <button className="btn btn-sm" type="button" onClick={toggleDiff} disabled={loading}>
           {diff !== null ? t('close') : t('diff')}
         </button>

@@ -64,7 +64,7 @@ export default function Trash() {
   return (
     <div className="settings">
       <h1 className="settings-h1">{t('trash')}</h1>
-      <p className="settings-card-desc">{t('trash_desc')}</p>
+      <p className="card-desc">{t('trash_desc')}</p>
 
       {items.length > 0 ? (
         <ul className="rows rows--divided">

@@ -35,9 +35,9 @@ export default function WorkspaceSettings() {
   }
 
   return (
-    <section className="settings-card">
-      <h2 className="settings-card-title">{t('workspaces')}</h2>
-      <p className="settings-card-desc">{t('workspaces_desc')}</p>
+    <section className="card">
+      <h2 className="card-title">{t('workspaces')}</h2>
+      <p className="card-desc">{t('workspaces_desc')}</p>
 
       <ul className="rows">
         {workspaces.map((ws) => (
@@ -50,7 +50,7 @@ export default function WorkspaceSettings() {
         ))}
       </ul>
 
-      <form className="token-add" onSubmit={onCreate}>
+      <form className="add-form" onSubmit={onCreate}>
         <input
           className="field"
           type="text"

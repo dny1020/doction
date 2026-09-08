@@ -63,13 +63,27 @@ something into a space is a layout problem being paid for by the reader.
 - **WHEN** the smallest text in the interface is measured
 - **THEN** it is the smallest size in the scale, and no smaller
 
-### Requirement: Focus speaks one language
+### Requirement: Focus is shown by what a thing is
 
-Every focusable element SHALL show focus the same way. Two accessible treatments applied by which
-element happens to be focused is still an inconsistency, and it is the one a keyboard user meets
-on every screen.
+Focus SHALL be indicated the same way for the same kind of element, and where two indicators
+exist the split SHALL be by kind and stated, never by which elements someone remembered to cover.
 
-#### Scenario: Moving through a screen by keyboard
+A control has a box, so it is surrounded. A link inside running text has no box and can break
+across two lines, where a ring would draw the rectangle enclosing both fragments — which is not
+where the link is. That is a functional reason for a second treatment, and the only kind of reason
+that justifies one.
 
-- **WHEN** focus moves between a link, a button and a field
-- **THEN** the indicator has the same shape, colour and offset each time
+#### Scenario: Moving between controls
+
+- **WHEN** focus moves between a button, a field and a select
+- **THEN** the indicator is identical each time
+
+#### Scenario: A link that wraps
+
+- **WHEN** a focused link in prose breaks across two lines
+- **THEN** the indicator follows the text rather than the rectangle around it
+
+#### Scenario: No element is left out
+
+- **WHEN** any focusable element receives keyboard focus
+- **THEN** it shows one of the two indicators, and which one follows from what it is
