@@ -14,18 +14,43 @@ jobs_output.log
 CLAUDE.md
 .claude/
 models/
-*.txt
 important.md
+# `*.txt` estaba aquí en general y ocultaba en silencio cualquier fichero de
+# texto futuro —una licencia, un robots.txt—. Solo se ignora lo que de verdad
+# es desechable.
+requirements*.txt
+notas*.txt
 
 # Frontend React (Vite): dependencias y artefactos de build.
 # El bundle (app/static/app) lo genera `npm run build` o el stage `web` de Docker.
-frontend/node_modules/
+node_modules/
 frontend/dist/
 app/static/app/
 
 # Maquetas y prototipos sueltos: artefactos locales de diseño, no parte de doction.
 # El repo es público y una maqueta empaquetada pesa más que todo el frontend.
 /*.html
+
+# El corpus de evaluación es un volcado del wiki personal. El repositorio es
+# público, así que esto no es una preferencia: es lo único que separa un
+# `git add -A` distraído de publicar notas privadas.
+evals/corpus/
+evals/corpus*/
+*.corpus/
+
+# Capturas de trabajo. Se acumulan en la raíz mientras se revisa un cambio
+# visual y no son parte de doction; las del producto viven en docs/assets/.
+/*.png
+/*.jpg
+/*.jpeg
+
+# Material sensible, por si acaso: en un repo público el coste de la regla es
+# cero y el de la omisión no.
+*.pem
+*.key
+*.p12
+.env.*
+!.env.example
 
 # graphify knowledge-graph output (regenerable analysis artifacts)
 graphify-out/

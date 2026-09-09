@@ -35,8 +35,10 @@ container + a Postgres container — no API keys, no SaaS, no LLM inside doction
   clusters), all computed locally with numpy over the existing embeddings/link graph.
 - **OCR for uploads** (opt-in) — tesseract indexes the text inside pasted screenshots so
   they show up in search.
-- **Cross-encoder reranker** (opt-in) — a second tiny ONNX model re-scores the top
-  semantic hits for noticeably better precision.
+- **Cross-encoder reranker** (opt-in, and measured as a net loss) — a second tiny ONNX
+  model re-scores the top semantic hits. On this corpus it buys +0.01 MRR, *loses*
+  recall@1 (0.57 vs 0.61) and costs 29× the median latency, so it ships off. The numbers
+  are in `evals/results/`.
 - **REST API** + **native MCP server** (JSON-RPC 2.0, 27 tools) for agents.
 - **No LLM inside doction** — retrieval only; the connected agent does the generation.
 
