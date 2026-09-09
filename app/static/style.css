@@ -800,16 +800,14 @@ a { color: inherit; }
 .sidebar-toggle:hover { background: var(--surface-inset); color: var(--ink); }
 .sidebar-toggle .lucide { display: block; }
 
-.sidebar-toggle--show {
-  display: none;
-  position: fixed;
-  top: 0.7rem;
-  left: 0.7rem;
-  z-index: 50;
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-sm);
-}
+/* Este botón flotaba sobre el lienzo para poder desplegar el sidebar cuando no
+   había ningún otro sitio donde ponerlo: el comentario de `.conn` recoge esa
+   misma restricción. Desde que la barra superior se ve a todos los anchos hay
+   un sitio, y su botón hace exactamente esto, así que al plegar aparecían dos
+   controles para una sola acción.
+   El nodo lo sigue pintando el shell en todos los anchos; ocultarlo aquí es
+   suficiente y evita tocar el JSX. */
+.sidebar-toggle--show { display: none !important; }
 
 /* === Collapsed state ====================================================== */
 .sidebar-collapsed .sidebar {
@@ -817,7 +815,7 @@ a { color: inherit; }
   opacity: 0;
   pointer-events: none;
 }
-.sidebar-collapsed .sidebar-toggle--show { display: inline-flex; }
+/* (Ya no se muestra al plegar: lo hace el botón de la barra superior.) */
 .sidebar-collapsed .content { padding-left: var(--space-12); }
 
 .sidebar-overlay {
@@ -1393,7 +1391,10 @@ a { color: inherit; }
 /* El toggle de la barra solo abre; con el sidebar ya abierto no tiene nada que
    hacer. El de cerrar vive dentro del sidebar y el flotante aparece al colapsar. */
 /* Hijo DIRECTO: el botón ⋯ del lector lleva la misma clase y vive dentro de
-   `.app-bar-actions`, así que un descendiente cualquiera los ocultaba los dos. */
+   `.app-bar-actions`, así que un descendiente cualquiera los ocultaba los dos.
+   Con el sidebar desplegado este botón no tiene nada que hacer —solo sabe
+   abrir— y el de cerrar vive dentro del propio panel. Al plegar reaparece, y es
+   el único: el flotante ya no compite con él. */
 html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .app-bar-title {
   font-family: var(--font-ui);
@@ -2031,7 +2032,6 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
 /* === No-sidebar pages (login, register) =================================== */
 .no-sidebar .sidebar,
 .no-sidebar .sidebar-overlay,
-.no-sidebar .sidebar-toggle--show { display: none !important; }
 .no-sidebar .layout { grid-template-columns: 1fr; }
 
 /* === Responsive =========================================================== */
@@ -2075,11 +2075,6 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
     background: var(--surface);
     border-bottom: 1px solid var(--border-subtle);
   }
-
-  /* El toggle vive en la barra; el botón flotante ya no hace falta y encima
-     se solapaba con las migas y el título. */
-  .sidebar-toggle--show,
-  .sidebar-collapsed .sidebar-toggle--show { display: none; }
 
   .sidebar-overlay { opacity: 0; }
   html:not(.sidebar-collapsed) .sidebar-overlay {
