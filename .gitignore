@@ -52,8 +52,9 @@ evals/corpus*/
 .env.*
 !.env.example
 
-# graphify knowledge-graph output (regenerable analysis artifacts)
+# La salida del grafo es regenerable; `.graphifyignore` no. Ese describe qué
+# del REPOSITORIO entra al grafo, así que es configuración del proyecto y viaja
+# con él: quien clone reproduce el mismo grafo sin adivinar qué excluir.
 graphify-out/
-.graphifyignore
 .claudeignore
 .agents/
