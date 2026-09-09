@@ -157,18 +157,33 @@
      negra sobre el mismo fondo de siempre. */
   --fg-on-identity: #FAF9F5;
 
-  /* Bloque de código — DESIGN.md §18. Contrasta a propósito con el papel: es la
-     única superficie que no intenta parecer papel. */
+  /* Código en línea — un tinte claro. Es tipografía dentro de una frase, no una
+     superficie: ponerlo sobre la losa oscura convierte cada `foo` de un párrafo
+     en una pastilla negra y la prosa deja de leerse como prosa. */
   --code-bg:     #E9E6DE;
   --code-border: #D8D2C5;
 
-  /* Sintaxis. Todos medidos contra --code-bg, que ya no es --surface-sunken. */
-  --syn-keyword:  #7557AC;  /* 4.53:1 */
-  --syn-string:   #3C724A;  /* 4.55:1 */
-  --syn-number:   #8E5D23;  /* 4.50:1 */
-  --syn-title:    #2D7267;  /* 4.53:1 */
-  --syn-variable: #B93B2E;  /* 4.52:1 */
-  --syn-comment:  #636964;  /* 4.51:1 */
+  /* Bloque de código — DESIGN.md §18. Un inset de terminal dentro de un libro,
+     y el MISMO en los dos temas: la paleta de sintaxis oscura que ya existía
+     mide de sobra contra este suelo, así que unificar borra los seis valores
+     claros en vez de re-derivarlos.
+     Cuesta una cosa: en tema oscuro la losa queda a 1.02:1 del lienzo, así que
+     el canto lo lleva el borde y por eso no es el mismo que el del tinte. */
+  --code-block-bg:     #141917;
+  --code-block-border: #31352F;  /* 11.08:1 en claro, 1.45:1 en oscuro */
+  --code-block-fg:     #E9E3D8;  /* 13.92:1 */
+  --code-block-fg-dim: #918B81;  /*  5.26:1 */
+  --code-block-accent: #B9D0C7;  /* 10.93:1 */
+  --code-block-danger: #E08578;  /*  6.60:1 */
+
+  /* Sintaxis. Una sola paleta, medida contra --code-block-bg, sin override en
+     oscuro: la losa no gira con el tema, así que sus colores tampoco. */
+  --syn-keyword:  #C2A8E8;  /* 8.52:1 */
+  --syn-string:   #8FC79E;  /* 9.17:1 */
+  --syn-number:   #D9A566;  /* 8.06:1 */
+  --syn-title:    #B9D0C7;  /* 10.93:1 */
+  --syn-variable: #E08578;  /* 6.60:1 */
+  --syn-comment:  #918B81;  /* 5.26:1 */
 
   /* Radii — DESIGN.md §8. Más cerrados que los de la 005 (8/12/16/24): doction no
      debe parecer una colección de píldoras. --r-pill sigue existiendo y sigue
@@ -195,6 +210,72 @@
   --sp-0: 2px;
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
   --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+
+  /* === Chrome — la navegación es otro material ==========================
+     El sidebar no es papel: es una región de tinta verde, en los dos temas.
+     Estos son sus primitivos; el mapeo a los nombres de siempre está en
+     `.sidebar`, escrito una vez y sin saber qué tema hay puesto.
+
+     Todas las ratios son contra el peor de los CUATRO suelos que usa el
+     chrome —claro y oscuro, base y hover—, no contra uno solo. */
+  --nav-bg:            #12241F;
+  --nav-hover:         #1B302A;
+  --nav-fg-1:          #EDE7DC;  /* 10.49:1 */
+  --nav-fg-2:          #B8B0A4;  /*  6.01:1 */
+  --nav-fg-3:          #A69F94;  /*  4.92:1 */
+  --nav-border:        #24352F;  /*  decorativa, misma relación que en el lienzo */
+  --nav-border-strong: #6A7F77;  /*  3.02:1 — bordes de control */
+  --nav-accent:        #C7DAD2;  /*  8.84:1 — el acento interactivo, aclarado para esta tinta */
+  --nav-accent-hover:  #DCEAE4;
+  --nav-accent-press:  #DCEAE4;
+  --nav-accent-soft:   #1B302A;
+  --nav-accent-ring:   rgba(199, 218, 210, 0.7);
+  --nav-fg-on-accent:  #12241F;
+  /* Aquí el naranja por fin es sólido: sobre un suelo oscuro el relleno de
+     identidad aguanta tinta encima a 5.04:1. Es el único naranja pleno de
+     la interfaz, y por eso marca el elemento activo. */
+  --nav-marker:        #D97745;  /*  4.10:1 contra el suelo */
+  --nav-fg-on-marker:  #172522;  /*  5.04:1 sobre el relleno naranja */
+  --nav-danger:        #E08578;
+  --nav-danger-soft:   #341C18;
+  /* Las sombras del lienzo son casi transparentes por diseño; sobre tinta
+     oscura no existen, y los menús flotantes del sidebar se leerían como
+     agujeros. Estas son las mismas del tema oscuro, un punto más densas. */
+  --nav-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --nav-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.34), 0 1px 2px rgba(0, 0, 0, 0.28);
+  --nav-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.42);
+  --nav-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  /* === Vuelta al lienzo ==================================================
+     Un `<dialog>` declarado dentro del sidebar hereda su paleta, pero
+     `showModal()` lo pinta centrado sobre el lienzo claro. Estos alias
+     existen para devolvérsela sin repetir un solo literal.
+
+     OJO: dependen de que `[data-theme="dark"]` siga DESPUÉS de `:root` en
+     este archivo. Misma especificidad, gana el orden. Si alguien mueve los
+     bloques, estos alias se congelan en claro sin avisar. */
+  --canvas-bg:             var(--bg);
+  --canvas-surface:        var(--surface);
+  --canvas-surface-sunken: var(--surface-sunken);
+  --canvas-surface-hover:  var(--surface-hover);
+  --canvas-fg-1:           var(--fg-1);
+  --canvas-fg-2:           var(--fg-2);
+  --canvas-fg-3:           var(--fg-3);
+  --canvas-fg-on-accent:   var(--fg-on-accent);
+  --canvas-border:         var(--border);
+  --canvas-border-strong:  var(--border-strong);
+  --canvas-accent:         var(--accent);
+  --canvas-accent-hover:   var(--accent-hover);
+  --canvas-accent-press:   var(--accent-press);
+  --canvas-accent-soft:    var(--accent-soft);
+  --canvas-accent-ring:    var(--accent-ring);
+  --canvas-marker:         var(--marker);
+  --canvas-danger:         var(--danger);
+  --canvas-danger-soft:    var(--danger-soft);
+  --canvas-shadow-xs:      var(--shadow-xs);
+  --canvas-shadow-sm:      var(--shadow-sm);
+  --canvas-shadow-md:      var(--shadow-md);
+  --canvas-shadow-lg:      var(--shadow-lg);
 
   /* Layout */
   --sidebar-w:      264px;
@@ -278,20 +359,28 @@
   /* Mas opaco que en claro: sobre un lienzo ya oscuro, 0.45 no separa nada. */
   --scrim: rgba(0, 0, 0, 0.62);
 
+  /* El código en línea sí sigue al tema: es tipografía sobre el papel del
+     documento. La losa del bloque no, y por eso no aparece aquí. */
   --code-bg:     #11110F;
   --code-border: #39352F;
-
-  --syn-keyword:  #C2A8E8;  /* 9.06:1 */
-  --syn-string:   #8FC79E;  /* 9.75:1 */
-  --syn-number:   #D9A566;  /* 8.57:1 */
-  --syn-title:    #B9D0C7;  /* 11.62:1 */
-  --syn-variable: #E08578;  /* 7.02:1 */
-  --syn-comment:  #918B81;  /* 5.59:1 */
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.22);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+
+  /* Chrome en oscuro: solo se mueve el suelo y sus dos escalones. Las tintas,
+     las líneas y el acento del chrome están derivados contra el peor de los
+     cuatro suelos, así que valen igual aquí.
+
+     #12241F contra este lienzo mide 1.12:1 y el sidebar desaparecería; #1B2A26
+     lo separa. No puede aclararse más: el disco del avatar toma su color de un
+     `style` inline —no de un token— y sobre #1B2A26 mide 3.06:1, justo en el
+     límite de un borde de control. Un paso más claro (#1C332C) lo baja a 2.76
+     y rompe algo que no se ve al mirar el sidebar. */
+  --nav-bg:          #1B2A26;
+  --nav-hover:       #22352F;
+  --nav-accent-soft: #22352F;
 }
 
 /* === Theme transition on key surfaces ==================================== */
@@ -498,7 +587,51 @@ a { color: inherit; }
 }
 
 /* === Sidebar ============================================================== */
+/* El chrome cambia de material redefiniendo los NOMBRES que las reglas de
+   dentro ya leen. `var()` se resuelve en el elemento que hace match, con las
+   propiedades que ese elemento hereda —no donde está escrita la regla—, así que
+   el campo de búsqueda, el selector de workspace, el árbol, los botones, las
+   filas, los menús y los toggles se re-tematizan solos, sin tocar ni una.
+   Por lo mismo, las listas de selectores transversales (foco, presión, puntero
+   grueso) tampoco hacen falta tocarlas.
+
+   Van los diecisiete: los cuatro obvios y los que no se ven hasta que fallan.
+   `--accent-press` es el texto del elemento activo del árbol: sin él caía al
+   verde del lienzo y medía 1.06:1 sobre este suelo, invisible. `--accent-ring`
+   es el foco de teclado de todo lo que hay aquí dentro. Las sombras claras del
+   lienzo no existen sobre tinta oscura, así que los menús flotantes perdían el
+   relieve y se leían como agujeros. */
 .sidebar {
+  --bg:             var(--nav-bg);
+  --surface:        var(--nav-bg);
+  --surface-sunken: var(--nav-bg);
+  --surface-hover:  var(--nav-hover);
+
+  --fg-1: var(--nav-fg-1);
+  --fg-2: var(--nav-fg-2);
+  --fg-3: var(--nav-fg-3);
+  --fg-on-accent: var(--nav-fg-on-accent);
+
+  --border:        var(--nav-border);
+  --border-strong: var(--nav-border-strong);
+
+  --accent:       var(--nav-accent);
+  --accent-hover: var(--nav-accent-hover);
+  --accent-press: var(--nav-accent-press);
+  --accent-soft:  var(--nav-accent-soft);
+  --accent-ring:  var(--nav-accent-ring);
+
+  --marker: var(--nav-marker);
+  --fg-on-marker: var(--nav-fg-on-marker);
+
+  --danger:      var(--nav-danger);
+  --danger-soft: var(--nav-danger-soft);
+
+  --shadow-xs: var(--nav-shadow-xs);
+  --shadow-sm: var(--nav-shadow-sm);
+  --shadow-md: var(--nav-shadow-md);
+  --shadow-lg: var(--nav-shadow-lg);
+
   width: var(--sidebar-w);
   background: var(--surface-sunken);
   border-right: 1px solid var(--border);
@@ -844,9 +977,13 @@ a { color: inherit; }
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .page-list a:hover { background: var(--surface-hover); color: var(--fg-1); }
+/* El único naranja pleno de la interfaz. Sobre papel el naranja no llega ni al
+   3:1 que pide una marca que informa; sobre este suelo oscuro sí, y además
+   aguanta tinta encima a 5.04:1. Aquí la marca de identidad por fin señala algo
+   en lugar de decorarlo. El peso sigue estando: el color nunca va solo. */
 .page-list a.active {
-  background: var(--accent-soft);
-  color: var(--accent-press);
+  background: var(--marker);
+  color: var(--fg-on-marker);
   font-weight: 500;
 }
 /* El sangrado por nivel lo pone el arbol (aria-level), no data-depth: la lista
@@ -1113,6 +1250,9 @@ a { color: inherit; }
   gap: 0;
 }
 
+/* El índice es secundario por definición: acompaña a la lectura, no la
+   interrumpe. Se queda en tinta terciaria y el filete de reposo es la línea
+   decorativa, no una barra. */
 .toc-item {
   display: block;
   font-family: var(--font-sans);
@@ -1120,15 +1260,19 @@ a { color: inherit; }
   color: var(--fg-3);
   text-decoration: none;
   line-height: 1.5;
-  padding: var(--sp-0) var(--sp-2);
-  border-left: 2px solid transparent;
+  padding: var(--sp-0) var(--sp-3);
+  border-left: 1px solid var(--border);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .toc-item:hover { color: var(--fg-1); }
-.toc-item.active { color: var(--accent); border-color: var(--marker-ink); }
+/* Un solo portador del estado: el filete. Antes lo decían el color del texto y
+   el filete a la vez, que es decirlo dos veces y subir el volumen del índice
+   entero. El texto solo sube a tinta principal, que ya es contraste suficiente
+   para no depender del color. */
+.toc-item.active { color: var(--fg-1); border-left-color: var(--marker-ink); border-left-width: 2px; }
 .toc-h1 { font-weight: 500; }
 .toc-h2 { padding-left: var(--sp-4); }
 .toc-h3 { padding-left: var(--sp-5); font-size: var(--text-xs); }
@@ -1146,23 +1290,32 @@ a { color: inherit; }
 }
 
 /* === Page view ============================================================ */
-.page-header { margin-bottom: var(--sp-5); }
+/* El encabezado respira antes de que empiece el documento: la franja de
+   metadatos ya cierra por abajo, así que aquí solo hace falta el aire. */
+.page-header { margin-bottom: var(--sp-7); }
+/* La ruta de una página es un dato, no una frase: se pone en la cara de datos
+   y deja de competir con el título que va justo debajo. */
 .breadcrumbs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-1);
+  gap: var(--sp-2);
+  font-family: var(--font-data);
   font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
   color: var(--fg-3);
-  margin-bottom: var(--sp-3);
+  margin-bottom: var(--sp-4);
 }
 .breadcrumbs a {
   color: var(--fg-2);
   text-decoration: none;
 }
 .breadcrumbs a:hover { color: var(--accent); }
-.breadcrumbs .crumb-sep { color: var(--fg-3); }
-.breadcrumbs .crumb-current { color: var(--fg-3); }
+/* El separador es `aria-hidden`: no dice nada que no diga la propia ruta, así
+   que puede llevar el naranja decorativo sin deberle contraste a nadie. */
+.breadcrumbs .crumb-sep { color: var(--marker); }
+.breadcrumbs .crumb-current { color: var(--fg-3); font-weight: 500; }
 .page-header h1 {
   font-family: var(--font-serif);
   font-size: var(--text-3xl);
@@ -1170,7 +1323,7 @@ a { color: inherit; }
   letter-spacing: -0.01em;
   line-height: 1.15;
   text-wrap: balance;
-  margin: 0 0 var(--sp-3);
+  margin: 0 0 var(--sp-4);
   color: var(--fg-1);
 }
 .page-actions {
@@ -1187,6 +1340,22 @@ a { color: inherit; }
   align-items: center;
   gap: var(--sp-3);
   font-variant-numeric: tabular-nums;
+}
+
+/* La franja de metadatos del encabezado. Va con ámbito estricto porque `.meta`
+   tiene trece usos —fechas de subpáginas, historial, papelera, ajustes— y tocar
+   la clase pelada pondría una línea bajo todos ellos.
+   Lleva los dos campos que existen de verdad: cuándo se actualizó y quién.
+   Ni propietario ni tiempo de lectura: eso no está en el payload. */
+.page-header .meta {
+  margin: var(--sp-5) 0 0;
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  gap: var(--sp-4);
 }
 
 .meta a {
@@ -1395,10 +1564,15 @@ a { color: inherit; }
   border-radius: var(--r-xs);
   padding: 0.1em 0.35em;
 }
+/* El color va AQUÍ y no en `.hljs`. prose.js solo resalta las vallas que
+   declaran lenguaje, así que una ``` pelada nunca recibe la clase: heredaba la
+   tinta del documento y sobre esta losa medía 1.05:1, ilegible. Delegar el
+   color al resaltador es delegarlo a algo que no siempre corre. */
 .prose pre {
   position: relative;
-  background: var(--code-bg);
-  border: 1px solid var(--code-border);
+  background: var(--code-block-bg);
+  color: var(--code-block-fg);
+  border: 1px solid var(--code-block-border);
   border-radius: var(--r-lg);
   padding: var(--sp-4);
   overflow-x: auto;
@@ -1412,20 +1586,21 @@ a { color: inherit; }
   overflow-x: auto;
 }
 
-/* highlight.js — tema propio sobre la paleta de la app (sirve en claro y oscuro). */
-.hljs { color: var(--fg-1); background: transparent; }
+/* highlight.js — tema propio, medido contra --code-block-bg. Los seis colores
+   son los mismos en ambos temas porque la losa también lo es. */
+.hljs { color: var(--code-block-fg); background: transparent; }
 .hljs-comment, .hljs-quote { color: var(--syn-comment); }
 .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section { color: var(--syn-keyword); }
 .hljs-string, .hljs-attr, .hljs-meta .hljs-string { color: var(--syn-string); }
 .hljs-number, .hljs-symbol, .hljs-bullet { color: var(--syn-number); }
 .hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-title.class_ { color: var(--syn-title); }
 .hljs-variable, .hljs-template-variable, .hljs-attribute { color: var(--syn-variable); }
-.hljs-meta, .hljs-tag { color: var(--fg-3); }
-.hljs-deletion { color: var(--danger); }
+.hljs-meta, .hljs-tag { color: var(--code-block-fg-dim); }
+.hljs-deletion { color: var(--code-block-danger); }
 .hljs-addition { color: var(--syn-string); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 600; }
-.hljs-link { color: var(--accent); }
+.hljs-link { color: var(--code-block-accent); }
 
 /* Botón de copiar código (aparece al hover del bloque). */
 .code-copy {
@@ -1472,12 +1647,16 @@ a { color: inherit; }
 .prose h3:hover .heading-anchor,
 .heading-anchor:focus { opacity: 1; }
 .heading-anchor:hover { color: var(--accent); }
+/* La cita como nota técnica: un aparte que el documento señala, no una frase
+   susurrada. Se le quita la cursiva —párrafos enteros en cursiva se leen peor—
+   y el filete naranja hace de marca al margen. */
 .prose blockquote {
-  margin: var(--sp-4) 0;
-  padding-left: var(--sp-4);
-  border-left: 3px solid var(--border-strong);
+  margin: var(--sp-5) 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 3px solid var(--marker);
+  background: var(--surface-sunken);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
   color: var(--fg-2);
-  font-style: italic;
 }
 .prose table {
   border-collapse: collapse;
@@ -1942,6 +2121,41 @@ kbd {
 .toast--error { border-left-color: var(--danger); }
 
 /* Diálogo de confirmación (reemplaza confirm() nativo). */
+/* Este diálogo se declara DENTRO del sidebar (lo abre el menú de una fila del
+   árbol) pero `showModal()` lo pinta centrado sobre el lienzo. Las propiedades
+   personalizadas se heredan por el DOM, y subir al top layer cambia el apilado,
+   no la herencia: sin esto llegaría vestido de chrome y saldría oscuro, mientras
+   el diálogo idéntico que lanza el resto de la app sale claro. Una clase, dos
+   aspectos, según qué subárbol la contenga.
+   No hay «heredar de la raíz»: `initial` y `revert` dan el valor inválido
+   garantizado, así que hay que redeclarar. Los alias evitan repetir literales.
+   Solo el diálogo: `.ws-menu` y `.avatar-menu` están anclados dentro y siguen
+   oscuros. */
+.sidebar .confirm-dialog {
+  --bg:             var(--canvas-bg);
+  --surface:        var(--canvas-surface);
+  --surface-sunken: var(--canvas-surface-sunken);
+  --surface-hover:  var(--canvas-surface-hover);
+  --fg-1: var(--canvas-fg-1);
+  --fg-2: var(--canvas-fg-2);
+  --fg-3: var(--canvas-fg-3);
+  --fg-on-accent: var(--canvas-fg-on-accent);
+  --border:        var(--canvas-border);
+  --border-strong: var(--canvas-border-strong);
+  --accent:       var(--canvas-accent);
+  --accent-hover: var(--canvas-accent-hover);
+  --accent-press: var(--canvas-accent-press);
+  --accent-soft:  var(--canvas-accent-soft);
+  --accent-ring:  var(--canvas-accent-ring);
+  --marker: var(--canvas-marker);
+  --danger:      var(--canvas-danger);
+  --danger-soft: var(--canvas-danger-soft);
+  --shadow-xs: var(--canvas-shadow-xs);
+  --shadow-sm: var(--canvas-shadow-sm);
+  --shadow-md: var(--canvas-shadow-md);
+  --shadow-lg: var(--canvas-shadow-lg);
+}
+
 .confirm-dialog {
   width: 100%;
   max-width: 380px;
@@ -2638,9 +2852,10 @@ html {
 .conn-row span:last-child,
 .page-meta,
 
-/* La ruta de encabezados de un fragmento es la coordenada de un dato, no prosa. */
-.snippet mark,
-.crumb-current {
+/* La ruta de encabezados de un fragmento es la coordenada de un dato, no prosa.
+   `.crumb-current` salía de aquí: desde que los breadcrumbs SON la cara de
+   datos, heredar era heredar mono para volver a pedir mono. */
+.snippet mark {
   font-family: inherit;
 }
 

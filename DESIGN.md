@@ -666,6 +666,60 @@ However:
 * No visual clutter
 * No unnecessary gradients
 
+### The chrome is a different material
+
+> **Added 2026-09-08.**
+
+The application's navigation is **not paper**. It is a deep ink-green region, in both themes,
+and the document is the brighter surface next to it. That contrast is what gives the app a
+hierarchy the palette alone could not: chrome recedes, document leads.
+
+```text
+--nav-bg:            #12241F   /* light theme ground */
+--nav-hover:         #1B302A
+--nav-fg-1:          #EDE7DC   /* 10.49:1 */
+--nav-fg-2:          #B8B0A4   /*  6.01:1 */
+--nav-fg-3:          #A69F94   /*  4.92:1 */
+--nav-border:        #24352F   /* decorative */
+--nav-border-strong: #6A7F77   /*  3.02:1 — bounds a control */
+--nav-accent:        #C7DAD2   /*  8.84:1 — the interactive accent, lightened for this ink */
+--nav-accent-hover:  #DCEAE4
+--nav-accent-press:  #DCEAE4
+--nav-accent-soft:   #1B302A
+--nav-accent-ring:   rgba(199, 218, 210, 0.7)
+--nav-fg-on-accent:  #12241F
+--nav-marker:        #D97745   /*  4.10:1 */
+--nav-fg-on-marker:  #172522   /*  5.04:1 on the orange fill */
+```
+
+Dark theme moves the ground and its two dependent steps, and nothing else:
+
+```text
+--nav-bg:          #1B2A26
+--nav-hover:       #22352F
+--nav-accent-soft: #22352F
+```
+
+Every ratio above is measured against the worst of the **four** grounds the chrome uses —
+light and dark, base and hover — so one set of inks serves both themes.
+
+**Orange is finally solid here.** On paper the identity orange does not reach the 3:1 a mark
+that carries information needs (§2). On this dark ground it does, and it holds dark ink on top
+at 5.04:1. So the active page in the tree is a filled orange block — the one place in the
+product where the identity colour marks rather than decorates. The weight is still there too;
+colour never travels alone.
+
+**What pins the dark ground.** `#1B2A26` is not a taste decision. The avatar takes its colour
+from an inline style, not from a token, and the disc is a control boundary needing 3:1. On
+`#1B2A26` the worst identity colour measures 3.06:1. One step lighter (`#1C332C`) drops it to
+2.76:1 and breaks a boundary nobody would be looking at. **Do not lighten this value.**
+
+**How it is implemented.** The region redefines the token *names* in its own scope rather than
+restating the rules inside it, because `var()` resolves at the element that matched using that
+element's inherited properties. A rule written anywhere re-themes automatically once its
+element is inside the region. Anything that lives in the region in the DOM but paints outside
+it on screen — a modal, for instance — must re-enter the canvas palette explicitly.
+
 ---
 
 # 14. Documentation Design
@@ -825,19 +879,39 @@ floating controls everywhere
 
 Code blocks should intentionally contrast with the paper environment.
 
-Light mode:
+**Inline code** is typography inside a sentence, so it follows the theme and sits on a light
+tint:
 
 ```text
-background: #E9E6DE
-border:     #D8D2C5
+light: background #E9E6DE  border #D8D2C5
+dark:  background #11110F  border #39352F
 ```
 
-Dark mode:
+**A fenced block** is a different thing: a terminal inset in a book. It is one surface, the
+**same in both themes**.
 
 ```text
-background: #11110F
-border:     #39352F
+--code-block-bg:     #141917
+--code-block-border: #31352F   /* 11.08:1 on paper, 1.45:1 on charcoal */
+--code-block-fg:     #E9E3D8   /* 13.92:1 */
+--code-block-fg-dim: #918B81   /*  5.26:1 */
+--code-block-accent: #B9D0C7   /* 10.93:1 */
+--code-block-danger: #E08578   /*  6.60:1 */
 ```
+
+> **Amended 2026-09-08.** The block stopped following the theme. The dark syntax palette
+> already measured well against `#141917` — keyword 8.52, string 9.17, number 8.06, title
+> 10.93, variable 6.60, comment 5.26 — so unifying *deleted* the six light values instead of
+> re-deriving them. One surface, one palette, fewer tokens.
+>
+> It costs one thing: in the dark theme the block sits at 1.02:1 against the canvas, so the
+> border carries the edge and is chosen against both canvases rather than against the block.
+>
+> Two rules follow from how the highlighter works. **Inline code must not share the block's
+> surface** — on a dark slab every `` `foo` `` in a paragraph becomes a chip and the prose
+> stops reading as prose. And **the block's text colour belongs on the block**, not on the
+> highlighter: highlighting is only applied to fences that declare a language, so a bare fence
+> would otherwise inherit the document's ink onto the inset and measure 1.05:1.
 
 Use JetBrains Mono.
 
