@@ -33,22 +33,54 @@ function loadScript(src) {
   return loaded[src]
 }
 
+// Mermaid trae su propio parser de color y no entiende `oklch()`, que es como
+// están declarados todos los tokens desde que el design system se pasó a ese
+// espacio. Pasárselo tal cual no da error: mermaid se queda callado y el bloque
+// no se dibuja, así que el diagrama desaparece sin que nada lo diga.
+//
+// El navegador tampoco lo convierte: ni `getComputedStyle().color` ni
+// `ctx.fillStyle` normalizan a rgb, los dos devuelven el `oklch()` de vuelta. Lo
+// que sí lo resuelve es pintarlo y leer el píxel, que es exactamente el color
+// que se vería en pantalla.
+let probe = null
+function toRgbHex(value) {
+  if (!value || value.startsWith('#')) return value
+  if (!probe) {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 1
+    probe = canvas.getContext('2d', { willReadFrequently: true })
+  }
+  try {
+    probe.clearRect(0, 0, 1, 1)
+    probe.fillStyle = value
+    probe.fillRect(0, 0, 1, 1)
+    const [r, g, b] = probe.getImageData(0, 0, 1, 1).data
+    return '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')
+  } catch {
+    // Si el canvas falla, devolver el valor original es mejor que devolver nada:
+    // mermaid usará su propio color para ese slot y el resto seguirá siendo el
+    // de la aplicación.
+    return value
+  }
+}
+
 function token(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return toRgbHex(raw)
 }
 
 // Las variables de Mermaid, sacadas de los tokens del design system. Solo se
 // nombran las que el motor usa para nodos, aristas y etiquetas; el resto las deriva
 // él a partir de estas.
 function mermaidPalette() {
-  const ink = token('--fg-1')
-  const line = token('--border-strong')
+  const ink = token('--ink')
+  const line = token('--border-default')
   return {
-    background: token('--bg'),
-    primaryColor: token('--accent-soft'),
+    background: token('--background'),
+    primaryColor: token('--green-soft'),
     primaryTextColor: ink,
-    primaryBorderColor: token('--accent'),
-    secondaryColor: token('--surface-sunken'),
+    primaryBorderColor: token('--green'),
+    secondaryColor: token('--surface-muted'),
     secondaryTextColor: ink,
     secondaryBorderColor: line,
     tertiaryColor: token('--surface'),
@@ -56,12 +88,12 @@ function mermaidPalette() {
     tertiaryBorderColor: line,
     lineColor: line,
     textColor: ink,
-    mainBkg: token('--accent-soft'),
-    nodeBorder: token('--accent'),
+    mainBkg: token('--green-soft'),
+    nodeBorder: token('--green'),
     nodeTextColor: ink,
-    edgeLabelBackground: token('--bg'),
-    clusterBkg: token('--surface-sunken'),
-    clusterBorder: token('--border'),
+    edgeLabelBackground: token('--background'),
+    clusterBkg: token('--surface-muted'),
+    clusterBorder: token('--border-subtle'),
     titleColor: ink,
   }
 }
@@ -88,7 +120,7 @@ function renderMermaid(root) {
         // cambia con el tema sin que aquí haya un solo color escrito.
         theme: 'base',
         themeVariables: mermaidPalette(),
-        fontFamily: token('--font-sans'),
+        fontFamily: token('--font-ui'),
         securityLevel: 'strict',
       })
       mermaid.run({ nodes: root.querySelectorAll('.mermaid') })

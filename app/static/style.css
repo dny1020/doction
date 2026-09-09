@@ -1,55 +1,102 @@
 /* ── Tipografía ──────────────────────────────────────────────────────────────
-   Tres familias con papeles estrictos, todas autohospedadas: doction se sirve en
-   LAN, en VPN y a veces sin salida a internet, así que una petición a
-   fonts.gstatic.com fallaría justo donde más se usa.
+   Tres familias con papeles estrictos (DESIGN.md §3), todas autohospedadas:
+   doction se sirve en LAN, en VPN y a veces sin salida a internet, así que una
+   petición a un CDN fallaría justo donde más se usa.
 
-     Inter              todo lo legible: interfaz, prosa, botones, navegación.
-     Fraunces           el encabezado mayor de una vista y los del documento.
-     JetBrains Mono     datos y código. Nunca una frase.
+     Manrope           navegación, cuerpo, formularios, botones, tablas, controles.
+     Instrument Serif  solo títulos de página y encabezados de documento.
+     JetBrains Mono    código, rutas, atajos, marcas de tiempo, metadatos.
 
    Esa última regla es la que hace que esto se lea como documentación y no como
    una aplicación con contenido dentro: un slug, una etiqueta, una ruta de
    sección o una fecha se reconocen sin leerlos.
 
-   Solo se vendorizan las caras que se pintan: la serif en regular, la mono en
-   400 y 500, ninguna cursiva. font-display: swap — texto legible desde el primer
-   pintado. */
+   Solo se vendorizan las caras que se pintan: Manrope en 400/500/600 porque §3
+   pide 400 para texto, 500 para controles y navegación y 600 para encabezados de
+   interfaz; la serif en un solo peso; la mono en 400 y 500. Ninguna cursiva.
+
+   Inter NO se vendoriza aunque §3 la nombre como respaldo. Vendorizar dos caras
+   de interfaz es pagar dos veces por un caso que no ocurre: ambas vendrían del
+   mismo origen, así que si una no carga la otra tampoco. El respaldo real es
+   `system-ui`, que es de la misma clase y siempre está.
+
+   font-display: swap — texto legible desde el primer pintado. */
 @font-face {
-  font-family: 'Inter';
+  font-family: 'Manrope';
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400;
   font-display: swap;
-  src: url('/static/vendor/fonts/inter-latin.woff2') format('woff2');
+  src: url('/static/vendor/fonts/manrope-latin-400-normal.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
     U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'Inter';
+  font-family: 'Manrope';
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400;
   font-display: swap;
-  src: url('/static/vendor/fonts/inter-latin-ext.woff2') format('woff2');
+  src: url('/static/vendor/fonts/manrope-latin-ext-400-normal.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
     U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
     U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: 'Fraunces';
+  font-family: 'Manrope';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 500;
   font-display: swap;
-  src: url('/static/vendor/fonts/fraunces-latin-400-normal.woff2') format('woff2');
+  src: url('/static/vendor/fonts/manrope-latin-500-normal.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
     U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'Fraunces';
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/static/vendor/fonts/manrope-latin-ext-500-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/static/vendor/fonts/manrope-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/static/vendor/fonts/manrope-latin-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Instrument Serif';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/static/vendor/fonts/fraunces-latin-ext-400-normal.woff2') format('woff2');
+  src: url('/static/vendor/fonts/instrument-serif-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/vendor/fonts/instrument-serif-latin-ext-400-normal.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
     U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
     U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
@@ -60,16 +107,6 @@
   font-weight: 400;
   font-display: swap;
   src: url('/static/vendor/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/static/vendor/fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
     U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
     U+2212, U+2215, U+FEFF, U+FFFD;
@@ -89,6 +126,16 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
+  src: url('/static/vendor/fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
   src: url('/static/vendor/fonts/jetbrains-mono-latin-ext-500-normal.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
     U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
@@ -96,120 +143,128 @@
 }
 
 /* === Light tokens ========================================================= */
+/* Todo el color en oklch, con los valores de DESIGN.md §2 copiados tal cual salvo
+   donde una medida lo impide. Cuando eso pasa se conserva el tono y el papel del
+   documento y se mueve la luminosidad hasta que cumple, y la corrección queda
+   escrita de vuelta en el documento. Un valor especificado dice una intención;
+   una ratio medida dice quién puede usar el resultado. */
 :root {
-  /* Superficies — papel cálido de verdad. DESIGN.md §2: el lienzo nunca es blanco
-     puro, así que --surface deja de ser #FFFFFF. El escalón de hover es el fondo
-     del elemento activo que §13 ya nombraba, en lugar de un valor propio. */
-  --bg:             #F5F1E8;
-  --surface:        #F9F7F1;
-  --surface-sunken: #EFEADF;
-  --surface-hover:  #E8E4DA;
+  /* Superficies — papel técnico cálido. */
+  --background:     oklch(0.965 0.012 94);
+  --surface:        oklch(0.982 0.008 92);
+  --surface-raised: oklch(0.994 0.004 90);
+  --surface-muted:  oklch(0.936 0.016 91);
+  --surface-inset:  oklch(0.908 0.020 91);
 
-  /* La fibra del papel. Una sola declaración, para poder apagarla en un sitio. */
-  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23p)' opacity='0.025'/%3E%3C/svg%3E");
 
-  /* Tinta. Tres niveles, todos legibles. Cada ratio es contra la superficie más
-     desfavorable en la que la tinta aparece —aquí --surface-hover, la más
-     oscura—, no contra el lienzo: un valor medido solo contra la página pasa la
-     revisión y falla luego en una fila con el puntero encima. */
-  --fg-1: #172522;  /* 12.49:1 */
-  --fg-2: #5F6864;  /*  4.53:1 */
-  --fg-3: #626763;  /*  4.54:1 */
-  --fg-on-accent: #F9F7F1;
+  /* Tinta: verde oscuro, no azul. Las ratios son contra la superficie más
+     desfavorable en la que la tinta aparece, no contra la página. */
+  --ink:         oklch(0.245 0.030 151);  /* 15.00:1 */
+  --ink-strong:  oklch(0.185 0.026 150);
+  --ink-muted:   oklch(0.445 0.025 151);  /*  7.01:1 */
+  /* Corregido: el documento da 0.590, que mide 3.80:1 y este nivel se usa para
+     texto en 42 sitios. */
+  --ink-subtle:  oklch(0.501 0.020 151);  /*  4.50:1 */
+  --ink-on-green:    oklch(0.982 0.008 92);
+  /* La tinta sobre el color de identidad del avatar, que no gira con el tema. */
+  --ink-on-identity: oklch(0.982 0.008 92);
 
-  /* Líneas. `border` es decorativa y puede no verse; `border-strong` delimita
-     controles y tiene que verse. Perder la primera solo cuesta orden; perder la
-     segunda es un control que alguien no encuentra. */
-  --border:        #D8D2C5;  /* 1.28:1 — decorativa */
-  --border-strong: #858173;  /* 3.07:1 — bordes de control */
+  /* Verde funcional — lo que se pulsa y lo que se lee. */
+  --green:       oklch(0.365 0.055 151);  /*  9.69:1 */
+  --green-hover: oklch(0.315 0.052 151);
+  --green-press: oklch(0.315 0.052 151);
+  --green-soft:  oklch(0.915 0.030 151);
+  /* Corregido: el documento da alfa 0.13, que compone a 1.24:1. Un indicador de
+     foco necesita 3:1, y este anillo ya se subió una vez por esta misma razón. */
+  --green-ring:  oklch(0.365 0.055 151 / 0.60);  /*  3.03:1 */
 
-  /* Acento interactivo — la tinta verde de DESIGN.md §2/§10. Es lo que se pulsa
-     y lo que se lee: enlaces, botón primario, elemento activo, foco, selección.
-     Sustituye al azul de la 005, que venía de otro documento. */
-  --accent:       #173B35;  /* 9.65:1 */
-  --accent-hover: #0F302B;  /* 11.19:1 */
-  --accent-press: #0F302B;
-  --accent-soft:  #DDE7E2;
-  /* El anillo de foco a 0.32 medía 1.8:1 contra el papel —el azul de antes medía
-     1.7 y llevaba así desde la 005—, y un indicador de foco necesita 3:1. A 0.7
-     mide 4.33:1 y sigue siendo un halo, no un contorno duro. */
-  --accent-ring:  rgba(23, 59, 53, 0.7);
+  /* Naranja: señal, no color dominante. Se parte por consecuencia — el primero
+     decora y puede no verse, el segundo señala algo y por eso mide. */
+  --orange:       oklch(0.635 0.155 52);   /* decoración */
+  --orange-ink:   oklch(0.515 0.133 52);   /*  4.50:1 — croma 0.155 no llega en ningún nivel */
 
-  /* Naranja — la marca de identidad, y se parte por consecuencia (§2). El primero
-     decora y puede no verse; el segundo señala algo y por eso mide. La pregunta
-     es qué pierde quien no vea la marca: si no pierde nada, --marker. */
-  --marker:      #D97745;  /* 2.48:1 — solo decoración */
-  --marker-ink:  #A34D21;  /* 4.54:1 — indicadores, puntos de estado, iconos que hablan solos */
+  /* Líneas. La decorativa puede no verse; la de control tiene que verse. */
+  --border-subtle:  oklch(0.875 0.018 90);
+  /* Corregido: el documento da 0.818, que mide 1.64:1 y esta línea delimita 16
+     controles. */
+  --border-default: oklch(0.600 0.024 90);  /*  3.00:1 */
 
-  /* Estado. Peligro tiene tono propio: destruir no es enfatizar. `.diff-add`
-     pedia un --ok-soft que nunca existio y caia en un verde literal de otra
-     paleta. Existe el tinte, no el tono pleno: el acento sigue siendo uno. */
-  --danger:      #A03328;  /* 5.52:1 */
-  --danger-soft: #F6E3E0;
-  --ok-soft: #E4EFE7;
+  /* Estado. Corregido: el documento da 0.590, que mide 4.20:1 sobre texto. */
+  --danger:      oklch(0.525 0.185 28);   /*  4.51:1 */
+  --danger-soft: oklch(0.911 0.046 28);   /* tinta encima 12.15:1 */
+  --ok-soft:     oklch(0.981 0.030 148);  /* tinta encima 15.37:1 */
 
-  /* Velo de lo que esta delante: cajon movil, modales y la paleta de comandos.
-     Un solo valor, porque los tres son el mismo gesto. */
-  --scrim: rgba(35, 34, 31, 0.45);
+  /* Mezclas precalculadas. §9 y §11 las escriben con color-mix(), que Safari
+     15.4-16.1 rechaza y falla en silencio al valor inicial: entradas y avisos
+     transparentes. Aquí van planas, que además las hace medibles. */
+  --callout-bg: oklch(0.960 0.022 63.2);  /* tinta 14.26:1, filete naranja 3.21:1 */
+  --input-bg:   oklch(0.987 0.007 97.3);  /* tinta 15.49:1, borde 3.80:1 */
 
-  /* Tinta sobre un color de identidad (avatar). No es --fg-on-accent: ese gira
-     con el tema y el color del avatar no, asi que en oscuro escribia tinta
-     negra sobre el mismo fondo de siempre. */
-  --fg-on-identity: #FAF9F5;
+  /* Material de §7 y brillo interior de la losa de §9. Son colores, así que van
+     aquí y no sueltos en una regla. */
+  --material-sheen: oklch(1 0 0 / 0.18);
+  --material-warm:  oklch(0.72 0.025 92 / 0.05);
+  --code-sheen:     oklch(1 0 0 / 0.045);
+  /* El ángulo y las paradas son de §7; solo cambia la fuerza entre temas. */
+  --material: linear-gradient(
+    112deg,
+    var(--material-sheen) 0%,
+    transparent 32%,
+    var(--material-warm) 100%
+  );
 
-  /* Código en línea — un tinte claro. Es tipografía dentro de una frase, no una
-     superficie: ponerlo sobre la losa oscura convierte cada `foo` de un párrafo
-     en una pastilla negra y la prosa deja de leerse como prosa. */
-  --code-bg:     #E9E6DE;
-  --code-border: #D8D2C5;
+  /* Velo de lo que está delante: cajón móvil, modales y paleta de comandos. */
+  --scrim: oklch(0.200 0.020 150 / 0.45);
 
-  /* Bloque de código — DESIGN.md §18. Un inset de terminal dentro de un libro,
-     y el MISMO en los dos temas: la paleta de sintaxis oscura que ya existía
-     mide de sobra contra este suelo, así que unificar borra los seis valores
-     claros en vez de re-derivarlos.
-     Cuesta una cosa: en tema oscuro la losa queda a 1.02:1 del lienzo, así que
-     el canto lo lleva el borde y por eso no es el mismo que el del tinte. */
-  --code-block-bg:     #141917;
-  --code-block-border: #31352F;  /* 11.08:1 en claro, 1.45:1 en oscuro */
-  --code-block-fg:     #E9E3D8;  /* 13.92:1 */
-  --code-block-fg-dim: #918B81;  /*  5.26:1 */
-  --code-block-accent: #B9D0C7;  /* 10.93:1 */
-  --code-block-danger: #E08578;  /*  6.60:1 */
+  /* Código en línea: verde sobre verde tenue. Es tipografía dentro de una frase. */
+  --code-inline-bg:     oklch(0.915 0.030 151);
+  --code-inline-border: oklch(0.870 0.035 151);
 
-  /* Sintaxis. Una sola paleta, medida contra --code-block-bg, sin override en
-     oscuro: la losa no gira con el tema, así que sus colores tampoco. */
-  --syn-keyword:  #C2A8E8;  /* 8.52:1 */
-  --syn-string:   #8FC79E;  /* 9.17:1 */
-  --syn-number:   #D9A566;  /* 8.06:1 */
-  --syn-title:    #B9D0C7;  /* 10.93:1 */
-  --syn-variable: #E08578;  /* 6.60:1 */
-  --syn-comment:  #918B81;  /* 5.26:1 */
+  /* La losa del bloque. §2 le da valor propio por tema, así que vuelve a seguir
+     al tema: en la 009 era una sola superficie en ambos. */
+  --code-bg:        oklch(0.205 0.024 151);
+  --code-text:      oklch(0.930 0.018 96);
+  --code-muted:     oklch(0.690 0.025 120);
+  --code-green:     oklch(0.760 0.110 142);
+  --code-orange:    oklch(0.780 0.130 61);
 
-  /* Radii — DESIGN.md §8. Más cerrados que los de la 005 (8/12/16/24): doction no
-     debe parecer una colección de píldoras. --r-pill sigue existiendo y sigue
-     teniendo solo tres llamadas, las tres redondas de verdad. */
-  --r-xs:   6px;
-  --r-md:   7px;
-  --r-lg:   10px;
-  --r-xl:   12px;
-  --r-2xl:  14px;
-  --r-pill: 999px;
-  /* --r-sm era el radio de los controles pequeños; §8 lo unifica con el de los
-     botones, así que apunta al mismo escalón en vez de desaparecer y obligar a
-     tocar cada llamada. */
-  --r-sm:   var(--r-md);
+  /* Radios — DESIGN.md §6. Estándar de interfaz 4px; código 6px; modales 8px.
+     `--radius-xl` y `--radius-2xl` desaparecen: el documento tope en 8px, así que
+     lo que estaba en 12 y 14 baja al escalón grande. La píldora sobrevive solo en
+     las tres cosas redondas de verdad (avatares y puntos de tema), que es la
+     excepción que §6 permite. */
+  --radius-xs:   2px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   var(--radius-lg);
+  --radius-2xl:  var(--radius-lg);
+  --radius-pill: 999px;
 
-  /* Shadows — DESIGN.md §9: casi invisibles. Una superficie que se apoya en la
-     página lleva línea y no sombra; la sombra es de lo que flota de verdad. */
-  --shadow-xs: 0 1px 2px rgba(23, 37, 34, 0.04);
-  --shadow-sm: 0 1px 2px rgba(23, 37, 34, 0.04), 0 4px 12px rgba(23, 37, 34, 0.04);
-  --shadow-md: 0 1px 2px rgba(23, 37, 34, 0.04), 0 4px 12px rgba(23, 37, 34, 0.06);
-  --shadow-lg: 0 2px 4px rgba(23, 37, 34, 0.05), 0 12px 28px rgba(23, 37, 34, 0.09);
+  /* Sombras — DESIGN.md §6: solo para lo que flota. Una superficie que se apoya
+     en la página lleva línea, no sombra. */
+  --shadow-1: 0 1px 2px oklch(0.20 0.02 150 / 0.05);
+  --shadow-2: 0 4px 14px oklch(0.20 0.02 150 / 0.07);
+  --shadow-3: 0 12px 32px oklch(0.20 0.02 150 / 0.10);
+  /* Cuatro escalones colapsan en tres: lo mínimo, lo elevado y lo modal. */
+  --shadow-xs: var(--shadow-1);
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --shadow-lg: var(--shadow-3);
 
-  /* Spacing — base de 4px, más un escalón óptico por debajo. */
-  --sp-0: 2px;
-  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
-  --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+  /* Espaciado — base de 4px de §5, más un escalón óptico por debajo que el
+     documento no nombra: hay 17 sitios con separaciones de 2px bajo texto de
+     11 y 12px, y subirlos a 4 engorda cada insignia y cada marca en línea. */
+  --space-0:  2px;
+  --space-1:  4px;   --space-2:  8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;   --space-6: 24px;   --space-8: 32px;
+  --space-12: 48px;  --space-16: 64px;  --space-20: 80px;
+  /* Dos escalones que el ritmo de §5 pide y su propia escala no contiene: el aire
+     sobre un H2 (56px) y sobre un H3 (36px). Van aquí en lugar de quedar sueltos
+     en una regla, que es lo que la escala existe para evitar. */
+  --space-7:  28px;
+  --space-9:  36px;
+  --space-14: 56px;
 
   /* === Chrome — la navegación es otro material ==========================
      El sidebar no es papel: es una región de tinta verde, en los dos temas.
@@ -218,33 +273,45 @@
 
      Todas las ratios son contra el peor de los CUATRO suelos que usa el
      chrome —claro y oscuro, base y hover—, no contra uno solo. */
-  --nav-bg:            #12241F;
-  --nav-hover:         #1B302A;
-  --nav-fg-1:          #EDE7DC;  /* 10.49:1 */
-  --nav-fg-2:          #B8B0A4;  /*  6.01:1 */
-  --nav-fg-3:          #A69F94;  /*  4.92:1 */
-  --nav-border:        #24352F;  /*  decorativa, misma relación que en el lienzo */
-  --nav-border-strong: #6A7F77;  /*  3.02:1 — bordes de control */
-  --nav-accent:        #C7DAD2;  /*  8.84:1 — el acento interactivo, aclarado para esta tinta */
-  --nav-accent-hover:  #DCEAE4;
-  --nav-accent-press:  #DCEAE4;
-  --nav-accent-soft:   #1B302A;
-  --nav-accent-ring:   rgba(199, 218, 210, 0.7);
-  --nav-fg-on-accent:  #12241F;
-  /* Aquí el naranja por fin es sólido: sobre un suelo oscuro el relleno de
-     identidad aguanta tinta encima a 5.04:1. Es el único naranja pleno de
-     la interfaz, y por eso marca el elemento activo. */
-  --nav-marker:        #D97745;  /*  4.10:1 contra el suelo */
-  --nav-fg-on-marker:  #172522;  /*  5.04:1 sobre el relleno naranja */
-  --nav-danger:        #E08578;
-  --nav-danger-soft:   #341C18;
-  /* Las sombras del lienzo son casi transparentes por diseño; sobre tinta
-     oscura no existen, y los menús flotantes del sidebar se leerían como
-     agujeros. Estas son las mismas del tema oscuro, un punto más densas. */
-  --nav-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --nav-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.34), 0 1px 2px rgba(0, 0, 0, 0.28);
-  --nav-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.42);
-  --nav-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+  /* §8: el suelo es un degradado vertical. Los dos extremos y el fondo del
+     elemento activo compuesto sobre ellos son los CUATRO suelos reales contra
+     los que se mide todo lo que va encima. */
+  --nav-bg:        oklch(0.225 0.030 151);
+  --nav-bg-end:    oklch(0.185 0.024 151);
+  --nav-hover:     oklch(0.265 0.032 151);
+  --nav-active-bg: oklch(0.310 0.040 151 / 0.72);
+  /* El canto del panel se mide contra el LIENZO, no contra su propio suelo. */
+  --nav-edge:      oklch(0.330 0.030 151);  /* 10.90:1 en claro, 1.58:1 en oscuro */
+
+  --nav-ink:            oklch(0.928 0.014 93);   /* 11.37:1 */
+  /* El texto del elemento activo. Sin remapear aquí, `--ink-strong` resolvía a
+     la tinta OSCURA del lienzo sobre el fondo oscuro del activo: 1.32:1. Es el
+     mismo fallo que dejó el activo a 1.06:1 en la ronda anterior, y solo se ve
+     midiendo. */
+  --nav-ink-strong:     oklch(0.975 0.007 93);   /* 13.08:1 */
+  --nav-ink-muted:      oklch(0.720 0.018 100);  /*  5.68:1 */
+  --nav-ink-subtle:     oklch(0.659 0.018 110);  /*  4.52:1 */
+  --nav-border-subtle:  oklch(0.290 0.028 151);
+  --nav-border-default: oklch(0.556 0.025 150);  /*  3.01:1 */
+
+  --nav-green:        oklch(0.745 0.090 145);  /*  6.42:1 */
+  --nav-green-hover:  oklch(0.805 0.090 145);
+  --nav-green-press:  oklch(0.805 0.090 145);
+  --nav-green-soft:   oklch(0.290 0.050 149);
+  --nav-green-ring:   oklch(0.745 0.090 145 / 0.55);  /*  3.00:1 */
+  --nav-ink-on-green: oklch(0.185 0.024 151);
+
+  /* El naranja del chrome solo hace de filete en el elemento activo, así que le
+     basta el 3:1 de una marca que informa: 3.88:1 contra los cuatro suelos. Ya
+     no hay tinta sobre naranja: dejó de ser un relleno. */
+  --nav-orange:         oklch(0.635 0.155 52);
+  --nav-danger:         oklch(0.700 0.150 28);
+  --nav-danger-soft:    oklch(0.280 0.070 28);
+
+  --nav-shadow-xs: 0 1px 2px oklch(0.000 0.000 0.0 / 0.28);
+  --nav-shadow-sm: 0 1px 3px oklch(0.000 0.000 0.0 / 0.34), 0 1px 2px oklch(0.000 0.000 0.0 / 0.28);
+  --nav-shadow-md: 0 4px 16px oklch(0.000 0.000 0.0 / 0.42);
+  --nav-shadow-lg: 0 12px 32px oklch(0.000 0.000 0.0 / 0.55);
 
   /* === Vuelta al lienzo ==================================================
      Un `<dialog>` declarado dentro del sidebar hereda su paleta, pero
@@ -254,22 +321,23 @@
      OJO: dependen de que `[data-theme="dark"]` siga DESPUÉS de `:root` en
      este archivo. Misma especificidad, gana el orden. Si alguien mueve los
      bloques, estos alias se congelan en claro sin avisar. */
-  --canvas-bg:             var(--bg);
+  --canvas-background:             var(--background);
   --canvas-surface:        var(--surface);
-  --canvas-surface-sunken: var(--surface-sunken);
-  --canvas-surface-hover:  var(--surface-hover);
-  --canvas-fg-1:           var(--fg-1);
-  --canvas-fg-2:           var(--fg-2);
-  --canvas-fg-3:           var(--fg-3);
-  --canvas-fg-on-accent:   var(--fg-on-accent);
-  --canvas-border:         var(--border);
-  --canvas-border-strong:  var(--border-strong);
-  --canvas-accent:         var(--accent);
-  --canvas-accent-hover:   var(--accent-hover);
-  --canvas-accent-press:   var(--accent-press);
-  --canvas-accent-soft:    var(--accent-soft);
-  --canvas-accent-ring:    var(--accent-ring);
-  --canvas-marker:         var(--marker);
+  --canvas-surface-muted: var(--surface-muted);
+  --canvas-surface-inset:  var(--surface-inset);
+  --canvas-ink:           var(--ink);
+  --canvas-ink-strong:    var(--ink-strong);
+  --canvas-ink-muted:           var(--ink-muted);
+  --canvas-ink-subtle:           var(--ink-subtle);
+  --canvas-ink-on-green:   var(--ink-on-green);
+  --canvas-border-subtle:         var(--border-subtle);
+  --canvas-border-default:  var(--border-default);
+  --canvas-green:         var(--green);
+  --canvas-green-hover:   var(--green-hover);
+  --canvas-green-press:   var(--green-press);
+  --canvas-green-soft:    var(--green-soft);
+  --canvas-green-ring:    var(--green-ring);
+  --canvas-orange:         var(--orange);
   --canvas-danger:         var(--danger);
   --canvas-danger-soft:    var(--danger-soft);
   --canvas-shadow-xs:      var(--shadow-xs);
@@ -277,110 +345,128 @@
   --canvas-shadow-md:      var(--shadow-md);
   --canvas-shadow-lg:      var(--shadow-lg);
 
-  /* Layout */
-  --sidebar-w:      264px;
-  /* Alto de la barra de app en móvil. El safe-area la hace más alta en un
-     iPhone con notch, así que lo que se pegue debajo tiene que leer esto. */
-  --app-bar-h:      calc(44px + env(safe-area-inset-top));
-  --measure:        90ch;
-  --editor-measure: 1600px;
+  /* Layout — DESIGN.md §4. El documento nunca queda pegado al borde del panel. */
+  --sidebar-width:       280px;
+  --toc-width:           220px;
+  --topbar-height:       56px;
+  /* En móvil el safe-area hace la barra más alta, y lo que se pega debajo lo lee. */
+  --topbar-height-mobile: calc(44px + env(safe-area-inset-top));
+  --document-max-width:   760px;
+  --document-gutter:      72px;
+  --shell-max-width:     1720px;
+  --editor-measure:      1600px;
 
-  /* Motion */
-  --ease:     cubic-bezier(0.2, 0, 0.2, 1);
-  --dur-fast: 120ms;
-  --dur:      200ms;
+  /* Movimiento — §13. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 240ms;
 
-  /* Type */
-  /* Tres familias, tres papeles. El fallback de cada una es de su misma clase:
-     si una cara no carga, el texto sigue leyéndose como lo que es. */
-  --font-sans:  'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-mono:  'JetBrains Mono', ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  /* Tipografía — §3. Tres familias, tres papeles. El respaldo de cada una es de su
+     misma clase: si una cara no carga, el texto sigue leyéndose como lo que es. */
+  --font-ui:      'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   /* Alias por papel, para que una regla diga por qué usa la fuente y no cuál.
      `data` es todo lo que es un valor —slug, etiqueta, ruta, fecha, contador— y
      `code` es código. Comparten cara; separarlos deja cambiar una sin la otra. */
-  --font-data:  var(--font-mono);
+  --font-data:    var(--font-mono);
 
-  /* Escala de DESIGN.md §6, un escalón por papel. `lg` es el «lead» que §6 no
-     nombraba: lo más grande que sigue siendo texto y no encabezado —el título de
-     una tarjeta, un párrafo de entrada—. Sin él caía en 22px, que ya se lee como
-     encabezado, o se quedaba en el cuerpo y no había jerarquía. */
-  --text-xs:   12px;  /* caption */
-  --text-sm:   14px;  /* small, código */
-  --text-base: 16px;  /* cuerpo */
-  --text-lg:   18px;  /* lead */
-  --text-xl:   22px;  /* subsección */
-  --text-2xl:  30px;  /* título de sección */
-  --text-3xl:  42px;  /* título de página */
+  /* Escala de §3. Baja respecto a la anterior: la interfaz va a 14px y la
+     navegación a 13, y el cuerpo del documento sube a 16 con 1.78 de interlínea.
+     El suelo son 11px, que es el tamaño de los metadatos en la cara de datos. */
+  --text-xs:   0.6875rem;  /* 11px — metadatos */
+  --text-sm:   0.75rem;    /* 12px */
+  --text-base: 0.875rem;   /* 14px — interfaz */
+  --text-md:   1rem;       /* 16px — cuerpo del documento */
+  --text-lg:   1.125rem;   /* 18px */
+  --text-xl:   1.375rem;   /* 22px — H2 */
+  --text-2xl:  1.75rem;    /* 28px */
+  --text-3xl:  2.25rem;    /* 36px — H1 del documento */
+  --text-4xl:  3.25rem;    /* 52px — título de página */
+  /* La navegación tiene su propio escalón: §3 la pone en 13px, entre la interfaz
+     y el texto pequeño, y ningún paso de la escala cae ahí. */
+  --text-nav:  0.8125rem;  /* 13px */
 }
 
 /* === Dark tokens ========================================================== */
+/* Carbón cálido de §2, con las mismas correcciones por medida que en claro: se
+   conserva tono y papel, se mueve la luminosidad hasta que cumple. */
 [data-theme="dark"] {
-  /* El oscuro no es el claro invertido: la referencia de la que sale este
-     lenguaje es solo clara, así que esto es trabajo propio sujeto a las mismas
-     ratios. Carbón cálido de DESIGN.md §3, nunca gris azulado ni negro puro. */
-  --bg:             #171614;
-  --surface:        #211F1B;
-  --surface-sunken: #1D1B18;
-  --surface-hover:  #28251F;
+  --background:     oklch(0.170 0.018 150);
+  --surface:        oklch(0.205 0.020 150);
+  --surface-raised: oklch(0.238 0.022 150);
+  --surface-muted:  oklch(0.238 0.022 150);
+  --surface-inset:  oklch(0.265 0.023 150);
 
-  /* Misma fibra, la mitad de intensidad: sobre carbón el grano claro se nota el
-     doble, y §3 avisa de que el oscuro nunca debe verse marrón ni sucio. */
-  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23p)' opacity='0.012'/%3E%3C/svg%3E");
 
-  /* Mismas ratios que en claro y contra la superficie más desfavorable, que aquí
-     es la más clara (--surface-hover): la tinta oscura es tinta clara. */
-  --fg-1: #E9E3D8;  /* 11.96:1 */
-  --fg-2: #938B7E;  /*  4.54:1 */
-  --fg-3: #918B81;  /*  4.52:1 */
-  --fg-on-accent: #171614;
+  --ink:         oklch(0.925 0.016 93);   /* 12.18:1 */
+  --ink-strong:  oklch(0.975 0.007 93);
+  --ink-muted:   oklch(0.720 0.018 100);  /*  6.13:1 */
+  /* Corregido: el documento da 0.550, que mide 3.14:1. */
+  --ink-subtle:  oklch(0.639 0.018 110);  /*  4.51:1 */
+  --ink-on-green:    oklch(0.170 0.018 150);
+  --ink-on-identity: oklch(0.982 0.008 92);
 
-  --border:        #39352F;  /* 1.28:1 — decorativa, misma relación que en claro */
-  --border-strong: #766D61;  /* 3.00:1 — bordes de control */
+  --green:       oklch(0.745 0.090 145);  /*  6.94:1 */
+  --green-hover: oklch(0.805 0.090 145);
+  --green-press: oklch(0.805 0.090 145);
+  --green-soft:  oklch(0.290 0.050 149);
+  /* Corregido igual que en claro: 0.13 no llega a 3:1 en ningún tema. */
+  --green-ring:  oklch(0.745 0.090 145 / 0.53);  /*  3.00:1 */
 
-  /* La tinta verde no vale sobre carbón: se sube la luminosidad manteniendo el
-     tono, que es lo que §3 llama «dark primary». */
-  --accent:       #B9D0C7;  /* 9.39:1 */
-  --accent-hover: #D0E0DA;  /* 11.17:1 */
-  --accent-press: #D0E0DA;
-  --accent-soft:  #1E2E29;
-  --accent-ring:  rgba(185, 208, 199, 0.7);  /* 5.39:1 */
+  --orange:       oklch(0.735 0.135 57);   /*  6.23:1 */
+  /* Sobre carbón el naranja llega de sobra, así que un solo valor cubre los dos
+     papeles. La regla no cambia entre temas; cambian los tonos que hacen falta. */
+  --orange-ink:   oklch(0.735 0.135 57);   /*  6.23:1 */
 
-  /* Sobre carbón el naranja sí llega a 4.5:1, así que un solo valor cubre los dos
-     papeles. La regla no cambia entre temas; cambia cuántos tonos hacen falta
-     para cumplirla. */
-  --marker:      #E08A59;  /* 5.78:1 */
-  --marker-ink:  #E08A59;
+  --border-subtle:  oklch(0.285 0.020 150);
+  /* Corregido: el documento da 0.345, que mide 1.33:1 y esta línea delimita
+     controles. */
+  --border-default: oklch(0.538 0.025 150);  /*  3.01:1 */
 
-  --danger:      #E08578;  /* 5.67:1 */
-  --danger-soft: #341C18;
-  --ok-soft: #18291D;
+  --danger:      oklch(0.700 0.150 28);   /* medido abajo */
+  --danger-soft: oklch(0.280 0.070 28);
+  --ok-soft:     oklch(0.270 0.050 148);
 
-  /* Mas opaco que en claro: sobre un lienzo ya oscuro, 0.45 no separa nada. */
-  --scrim: rgba(0, 0, 0, 0.62);
+  /* Derivados igual que en claro, componiendo la mezcla de §9 y §11 sobre la
+     superficie de este tema. El primero estaba puesto a ojo y salía marrón
+     saturado, que es justo la estética que §14 prohíbe. */
+  --callout-bg: oklch(0.248 0.030 72.5);  /* tinta 12.95:1, filete 6.63:1 */
+  --input-bg:   oklch(0.222 0.021 150.5); /* tinta 13.74:1, borde 3.40:1 */
 
-  /* El código en línea sí sigue al tema: es tipografía sobre el papel del
-     documento. La losa del bloque no, y por eso no aparece aquí. */
-  --code-bg:     #11110F;
-  --code-border: #39352F;
+  --scrim: oklch(0.100 0.010 150 / 0.62);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.22);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  /* Mismo ángulo y mismas paradas, una sexta parte de fuerza. §7 pide un material
+     que se sienta más de lo que se ve, y sobre carbón el blanco al 18% no se
+     siente: se ve, como una banda diagonal que cruza el documento. */
+  --material-sheen: oklch(1 0 0 / 0.030);
+  --material-warm:  oklch(0.72 0.025 92 / 0.018);
 
-  /* Chrome en oscuro: solo se mueve el suelo y sus dos escalones. Las tintas,
-     las líneas y el acento del chrome están derivados contra el peor de los
-     cuatro suelos, así que valen igual aquí.
+  --code-inline-bg:     oklch(0.290 0.050 149);
+  --code-inline-border: oklch(0.345 0.045 149);
 
-     #12241F contra este lienzo mide 1.12:1 y el sidebar desaparecería; #1B2A26
-     lo separa. No puede aclararse más: el disco del avatar toma su color de un
-     `style` inline —no de un token— y sobre #1B2A26 mide 3.06:1, justo en el
-     límite de un borde de control. Un paso más claro (#1C332C) lo baja a 2.76
-     y rompe algo que no se ve al mirar el sidebar. */
-  --nav-bg:          #1B2A26;
-  --nav-hover:       #22352F;
-  --nav-accent-soft: #22352F;
+  /* La losa sí sigue al tema: §2 le da valor propio en cada uno. Contra este
+     lienzo separa 1.07:1, así que el canto lo lleva el borde de §9. */
+  --code-bg:        oklch(0.115 0.014 150);
+  --code-text:      oklch(0.925 0.016 93);
+  --code-muted:     oklch(0.620 0.025 113);
+  --code-green:     oklch(0.760 0.110 142);
+  --code-orange:    oklch(0.790 0.130 61);
+
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.22);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.28), 0 1px 2px oklch(0 0 0 / 0.22);
+  --shadow-md: 0 4px 16px oklch(0 0 0 / 0.35);
+  --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.5);
+
+  /* El chrome NO tiene variante oscura. §8 da un solo degradado y el sidebar ya
+     es tinta verde oscura en los dos temas: eso es lo que significa que sea otro
+     material y no otra superficie del tema. Contra el lienzo oscuro el extremo
+     superior separa y el canto lo lleva --nav-edge a 1.58:1.
+
+     El suelo no puede aclararse: el disco del avatar toma su color de un `style`
+     inline —no de un token— y sobre el extremo más claro mide 3.16:1, justo por
+     encima del límite de un borde de control. */
 }
 
 /* === Theme transition on key surfaces ==================================== */
@@ -388,9 +474,9 @@ body, .sidebar, .content-body, .auth-card,
 .btn, .new-btn, .search-field, .editor-textarea, .preview,
 .avatar-menu, .user-block {
   transition:
-    background-color var(--dur) var(--ease),
-    border-color     var(--dur) var(--ease),
-    color            var(--dur) var(--ease);
+    background-color var(--duration-base) var(--ease-standard),
+    border-color     var(--duration-base) var(--ease-standard),
+    color            var(--duration-base) var(--ease-standard);
 }
 
 /* === Reset ================================================================ */
@@ -403,11 +489,16 @@ html, body { margin: 0; height: 100%; }
    tablas, formularios, modales, bloques de código— pintan su propio fondo encima,
    así que la textura no llega a ninguna: §16 lo pide y la cascada lo cumple sola. */
 body {
-  background-color: var(--bg);
-  background-image: var(--paper-texture);
-  color: var(--fg-1);
-  font-family: var(--font-sans);
-  font-size: var(--text-base);
+  background-color: var(--background);
+  /* Material de §7: profundidad tonal, no textura. El ruido fractal que había
+     aquí lo prohíbe el propio §7 —«no noise filters, no grain visible»—, y lo
+     que pide en su lugar es un degradado que se sienta más de lo que se ve.
+     Las líneas verticales opcionales del §7 se dejan fuera: ya hay una decisión
+     de material, y §1 pide pocas y deliberadas. */
+  background-image: var(--material);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -418,7 +509,7 @@ body {
 a { color: inherit; }
 
 /* Selección de texto con el tono de acento. */
-::selection { background: var(--accent-soft); color: var(--accent-press); }
+::selection { background: var(--green-soft); color: var(--green-press); }
 
 /* === Piezas compartidas =================================================== */
 /* Siete piezas pequeñas, sacadas del estilo que ya usaba Ajustes en vez de
@@ -432,49 +523,49 @@ a { color: inherit; }
       la sombra es para lo que flota de verdad, y si todo flota nada lo hace. */
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: var(--sp-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
 }
 
 .card-title {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: var(--text-lg);
   font-weight: 600;
-  margin: 0 0 var(--sp-1);
-  color: var(--fg-1);
+  margin: 0 0 var(--space-1);
+  color: var(--ink);
 }
 
 /* La frase bajo el título. Explica de qué va la tarjeta y se calla. */
 .card-desc {
-  margin: 0 0 var(--sp-4);
-  color: var(--fg-3);
-  font-size: var(--text-sm);
+  margin: 0 0 var(--space-4);
+  color: var(--ink-subtle);
+  font-size: var(--text-base);
 }
 
 /* 2. Eyebrow — la etiqueta pequeña que encabeza un grupo. Antes eran cuatro:
       dos tamaños distintos dentro de la propia pantalla de Ajustes, más las de
       la barra lateral y las subpáginas. */
 .eyebrow {
-  margin: 0 0 var(--sp-2);
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--fg-3);
+  color: var(--ink-subtle);
 }
 
 /* Un rótulo atado a un control es el mismo rótulo, con menos aire debajo. */
 .field-label {
   display: block;
-  margin-bottom: var(--sp-1);
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
+  margin-bottom: var(--space-1);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--fg-3);
+  color: var(--ink-subtle);
 }
 
 /* 3. Rows / Row — una lista de cosas y una cosa dentro de ella. La separación
@@ -492,12 +583,12 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--sp-3);
-  padding: var(--sp-3) 0;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
   min-height: 44px;
 }
 
-.rows--divided > * + * { border-top: 1px solid var(--border); }
+.rows--divided > * + * { border-top: 1px solid var(--border-subtle); }
 
 /* Lo que da nombre a la fila: ocupa lo que sobra y no empuja a las acciones.
    Es una columna, así que sirve igual para un nombre suelto y para un nombre con
@@ -507,8 +598,8 @@ a { color: inherit; }
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-0);
-  color: var(--fg-1);
+  gap: var(--space-0);
+  color: var(--ink);
   /* Un correo o una URL no tienen espacios donde partir: sin esto empujan la
      fila a lo ancho en cuanto la pantalla se estrecha. */
   overflow-wrap: anywhere;
@@ -516,7 +607,7 @@ a { color: inherit; }
 
 /* El nombre en sí, cuando la fila lleva además un dato debajo. */
 .row-title {
-  color: var(--fg-1);
+  color: var(--ink);
   font-weight: 500;
   overflow: hidden;
   white-space: nowrap;
@@ -524,15 +615,15 @@ a { color: inherit; }
 }
 
 .row-name a {
-  color: var(--fg-1);
+  color: var(--ink);
   text-decoration: none;
 }
-.row-name a:hover { color: var(--accent); }
+.row-name a:hover { color: var(--green); }
 
 .row-actions {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 
@@ -540,31 +631,31 @@ a { color: inherit; }
       cifras de ancho fijo, para que una columna de números se lea como columna. */
 .meta {
   margin: 0;
-  color: var(--fg-3);
+  color: var(--ink-subtle);
   font-family: var(--font-data);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
-.meta--strong { color: var(--fg-1); }
+.meta--strong { color: var(--ink); }
 
 /* 5. Field — un campo de texto. Uno, no siete. */
 .field {
   width: 100%;
-  min-height: 44px;
-  padding: var(--sp-2) var(--sp-3);
-  background: var(--surface);
-  color: var(--fg-1);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  min-height: 36px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--input-bg);
+  color: var(--ink);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
 }
-.field::placeholder { color: var(--fg-3); }
+.field::placeholder { color: var(--ink-subtle); }
 .field:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--green-ring);
 }
 
 /* El campo desnudo: el textarea del editor, el título, la entrada de la paleta.
@@ -581,6 +672,8 @@ a { color: inherit; }
 
 /* === Layout =============================================================== */
 .layout {
+  max-width: var(--shell-max-width);
+  margin-inline: auto;
   display: grid;
   grid-template-columns: auto 1fr;
   min-height: 100vh; min-height: 100dvh;
@@ -596,33 +689,33 @@ a { color: inherit; }
    grueso) tampoco hacen falta tocarlas.
 
    Van los diecisiete: los cuatro obvios y los que no se ven hasta que fallan.
-   `--accent-press` es el texto del elemento activo del árbol: sin él caía al
-   verde del lienzo y medía 1.06:1 sobre este suelo, invisible. `--accent-ring`
+   `--green-press` es el texto del elemento activo del árbol: sin él caía al
+   verde del lienzo y medía 1.06:1 sobre este suelo, invisible. `--green-ring`
    es el foco de teclado de todo lo que hay aquí dentro. Las sombras claras del
    lienzo no existen sobre tinta oscura, así que los menús flotantes perdían el
    relieve y se leían como agujeros. */
 .sidebar {
-  --bg:             var(--nav-bg);
+  --background:             var(--nav-bg);
   --surface:        var(--nav-bg);
-  --surface-sunken: var(--nav-bg);
-  --surface-hover:  var(--nav-hover);
+  --surface-muted: var(--nav-bg);
+  --surface-inset:  var(--nav-hover);
 
-  --fg-1: var(--nav-fg-1);
-  --fg-2: var(--nav-fg-2);
-  --fg-3: var(--nav-fg-3);
-  --fg-on-accent: var(--nav-fg-on-accent);
+  --ink: var(--nav-ink);
+  --ink-strong: var(--nav-ink-strong);
+  --ink-muted: var(--nav-ink-muted);
+  --ink-subtle: var(--nav-ink-subtle);
+  --ink-on-green: var(--nav-ink-on-green);
 
-  --border:        var(--nav-border);
-  --border-strong: var(--nav-border-strong);
+  --border-subtle:        var(--nav-border-subtle);
+  --border-default: var(--nav-border-default);
 
-  --accent:       var(--nav-accent);
-  --accent-hover: var(--nav-accent-hover);
-  --accent-press: var(--nav-accent-press);
-  --accent-soft:  var(--nav-accent-soft);
-  --accent-ring:  var(--nav-accent-ring);
+  --green:       var(--nav-green);
+  --green-hover: var(--nav-green-hover);
+  --green-press: var(--nav-green-press);
+  --green-soft:  var(--nav-green-soft);
+  --green-ring:  var(--nav-green-ring);
 
-  --marker: var(--nav-marker);
-  --fg-on-marker: var(--nav-fg-on-marker);
+  --orange: var(--nav-orange);
 
   --danger:      var(--nav-danger);
   --danger-soft: var(--nav-danger-soft);
@@ -632,24 +725,27 @@ a { color: inherit; }
   --shadow-md: var(--nav-shadow-md);
   --shadow-lg: var(--nav-shadow-lg);
 
-  width: var(--sidebar-w);
-  background: var(--surface-sunken);
-  border-right: 1px solid var(--border);
+  width: var(--sidebar-width);
+  /* §8: el chrome es un degradado vertical, no un plano. Las tintas de arriba
+     están derivadas contra los DOS extremos y contra el fondo del elemento
+     activo compuesto sobre ellos, que son los cuatro suelos reales. */
+  background: linear-gradient(180deg, var(--nav-bg) 0%, var(--nav-bg-end) 100%);
+  border-right: 1px solid var(--nav-edge);
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh; height: 100dvh;
   overflow: hidden;
-  transition: width var(--dur) var(--ease), opacity var(--dur) var(--ease);
+  transition: width var(--duration-slow) var(--ease-standard), opacity var(--duration-slow) var(--ease-standard);
 }
 
 .sidebar-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-2);
-  padding: var(--sp-4);
+  gap: var(--space-2);
+  padding: var(--space-4);
   flex-shrink: 0;
 }
 
@@ -660,15 +756,15 @@ a { color: inherit; }
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-sm);
   border: none;
   background: transparent;
-  color: var(--fg-3);
+  color: var(--ink-subtle);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
-.icon-btn:hover { background: var(--surface-hover); color: var(--fg-1); }
+.icon-btn:hover { background: var(--surface-inset); color: var(--ink); }
 
 /* Back-compat: old sidebar-toggle class */
 .sidebar-toggle {
@@ -677,17 +773,17 @@ a { color: inherit; }
   cursor: pointer;
   border: none;
   background: transparent;
-  color: var(--fg-3);
-  border-radius: var(--r-sm);
+  color: var(--ink-subtle);
+  border-radius: var(--radius-sm);
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
-.sidebar-toggle:hover { background: var(--surface-hover); color: var(--fg-1); }
+.sidebar-toggle:hover { background: var(--surface-inset); color: var(--ink); }
 .sidebar-toggle .lucide { display: block; }
 
 .sidebar-toggle--show {
@@ -697,7 +793,7 @@ a { color: inherit; }
   left: 0.7rem;
   z-index: 50;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-sm);
 }
 
@@ -708,7 +804,7 @@ a { color: inherit; }
   pointer-events: none;
 }
 .sidebar-collapsed .sidebar-toggle--show { display: inline-flex; }
-.sidebar-collapsed .content { padding-left: var(--sp-7); }
+.sidebar-collapsed .content { padding-left: var(--space-12); }
 
 .sidebar-overlay {
   position: fixed;
@@ -716,7 +812,7 @@ a { color: inherit; }
   background: var(--scrim);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--dur) var(--ease);
+  transition: opacity var(--duration-base) var(--ease-standard);
   z-index: 40;
 }
 
@@ -724,12 +820,12 @@ a { color: inherit; }
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   font-weight: 600;
   font-size: var(--text-xl);
   letter-spacing: -0.01em;
   text-decoration: none;
-  color: var(--fg-1);
+  color: var(--ink);
 }
 
 .brand-icon {
@@ -737,13 +833,13 @@ a { color: inherit; }
   height: 18px;
   flex-shrink: 0;
   /* Naranja decorativo: la palabra «Doction» está al lado, así que quien no vea
-     el glifo no pierde nada. Por eso --marker y no --marker-ink. */
-  color: var(--marker);
+     el glifo no pierde nada. Por eso --orange y no --orange-ink. */
+  color: var(--orange);
 }
 
 /* === Workspaces (dropdown) ================================================ */
 .workspace-wrap {
-  padding: 0 var(--sp-3) var(--sp-3);
+  padding: 0 var(--space-3) var(--space-3);
   flex-shrink: 0;
 }
 
@@ -752,21 +848,21 @@ a { color: inherit; }
 .ws-trigger {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   width: 100%;
   background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
-  color: var(--fg-1);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
   font-weight: 500;
   min-height: 40px;
-  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
-.ws-trigger:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+.ws-trigger:hover { background: var(--surface-inset); border-color: var(--border-default); }
 .ws-trigger-label {
   flex: 1;
   min-width: 0;
@@ -775,7 +871,7 @@ a { color: inherit; }
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.ws-trigger-icon { flex-shrink: 0; color: var(--fg-3); }
+.ws-trigger-icon { flex-shrink: 0; color: var(--ink-subtle); }
 
 .ws-menu {
   position: absolute;
@@ -783,15 +879,15 @@ a { color: inherit; }
   left: 0;
   right: 0;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   overflow: hidden;
   z-index: 90;
   opacity: 0;
   transform: translateY(-6px) scale(0.98);
   pointer-events: none;
-  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
 }
 .ws-menu.open {
   opacity: 1;
@@ -805,7 +901,7 @@ a { color: inherit; }
   flex-direction: column;
   max-height: 280px;
   overflow-y: auto;
-  padding: var(--sp-1);
+  padding: var(--space-1);
 }
 
 /* Reset completo de <button>: en la SPA cada opción es un botón, y sin esto el
@@ -813,99 +909,99 @@ a { color: inherit; }
 .ws-option {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   width: 100%;
   background: transparent;
   border: none;
   text-align: left;
   cursor: pointer;
   text-decoration: none;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  color: var(--fg-2);
-  border-radius: var(--r-sm);
-  padding: var(--sp-2) var(--sp-3);
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  color: var(--ink-muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 .ws-option-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ws-option-check { flex-shrink: 0; opacity: 0; color: var(--accent); }
-.ws-option:hover { background: var(--surface-hover); color: var(--fg-1); }
-.ws-option.active { color: var(--accent-press); font-weight: 500; }
+.ws-option-check { flex-shrink: 0; opacity: 0; color: var(--green); }
+.ws-option:hover { background: var(--surface-inset); color: var(--ink); }
+.ws-option.active { color: var(--green-press); font-weight: 500; }
 .ws-option.active .ws-option-check { opacity: 1; }
 
-.ws-menu-divider { height: 1px; background: var(--border); margin: var(--sp-1) 0; }
+.ws-menu-divider { height: 1px; background: var(--border-subtle); margin: var(--space-1) 0; }
 
 .ws-menu-new {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   width: 100%;
   background: none;
   border: none;
-  color: var(--fg-2);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
   text-align: left;
-  padding: 8px var(--sp-3);
+  padding: var(--space-2) var(--space-3);
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
-.ws-menu-new:hover { background: var(--surface-hover); color: var(--accent); }
+.ws-menu-new:hover { background: var(--surface-inset); color: var(--green); }
 
 .workspace-form {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: var(--sp-1);
-  padding: 0 var(--sp-2) var(--sp-2);
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2);
 }
 
 
 .workspace-add {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
   background: var(--surface);
-  color: var(--fg-2);
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  padding: 0 var(--sp-2);
+  color: var(--ink-muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  padding: 0 var(--space-2);
   cursor: pointer;
   height: 30px;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
-.workspace-add:hover { background: var(--surface-hover); color: var(--fg-1); }
+.workspace-add:hover { background: var(--surface-inset); color: var(--ink); }
 
 /* === Search =============================================================== */
 .search-wrap {
-  padding: 0 var(--sp-3) var(--sp-3);
+  padding: 0 var(--space-3) var(--space-3);
   flex-shrink: 0;
 }
 
 .search-field {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
-  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
   height: 40px;
-  transition: box-shadow var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: box-shadow var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
 .search-field:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--green-ring);
 }
-.search-field .lucide { color: var(--fg-3); flex-shrink: 0; }
+.search-field .lucide { color: var(--ink-subtle); flex-shrink: 0; }
 .search-field input {
   border: none;
   outline: none;
   background: none;
   width: 100%;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  color: var(--fg-1);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  color: var(--ink);
 }
-.search-field input::placeholder { color: var(--fg-3); }
+.search-field input::placeholder { color: var(--ink-subtle); }
 /* La X de limpiar: botón sin CSS propio heredaba el botón nativo del navegador. */
 .search-clear {
   display: inline-flex;
@@ -913,14 +1009,14 @@ a { color: inherit; }
   justify-content: center;
   background: transparent;
   border: none;
-  border-radius: var(--r-sm);
-  color: var(--fg-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink-subtle);
   cursor: pointer;
-  padding: var(--sp-0);
+  padding: var(--space-0);
   flex-shrink: 0;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
-.search-clear:hover { background: var(--surface-hover); color: var(--fg-1); }
+.search-clear:hover { background: var(--surface-inset); color: var(--ink); }
 
 
 /* El rótulo de la barra lateral necesita el mismo margen lateral que sus
@@ -928,29 +1024,29 @@ a { color: inherit; }
    de contenedores que ya lo ponen, y aquí no. Posicionar es de la pantalla; el
    rótulo sigue siendo el mismo. */
 .sidebar > .eyebrow {
-  padding: var(--sp-2) var(--sp-4) var(--sp-1);
+  padding: var(--space-2) var(--space-4) var(--space-1);
   flex-shrink: 0;
 }
 
 /* === Search results ======================================================= */
 /* Lo que queda propio de aquí es solo el aire de arriba: la lista, la fila y el
    enlace ya los define `.rows`. */
-#search-results .results { margin-top: var(--sp-2); }
+#search-results .results { margin-top: var(--space-2); }
 /* El fragmento de un resultado y la frase de una mención son lo mismo: texto
    citado, con lo que coincidió marcado. */
 .snippet {
-  margin: var(--sp-1) 0 0;
-  font-size: var(--text-xs);
-  color: var(--fg-3);
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-subtle);
   line-height: 1.45;
 }
 .snippet mark {
-  background: var(--accent-soft);
-  color: var(--accent-press);
-  padding: 0 var(--sp-0);
-  border-radius: var(--r-xs);
+  background: var(--green-soft);
+  color: var(--green-press);
+  padding: 0 var(--space-0);
+  border-radius: var(--radius-xs);
 }
-.no-results { font-size: var(--text-sm); margin-top: var(--sp-2); color: var(--fg-3); }
+.no-results { font-size: var(--text-base); margin-top: var(--space-2); color: var(--ink-subtle); }
 
 /* === Nav / page list ====================================================== */
 .page-list {
@@ -959,7 +1055,7 @@ a { color: inherit; }
      se escapa a .sidebar y la cabecera y el pie se van con el scroll. */
   min-height: 0;
   overflow-y: auto;
-  padding: 0 var(--sp-2) var(--sp-3);
+  padding: 0 var(--space-2) var(--space-3);
 }
 .page-list ul,
 .page-list [role='tree'] { list-style: none; margin: 0; padding: 0; }
@@ -967,32 +1063,32 @@ a { color: inherit; }
 .page-list a {
   display: block;
   text-decoration: none;
-  font-size: var(--text-sm);
-  color: var(--fg-2);
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--r-sm);
+  font-size: var(--text-nav);
+  color: var(--ink-muted);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
-.page-list a:hover { background: var(--surface-hover); color: var(--fg-1); }
-/* El único naranja pleno de la interfaz. Sobre papel el naranja no llega ni al
-   3:1 que pide una marca que informa; sobre este suelo oscuro sí, y además
-   aguanta tinta encima a 5.04:1. Aquí la marca de identidad por fin señala algo
-   en lugar de decorarlo. El peso sigue estando: el color nunca va solo. */
+.page-list a:hover { background: var(--surface-inset); color: var(--ink); }
+/* §8: superficie verde muy tenue y un filete izquierdo de 2px en naranja, no un
+   relleno. El naranja señala el borde del elemento activo; el peso y la tinta
+   hacen el resto, así que el color nunca va solo. */
 .page-list a.active {
-  background: var(--marker);
-  color: var(--fg-on-marker);
+  background: var(--nav-active-bg);
+  color: var(--ink-strong);
   font-weight: 500;
+  box-shadow: inset 2px 0 0 var(--orange);
 }
 /* El sangrado por nivel lo pone el arbol (aria-level), no data-depth: la lista
    plana con sangrado paso a ser jerarquia plegable. Misma escala de 14px por
    nivel que antes, para que la densidad de la barra no cambie. */
-.page-list [aria-level='2'] { padding-left: calc(var(--sp-3) + 14px); }
-.page-list [aria-level='3'] { padding-left: calc(var(--sp-3) + 28px); }
-.page-list [aria-level='4'] { padding-left: calc(var(--sp-3) + 42px); }
-.muted { color: var(--fg-3); }
+.page-list [aria-level='2'] { padding-left: calc(var(--space-3) + 14px); }
+.page-list [aria-level='3'] { padding-left: calc(var(--space-3) + 28px); }
+.page-list [aria-level='4'] { padding-left: calc(var(--space-3) + 42px); }
+.muted { color: var(--ink-subtle); }
 
 /* Control de plegado de cada rama. Ocupa su hueco tambien en las filas sin hijos
    (disabled + sin icono) para que todos los titulos del mismo nivel arranquen en
@@ -1004,39 +1100,39 @@ a { color: inherit; }
   padding: 0;
   border: 0;
   background: none;
-  color: var(--fg-3);
+  color: var(--ink-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--r-xs);
+  border-radius: var(--radius-xs);
   cursor: pointer;
 }
 .page-row-twisty:disabled {
   cursor: default;
   visibility: hidden;
 }
-.page-row-twisty:hover { color: var(--fg-1); background: var(--surface-hover); }
+.page-row-twisty:hover { color: var(--ink); background: var(--surface-inset); }
 .page-row-twisty .lucide,
 .page-row-twisty svg {
-  transition: transform var(--dur-fast) var(--ease);
+  transition: transform var(--duration-fast) var(--ease-standard);
 }
 .page-row-twisty.open svg { transform: rotate(90deg); }
 
 /* === Sidebar footer ======================================================= */
 .sidebar-foot {
-  padding: var(--sp-3);
-  border-top: 1px solid var(--border);
+  padding: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  gap: var(--space-2);
 }
 
 .sidebar-user {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--sp-1);
+  padding: 0 var(--space-1);
 }
 
 /* avatar-menu opens upward when in sidebar footer */
@@ -1048,29 +1144,29 @@ a { color: inherit; }
 .new-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   text-decoration: none;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: 500;
-  color: var(--fg-2);
+  color: var(--ink-muted);
   background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
-  padding: 0 var(--sp-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-4);
   height: 34px;
   width: 100%;
   justify-content: center;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
-.new-btn:hover { background: var(--surface-hover); color: var(--fg-1); }
-.new-btn .lucide { color: var(--fg-3); }
+.new-btn:hover { background: var(--surface-inset); color: var(--ink); }
+.new-btn .lucide { color: var(--ink-subtle); }
 
 /* === Auth links in sidebar ================================================ */
 .auth-links {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-  padding: 0 var(--sp-3);
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
 }
 
 /* === Theme toggle ========================================================= */
@@ -1081,16 +1177,16 @@ a { color: inherit; }
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
   background: var(--surface);
-  color: var(--fg-3);
+  color: var(--ink-subtle);
   cursor: pointer;
   padding: 0;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
 .theme-toggle:hover,
-.lang-toggle:hover { background: var(--surface-hover); color: var(--fg-1); border-color: var(--border-strong); }
+.lang-toggle:hover { background: var(--surface-inset); color: var(--ink); border-color: var(--border-default); }
 .theme-icon-sun { display: none; }
 [data-theme="dark"] .theme-icon-moon { display: none; }
 [data-theme="dark"] .theme-icon-sun  { display: flex; }
@@ -1101,15 +1197,15 @@ a { color: inherit; }
 .avatar {
   width: 32px;
   height: 32px;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  color: var(--fg-on-identity);
+  border-radius: var(--radius-pill);
+  background: var(--green);
+  color: var(--ink-on-identity);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font: inherit;
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0;
   user-select: none;
@@ -1117,7 +1213,7 @@ a { color: inherit; }
   cursor: pointer;
   border: none;
   box-shadow: var(--shadow-xs);
-  transition: opacity var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  transition: opacity var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
 }
 .avatar:hover { opacity: 0.85; box-shadow: var(--shadow-sm); }
 
@@ -1127,15 +1223,15 @@ a { color: inherit; }
   right: 0;
   min-width: 200px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   overflow: hidden;
   z-index: 100;
   opacity: 0;
   transform: translateY(-6px) scale(0.97);
   pointer-events: none;
-  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
 }
 .avatar-menu.open {
   opacity: 1;
@@ -1143,92 +1239,130 @@ a { color: inherit; }
   pointer-events: auto;
 }
 .avatar-menu-name {
-  padding: var(--sp-3) var(--sp-4) 0;
-  font-size: var(--text-sm);
+  padding: var(--space-3) var(--space-4) 0;
+  font-size: var(--text-base);
   font-weight: 600;
-  color: var(--fg-1);
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.avatar-menu-name + .avatar-menu-email { padding-top: var(--sp-0); }
+.avatar-menu-name + .avatar-menu-email { padding-top: var(--space-0); }
 .avatar-menu-email {
-  padding: var(--sp-3) var(--sp-4) var(--sp-2);
-  font-size: var(--text-xs);
-  color: var(--fg-3);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-subtle);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .avatar-menu-divider {
   height: 1px;
-  background: var(--border);
-  margin: var(--sp-1) 0;
+  background: var(--border-subtle);
+  margin: var(--space-1) 0;
 }
 .avatar-menu-item {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   width: 100%;
   text-align: left;
   text-decoration: none;
   font: inherit;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
   background: none;
   border: none;
-  color: var(--fg-2);
-  padding: var(--sp-2) var(--sp-4);
+  color: var(--ink-muted);
+  padding: var(--space-2) var(--space-4);
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
-.avatar-menu-item:hover { background: var(--surface-hover); color: var(--accent); }
+.avatar-menu-item:hover { background: var(--surface-inset); color: var(--green); }
 
 /* === Content area ========================================================= */
 .content {
   display: flex;
   flex-direction: column;
-  transition: padding-left var(--dur) var(--ease);
+  transition: padding-left var(--duration-base) var(--ease-standard);
 }
 
 .content-body {
   flex: 1;
-  padding: var(--sp-6) var(--sp-6) var(--sp-8);
+  /* §4: el contenido arranca a 72px del lateral y el documento nunca queda
+     pegado al borde del panel. */
+  padding: var(--space-16) var(--document-gutter) var(--space-20);
   display: flex;
-  justify-content: center;
+  /* §4: el contenido ARRANCA a 72px del lateral. Centrarlo en el hueco haría
+     que el margen izquierdo dependiera del ancho de la ventana. Lo que se
+     centra es el shell entero, a 1720px. */
+  justify-content: flex-start;
 }
 
 /* Barra de app: solo en móvil. `sticky` y no `fixed` para que participe en el
    flujo — así el contenido no necesita padding-top de compensación ni pelearse
    con el safe-area del PWA. */
-.app-bar { display: none; }
+/* Barra superior — §4 la pide a 56px. El nodo ya existía en el DOM a todos los
+   anchos; solo lo ocultaba esta regla, así que mostrarlo es repintar y no
+   estructura nueva.
+
+   Dos cosas se limpian con CSS porque sin JSX no se pueden arreglar de raíz. El
+   botón de la barra solo sabe ABRIR la barra lateral, y en escritorio ya está
+   abierta: es un control que no hace nada, así que se oculta mientras el sidebar
+   esté desplegado. Y el menú ⋯ ofrece Editar, Nueva subpágina e Historial, que
+   son tres de los cuatro botones que el lector ya pinta justo debajo; se oculta
+   esa fila y las acciones viven en la barra, que es donde §4 las quiere.
+   Delete se queda fuera del menú a propósito: destruir no se esconde en un
+   desplegable de tres puntos. Lo que falta para que la barra sea útil de verdad
+   está anotado en DESIGN.md §4. */
+.app-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  min-height: var(--topbar-height);
+  padding: 0 var(--document-gutter);
+  background: var(--background);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* El toggle de la barra solo abre; con el sidebar ya abierto no tiene nada que
+   hacer. El de cerrar vive dentro del sidebar y el flotante aparece al colapsar. */
+/* Hijo DIRECTO: el botón ⋯ del lector lleva la misma clase y vive dentro de
+   `.app-bar-actions`, así que un descendiente cualquiera los ocultaba los dos. */
+html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .app-bar-title {
+  font-family: var(--font-ui);
+  font-weight: 500;
   flex: 1;
   min-width: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: 500;
-  color: var(--fg-1);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .app-bar-actions { position: relative; flex: none; }
 
-.page, .placeholder { width: 100%; max-width: var(--measure); min-width: 0; }
+.page, .placeholder { width: 100%; max-width: var(--document-max-width); min-width: 0; }
 .editor { width: 100%; max-width: var(--editor-measure); }
 
 /* === Page wrapper + optional TOC column =================================== */
 .page-wrap {
   width: 100%;
-  max-width: var(--measure);
+  max-width: var(--document-max-width);
   align-self: flex-start;
 }
 
 .page-wrap.has-toc {
-  max-width: calc(var(--measure) + 220px + var(--sp-7));
+  max-width: calc(var(--document-max-width) + var(--toc-width) + var(--space-16));
   display: grid;
-  grid-template-columns: 1fr 220px;
-  gap: var(--sp-7);
+  grid-template-columns: 1fr var(--toc-width);
+  /* §4: el índice respira a 64px del documento, no a 48. */
+  gap: var(--space-16);
   align-items: start;
 }
 
@@ -1238,7 +1372,7 @@ a { color: inherit; }
 .has-toc .toc {
   display: block;
   position: sticky;
-  top: var(--sp-7);
+  top: var(--space-12);
   max-height: calc(100vh - 80px); max-height: calc(100dvh - 80px);
   overflow-y: auto;
 }
@@ -1255,90 +1389,101 @@ a { color: inherit; }
    decorativa, no una barra. */
 .toc-item {
   display: block;
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  color: var(--fg-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--ink-subtle);
   text-decoration: none;
   line-height: 1.5;
-  padding: var(--sp-0) var(--sp-3);
-  border-left: 1px solid var(--border);
+  padding: var(--space-0) var(--space-3);
+  border-left: 1px solid var(--border-subtle);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
-.toc-item:hover { color: var(--fg-1); }
+.toc-item:hover { color: var(--ink); }
 /* Un solo portador del estado: el filete. Antes lo decían el color del texto y
    el filete a la vez, que es decirlo dos veces y subir el volumen del índice
    entero. El texto solo sube a tinta principal, que ya es contraste suficiente
    para no depender del color. */
-.toc-item.active { color: var(--fg-1); border-left-color: var(--marker-ink); border-left-width: 2px; }
+.toc-item.active { color: var(--ink); border-left-color: var(--orange-ink); border-left-width: 2px; }
 .toc-h1 { font-weight: 500; }
-.toc-h2 { padding-left: var(--sp-4); }
-.toc-h3 { padding-left: var(--sp-5); font-size: var(--text-xs); }
+.toc-h2 { padding-left: var(--space-4); }
+.toc-h3 { padding-left: var(--space-6); font-size: var(--text-sm); }
 
 @media (max-width: 1120px) {
   /* Entre 820 y 1120 la barra seguía a ancho completo y sin TOC: el contenido
      se quedaba estrecho sin ganar nada. */
-  :root { --sidebar-w: 220px; }
+  :root { --sidebar-width: 220px; }
 
   .page-wrap.has-toc {
-    max-width: var(--measure);
+    max-width: var(--document-max-width);
     grid-template-columns: 1fr;
   }
   .toc { display: none !important; }
 }
 
 /* === Page view ============================================================ */
-/* El encabezado respira antes de que empiece el documento: la franja de
-   metadatos ya cierra por abajo, así que aquí solo hace falta el aire. */
-.page-header { margin-bottom: var(--sp-7); }
+/* Encabezado del documento — §9. Respira arriba, cierra con una línea abajo, y
+   la franja de metadatos va en la cara de datos al tamaño mínimo de la escala. */
+.page-header {
+  padding-bottom: var(--space-12);
+  margin-bottom: var(--space-12);
+  border-bottom: 1px solid var(--border-subtle);
+}
 /* La ruta de una página es un dato, no una frase: se pone en la cara de datos
    y deja de competir con el título que va justo debajo. */
 .breadcrumbs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   font-family: var(--font-data);
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--fg-3);
-  margin-bottom: var(--sp-4);
+  color: var(--ink-muted);
+  margin-bottom: var(--space-4);
 }
 .breadcrumbs a {
-  color: var(--fg-2);
+  color: var(--ink-muted);
   text-decoration: none;
 }
-.breadcrumbs a:hover { color: var(--accent); }
+.breadcrumbs a:hover { color: var(--green); }
 /* El separador es `aria-hidden`: no dice nada que no diga la propia ruta, así
    que puede llevar el naranja decorativo sin deberle contraste a nadie. */
-.breadcrumbs .crumb-sep { color: var(--marker); }
-.breadcrumbs .crumb-current { color: var(--fg-3); font-weight: 500; }
+.breadcrumbs .crumb-sep { color: var(--orange); }
+.breadcrumbs .crumb-current { color: var(--ink-subtle); font-weight: 500; }
 .page-header h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-3xl);
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.15;
   text-wrap: balance;
-  margin: 0 0 var(--sp-4);
-  color: var(--fg-1);
+  margin: 0 0 var(--space-4);
+  color: var(--ink);
 }
+/* En escritorio las acciones viven en la barra superior; esta fila diría lo
+   mismo dos veces. Delete se queda aquí a propósito: destruir no se esconde en
+   un desplegable de tres puntos, así que la fila reaparece solo con ese botón. */
+@media (min-width: 821px) {
+  .page-actions > .btn:not(.btn-danger) { display: none; }
+}
+
 .page-actions {
   display: flex;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   align-items: center;
 }
 .page-actions form { margin: 0; }
 .meta {
-  color: var(--fg-3);
-  font-size: var(--text-xs);
-  margin: var(--sp-2) 0 0;
+  color: var(--ink-subtle);
+  font-size: var(--text-sm);
+  margin: var(--space-2) 0 0;
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--space-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1348,35 +1493,32 @@ a { color: inherit; }
    Lleva los dos campos que existen de verdad: cuándo se actualizó y quién.
    Ni propietario ni tiempo de lectura: eso no está en el payload. */
 .page-header .meta {
-  margin: var(--sp-5) 0 0;
-  padding: var(--sp-3) 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  margin: var(--space-5) 0 0;
   font-family: var(--font-data);
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
-  gap: var(--sp-4);
+  gap: var(--space-3);
 }
 
 .meta a {
-  color: var(--fg-2);
+  color: var(--ink-muted);
 }
 
 .meta a:hover {
-  color: var(--accent);
+  color: var(--green);
 }
 
 .subpages {
-  margin-top: var(--sp-7);
-  padding-top: var(--sp-5);
-  border-top: 1px solid var(--border);
+  margin-top: var(--space-12);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .subpages-hd {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--space-4);
 }
 
 
@@ -1386,27 +1528,27 @@ a { color: inherit; }
 .subpage-card {
   display: flex;
   align-items: flex-start;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   text-decoration: none;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
 .subpage-card:hover {
-  background: var(--surface-hover);
-  border-color: var(--border-strong);
+  background: var(--surface-inset);
+  border-color: var(--border-default);
 }
 
 .subpages-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: var(--sp-3);
+  gap: var(--space-3);
 }
 
 
 .subpage-icon {
-  color: var(--fg-3);
+  color: var(--ink-subtle);
   flex-shrink: 0;
-  margin-top: var(--sp-0);
+  margin-top: var(--space-0);
 }
 
 
@@ -1414,37 +1556,37 @@ a { color: inherit; }
 
 /* === Relations (backlinks / related) ===================================== */
 .relations {
-  margin-top: var(--sp-7);
-  padding-top: var(--sp-5);
-  border-top: 1px solid var(--border);
+  margin-top: var(--space-12);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border-subtle);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--sp-5);
+  gap: var(--space-6);
 }
 
 
 /* === Diff ================================================================= */
 .diff {
-  margin-top: var(--sp-4);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  margin-top: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   overflow-x: auto;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   line-height: 1.5;
   background: var(--surface);
 }
 .diff-line {
   display: block;
   white-space: pre;
-  padding: 0 var(--sp-3);
+  padding: 0 var(--space-3);
   min-height: 1.5em;
-  color: var(--fg-2);
+  color: var(--ink-muted);
 }
-.diff-add { background: var(--ok-soft); color: var(--fg-1); }
-.diff-del { background: var(--danger-soft); color: var(--fg-1); }
-.diff-hunk { color: var(--accent); background: var(--surface-hover); }
-.diff-meta { color: var(--fg-3); }
+.diff-add { background: var(--ok-soft); color: var(--ink); }
+.diff-del { background: var(--danger-soft); color: var(--ink); }
+.diff-hunk { color: var(--green); background: var(--surface-inset); }
+.diff-meta { color: var(--ink-subtle); }
 
 
 
@@ -1453,54 +1595,54 @@ a { color: inherit; }
 .history-sub {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
-.history-sep { color: var(--fg-3); }
+.history-sep { color: var(--ink-subtle); }
 
 
 /* === Buttons ============================================================== */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  gap: var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
-  padding: 0 var(--sp-4);
-  height: 34px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  padding: 0 var(--space-3);
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
   background: var(--surface);
-  color: var(--fg-1);
+  color: var(--ink);
   white-space: nowrap;
   transition:
-    background    var(--dur-fast) var(--ease),
-    border-color  var(--dur-fast) var(--ease),
-    color         var(--dur-fast) var(--ease),
-    transform     var(--dur-fast) var(--ease);
+    background    var(--duration-fast) var(--ease-standard),
+    border-color  var(--duration-fast) var(--ease-standard),
+    color         var(--duration-fast) var(--ease-standard),
+    transform     var(--duration-fast) var(--ease-standard);
 }
-.btn:hover { background: var(--surface-hover); }
+.btn:hover { background: var(--surface-inset); }
 .btn:active { transform: translateY(1px); }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--fg-on-accent);
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--ink-on-green);
 }
-.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-.btn-primary:active { background: var(--accent-press); border-color: var(--accent-press); }
+.btn-primary:hover { background: var(--green-hover); border-color: var(--green-hover); }
+.btn-primary:active { background: var(--green-press); border-color: var(--green-press); }
 
 .btn-ghost {
   background: transparent;
   border-color: transparent;
-  color: var(--fg-2);
-  padding: 0 var(--sp-3);
+  color: var(--ink-muted);
+  padding: 0 var(--space-3);
 }
-.btn-ghost:hover { background: var(--surface-hover); color: var(--fg-1); }
+.btn-ghost:hover { background: var(--surface-inset); color: var(--ink); }
 
 .btn-danger {
   background: transparent;
@@ -1511,35 +1653,37 @@ a { color: inherit; }
 
 .btn-sm {
   height: 26px;
-  padding: 0 var(--sp-3);
-  font-size: var(--text-xs);
-  border-radius: var(--r-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
 }
 
 /* === Prose (reading view) ================================================= */
 .prose {
-  /* El cuerpo en la cara de texto. Esta regla decía `--font-serif` desde siempre,
+  /* El cuerpo en la cara de texto. Esta regla decía `--font-display` desde siempre,
      pero el token contenía Inter, así que nadie lo notó: hacerlo honesto puso un
      serif de verdad en párrafos de 15px, que se lee peor en pantalla. La serif es
      de los encabezados, y es ahí donde dice «esto es un documento». */
-  font-family: var(--font-sans);
-  font-size: var(--text-base);
-  line-height: 1.65;
-  color: var(--fg-1);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: 1.78;
+  color: var(--ink);
 }
 .prose h1, .prose h2, .prose h3 {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   letter-spacing: -0.005em;
   line-height: 1.2;
   text-wrap: balance;
-  color: var(--fg-1);
+  color: var(--ink);
 }
-.prose h1 { font-size: var(--text-3xl); font-weight: 600; margin: var(--sp-7) 0 var(--sp-4); }
-.prose h2 { font-size: var(--text-2xl); font-weight: 600; margin: var(--sp-6) 0 var(--sp-3); }
-.prose h3 { font-size: var(--text-xl);  font-weight: 600; margin: var(--sp-5) 0 var(--sp-2); }
-.prose p  { margin: 0 0 var(--sp-4); text-wrap: pretty; }
-.prose a  { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: 1px; }
-.prose a:hover { color: var(--accent-hover); }
+/* Ritmo del documento — §5. El tamaño lo fija el bloque de encabezados de abajo;
+   aquí solo va la separación. */
+.prose h1 { margin: var(--space-16) 0 var(--space-4); }
+.prose h2 { margin: var(--space-14) 0 var(--space-4); }
+.prose h3 { margin: var(--space-9) 0 var(--space-3); }
+.prose p  { margin: 0 0 var(--space-4); text-wrap: pretty; }
+.prose a  { color: var(--green); text-underline-offset: 2px; text-decoration-thickness: 1px; }
+.prose a:hover { color: var(--green-hover); }
 
 /* Wikilinks. Un enlace a una página que aún no existe no es un error: en un wiki
    que crece es el estado normal de algo que se va a escribir. Por eso se apaga a
@@ -1547,21 +1691,21 @@ a { color: inherit; }
    que en el resto de la interfaz significa destruir. La vista de grafo sí lo
    marca como hallazgo, porque allí la pregunta es la salud del conjunto. */
 .prose a.wikilink--missing {
-  color: var(--fg-3);
+  color: var(--ink-subtle);
   text-decoration-style: dashed;
 }
-.prose a.wikilink--missing:hover { color: var(--fg-2); }
-.prose ul, .prose ol { padding-left: var(--sp-5); }
-.prose li { margin: var(--sp-1) 0; }
+.prose a.wikilink--missing:hover { color: var(--ink-muted); }
+.prose ul, .prose ol { padding-left: var(--space-6); }
+.prose li { margin: var(--space-1) 0; }
 /* Relativo a propósito: el código en línea va un punto por debajo del texto que
    lo rodea, sea cual sea ese tamaño. Un token fijo lo desalinearía en cada
    contexto donde la prosa no mide lo mismo. */
 .prose code {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  background: var(--code-bg);
-  border: 1px solid var(--code-border);
-  border-radius: var(--r-xs);
+  background: var(--code-inline-bg);
+  border: 1px solid var(--code-inline-border);
+  border-radius: var(--radius-xs);
   padding: 0.1em 0.35em;
 }
 /* El color va AQUÍ y no en `.hljs`. prose.js solo resalta las vallas que
@@ -1570,64 +1714,65 @@ a { color: inherit; }
    color al resaltador es delegarlo a algo que no siempre corre. */
 .prose pre {
   position: relative;
-  background: var(--code-block-bg);
-  color: var(--code-block-fg);
-  border: 1px solid var(--code-block-border);
-  border-radius: var(--r-lg);
-  padding: var(--sp-4);
+  background: var(--code-bg);
+  color: var(--code-text);
+  border: 1px solid var(--nav-edge);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 0 var(--code-sheen);
+  padding: var(--space-5) var(--space-6);
   overflow-x: auto;
 }
-.prose pre code { background: none; border: none; padding: 0; font-size: var(--text-sm); line-height: 1.6; }
+.prose pre code { background: none; border: none; padding: 0; font-size: var(--text-base); line-height: 1.6; }
 
 /* Mermaid: el bloque se reemplaza por <div class="mermaid"> y lo renderiza prose.js. */
 .prose .mermaid {
-  margin: var(--sp-4) 0;
+  margin: var(--space-4) 0;
   text-align: center;
   overflow-x: auto;
 }
 
-/* highlight.js — tema propio, medido contra --code-block-bg. Los seis colores
+/* highlight.js — tema propio, medido contra --code-bg. Los seis colores
    son los mismos en ambos temas porque la losa también lo es. */
-.hljs { color: var(--code-block-fg); background: transparent; }
-.hljs-comment, .hljs-quote { color: var(--syn-comment); }
-.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section { color: var(--syn-keyword); }
-.hljs-string, .hljs-attr, .hljs-meta .hljs-string { color: var(--syn-string); }
-.hljs-number, .hljs-symbol, .hljs-bullet { color: var(--syn-number); }
-.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-title.class_ { color: var(--syn-title); }
-.hljs-variable, .hljs-template-variable, .hljs-attribute { color: var(--syn-variable); }
-.hljs-meta, .hljs-tag { color: var(--code-block-fg-dim); }
-.hljs-deletion { color: var(--code-block-danger); }
-.hljs-addition { color: var(--syn-string); }
+.hljs { color: var(--code-text); background: transparent; }
+.hljs-comment, .hljs-quote { color: var(--code-muted); }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section { color: var(--code-text); }
+.hljs-string, .hljs-attr, .hljs-meta .hljs-string { color: var(--code-green); }
+.hljs-number, .hljs-symbol, .hljs-bullet { color: var(--code-orange); }
+.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-title.class_ { color: var(--code-text); }
+.hljs-variable, .hljs-template-variable, .hljs-attribute { color: var(--code-text); }
+.hljs-meta, .hljs-tag { color: var(--code-muted); }
+.hljs-deletion { color: var(--code-orange); }
+.hljs-addition { color: var(--code-green); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 600; }
-.hljs-link { color: var(--code-block-accent); }
+.hljs-link { color: var(--code-green); }
 
 /* Botón de copiar código (aparece al hover del bloque). */
 .code-copy {
   position: absolute;
-  top: var(--sp-2);
-  right: var(--sp-2);
+  top: var(--space-2);
+  right: var(--space-2);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 30px;
   height: 30px;
   background: var(--surface);
-  color: var(--fg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
+  color: var(--ink-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   opacity: 0;
   transition:
-    opacity var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease),
-    background var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease);
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
 }
 .prose pre:hover .code-copy,
 .code-copy:focus-visible { opacity: 1; }
-.code-copy:hover { color: var(--fg-1); background: var(--surface-hover); }
-.code-copy.copied { color: var(--accent); border-color: var(--accent); opacity: 1; }
+.code-copy:hover { color: var(--ink); background: var(--surface-inset); }
+.code-copy.copied { color: var(--green); border-color: var(--green); opacity: 1; }
 
 /* Anclas en encabezados (#). */
 .prose h1, .prose h2, .prose h3 { position: relative; }
@@ -1637,65 +1782,65 @@ a { color: inherit; }
   top: 0;
   opacity: 0;
   padding-right: 0.3em;
-  color: var(--fg-3);
+  color: var(--ink-subtle);
   font-weight: 400;
   text-decoration: none;
-  transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 .prose h1:hover .heading-anchor,
 .prose h2:hover .heading-anchor,
 .prose h3:hover .heading-anchor,
 .heading-anchor:focus { opacity: 1; }
-.heading-anchor:hover { color: var(--accent); }
+.heading-anchor:hover { color: var(--green); }
 /* La cita como nota técnica: un aparte que el documento señala, no una frase
    susurrada. Se le quita la cursiva —párrafos enteros en cursiva se leen peor—
    y el filete naranja hace de marca al margen. */
 .prose blockquote {
-  margin: var(--sp-5) 0;
-  padding: var(--sp-3) var(--sp-4);
-  border-left: 3px solid var(--marker);
-  background: var(--surface-sunken);
-  border-radius: 0 var(--r-md) var(--r-md) 0;
-  color: var(--fg-2);
+  margin: var(--space-7) 0;
+  padding: var(--space-4) var(--space-5);
+  border-left: 2px solid var(--orange);
+  background: var(--callout-bg);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--ink);
 }
 .prose table {
   border-collapse: collapse;
-  font-family: var(--font-sans);
-  font-size: var(--text-base);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
   width: 100%;
-  margin: var(--sp-4) 0;
+  margin: var(--space-4) 0;
   /* §16: la textura no entra en una tabla. Las celdas son transparentes, así que
      el suelo lo pone la tabla — y lo pone del color del lienzo, no de --surface:
      con --surface la tabla se convertía en un panel, que es justo la decoración
      de fondo que §20 pide evitar. Opaco y del mismo tono: tapa la fibra y no se
      ve. */
-  background: var(--bg);
+  background: var(--background);
 }
-.prose th, .prose td { border: 1px solid var(--border); padding: var(--sp-2) var(--sp-3); text-align: left; font-variant-numeric: tabular-nums; }
-.prose th { background: var(--surface-sunken); font-weight: 600; }
-.prose img { max-width: 100%; border-radius: var(--r-md); }
-.prose hr { border: none; border-top: 1px solid var(--border); margin: var(--sp-6) 0; }
-.prose del { color: var(--fg-3); }
-mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); border-radius: var(--r-xs); padding: 0 var(--sp-0); }
+.prose th, .prose td { border: 1px solid var(--border-subtle); padding: var(--space-2) var(--space-3); text-align: left; font-variant-numeric: tabular-nums; }
+.prose th { background: var(--surface-muted); font-weight: 600; }
+.prose img { max-width: 100%; border-radius: var(--radius-md); }
+.prose hr { border: none; border-top: 1px solid var(--border-subtle); margin: var(--space-8) 0; }
+.prose del { color: var(--ink-subtle); }
+mark, .prose mark { background: var(--green-soft); color: var(--green-press); border-radius: var(--radius-xs); padding: 0 var(--space-0); }
 
 /* === Editor =============================================================== */
 .editor-bar {
   display: flex;
-  gap: var(--sp-4);
+  gap: var(--space-4);
   align-items: center;
-  margin-bottom: var(--sp-4);
-  padding-bottom: var(--sp-4);
-  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
 }
 /* El título de una página se escribe en la misma serif con la que se lee. */
 .title-input {
   flex: 1;
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
-.editor-actions { display: flex; gap: var(--sp-2); }
+.editor-actions { display: flex; gap: var(--space-2); }
 .editor-preview-toggle { display: none; }
 
 .editor-split {
@@ -1703,8 +1848,8 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   grid-template-columns: 1fr 1fr;
   gap: 0;
   min-height: 78vh;
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
   overflow: hidden;
 }
 
@@ -1713,9 +1858,9 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   resize: none;
   font-family: var(--font-mono);
   line-height: 1.65;
-  padding: var(--sp-4) var(--sp-5) var(--sp-7);
-  border-right: 1px solid var(--border);
-  background: var(--surface-sunken);
+  padding: var(--space-4) var(--space-6) var(--space-12);
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface-muted);
   min-height: 78vh;
   tab-size: 2;
 }
@@ -1723,44 +1868,44 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
 
 .preview {
   background: var(--surface);
-  padding: var(--sp-4) var(--sp-5) var(--sp-7);
+  padding: var(--space-4) var(--space-6) var(--space-12);
   overflow-y: auto;
 }
 .preview-empty {
-  color: var(--fg-3);
-  font-family: var(--font-sans);
+  color: var(--ink-subtle);
+  font-family: var(--font-ui);
   font-style: italic;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 
 /* Editor pane labels */
 .pane-label {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--fg-3);
-  padding: var(--sp-2) var(--sp-4);
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-sunken);
+  color: var(--ink-subtle);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-muted);
 }
 
 /* === Placeholder / empty state =========================================== */
 .placeholder {
   text-align: center;
-  margin-top: var(--sp-8);
-  color: var(--fg-3);
+  margin-top: var(--space-16);
+  color: var(--ink-subtle);
 }
 .placeholder h1 {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: var(--text-xl);
   font-weight: 500;
-  color: var(--fg-2);
-  margin: 0 0 var(--sp-2);
+  color: var(--ink-muted);
+  margin: 0 0 var(--space-2);
 }
-.placeholder .btn { margin-top: var(--sp-4); }
+.placeholder .btn { margin-top: var(--space-4); }
 /* Estado de error (500): se diferencia del placeholder neutro con el acento de peligro. */
-.placeholder--error { margin-top: var(--sp-7); }
+.placeholder--error { margin-top: var(--space-12); }
 .placeholder--error h1 { color: var(--danger); }
 
 /* === Auth ================================================================= */
@@ -1773,50 +1918,50 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
 
 .auth-card {
   width: min(420px, 92vw);
-  padding: var(--sp-6);
+  padding: var(--space-8);
 }
 
 .auth-card h1 {
-  margin: 0 0 var(--sp-1);
-  font-family: var(--font-sans);
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-ui);
   font-size: var(--text-2xl);
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: var(--fg-1);
+  color: var(--ink);
 }
 
 /* Scoped above `.auth-card h1` so the brand wordmark keeps its tracked accent
    treatment instead of inheriting the plain ink heading style (register's h1). */
 .auth-card .auth-brand {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--accent);
-  margin: 0 0 var(--sp-3);
+  color: var(--green);
+  margin: 0 0 var(--space-3);
 }
 
 
 
 .auth-submit {
   width: 100%;
-  margin-top: var(--sp-5);
+  margin-top: var(--space-6);
   min-height: 44px;
-  font-size: var(--text-base);
+  font-size: var(--text-md);
 }
 
-.auth-lang { margin-top: var(--sp-4); }
+.auth-lang { margin-top: var(--space-4); }
 
-.auth-switch { margin-top: var(--sp-4); font-size: var(--text-sm); color: var(--fg-2); }
-.auth-switch a { color: var(--accent); }
+.auth-switch { margin-top: var(--space-4); font-size: var(--text-base); color: var(--ink-muted); }
+.auth-switch a { color: var(--green); }
 
 .auth-error {
   background: var(--danger-soft);
   color: var(--danger);
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--r-sm);
-  margin-top: var(--sp-3);
-  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-3);
+  font-size: var(--text-base);
 }
 
 /* === No-sidebar pages (login, register) =================================== */
@@ -1851,20 +1996,20 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
      y sin esto la barra se desplazaba al abrir y cerrar el cajón. */
   .sidebar-collapsed .content { padding-left: 0; }
 
-  .content-body { padding: var(--sp-5) var(--sp-4) var(--sp-7); }
+  .content-body { padding: var(--space-6) var(--space-4) var(--space-12); }
 
   .app-bar {
     display: flex;
     align-items: center;
-    gap: var(--sp-2);
+    gap: var(--space-2);
     position: sticky;
     top: 0;
     z-index: 30;
-    min-height: var(--app-bar-h);
-    padding: 0 var(--sp-3);
+    min-height: var(--topbar-height-mobile);
+    padding: 0 var(--space-3);
     padding-top: env(safe-area-inset-top);
     background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   /* El toggle vive en la barra; el botón flotante ya no hace falta y encima
@@ -1881,11 +2026,11 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   /* Guardar tiene que alcanzarse desde el final de un documento largo. */
   .editor-bar {
     position: sticky;
-    top: var(--app-bar-h);
+    top: var(--topbar-height);
     z-index: 20;
-    background: var(--bg);
+    background: var(--background);
     margin-bottom: 0;
-    padding-top: var(--sp-3);
+    padding-top: var(--space-3);
   }
   .title-input { min-width: 0; }
 
@@ -1907,11 +2052,11 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--sp-4);
+  padding: var(--space-4);
   background: var(--scrim);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--dur-fast) var(--ease);
+  transition: opacity var(--duration-fast) var(--ease-standard);
   z-index: 200;
 }
 .shortcuts-overlay.open { opacity: 1; pointer-events: auto; }
@@ -1919,85 +2064,85 @@ mark, .prose mark { background: var(--accent-soft); color: var(--accent-press); 
   width: 100%;
   max-width: 380px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2xl);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-lg);
   transform: translateY(8px) scale(0.98);
-  transition: transform var(--dur-fast) var(--ease);
+  transition: transform var(--duration-fast) var(--ease-standard);
 }
 .shortcuts-overlay.open .shortcuts-modal { transform: translateY(0) scale(1); }
 .shortcuts-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--sp-4) var(--sp-5);
-  border-bottom: 1px solid var(--border);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
 }
-.shortcuts-title { font-weight: 600; color: var(--fg-1); }
+.shortcuts-title { font-weight: 600; color: var(--ink); }
 .shortcuts-close {
   background: none;
   border: none;
-  color: var(--fg-3);
+  color: var(--ink-subtle);
   font-size: var(--text-xl);
   line-height: 1;
   cursor: pointer;
-  padding: 0 var(--sp-1);
+  padding: 0 var(--space-1);
 }
-.shortcuts-close:hover { color: var(--fg-1); }
-.shortcuts-list { list-style: none; margin: 0; padding: var(--sp-3) var(--sp-5) var(--sp-5); }
+.shortcuts-close:hover { color: var(--ink); }
+.shortcuts-list { list-style: none; margin: 0; padding: var(--space-3) var(--space-6) var(--space-6); }
 .shortcuts-list li {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--sp-2) 0;
-  color: var(--fg-2);
-  font-size: var(--text-sm);
+  padding: var(--space-2) 0;
+  color: var(--ink-muted);
+  font-size: var(--text-base);
 }
 kbd {
   font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  background: var(--surface-sunken);
-  border: 1px solid var(--border-strong);
+  font-size: var(--text-sm);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-default);
   border-bottom-width: 2px;
-  border-radius: var(--r-xs);
-  padding: var(--sp-0) var(--sp-2);
-  color: var(--fg-1);
+  border-radius: var(--radius-xs);
+  padding: var(--space-0) var(--space-2);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
 /* === Settings page ======================================================= */
 .settings { width: 100%; max-width: 720px; }
 .settings-h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: 600;
   letter-spacing: -0.01em;
-  margin: 0 0 var(--sp-5);
-  color: var(--fg-1);
+  margin: 0 0 var(--space-6);
+  color: var(--ink);
 }
-.settings-form { display: flex; flex-direction: column; gap: var(--sp-2); }
-.settings-actions { margin-top: var(--sp-4); }
+.settings-form { display: flex; flex-direction: column; gap: var(--space-2); }
+.settings-actions { margin-top: var(--space-4); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.profile-row { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-2); }
+.profile-row { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-2); }
 .profile-fields { flex: 1; min-width: 0; }
 .profile-preview {
   width: 56px;
   height: 56px;
   flex-shrink: 0;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  color: var(--fg-on-identity);
+  border-radius: var(--radius-pill);
+  background: var(--green);
+  color: var(--ink-on-identity);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: var(--text-xl);
   font-weight: 700;
   user-select: none;
 }
 
-.color-swatches { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-1); }
+.color-swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
 .swatch { position: relative; cursor: pointer; line-height: 0; }
 .swatch input { position: absolute; opacity: 0; width: 0; height: 0; }
 .swatch-dot {
@@ -2006,118 +2151,118 @@ kbd {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--r-pill);
+  border-radius: var(--radius-pill);
   border: 2px solid transparent;
-  box-shadow: 0 0 0 1px var(--border) inset;
-  transition: transform var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  box-shadow: 0 0 0 1px var(--border-subtle) inset;
+  transition: transform var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
 .swatch-dot--auto {
-  background: var(--surface-sunken);
-  color: var(--fg-2);
-  font-size: var(--text-xs);
+  background: var(--surface-muted);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
   font-weight: 700;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
 }
 .swatch:hover .swatch-dot { transform: scale(1.08); }
-.swatch.selected .swatch-dot { border-color: var(--fg-1); }
-.swatch input:focus-visible + .swatch-dot { box-shadow: 0 0 0 3px var(--accent-ring); }
+.swatch.selected .swatch-dot { border-color: var(--ink); }
+.swatch input:focus-visible + .swatch-dot { box-shadow: 0 0 0 3px var(--green-ring); }
 
-.ws-rename { display: flex; gap: var(--sp-2); flex: 1; min-width: 220px; margin: 0; }
+.ws-rename { display: flex; gap: var(--space-2); flex: 1; min-width: 220px; margin: 0; }
 .ws-delete { margin: 0; }
 
 /* Cada workspace es una fila colapsable (<details>) → escala a muchos sin saturar. */
 .ws-actions {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
-.ws-item { border-bottom: 1px solid var(--border); }
+.ws-item { border-bottom: 1px solid var(--border-subtle); }
 .ws-summary {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-3) 0;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
   cursor: pointer;
   list-style: none;
 }
 .ws-summary::-webkit-details-marker { display: none; }
-.ws-summary-name { flex: 1; font-weight: 500; color: var(--fg-1); }
-.ws-summary:hover .ws-summary-name { color: var(--accent); }
-.ws-summary-count { font-size: var(--text-xs); color: var(--fg-3); }
-.ws-chevron { color: var(--fg-3); transition: transform var(--dur-fast) var(--ease); }
+.ws-summary-name { flex: 1; font-weight: 500; color: var(--ink); }
+.ws-summary:hover .ws-summary-name { color: var(--green); }
+.ws-summary-count { font-size: var(--text-sm); color: var(--ink-subtle); }
+.ws-chevron { color: var(--ink-subtle); transition: transform var(--duration-fast) var(--ease-standard); }
 .ws-item[open] .ws-chevron { transform: rotate(180deg); }
 .ws-body {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
-  padding: 0 0 var(--sp-4) var(--sp-3);
+  gap: var(--space-3);
+  padding: 0 0 var(--space-4) var(--space-3);
 }
-.ws-members { padding-left: var(--sp-3); border-left: 2px solid var(--border); }
+.ws-members { padding-left: var(--space-3); border-left: 2px solid var(--border-subtle); }
 .member-role {
-  font-size: var(--text-xs);
-  color: var(--fg-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm, 4px);
-  padding: var(--sp-0) var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--ink-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-0) var(--space-2);
 }
-.member-add { display: flex; gap: var(--sp-2); margin: 0; }
+.member-add { display: flex; gap: var(--space-2); margin: 0; }
 
 /* Cluster de controles (tema, idioma) en el footer del sidebar (logueado) y
    en login/registro vía el wrapper .auth-lang. */
 .sidebar-controls {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
 }
 /* === Phase 3 UX polish ==================================================== */
 
 /* Skip link — visible solo al enfocar con teclado. */
 .skip-link {
   position: fixed;
-  top: var(--sp-2);
-  left: var(--sp-2);
+  top: var(--space-2);
+  left: var(--space-2);
   z-index: 300;
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--space-2) var(--space-3);
   background: var(--surface);
-  color: var(--fg-1);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  color: var(--ink);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   transform: translateY(-150%);
-  transition: transform var(--dur-fast) var(--ease);
+  transition: transform var(--duration-fast) var(--ease-standard);
 }
 .skip-link:focus { transform: translateY(0); outline: none; }
 
 /* Toasts — pila abajo a la derecha. */
 .toasts {
   position: fixed;
-  right: var(--sp-4);
-  bottom: var(--sp-4);
+  right: var(--space-4);
+  bottom: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   z-index: 400;
   pointer-events: none;
 }
 .toast {
   pointer-events: auto;
   max-width: 320px;
-  padding: var(--sp-3) var(--sp-4);
+  padding: var(--space-3) var(--space-4);
   background: var(--surface);
-  color: var(--fg-1);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--fg-3);
-  border-radius: var(--r-md);
+  color: var(--ink);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--ink-subtle);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   opacity: 0;
   transform: translateY(8px);
-  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+  transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard);
 }
 .toast.show { opacity: 1; transform: translateY(0); }
-.toast--ok { border-left-color: var(--accent); }
+.toast--ok { border-left-color: var(--green); }
 .toast--error { border-left-color: var(--danger); }
 
 /* Diálogo de confirmación (reemplaza confirm() nativo). */
@@ -2132,22 +2277,23 @@ kbd {
    Solo el diálogo: `.ws-menu` y `.avatar-menu` están anclados dentro y siguen
    oscuros. */
 .sidebar .confirm-dialog {
-  --bg:             var(--canvas-bg);
+  --background:             var(--canvas-background);
   --surface:        var(--canvas-surface);
-  --surface-sunken: var(--canvas-surface-sunken);
-  --surface-hover:  var(--canvas-surface-hover);
-  --fg-1: var(--canvas-fg-1);
-  --fg-2: var(--canvas-fg-2);
-  --fg-3: var(--canvas-fg-3);
-  --fg-on-accent: var(--canvas-fg-on-accent);
-  --border:        var(--canvas-border);
-  --border-strong: var(--canvas-border-strong);
-  --accent:       var(--canvas-accent);
-  --accent-hover: var(--canvas-accent-hover);
-  --accent-press: var(--canvas-accent-press);
-  --accent-soft:  var(--canvas-accent-soft);
-  --accent-ring:  var(--canvas-accent-ring);
-  --marker: var(--canvas-marker);
+  --surface-muted: var(--canvas-surface-muted);
+  --surface-inset:  var(--canvas-surface-inset);
+  --ink: var(--canvas-ink);
+  --ink-strong: var(--canvas-ink-strong);
+  --ink-muted: var(--canvas-ink-muted);
+  --ink-subtle: var(--canvas-ink-subtle);
+  --ink-on-green: var(--canvas-ink-on-green);
+  --border-subtle:        var(--canvas-border-subtle);
+  --border-default: var(--canvas-border-default);
+  --green:       var(--canvas-green);
+  --green-hover: var(--canvas-green-hover);
+  --green-press: var(--canvas-green-press);
+  --green-soft:  var(--canvas-green-soft);
+  --green-ring:  var(--canvas-green-ring);
+  --orange: var(--canvas-orange);
   --danger:      var(--canvas-danger);
   --danger-soft: var(--canvas-danger-soft);
   --shadow-xs: var(--canvas-shadow-xs);
@@ -2159,21 +2305,21 @@ kbd {
 .confirm-dialog {
   width: 100%;
   max-width: 380px;
-  padding: var(--sp-5);
+  padding: var(--space-6);
   background: var(--surface);
-  color: var(--fg-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2xl);
+  color: var(--ink);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-lg);
 }
 .confirm-dialog::backdrop { background: var(--scrim); }
-.confirm-dialog-msg { margin: 0 0 var(--sp-4); color: var(--fg-1); }
-.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
+.confirm-dialog-msg { margin: 0 0 var(--space-4); color: var(--ink); }
+.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
 /* Menú de acciones de una fila del árbol. Vive en el <dialog> porque .page-list
    recorta su desbordamiento; reutiliza los items del resto de menús. */
-.row-menu { display: flex; flex-direction: column; gap: var(--sp-0); }
-.row-menu .avatar-menu-item { border-radius: var(--r-sm); }
+.row-menu { display: flex; flex-direction: column; gap: var(--space-0); }
+.row-menu .avatar-menu-item { border-radius: var(--radius-sm); }
 
 /* Command palette (⌘K). */
 .palette {
@@ -2182,11 +2328,11 @@ kbd {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 12vh var(--sp-4) var(--sp-4);
+  padding: 12vh var(--space-4) var(--space-4);
   background: var(--scrim);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--dur-fast) var(--ease);
+  transition: opacity var(--duration-fast) var(--ease-standard);
   z-index: 250;
 }
 .palette.open { opacity: 1; pointer-events: auto; }
@@ -2194,56 +2340,56 @@ kbd {
   width: 100%;
   max-width: 480px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2xl);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   transform: translateY(8px) scale(0.98);
-  transition: transform var(--dur-fast) var(--ease);
+  transition: transform var(--duration-fast) var(--ease-standard);
 }
 .palette.open .palette-box { transform: translateY(0) scale(1); }
 .palette-input {
   width: 100%;
   border: none;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
   background: transparent;
-  padding: var(--sp-4) var(--sp-5);
-  font-size: var(--text-base);
-  color: var(--fg-1);
+  padding: var(--space-4) var(--space-6);
+  font-size: var(--text-md);
+  color: var(--ink);
 }
 .palette-input:focus { outline: none; }
-.palette-list { list-style: none; margin: 0; padding: var(--sp-2); max-height: 50vh; overflow-y: auto; }
+.palette-list { list-style: none; margin: 0; padding: var(--space-2); max-height: 50vh; overflow-y: auto; }
 .palette-item {
   display: block;
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--r-md);
-  color: var(--fg-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--ink-muted);
   text-decoration: none;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 .palette-item.active,
-.palette-item:hover { background: var(--accent-soft); color: var(--fg-1); }
-.palette-empty { padding: var(--sp-3); color: var(--fg-3); font-size: var(--text-sm); }
+.palette-item:hover { background: var(--green-soft); color: var(--ink); }
+.palette-empty { padding: var(--space-3); color: var(--ink-subtle); font-size: var(--text-base); }
 
 /* Tokens de API en settings. */
 .secret-reveal {
-  margin-bottom: var(--sp-4);
-  padding: var(--sp-3) var(--sp-4);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-radius: var(--r-md);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--green-soft);
+  border: 1px solid var(--green);
+  border-radius: var(--radius-md);
 }
-.secret-note { margin: 0 0 var(--sp-2); font-size: var(--text-sm); color: var(--fg-2); }
-.secret-row { display: flex; align-items: center; gap: var(--sp-2); }
+.secret-note { margin: 0 0 var(--space-2); font-size: var(--text-base); color: var(--ink-muted); }
+.secret-row { display: flex; align-items: center; gap: var(--space-2); }
 .secret-value {
   flex: 1;
   font-family: var(--font-mono);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   word-break: break-all;
-  color: var(--fg-1);
+  color: var(--ink);
 }
-.row-name { display: flex; flex-direction: column; gap: var(--sp-0); min-width: 0; }
-.add-form { display: flex; gap: var(--sp-2); }
+.row-name { display: flex; flex-direction: column; gap: var(--space-0); min-width: 0; }
+.add-form { display: flex; gap: var(--space-2); }
 
 /* === Accesibilidad: sin animaciones si el sistema lo pide ================== */
 @media (prefers-reduced-motion: reduce) {
@@ -2269,8 +2415,8 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
 }
 
 /* Cada fila del árbol aloja su menú "⋯", que solo aparece al pasar por encima
@@ -2278,7 +2424,7 @@ kbd {
 .page-row {
   display: flex;
   align-items: center;
-  gap: var(--sp-1);
+  gap: var(--space-1);
 }
 .page-row > a {
   flex: 1;
@@ -2292,29 +2438,29 @@ kbd {
   background: none;
   border: 0;
   cursor: pointer;
-  color: var(--fg-3);
-  padding: var(--sp-0);
+  color: var(--ink-subtle);
+  padding: var(--space-0);
   display: flex;
   align-items: center;
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-sm);
 }
 .page-row-actions-btn:hover {
-  color: var(--fg-1);
-  background: var(--surface-hover);
+  color: var(--ink);
+  background: var(--surface-inset);
 }
 
 .inbox-link {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
-  color: var(--fg-2);
-  font-size: var(--text-sm);
-  border-radius: var(--r-sm);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-muted);
+  font-size: var(--text-base);
+  border-radius: var(--radius-sm);
 }
 .inbox-link:hover {
-  background: var(--surface-hover);
-  color: var(--fg-1);
+  background: var(--surface-inset);
+  color: var(--ink);
 }
 
 /* ── Táctil e iPhone ─────────────────────────────────────────────────────────
@@ -2329,7 +2475,7 @@ kbd {
   select {
     /* El umbral de iOS son 16px exactos, que es justo lo que vale el cuerpo
        desde que la escala es la de §6: el token y el umbral coinciden. */
-    font-size: var(--text-base);
+    font-size: var(--text-md);
   }
 }
 
@@ -2350,10 +2496,10 @@ html {
    esto el pie de la barra lateral queda bajo el indicador de inicio. */
 @supports (padding: max(0px)) {
   .sidebar-foot {
-    padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+    padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
   }
   .sidebar-head {
-    padding-top: max(var(--sp-3), env(safe-area-inset-top));
+    padding-top: max(var(--space-3), env(safe-area-inset-top));
   }
 }
 
@@ -2380,78 +2526,78 @@ html {
    1120px y no los 820px del shell: entre medias la barra lateral sigue siendo
    columna fija y una segunda columna dejaria el contenido mas estrecho que su
    propio cromo. 1120 ya es donde el lector suelta la tabla de contenidos. */
-.settings-layout { display: grid; gap: var(--sp-5); }
+.settings-layout { display: grid; gap: var(--space-6); }
 .settings-panel { min-width: 0; }
 
-.settings-select { position: relative; margin-bottom: var(--sp-2); }
+.settings-select { position: relative; margin-bottom: var(--space-2); }
 .settings-select-trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   width: 100%;
   background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
-  color: var(--fg-1);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
   font-weight: 500;
   min-height: 40px;
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--space-2) var(--space-3);
   cursor: pointer;
 }
-.settings-select-trigger:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+.settings-select-trigger:hover { background: var(--surface-inset); border-color: var(--border-default); }
 .settings-select-label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.settings-select-icon { flex-shrink: 0; color: var(--fg-3); }
+.settings-select-icon { flex-shrink: 0; color: var(--ink-subtle); }
 
 .settings-select-menu {
   position: absolute;
-  top: calc(100% + var(--sp-1));
+  top: calc(100% + var(--space-1));
   left: 0;
   right: 0;
   z-index: 40;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
-  padding: var(--sp-1);
+  padding: var(--space-1);
   display: none;
 }
 .settings-select-menu.open { display: block; }
 .settings-select-option {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   width: 100%;
-  padding: var(--sp-2) var(--sp-2);
-  border-radius: var(--r-xs);
-  color: var(--fg-2);
-  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-xs);
+  color: var(--ink-muted);
+  font-size: var(--text-base);
   text-decoration: none;
 }
 .settings-select-option-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.settings-select-option-check { flex-shrink: 0; opacity: 0; color: var(--accent); }
-.settings-select-option:hover { background: var(--surface-hover); color: var(--fg-1); }
-.settings-select-option.active { color: var(--accent-press); font-weight: 500; }
+.settings-select-option-check { flex-shrink: 0; opacity: 0; color: var(--green); }
+.settings-select-option:hover { background: var(--surface-inset); color: var(--ink); }
+.settings-select-option.active { color: var(--green-press); font-weight: 500; }
 .settings-select-option.active .settings-select-option-check { opacity: 1; }
 
-.settings-nav { display: none; flex-direction: column; gap: var(--sp-0); }
+.settings-nav { display: none; flex-direction: column; gap: var(--space-0); }
 .settings-nav-item {
   display: block;
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--r-xs);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-xs);
   border-left: 2px solid transparent;
-  color: var(--fg-2);
-  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  font-size: var(--text-base);
   text-decoration: none;
 }
-.settings-nav-item:hover { background: var(--surface-hover); color: var(--fg-1); }
+.settings-nav-item:hover { background: var(--surface-inset); color: var(--ink); }
 /* El estado activo no depende solo del color: tambien lleva el filete y el peso. */
 .settings-nav-item--active {
-  background: var(--surface-hover);
-  border-left-color: var(--marker-ink);
-  color: var(--accent-press);
+  background: var(--surface-inset);
+  border-left-color: var(--orange-ink);
+  color: var(--green-press);
   font-weight: 500;
 }
 
@@ -2460,7 +2606,7 @@ html {
 @media (min-width: 1121px) {
   .settings { max-width: 960px; }
   .settings-layout { grid-template-columns: 180px minmax(0, 1fr); align-items: start; }
-  .settings-nav { display: flex; position: sticky; top: var(--sp-4); }
+  .settings-nav { display: flex; position: sticky; top: var(--space-4); }
   .settings-select { display: none; }
 }
 
@@ -2511,7 +2657,7 @@ html {
   /* Aqui no vale flex: convertiria el texto en item anonimo y se perderia el
      text-overflow: ellipsis de los titulos largos. */
   .page-list a {
-    padding-block: var(--sp-3);
+    padding-block: var(--space-3);
     min-height: 44px;
   }
 }
@@ -2538,13 +2684,13 @@ html {
 .prose,
 .placeholder,
 .settings {
-  animation: rise var(--dur) var(--ease) both;
+  animation: rise var(--duration-base) var(--ease-standard) both;
 }
 
 /* Las listas entran escalonadas: 30ms por fila, tope a la sexta para que una
    lista larga no tarde un segundo en terminar de aparecer. */
 .results .row {
-  animation: rise var(--dur) var(--ease) both;
+  animation: rise var(--duration-base) var(--ease-standard) both;
 }
 .results .row:nth-child(1) { animation-delay: 0ms; }
 .results .row:nth-child(2) { animation-delay: 30ms; }
@@ -2565,10 +2711,10 @@ html {
 .ws-trigger,
 .page-row-actions-btn {
   transition:
-    background var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease);
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
 }
 .btn:active,
 .new-btn:active,
@@ -2590,12 +2736,12 @@ html {
    enlace. `outline` sigue cada fragmento, y por eso los enlaces lo llevan. */
 :where(button, input, textarea, select, summary, [tabindex]):focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  box-shadow: 0 0 0 3px var(--green-ring);
 }
 :where(a):focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--green);
   outline-offset: 2px;
-  transition: outline-color var(--dur-fast) var(--ease);
+  transition: outline-color var(--duration-fast) var(--ease-standard);
 }
 
 /* ── Bloque 3: estados de vista, conexion y entregas ──────────────────────────
@@ -2606,7 +2752,7 @@ html {
    barra lateral alrededor: se centra como pagina entera en vez de quedarse
    pegado al borde del hueco de contenido. */
 .placeholder--standalone {
-  /* `.placeholder` se limita a --measure porque dentro del shell es la columna de
+  /* `.placeholder` se limita a --document-max-width porque dentro del shell es la columna de
      lectura. Fuera de él no hay columna: la pagina es todo el ancho y lo que se
      centra es su contenido. */
   max-width: none;
@@ -2616,7 +2762,7 @@ html {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--sp-3);
+  gap: var(--space-3);
   text-align: center;
 }
 
@@ -2626,23 +2772,23 @@ html {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-3);
+  gap: var(--space-3);
   flex-wrap: wrap;
-  margin: 0 var(--sp-4) var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--surface-sunken);
-  font-size: var(--text-sm);
-  color: var(--fg-2);
+  margin: 0 var(--space-4) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  font-size: var(--text-base);
+  color: var(--ink-muted);
 }
 .editor-notice--warn {
-  border-color: var(--accent);
-  color: var(--fg-1);
+  border-color: var(--green);
+  color: var(--ink);
 }
 .editor-notice-actions {
   display: flex;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   flex: none;
 }
 
@@ -2652,28 +2798,28 @@ html {
    tiene un sitio visible en todos los anchos —.app-bar solo existe en movil—. */
 .conn {
   position: fixed;
-  left: var(--sp-4);
-  bottom: var(--sp-4);
+  left: var(--space-4);
+  bottom: var(--space-4);
   z-index: 400;
 }
 @media (max-width: 820px) {
   /* En movil la barra lateral es un cajon y su pie llega hasta abajo del todo. */
   .conn {
     left: auto;
-    right: var(--sp-4);
-    bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
+    right: var(--space-4);
+    bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
   }
 }
 .conn-badge {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-1);
-  padding: var(--sp-0) var(--sp-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--surface-sunken);
-  color: var(--fg-2);
-  font-size: var(--text-xs);
+  gap: var(--space-1);
+  padding: var(--space-0) var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 .conn-badge--down {
@@ -2683,31 +2829,31 @@ html {
 .conn-detail {
   position: absolute;
   left: 0;
-  bottom: calc(100% + var(--sp-1));
+  bottom: calc(100% + var(--space-1));
   z-index: 20;
   min-width: 200px;
-  padding: var(--sp-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
+  padding: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   box-shadow: var(--shadow-md);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 .conn-row {
   display: flex;
   justify-content: space-between;
-  gap: var(--sp-3);
-  padding: var(--sp-0) 0;
-  color: var(--fg-2);
+  gap: var(--space-3);
+  padding: var(--space-0) 0;
+  color: var(--ink-muted);
 }
 
 .hook-health--bad {
   color: var(--danger);
 }
 .delivery-list {
-  margin-top: var(--sp-2);
-  padding-top: var(--sp-2);
-  border-top: 1px solid var(--border);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
 }
 .delivery-list ul {
   list-style: none;
@@ -2717,14 +2863,14 @@ html {
 .delivery {
   display: flex;
   align-items: baseline;
-  gap: var(--sp-2);
+  gap: var(--space-2);
   flex-wrap: wrap;
-  padding: var(--sp-0) 0;
-  font-size: var(--text-sm);
-  color: var(--fg-3);
+  padding: var(--space-0) 0;
+  font-size: var(--text-base);
+  color: var(--ink-subtle);
 }
 .delivery-event {
-  color: var(--fg-2);
+  color: var(--ink-muted);
   font-family: var(--font-mono);
 }
 .delivery--failed .delivery-status {
@@ -2732,7 +2878,7 @@ html {
 }
 .delivery-error {
   flex-basis: 100%;
-  color: var(--fg-3);
+  color: var(--ink-subtle);
   font-family: var(--font-mono);
   overflow-wrap: anywhere;
 }
@@ -2749,9 +2895,9 @@ html {
    sangrado extra respecto a una lista normal. */
 .prose li.task-list-item { list-style: none; margin-left: -1.25em; }
 .prose li.task-list-item input[type='checkbox'] {
-  margin-right: var(--sp-2);
+  margin-right: var(--space-2);
   vertical-align: middle;
-  accent-color: var(--accent);
+  accent-color: var(--green);
 }
 
 /* Formulas. KaTeX trae su propio CSS (vendorizado, cargado bajo demanda); esto
@@ -2759,7 +2905,7 @@ html {
    ensanchar la columna de lectura. */
 .prose .math--block {
   display: block;
-  margin: var(--sp-4) 0;
+  margin: var(--space-4) 0;
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -2773,9 +2919,9 @@ html {
 .skeleton-bar {
   display: block;
   height: 0.9em;
-  border-radius: var(--r-xs);
-  background: var(--surface-hover);
-  animation: skeleton-pulse 1.4s var(--ease) infinite;
+  border-radius: var(--radius-xs);
+  background: var(--surface-inset);
+  animation: skeleton-pulse 1.4s var(--ease-standard) infinite;
 }
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
@@ -2787,15 +2933,15 @@ html {
 
 /* Arbol lateral: misma altura de fila y mismo sangrado por nivel que el arbol
    real (14px), para que el cambio no salte. */
-.skeleton-tree { padding: 0 var(--sp-2); }
+.skeleton-tree { padding: 0 var(--space-2); }
 .skeleton-row {
   display: flex;
   align-items: center;
   min-height: 30px;
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--space-2) var(--space-3);
 }
-.skeleton-row[data-level='1'] { padding-left: calc(var(--sp-3) + 14px); }
-.skeleton-row[data-level='2'] { padding-left: calc(var(--sp-3) + 28px); }
+.skeleton-row[data-level='1'] { padding-left: calc(var(--space-3) + 14px); }
+.skeleton-row[data-level='2'] { padding-left: calc(var(--space-3) + 28px); }
 .skeleton-row .skeleton-bar { width: 70%; }
 .skeleton-row:nth-child(2n) .skeleton-bar { width: 55%; }
 .skeleton-row:nth-child(3n) .skeleton-bar { width: 82%; }
@@ -2803,26 +2949,26 @@ html {
 /* Cuerpo del documento, al ancho de la columna de lectura. */
 .skeleton-doc {
   width: 100%;
-  max-width: var(--measure);
-  margin-top: var(--sp-6);
+  max-width: var(--document-max-width);
+  margin-top: var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--space-3);
 }
 .skeleton-bar--title {
   height: 1.8em;
   width: 55%;
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--space-4);
 }
 .skeleton-bar--short { width: 62%; }
 
 .skeleton-list {
   width: 100%;
-  max-width: var(--measure);
-  margin-top: var(--sp-6);
+  max-width: var(--document-max-width);
+  margin-top: var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--space-3);
 }
 .skeleton-list .skeleton-bar { height: 1.4em; }
 
@@ -2831,8 +2977,8 @@ html {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--sp-2);
-  margin-top: var(--sp-2);
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 /* ── Datos frente a prosa ─────────────────────────────────────────────────────
@@ -2869,24 +3015,31 @@ html {
    El título de la página y los encabezados del documento. La serif es lo que
    dice «esto es un documento» antes de leer una palabra; la interfaz alrededor
    sigue en la cara de texto, que es la que se lee mejor a tamaño pequeño. */
+/* §3 usa la serif SOLO en el título de página y el H1 del documento. Los H2 y H3
+   pasan a la cara de interfaz: a 22 y 16px la serif tiene el ojo demasiado
+   pequeño para pesar como un encabezado, y el documento pide 600 ahí. */
 .page-header h1,
 .prose h1,
-.prose h2,
-.prose h3,
 .settings-h1,
 .placeholder h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-weight: 400;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
 }
 
-/* La serif tiene ojo pequeño: a los tamaños de la interfaz necesita algo más de
-   cuerpo para pesar lo mismo que pesaba Inter en negrita. */
-.page-header h1 { font-size: var(--text-3xl); line-height: 1.1; }
-.prose h1 { font-size: var(--text-2xl); line-height: 1.2; }
+.page-header h1  { font-size: var(--text-4xl); line-height: 1.03; }
+.settings-h1     { font-size: var(--text-3xl); line-height: 1.1; }
+.placeholder h1  { font-size: var(--text-3xl); line-height: 1.1; }
+.prose h1        { font-size: var(--text-3xl); line-height: 1.15; }
+
+/* Encabezados de sección: cara de interfaz, peso 600, tamaños de §3. */
+.prose h2, .prose h3 {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
 .prose h2 { font-size: var(--text-xl); line-height: 1.3; }
-.prose h3 { font-size: var(--text-lg); line-height: 1.4; }
-.settings-h1 { font-size: var(--text-2xl); }
+.prose h3 { font-size: var(--text-md); line-height: 1.45; }
 
 /* === Vista de grafo ======================================================= */
 /* Todo el color sale de las variables del tema y ninguno del JavaScript: el SVG
@@ -2896,7 +3049,7 @@ html {
 .graph-page {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--space-4);
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -2907,41 +3060,54 @@ html {
 .graph-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-5);
-  margin: var(--sp-4) 0 0;
+  gap: var(--space-6);
+  margin: var(--space-4) 0 0;
 }
-.graph-fact { display: flex; align-items: baseline; gap: var(--sp-2); }
+.graph-fact { display: flex; align-items: baseline; gap: var(--space-2); }
 .graph-fact-value {
   margin: 0;
   font-family: var(--font-data);
   font-size: var(--text-lg);
-  color: var(--fg-1);
+  color: var(--ink);
 }
 .graph-fact-label {
   margin: 0;
-  font-size: var(--text-sm);
-  color: var(--fg-2);
+  font-size: var(--text-base);
+  color: var(--ink-muted);
 }
 .graph-fact--alert .graph-fact-value { color: var(--danger); }
 
 .graph-note {
-  margin: var(--sp-3) 0 0;
-  font-size: var(--text-sm);
-  color: var(--fg-2);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-base);
+  color: var(--ink-muted);
 }
 
+/* §12 adaptado, no copiado: sus selectores suponen un DOM que no existe aquí.
+   `.graph-node` es un <g> que envuelve un circle y un text, así que el relleno
+   y el trazo van a esos hijos; `.graph-node-active` y `.graph-node-label` no
+   tienen contrapartida y sus reglas viven en `.is-hover` y en `text`. Los
+   estados propios de doction —huérfana y rota— el documento no los nombra y se
+   quedan como están: son hallazgos de esta vista, no decoración. */
 .graph-canvas {
   flex: 1;
   min-height: 320px;
   width: 100%;
+  /* §12: profundidad tonal suave desde el centro, sin cuadrículas fuertes. */
+  background: radial-gradient(
+    circle at 52% 42%,
+    var(--surface-muted) 0%,
+    var(--background) 62%
+  );
   touch-action: none;      /* el arrastre es nuestro, no del navegador */
   cursor: grab;
 }
 .graph-canvas:active { cursor: grabbing; }
+/* §12: relaciones como líneas cartográficas, no como constelaciones. */
 .graph-edge {
-  stroke: var(--border-strong);
+  stroke: var(--border-default);
   stroke-width: 1;
-  stroke-opacity: 0.55;
+  stroke-opacity: 0.38;
 }
 /* Un enlace a una página que no existe: aquí sí es un hallazgo, porque la
    pregunta de esta vista es la salud del conjunto. En la prosa el mismo enlace se
@@ -2953,22 +3119,28 @@ html {
 }
 
 .graph-node { cursor: pointer; }
+/* §12: nodos sin brillo ni efectos. El nodo en reposo es una superficie con
+   contorno, no un punto de color; el naranja queda para la señal mínima del
+   nodo activo. */
 .graph-node circle {
-  fill: var(--accent);
-  stroke: var(--surface);
-  stroke-width: 1.5;
-  transition: fill var(--dur-fast) var(--ease);
+  fill: var(--surface-raised);
+  stroke: var(--green);
+  stroke-width: 1.25;
+  transition: fill var(--duration-fast) var(--ease-standard),
+              stroke var(--duration-fast) var(--ease-standard);
 }
 .graph-node text {
-  font-family: var(--font-data);
-  font-size: var(--text-xs);
-  fill: var(--fg-2);
+  /* §12 pone la etiqueta del grafo en la cara de interfaz: es un nombre de
+     página, prosa, no la coordenada de un dato. */
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  fill: var(--ink-muted);
   pointer-events: none;
   user-select: none;
 }
 /* Huérfana: sin enlaces en ningún sentido. No es un error, es una página que
    nadie ha conectado todavía, así que se apaga en vez de alarmar. */
-.graph-node--orphan circle { fill: var(--border-strong); }
+.graph-node--orphan circle { fill: var(--border-default); }
 .graph-node--broken { cursor: default; }
 .graph-node--broken circle {
   fill: none;
@@ -2976,10 +3148,18 @@ html {
   stroke-dasharray: 2 2;
 }
 .graph-node--broken text { fill: var(--danger); }
-.graph-node.is-hover circle { fill: var(--accent-hover); }
-.graph-node.is-hover text { fill: var(--fg-1); }
+/* El nodo activo: relleno verde y una señal naranja mínima en el contorno. El
+   contorno mide 2.87:1 contra su propio relleno, por debajo del 3:1 de una marca
+   que informa — y puede, porque no informa solo: el estado lo llevan el relleno
+   (superficie -> verde) y la tinta del rótulo. Es naranja decorativo, no marca. */
+.graph-node.is-hover circle {
+  fill: var(--green);
+  stroke: var(--orange);
+  stroke-width: 1.5;
+}
+.graph-node.is-hover text { fill: var(--ink); }
 
 @media (max-width: 820px) {
-  .graph-facts { gap: var(--sp-4); }
+  .graph-facts { gap: var(--space-4); }
   .graph-canvas { min-height: 260px; }
 }
