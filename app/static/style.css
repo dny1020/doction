@@ -272,13 +272,18 @@
      `.sidebar`, escrito una vez y sin saber qué tema hay puesto.
 
      Todas las ratios son contra el peor de los CUATRO suelos que usa el
-     chrome —claro y oscuro, base y hover—, no contra uno solo. */
+     chrome —claro y oscuro, base y hover—, no contra uno solo.
+
+     El chrome es MÁS OSCURO que el documento, también en tema oscuro. Con los
+     valores de §8 quedaba más claro que el lienzo, así que en oscuro el panel
+     destacaba en vez de recederse y el conjunto se leía como una sola masa
+     verde. El chrome recede: es el marco, no el contenido. */
   /* §8: el suelo es un degradado vertical. Los dos extremos y el fondo del
      elemento activo compuesto sobre ellos son los CUATRO suelos reales contra
      los que se mide todo lo que va encima. */
-  --nav-bg:        oklch(0.225 0.030 151);
-  --nav-bg-end:    oklch(0.185 0.024 151);
-  --nav-hover:     oklch(0.265 0.032 151);
+  --nav-bg:        oklch(0.145 0.028 151);
+  --nav-bg-end:    oklch(0.115 0.022 151);
+  --nav-hover:     oklch(0.185 0.030 151);
   --nav-active-bg: oklch(0.310 0.040 151 / 0.72);
   /* El canto del panel se mide contra el LIENZO, no contra su propio suelo. */
   --nav-edge:      oklch(0.330 0.030 151);  /* 10.90:1 en claro, 1.58:1 en oscuro */
@@ -393,11 +398,14 @@
 /* Carbón cálido de §2, con las mismas correcciones por medida que en claro: se
    conserva tono y papel, se mueve la luminosidad hasta que cumple. */
 [data-theme="dark"] {
-  --background:     oklch(0.170 0.018 150);
-  --surface:        oklch(0.205 0.020 150);
-  --surface-raised: oklch(0.238 0.022 150);
-  --surface-muted:  oklch(0.238 0.022 150);
-  --surface-inset:  oklch(0.265 0.023 150);
+  /* Mismo tono que §2, un tercio de croma. Con 0.018-0.023 el carbón se leía
+     verde y, sumado al chrome, la aplicación entera quedaba teñida. El verde se
+     queda donde dice algo: acento, elemento activo, código. */
+  --background:     oklch(0.170 0.006 150);
+  --surface:        oklch(0.205 0.007 150);
+  --surface-raised: oklch(0.238 0.008 150);
+  --surface-muted:  oklch(0.238 0.008 150);
+  --surface-inset:  oklch(0.265 0.008 150);
 
 
   --ink:         oklch(0.925 0.016 93);   /* 12.18:1 */
@@ -671,9 +679,11 @@ a { color: inherit; }
 
 
 /* === Layout =============================================================== */
+/* El tope de §4 es para la COLUMNA de lectura, no para el shell entero. Puesto
+   aquí centraba también el sidebar, que en una pantalla ancha quedaba despegado
+   del borde con el fondo asomando a su izquierda. Un panel de navegación se
+   ancla al borde de la ventana; lo que se limita es el contenido. */
 .layout {
-  max-width: var(--shell-max-width);
-  margin-inline: auto;
   display: grid;
   grid-template-columns: auto 1fr;
   min-height: 100vh; min-height: 100dvh;
@@ -1292,6 +1302,9 @@ a { color: inherit; }
   /* §4: el contenido arranca a 72px del lateral y el documento nunca queda
      pegado al borde del panel. */
   padding: var(--space-16) var(--document-gutter) var(--space-20);
+  /* El shell se limita aquí, no en `.layout`: así el documento deja de crecer en
+     una pantalla ancha y el sidebar sigue pegado al borde. */
+  max-width: var(--shell-max-width);
   display: flex;
   /* §4: el contenido ARRANCA a 72px del lateral. Centrarlo en el hueco haría
      que el margen izquierdo dependiera del ancho de la ventana. Lo que se
