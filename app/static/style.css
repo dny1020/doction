@@ -258,7 +258,11 @@
   --space-0:  2px;
   --space-1:  4px;   --space-2:  8px;   --space-3: 12px;  --space-4: 16px;
   --space-5: 20px;   --space-6: 24px;   --space-8: 32px;
-  --space-12: 48px;  --space-16: 64px;  --space-20: 80px;
+  --space-12: 48px;  --space-16: 64px;  --space-20: 80px;  --space-24: 96px;
+
+  /* Ancho de la barra de desplazamiento propia. No es espaciado ni radio: es la
+     geometría de un control, y por eso tiene nombre propio. */
+  --scrollbar-width: 8px;
   /* Dos escalones que el ritmo de §5 pide y su propia escala no contiene: el aire
      sobre un H2 (56px) y sobre un H3 (36px). Van aquí en lugar de quedar sueltos
      en una regla, que es lo que la escala existe para evitar. */
@@ -1058,6 +1062,51 @@ a { color: inherit; }
 }
 .no-results { font-size: var(--text-base); margin-top: var(--space-2); color: var(--ink-subtle); }
 
+/* ── Barra de desplazamiento ─────────────────────────────────────────────────
+   La del sistema es la única superficie que no salía del design system: ancha,
+   con su propio gris y sus flechas, y encima con el contraste al revés dentro
+   del chrome oscuro. Se define una vez y la heredan los tres sitios que
+   desplazan —el árbol, el menú de workspaces y el índice—, así que dentro del
+   sidebar se re-tematiza sola como todo lo demás.
+
+   `scrollbar-width`/`scrollbar-color` es el camino estándar; `::-webkit-*` es
+   el respaldo para los motores que aún no lo implementan. Los dos declaran lo
+   mismo, así que ninguno pinta algo distinto del otro. */
+.page-list,
+.ws-menu-list,
+.has-toc .toc {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+}
+.page-list::-webkit-scrollbar,
+.ws-menu-list::-webkit-scrollbar,
+.has-toc .toc::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+}
+.page-list::-webkit-scrollbar-track,
+.ws-menu-list::-webkit-scrollbar-track,
+.has-toc .toc::-webkit-scrollbar-track {
+  background: transparent;
+}
+.page-list::-webkit-scrollbar-thumb,
+.ws-menu-list::-webkit-scrollbar-thumb,
+.has-toc .toc::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  /* Redondeado a su propio ancho: una barra de 8px con el radio de un control
+     se vería como una cápsula recortada. */
+  border-radius: var(--radius-lg);
+  /* El borde transparente deja el pulgar más fino que la pista y le da aire a
+     los lados sin necesitar un contenedor aparte. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.page-list::-webkit-scrollbar-thumb:hover,
+.ws-menu-list::-webkit-scrollbar-thumb:hover,
+.has-toc .toc::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-subtle);
+  background-clip: content-box;
+}
+
 /* === Nav / page list ====================================================== */
 .page-list {
   flex: 1;
@@ -1371,11 +1420,13 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 }
 
 .page-wrap.has-toc {
-  max-width: calc(var(--document-max-width) + var(--toc-width) + var(--space-16));
+  max-width: calc(var(--document-max-width) + var(--toc-width) + var(--space-24));
   display: grid;
   grid-template-columns: 1fr var(--toc-width);
-  /* §4: el índice respira a 64px del documento, no a 48. */
-  gap: var(--space-16);
+  /* §4 pide 64px como MÍNIMO. A esa distancia el índice todavía se leía pegado
+     al final del renglón: es texto pequeño y gris junto a texto de lectura, y la
+     única separación entre los dos es el aire. */
+  gap: var(--space-24);
   align-items: start;
 }
 
