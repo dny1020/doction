@@ -14,8 +14,29 @@ container + a Postgres container — no API keys, no SaaS, no LLM inside doction
 > repo; search runs locally; agents talk to it over a standard MCP interface. doction does
 > *retrieval* — the language model lives in your agent, not here.
 
-![doction — page view with sidebar, tags and git-tracked markdown](docs/assets/ui.png)
-<!-- NOTE: this screenshot predates the React SPA (now served at /app); regenerate against the current UI. -->
+![doction reading a page: sidebar page tree, table of contents, a mermaid diagram and a highlighted SQL block, all rendered client-side from stored markdown](docs/assets/ui.png)
+
+Every save is a git commit, so any page's history is a real diff:
+
+![The history view of a page, showing a git diff with one line removed and two added](docs/assets/history.png)
+
+---
+
+## Documentation
+
+The rest of this README is the tour. The reference lives in [`docs/`](docs/README.md):
+
+| Page | What it answers |
+| --- | --- |
+| [Installation](docs/install.md) | Compose, a bare `docker run` behind a proxy, or from source |
+| [Configuration](docs/configuration.md) | Every environment variable, and what breaks if you skip it |
+| [Architecture](docs/architecture.md) | How the pieces fit, and why the odd decisions are what they are |
+| [Operations](docs/operations.md) | Upgrades, backup and restore, logs, capacity |
+| [Agents and MCP](docs/mcp.md) | Connecting an agent, the auth model, choosing among the 27 tools |
+| [Troubleshooting](docs/troubleshooting.md) | Symptom-first index of the failures people actually hit |
+
+Contributing is in [CONTRIBUTING.md](CONTRIBUTING.md), the security model and reporting
+channel in [SECURITY.md](SECURITY.md), and release notes in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -70,9 +91,13 @@ containers together (multi-arch image, amd64 + arm64):
 
 ```bash
 cp .env.example .env   # edit POSTGRES_PASSWORD and SECRET_KEY
+mkdir -p data/logs     # the container runs non-root as uid 1000
 docker compose up
 # open http://localhost:8000 and register the first user
 ```
+
+Register your own account immediately, then set `DISABLE_REGISTRATION=1` and restart:
+sign-up is open by default.
 
 ### Configuration
 
@@ -81,7 +106,8 @@ docker compose up
 | `SECRET_KEY` | Key used to sign JWTs. **Change in production.** | insecure dev value |
 | `DATABASE_URL` | Postgres connection string. | `postgresql://doction:doction@postgres:5432/doction` |
 | `DATA_DIR` | Directory for the git pages repo + uploads. | `/data` |
-| `SECURE_COOKIES` | `1` when behind TLS (reverse proxy). | off |
+| `SECURE_COOKIES` | `1` when behind TLS (reverse proxy). Also makes an unset `SECRET_KEY` a hard startup failure instead of a warning. | off |
+| `DISABLE_REGISTRATION` | `1` closes public sign-up. **Registration is open by default** — on a reachable instance anyone who finds the URL can create an account. The first user can still register with the flag on, so a fresh instance is never locked out. | off |
 | `SEMANTIC_SEARCH` | `1` enables local semantic search (`sgrep` / `rag`). | off |
 | `RERANK` | `1` re-scores top `sgrep` hits with a local cross-encoder (requires `SEMANTIC_SEARCH=1`). | off |
 | `OCR_UPLOADS` | `1` OCR-indexes uploaded images with tesseract so they appear in search. | off |
@@ -174,9 +200,13 @@ claude mcp add --transport http doction $DOCTION/api/mcp \
   --header "Authorization: Bearer doction_..."
 ```
 
-Once connected, the agent sees all 27 tools:
+Once connected, the agent sees all 27 tools. To confirm without a client:
 
-![doction MCP server connected inside an agent — authenticated](docs/assets/mcp.png)
+```bash
+curl -s -X POST $DOCTION/api/mcp -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools | length'
+# 27
+```
 
 Five tools cover an agent's working loop — find something, gather context, understand the
 shape of the workspace, read a document exactly as stored, write back what you learned:
