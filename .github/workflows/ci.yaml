@@ -8,6 +8,15 @@ on:
 env:
   IMAGE: ghcr.io/${{ github.repository }}
 
+# Un push que llega mientras la corrida anterior sigue viva la cancela. En main no,
+# porque ahí cada corrida publica una imagen.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
 jobs:
   # Lint, tipos y tests corren dentro del stage `test` del Dockerfile, que trae su
   # propio Postgres. Por eso aquí no hace falta ni Python ni base de datos: el
@@ -25,11 +34,28 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Solo al hacer push a main, y solo si `test` pasó: publica la imagen en GHCR
-  # etiquetada con la versión de pyproject.toml y como :latest.
+  # La puerta del frontend vive en el stage `web`, que corre `npm run check`
+  # (eslint + prettier + vitest + build + comprobación de assets locales). Sin este
+  # job solo se ejecutaría al publicar, es decir despues de fusionar: un fallo de
+  # lint del frontend tumbaria la publicacion en vez de bloquear el PR.
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: web
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Solo al hacer push a main, y solo si `test` y `web` pasaron: publica la imagen
+  # en GHCR etiquetada con la versión de pyproject.toml y como :latest.
   # arm64 es para la Raspberry Pi; amd64, para todo lo demás.
   publish:
-    needs: test
+    needs: [test, web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

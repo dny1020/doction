@@ -1,0 +1,78 @@
+name: Bug report
+description: Something behaves differently from what the docs say
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problems do **not** go here — report them privately at
+        [Security advisories](https://github.com/dny1020/doction/security/advisories/new).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+      placeholder: |
+        Searching for `renovacion` returns no results, but the page titled
+        "Renovación TLS" exists and contains the word.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: >
+        The shortest path to the bug. A `curl` invocation against `/api` is ideal, because
+        it separates a server bug from a browser one.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "The `version` field from `GET /health`, e.g. `0.31.3`."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How are you running it
+      options:
+        - Docker Compose (the repo's compose.yaml)
+        - Plain docker run
+        - From source (uv run uvicorn)
+        - Something else — described below
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: flags
+    attributes:
+      label: Optional features enabled
+      description: These change which code path runs, so they matter for most bugs.
+      options:
+        - label: "`SEMANTIC_SEARCH=1`"
+        - label: "`RERANK=1`"
+        - label: "`OCR_UPLOADS=1`"
+        - label: "`SECURE_COOKIES=1` (behind a TLS reverse proxy)"
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Architecture and host OS — arm64 on a Raspberry Pi behaves differently from amd64.
+      placeholder: arm64, Raspberry Pi OS bookworm
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: >
+        From `docker logs` or the rotated file under `LOG_DIR`. `LOG_LEVEL=DEBUG` gives more.
+        Redact tokens and passwords before pasting.
+      render: text

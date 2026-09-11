@@ -38,6 +38,16 @@ services:
       # Sin SECRET_KEY el server arranca con la clave de dev (y lo avisa en el log);
       # exportarla o ponerla en .env si este compose se usa fuera de localhost.
       SECRET_KEY: ${SECRET_KEY:-}
+      # El resto se reenvía con los mismos valores por defecto que usa la aplicación, para
+      # que lo que se documenta en .env.example llegue de verdad al contenedor: declararlo
+      # ahí y no pasarlo aquí es la forma silenciosa de que un flag no haga nada.
+      SECURE_COOKIES: ${SECURE_COOKIES:-0}
+      DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-0}
+      SEMANTIC_SEARCH: ${SEMANTIC_SEARCH:-0}
+      RERANK: ${RERANK:-0}
+      OCR_UPLOADS: ${OCR_UPLOADS:-0}
+      OCR_LANGS: ${OCR_LANGS:-eng+spa}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]

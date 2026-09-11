@@ -1,0 +1,63 @@
+name: Feature request
+description: Propose something doction should do that it does not do today
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        doction is deliberately small: markdown files, git history, local retrieval, no
+        LLM inside. Proposals that fit that shape get read fastest.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >
+        What are you trying to do that doction makes hard or impossible? Describe the
+        situation, not the solution — the best fix is often not the one you had in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: How you would like it to work, concretely.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What you do today instead
+      description: >
+        The current workaround, if any, and why it is not good enough. "There isn't one"
+        is a useful answer.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface
+      options:
+        - REST API
+        - MCP (agent-facing)
+        - Web UI
+        - Search / retrieval
+        - Deployment and operations
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Fit with the project's constraints
+      description: >
+        Not a gate — just say which of these your proposal touches, so the trade-off is
+        discussed up front rather than in review.
+      options:
+        - label: It needs a new runtime dependency
+        - label: It needs an outbound network call at runtime
+        - label: It needs an LLM
+        - label: It changes the on-disk markdown or git layout
+        - label: None of the above
