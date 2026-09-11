@@ -16,13 +16,13 @@
   },
   "dependencies": {
     "d3-force": "^3.0.0",
-    "dompurify": "^3.4.14",
+    "dompurify": "^3.4.15",
     "lucide-react": "^0.454.0",
     "markdown-it": "^14.1.0",
     "markdown-it-task-lists": "^2.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.27.0"
+    "react-router-dom": "^6.30.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -30,9 +30,9 @@
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.7.0",
+    "globals": "^17.12.0",
     "jsdom": "^30.0.1",
-    "prettier": "^3.9.5",
+    "prettier": "^3.9.6",
     "vite": "^5.4.10",
     "vitest": "^2.1.9"
   }
