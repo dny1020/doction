@@ -62,7 +62,7 @@ RUN service postgresql start \
 # node >=22.19.0, así que en node:20 el gate falla al cargar el entorno de pruebas
 # —y solo ahí, porque en local se corre sobre otra versión. Al subir la imagen base,
 # comprobar contra los `engines` del lockfile, no contra lo que haya en la máquina.
-FROM node:22-slim AS web
+FROM node:26-slim AS web
 
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
