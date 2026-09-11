@@ -1,0 +1,4 @@
+# Every path is owned by the maintainer, so every pull request gets a review request.
+# GitHub only enforces this when the branch protection rule for `main` requires
+# review from code owners — the file alone does not gate anything.
+*       @dny1020
