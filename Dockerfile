@@ -58,7 +58,11 @@ RUN service postgresql start \
 # Frontend React (Vite): construye la SPA. Node entra SOLO en este stage de build;
 # el runtime sigue siendo una imagen de solo Python. El bundle sale en
 # /build/app/static/app (por el outDir de vite.config.js: ../app/static/app).
-FROM node:20-slim AS web
+# Node 22 LTS, no 20: jsdom y undici (que entran por vitest) declaran `engines`
+# node >=22.19.0, así que en node:20 el gate falla al cargar el entorno de pruebas
+# —y solo ahí, porque en local se corre sobre otra versión. Al subir la imagen base,
+# comprobar contra los `engines` del lockfile, no contra lo que haya en la máquina.
+FROM node:22-slim AS web
 
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -69,8 +73,9 @@ COPY frontend/ ./
 # y por tanto donde aparecería una fuente pedida a un CDN. Sin esta copia el chequeo
 # no encontraba el fichero y la etapa fallaba solo aquí, no en local.
 COPY app/static/style.css /build/app/static/style.css
-# `check` = eslint + prettier --check + build + assets: el mismo gate que se corre en
-# local, así que el bundle solo se genera si el front pasa lint, formato y air-gap.
+# `check` = eslint + prettier --check + vitest + build + assets: el mismo gate que se
+# corre en local, así que el bundle solo se genera si el front pasa lint, formato,
+# pruebas y air-gap.
 RUN npm run check
 
 FROM base AS runtime
