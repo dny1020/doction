@@ -91,14 +91,21 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
 # Modelo de embeddings (MiniLM int8, ~22MB) horneado en la imagen → semántica
 # offline, sin servicios externos. Opt-in en runtime con SEMANTIC_SEARCH=1; si está
 # apagado el modelo ni se carga (0 RAM extra). Revisión + sha256 fijadas (reproducible).
+#
+# --retry porque el publish de 0.31.4 murió con un 429 de Hugging Face. El contenido va
+# pineado por revisión y verificado por sha256, así que aquello era disponibilidad y no
+# integridad: una release detenida por un límite momentáneo es una release detenida por
+# nada. El build multiarquitectura pide cada modelo una vez por arquitectura, lo que dobla
+# las peticiones y hace más probable el límite. Sin --retry-all-errors a propósito: un 404
+# o una revisión renombrada tienen que fallar ya, no tras cinco esperas.
 ARG MODEL_REPO=Xenova/all-MiniLM-L6-v2
 ARG MODEL_REV=751bff37182d3f1213fa05d7196b954e230abad9
 ARG MODEL_SHA256=afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1
 ARG TOKENIZER_SHA256=da0e79933b9ed51798a3ae27893d3c5fa4a201126cef75586296df9b4d2c62a0
 RUN mkdir -p /app/models \
-    && curl -fsSL -o /app/models/model_quantized.onnx \
+    && curl -fsSL --retry 5 --retry-delay 5 -o /app/models/model_quantized.onnx \
         "https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REV}/onnx/model_quantized.onnx" \
-    && curl -fsSL -o /app/models/tokenizer.json \
+    && curl -fsSL --retry 5 --retry-delay 5 -o /app/models/tokenizer.json \
         "https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REV}/tokenizer.json" \
     && echo "${MODEL_SHA256}  /app/models/model_quantized.onnx" | sha256sum -c - \
     && echo "${TOKENIZER_SHA256}  /app/models/tokenizer.json" | sha256sum -c -
@@ -110,9 +117,9 @@ ARG RERANK_REV=a09144355adeed5f58c8ed011d209bf8ee5a1fec
 ARG RERANK_SHA256=e9d8ebf845c413e981c175bfe49a3bfa9b3dcce2a3ba54875ee5df5a58639fbe
 ARG RERANK_TOKENIZER_SHA256=d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
 RUN mkdir -p /app/models/reranker \
-    && curl -fsSL -o /app/models/reranker/model_quantized.onnx \
+    && curl -fsSL --retry 5 --retry-delay 5 -o /app/models/reranker/model_quantized.onnx \
         "https://huggingface.co/${RERANK_REPO}/resolve/${RERANK_REV}/onnx/model_quantized.onnx" \
-    && curl -fsSL -o /app/models/reranker/tokenizer.json \
+    && curl -fsSL --retry 5 --retry-delay 5 -o /app/models/reranker/tokenizer.json \
         "https://huggingface.co/${RERANK_REPO}/resolve/${RERANK_REV}/tokenizer.json" \
     && echo "${RERANK_SHA256}  /app/models/reranker/model_quantized.onnx" | sha256sum -c - \
     && echo "${RERANK_TOKENIZER_SHA256}  /app/models/reranker/tokenizer.json" | sha256sum -c -

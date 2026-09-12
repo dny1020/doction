@@ -30,6 +30,30 @@ curl -s -X POST $DOCTION/api/mcp -H 'Content-Type: application/json' \
   | jq .result.serverInfo.version
 ```
 
+## Verifying an image you pulled
+
+Every published image carries an SBOM and SLSA provenance, so you can answer "what is in
+this" and "where did it come from" without unpacking layers or asking the maintainer.
+
+```bash
+# What is inside it: every package and version, as SPDX.
+docker buildx imagetools inspect ghcr.io/dny1020/doction:0.31.5 \
+  --format '{{ json .SBOM }}'
+
+# Where it came from: the CI run that built it, its steps and its resolved inputs.
+docker buildx imagetools inspect ghcr.io/dny1020/doction:0.31.5 \
+  --format '{{ json .Provenance }}'
+```
+
+The provenance names the GitHub Actions run that produced the image, so you can compare it
+against the commit the release claims. Both attestations are attached to the image index as
+extra manifests, which is why `docker manifest inspect` shows entries whose platform reads
+`unknown/unknown`.
+
+Release notes for a version live on its GitHub Release, generated from `CHANGELOG.md`.
+Releases start at 0.31.5; earlier tags predate the automation and have none, because the
+changelog describes that history in ranges rather than per version.
+
 ## Backup
 
 **Two halves, and one without the other does not restore.** The database is an index of the

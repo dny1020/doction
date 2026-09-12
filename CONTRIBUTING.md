@@ -102,10 +102,24 @@ Maintainer task, recorded here so the process is not folklore.
 
 1. Bump the version in **`pyproject.toml` only**. `app/version.py` reads it at import, so
    `/health`, the MCP `initialize` response, and the image tag all follow.
-2. Add the entry to `CHANGELOG.md`.
+2. Add the entry to `CHANGELOG.md`, under a `## X.Y.Z` heading. **This is not optional and
+   not a courtesy**: `make check` fails when the declared version has no section, because
+   release notes are taken from that file rather than written again somewhere else. The
+   check runs here rather than at tag time, where it would be too late — the tag would
+   already exist, and a published tag cannot be deleted.
 3. Merge to `main`. CI runs the gate inside `docker build --target test`, then publishes
-   `ghcr.io/dny1020/doction:{version}` and `:latest` for amd64 and arm64.
-4. Tag the commit `vX.Y.Z` and push the tag.
+   `ghcr.io/dny1020/doction:{version}` and `:latest` for amd64 and arm64, each carrying an
+   SBOM and SLSA provenance.
+4. Tag the commit `vX.Y.Z` and push the tag. Pushing it publishes the GitHub Release
+   automatically, with that version's changelog section as the body. Nothing else to do.
+
+**A published version tag cannot be moved or deleted.** A ruleset refuses both. A version is
+a promise that a name refers to one commit, and everything else — the notes, the provenance,
+the image contents — describes whatever that name resolves to. If a release turns out wrong,
+publish the next version; do not repoint the tag.
+
+Only tags matching `vX.Y.Z` trigger a release, so an experimental or mistyped tag is ignored
+rather than published.
 
 Deploying is manual and separate — see `docs/operations.md`.
 

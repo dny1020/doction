@@ -1,7 +1,7 @@
 # Atajos del flujo de este repositorio. Cada objetivo es el comando que ya está
 # documentado en CLAUDE.md; el Makefile no inventa ninguno.
 .PHONY: setup dev frontend build-web test test-clean lint format format-check \
-        typecheck spec license check eval image image-test up down logs restart \
+        typecheck spec license changelog check eval image image-test up down logs restart \
         graph clean
 
 # ── Puesta a punto ───────────────────────────────────────────────────────────
@@ -54,6 +54,12 @@ spec:
 license:
 	uv run python -m scripts.check_license
 
+# Las notas de una release salen del CHANGELOG, así que una versión sin entrada es una
+# release que nadie puede leer. Se comprueba aquí, contra la versión declarada, y no al
+# crear el tag: entonces ya sería tarde, el tag existiría y borrarlo está prohibido.
+changelog:
+	uv run python -m scripts.changelog --check
+
 check:
 	$(MAKE) lint
 	$(MAKE) format-check
@@ -61,6 +67,7 @@ check:
 	$(MAKE) test
 	cd frontend && npm run check
 	$(MAKE) license
+	$(MAKE) changelog
 	$(MAKE) spec
 
 # ── Recuperación ─────────────────────────────────────────────────────────────

@@ -34,6 +34,11 @@ jobs:
       - name: Licencia declarada de forma consistente
         run: python3 -m scripts.check_license
 
+      # Aquí y no al crear el tag: entonces el tag ya existiría, y el ruleset de esta
+      # misma ronda prohíbe borrarlo. Las notas de la release salen de este fichero.
+      - name: La versión declarada tiene entrada en el CHANGELOG
+        run: python3 -m scripts.changelog --check
+
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
       - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
@@ -94,5 +99,16 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:${{ steps.version.outputs.value }}
             ${{ env.IMAGE }}:latest
+          # Quien hace pull tiene que poder enumerar lo que se lleva y de dónde salió, sin
+          # preguntarnos. El SBOM responde «¿contiene el paquete de este aviso?» sin
+          # desarmar capas; Trivy corre en nuestra CI y ese resultado es nuestro, no suyo.
+          #
+          # La provenance ya existía: build-push-action la emite por defecto en mode=min,
+          # que nombra la corrida y las imágenes base pero no los pasos ni los materiales.
+          # mode=max sí, y con ello registra los build args: los ocho ARG de este
+          # Dockerfile son repos, revisiones y checksums, todos ya públicos en el
+          # repositorio, y la credencial del registro va a login-action y no al build.
+          sbom: true
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -1,0 +1,43 @@
+name: Release
+
+# Solo tags de versión. `v*` habría casado `rm`, el tag mal escrito que este repositorio
+# arrastraba, y lo habría convertido en una release publicada. El patrón exige tres números,
+# así que un tag que no es una versión queda ignorado por construcción y no por suerte.
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+# Lo mínimo para crear una release y nada más. Este job no construye ni publica imagen: la
+# de esta versión se publicó cuando la versión se fusionó a main, y un job que la
+# reconstruyera podría producir una imagen distinta bajo el mismo nombre.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Las notas salen del CHANGELOG, no se escriben otra vez aquí: dos copias a mano de
+      # lo que cambió divergen, y la que la gente lee es la que nadie actualiza. El gate ya
+      # comprobó que la versión declarada tiene entrada, así que esto no debería fallar
+      # nunca; si falla, la release no se publica vacía.
+      - name: Extraer las notas del CHANGELOG
+        id: notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          python3 -m scripts.changelog "$version" > release-notes.md
+          echo "--- notas de $version ---"
+          cat release-notes.md
+
+      - name: Publicar la release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "doction ${{ steps.notes.outputs.version }}" \
+            --notes-file release-notes.md \
+            --verify-tag
