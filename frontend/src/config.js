@@ -11,8 +11,8 @@
 // hay despliegue que la mueva. Lo que sí varía es dónde se monta la SPA, dónde se
 // sirven los estáticos y dónde responde MCP.
 
-// El basename del router. Vite deja el `base` del build en BASE_URL, siempre con
-// barra final; el router la quiere sin ella, y vacía para la raíz.
-export const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+// El basename del router, sin barra final y vacío para la raíz. Lo sustituye vite
+// (define) desde el mismo DOCTION_APP_PATH que fija el `base` del build.
+export const APP_BASE = __DOCTION_APP_BASE__
 
 export const MCP_PATH = __DOCTION_MCP_PATH__

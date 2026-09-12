@@ -21,6 +21,8 @@ export default [
         katex: 'readonly',
         // Lo sustituye vite (define) con la ruta configurada del servidor MCP.
         __DOCTION_MCP_PATH__: 'readonly',
+        // Ídem, con el basename de la SPA.
+        __DOCTION_APP_BASE__: 'readonly',
       },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },

@@ -64,6 +64,12 @@ export default defineConfig({
   base: appPath === '/' ? '/' : appPath + '/',
   define: {
     __DOCTION_MCP_PATH__: JSON.stringify(mcpPath),
+    // El basename del router, del mismo `appPath` que `base`. Va por define y no
+    // leyendo import.meta.env.BASE_URL porque eso solo lo rellena el pipeline de
+    // build: vitest no hereda el `base` de aquí, y fijarlo en su propia config
+    // dejó de propagarse a BASE_URL. Un constante de construcción vale igual en
+    // los dos y no depende de por dónde se resuelva.
+    __DOCTION_APP_BASE__: JSON.stringify(appPath === '/' ? '' : appPath),
   },
   build: {
     outDir: '../app/static/app',
