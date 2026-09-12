@@ -122,5 +122,10 @@ Participating means agreeing to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-Contributions are accepted under the [MIT License](LICENSE), the same terms as the rest of
-the project.
+Contributions are accepted under the [GNU General Public License v3.0 only](LICENSE), the
+same terms as the rest of the project. Opening a pull request means you agree your work
+ships under that licence.
+
+The project was MIT until 0.31.3 and is GPL-3.0-only from 0.31.4. If you add a dependency,
+check its licence is compatible with GPL-3.0 — permissive licences (MIT, BSD, ISC,
+Apache-2.0) and LGPL are; GPL-2.0-only is not.

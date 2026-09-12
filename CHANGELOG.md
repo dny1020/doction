@@ -13,6 +13,10 @@ summarised per release rather than exhaustive.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.31.4 — 2026-09-12
+
 ### Added
 
 - Repository governance: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`,
@@ -20,14 +24,28 @@ summarised per release rather than exhaustive.
 - Documentation set under `docs/`: installation, configuration reference, architecture,
   operations, agents and MCP, troubleshooting.
 - Dependabot for four ecosystems: `uv`, npm in `frontend/`, Docker base images, and GitHub
-  Actions. Minor and patch updates are grouped so a normal week is one pull request per
-  ecosystem.
+  Actions.
 - `Security` workflow: CodeQL for Python and JavaScript, `pip-audit` against the locked
   environment, `npm audit` for the frontend, Trivy against the runtime image, and
   dependency review on pull requests.
 
 ### Changed
 
+- **Relicensed to GPL-3.0-only.** `LICENSE` now carries the verbatim GNU General Public
+  License version 3, and `pyproject.toml` declares `license = "GPL-3.0-only"`.
+
+  Releases up to and including 0.31.3 were published under MIT, and that grant is not
+  withdrawn: anyone who received those versions keeps those terms. Relicensing is not
+  retroactive.
+
+  Every bundled dependency was checked for compatibility first. All are one-way compatible
+  with GPL-3.0 — MIT, BSD-2/3-Clause, ISC, Apache-2.0, MPL-2.0, Blue Oak 1.0.0, CC0, and
+  LGPL-3.0-only for `psycopg`. Nothing in the tree is GPL-2.0-only or proprietary, which is
+  what would have blocked it.
+
+  For a self-hosted wiki: running it and modifying your own copy carry no obligation, and
+  hosting it for other people is not distribution. Distributing it, modified or not, means
+  passing on the source under the same licence.
 - **The frontend gate now runs on pull requests.** CI built only `--target test`, so
   `npm run check` reached CI exclusively through the publish job — after merge. A failing
   frontend lint broke the publish instead of blocking the pull request. A `web` job now
@@ -37,6 +55,38 @@ summarised per release rather than exhaustive.
   CI. The 42 markdown-rendering tests never gated anything.
 - README screenshots regenerated against the current React SPA. The previous ones predated
   it, showed a private wiki's page titles, and claimed 12 MCP tools where there are 27.
+
+### Fixed
+
+- `APP_BASE` is derived from a build-time `define` instead of `import.meta.env.BASE_URL`.
+  The test harness got the basename by setting `base: '/app/'` in `vitest.config.js`, and a
+  newer vitest stops propagating `base` into `BASE_URL`, so `APP_BASE` collapsed to `''`
+  and the six wikilink tests compared against unprefixed hrefs. Never a production
+  problem — the build still takes `base` from `vite.config.js` — but it cost the harness
+  the ability to reproduce the real basename, and those tests are the only thing checking
+  that wikilink anchors carry it. `MCP_PATH` already travelled as a `define` for exactly
+  this reason; `APP_BASE` now does too.
+- The `web` build stage runs on `node:22-slim`. Putting vitest in `npm run check` pulled in
+  jsdom and undici, whose `engines` require Node >= 22.19.0, so the gate failed on
+  `node:20` and only there.
+- `aquasecurity/trivy-action` was referenced at a tag that does not exist, so the image
+  scan failed at job setup before running a step.
+
+### Security
+
+- Third-party GitHub Actions are pinned to commit SHAs with the version in a trailing
+  comment. `docker/login-action` and `docker/build-push-action` run in `publish`, where the
+  token carries `packages: write`, so a mutable tag there was a supply-chain hole. CodeQL's
+  `security-and-quality` suite had flagged it.
+- `npm audit` and `pip-audit` moved to the weekly cron, off push and pull request. What
+  they detect was not introduced by the change that triggered the run, and on `main` the
+  result was a red mark that stayed until a patched version existed and could be merged. A
+  permanently red workflow is one that gets ignored. `dependency-review` remains the pull
+  request gate, since it only inspects what a pull request introduces.
+- Dependency updates for the react, eslint and vite families are grouped, because these
+  declare peers on each other and a single-package bump cannot install at all.
+- Documented that registration is **open by default**, and that `DISABLE_REGISTRATION=1`
+  is what closes it. It was absent from the README's configuration table.
 
 ### Removed
 

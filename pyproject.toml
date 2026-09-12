@@ -1,7 +1,9 @@
 [project]
 name = "doction"
-version = "0.31.3"
+version = "0.31.4"
 description = "Minimalist, markdown-first DevOps knowledge system"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115",

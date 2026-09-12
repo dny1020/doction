@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/dny1020/doction/actions/workflows/ci.yaml/badge.svg)](https://github.com/dny1020/doction/actions/workflows/ci.yaml)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0--only-blue)](LICENSE)
 [![GHCR](https://img.shields.io/badge/ghcr.io-dny1020%2Fdoction-blue?logo=docker)](https://github.com/dny1020/doction/pkgs/container/doction)
 
 A self-hosted, markdown-first wiki and knowledge base built for humans **and** AI agents.
@@ -317,4 +317,21 @@ and `docker compose up -d` on the host, with your own compose file.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+GNU General Public License v3.0 only — see [LICENSE](LICENSE).
+
+doction is free software: you can redistribute it and modify it under the terms of the
+GNU General Public License, version 3, as published by the Free Software Foundation. It
+is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY, without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+What that means in practice for a self-hosted wiki: running it, and modifying your own
+copy, carry no obligation. Distributing it, modified or not, means passing on the source
+under the same licence. Hosting it for other people is not distribution, so a private
+instance stays private.
+
+Releases up to and including 0.31.3 were published under the MIT licence, and that grant
+is not withdrawn — anyone who received those versions keeps those terms. From 0.31.4
+onwards the project is GPL-3.0-only.
+
+The bundled dependencies keep their own licences, all of them compatible with GPL-3.0:
+MIT, BSD, ISC, Apache-2.0, MPL-2.0, Blue Oak 1.0.0, and LGPL-3.0 for `psycopg`.
