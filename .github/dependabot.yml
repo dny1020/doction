@@ -36,6 +36,17 @@ updates:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
     groups:
+      # Los tres grupos de pares van PRIMERO: un paquete solo entra en un grupo, y
+      # gana el primero que lo empareja. Existen porque estas familias declaran peers
+      # entre sí, así que un PR de un solo paquete no resuelve — `npm ci` muere con
+      # ERESOLVE y el PR queda inmergeable por mucho que se rebasee. Agruparlas es lo
+      # que convierte una actualización mayor en algo que se puede probar de una pieza.
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      eslint:
+        patterns: ["eslint", "@eslint/*", "eslint-plugin-*", "eslint-config-*"]
+      vite:
+        patterns: ["vite", "@vitejs/*", "vitest", "@vitest/*", "jsdom"]
       npm-minor-patch:
         patterns: ["*"]
         update-types: [minor, patch]
