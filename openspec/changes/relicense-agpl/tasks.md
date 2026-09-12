@@ -100,7 +100,7 @@
 - [x] 4.2 Update the GitHub repository description, which still says "MIT licensed", and
       confirm the consistency check from 2.2 now reports agreement. This is a manual step
       because a commit cannot reach platform metadata.
-- [ ] 4.3 Tag the release and confirm the published image reports the new version via the
+- [x] 4.3 Tag the release and confirm the published image reports the new version via the
       MCP `initialize` response.
 
 ### Notes on section 4
