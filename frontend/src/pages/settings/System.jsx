@@ -68,6 +68,29 @@ export default function SystemSection() {
         <Fact label={t('version')} value={report.version} />
         <Fact label={t('database')} value={report.db === 'ok' ? t('db_ok') : t('db_unreachable')} />
       </dl>
+
+      {/* La AGPL obliga a la instancia, no al repositorio: quien la usa por red tiene
+          derecho al fuente, así que se ofrece desde aquí y no solo desde el README. El
+          operador de un fork modificado apunta SOURCE_URL a su propio código. */}
+      {report.license !== undefined && (
+        <>
+          <h3 className="eyebrow">{t('system_license')}</h3>
+          <p className="card-desc">{t('system_license_desc')}</p>
+          <dl className="rows rows--divided">
+            <Fact label={t('license')} value={report.license} />
+            {report.source_url && (
+              <div className="row">
+                <dt className="row-name">{t('source_code')}</dt>
+                <dd className="meta meta--strong">
+                  <a href={report.source_url} target="_blank" rel="noreferrer noopener">
+                    {report.source_url}
+                  </a>
+                </dd>
+              </div>
+            )}
+          </dl>
+        </>
+      )}
     </section>
   )
 }

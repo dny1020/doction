@@ -35,7 +35,7 @@ from app.auth import verify_password as _verify_password
 from app.avatar import normalize_color
 from app.logging_config import configure_logging
 from app.models import Workspace
-from app.version import VERSION
+from app.version import LICENSE_ID, VERSION
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -50,6 +50,12 @@ SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "
 # arranque) siempre puede crearse para no dejar la instancia inaccesible; los demás se
 # dan de alta con scripts/create_user.py.
 DISABLE_REGISTRATION = os.environ.get("DISABLE_REGISTRATION", "").lower() in {"1", "true", "yes"}
+
+# AGPL-3.0 §13: quien usa la instancia por red tiene derecho al fuente correspondiente.
+# Configurable porque el operador que modifica doction debe sus cambios a SUS usuarios, no
+# los de este proyecto: una URL fija a upstream dejaría a un fork modificado creyéndose
+# cumplidor. Por defecto apunta aquí, así que un despliegue sin modificar ya cumple.
+SOURCE_URL = os.environ.get("SOURCE_URL", "").strip() or "https://github.com/dny1020/doction"
 
 # Cabeceras de seguridad fijadas en cada respuesta (defensa en profundidad).
 # CSP pragmática: 'unsafe-inline' en script-src sigue siendo necesario por el script
@@ -613,6 +619,11 @@ def api_system(request: Request):
     report = {
         "version": VERSION,
         "db": db_state,
+        # La licencia y el fuente van aquí porque la obligación de la AGPL es de la
+        # instancia, no del repositorio: quien la usa por red tiene que poder llegar al
+        # código desde la propia aplicación.
+        "license": LICENSE_ID,
+        "source_url": SOURCE_URL,
         "semantic_search": semantic,
         "rerank": embeddings.rerank_enabled(),
         "ocr_uploads": ocr.ocr_enabled(),

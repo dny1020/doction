@@ -1,7 +1,7 @@
 # Atajos del flujo de este repositorio. Cada objetivo es el comando que ya está
 # documentado en CLAUDE.md; el Makefile no inventa ninguno.
 .PHONY: setup dev frontend build-web test test-clean lint format format-check \
-        typecheck spec check eval image image-test up down logs restart \
+        typecheck spec license check eval image image-test up down logs restart \
         graph clean
 
 # ── Puesta a punto ───────────────────────────────────────────────────────────
@@ -49,12 +49,18 @@ spec:
 	openspec validate --all --strict
 	openspec list
 
+# La licencia se declara en siete sitios y uno vive fuera del árbol. Esto los compara
+# contra pyproject.toml, que es la única fuente escrita a mano.
+license:
+	uv run python -m scripts.check_license
+
 check:
 	$(MAKE) lint
 	$(MAKE) format-check
 	$(MAKE) typecheck
 	$(MAKE) test
 	cd frontend && npm run check
+	$(MAKE) license
 	$(MAKE) spec
 
 # ── Recuperación ─────────────────────────────────────────────────────────────

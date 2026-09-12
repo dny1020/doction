@@ -122,10 +122,14 @@ Participating means agreeing to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-Contributions are accepted under the [GNU General Public License v3.0 only](LICENSE), the
-same terms as the rest of the project. Opening a pull request means you agree your work
-ships under that licence.
+Contributions are accepted under the
+[GNU Affero General Public License v3.0 only](LICENSE), the same terms as the rest of the
+project. Opening a pull request means you agree your work ships under that licence.
 
-The project was MIT until 0.31.3 and is GPL-3.0-only from 0.31.4. If you add a dependency,
-check its licence is compatible with GPL-3.0 — permissive licences (MIT, BSD, ISC,
-Apache-2.0) and LGPL are; GPL-2.0-only is not.
+The project was MIT through 0.31.3, GPL-3.0-only at 0.31.4, and is AGPL-3.0-only from
+0.31.5.
+
+If you add a dependency, establish its licence is compatible **before** the change lands —
+a dependency cannot be removed from a release that has already shipped. Permissive licences
+(MIT, BSD, ISC, Apache-2.0) and LGPL are compatible; GPL-2.0-only is not. Say which licence
+it carries in the pull request description, not just which package it is.

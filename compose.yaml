@@ -43,6 +43,7 @@ services:
       # ahí y no pasarlo aquí es la forma silenciosa de que un flag no haga nada.
       SECURE_COOKIES: ${SECURE_COOKIES:-0}
       DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-0}
+      SOURCE_URL: ${SOURCE_URL:-}
       SEMANTIC_SEARCH: ${SEMANTIC_SEARCH:-0}
       RERANK: ${RERANK:-0}
       OCR_UPLOADS: ${OCR_UPLOADS:-0}

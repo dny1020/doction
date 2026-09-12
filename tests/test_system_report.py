@@ -105,3 +105,25 @@ def test_index_counts_helper(client):
     total, indexed = db.index_counts(int(row["id"]), "cualquier-modelo", "cualquier-troceador")
     assert total > 0
     assert indexed == 0
+
+
+def test_reports_license_and_source(client):
+    """AGPL-3.0 §13 obliga a la instancia, no al repositorio: quien la usa por red tiene
+    que poder llegar al fuente desde la propia aplicación, así que /api/system lo informa."""
+    _register(client)
+    body = client.get("/api/system").json()
+
+    from app.version import LICENSE_ID
+
+    assert body["license"] == LICENSE_ID == "AGPL-3.0-only"
+    assert body["source_url"].startswith("https://")
+
+
+def test_source_url_is_operator_configurable(client, monkeypatch):
+    """Un fork modificado debe sus cambios a SUS usuarios, así que no puede quedar fijo
+    apuntando a upstream: eso sería una declaración de cumplimiento falsa."""
+    from app import main
+
+    monkeypatch.setattr(main, "SOURCE_URL", "https://git.example.org/mi-fork")
+    _register(client)
+    assert client.get("/api/system").json()["source_url"] == "https://git.example.org/mi-fork"

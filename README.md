@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/dny1020/doction/actions/workflows/ci.yaml/badge.svg)](https://github.com/dny1020/doction/actions/workflows/ci.yaml)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
-[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0--only-blue)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0--only-blue)](LICENSE)
 [![GHCR](https://img.shields.io/badge/ghcr.io-dny1020%2Fdoction-blue?logo=docker)](https://github.com/dny1020/doction/pkgs/container/doction)
 
 A self-hosted, markdown-first wiki and knowledge base built for humans **and** AI agents.
@@ -107,6 +107,7 @@ sign-up is open by default.
 | `DATABASE_URL` | Postgres connection string. | `postgresql://doction:doction@postgres:5432/doction` |
 | `DATA_DIR` | Directory for the git pages repo + uploads. | `/data` |
 | `SECURE_COOKIES` | `1` when behind TLS (reverse proxy). Also makes an unset `SECRET_KEY` a hard startup failure instead of a warning. | off |
+| `SOURCE_URL` | Where this instance's source lives, shown to signed-in users in Settings. AGPL-3.0 obliges an operator who **modified** doction to offer their source to the people using it, so point this at your fork. An unmodified deployment needs no setting. | this repository |
 | `DISABLE_REGISTRATION` | `1` closes public sign-up. **Registration is open by default** — on a reachable instance anyone who finds the URL can create an account. The first user can still register with the flag on, so a fresh instance is never locked out. | off |
 | `SEMANTIC_SEARCH` | `1` enables local semantic search (`sgrep` / `rag`). | off |
 | `RERANK` | `1` re-scores top `sgrep` hits with a local cross-encoder (requires `SEMANTIC_SEARCH=1`). | off |
@@ -317,21 +318,41 @@ and `docker compose up -d` on the host, with your own compose file.
 
 ## License
 
-GNU General Public License v3.0 only — see [LICENSE](LICENSE).
+GNU Affero General Public License v3.0 only — see [LICENSE](LICENSE).
 
-doction is free software: you can redistribute it and modify it under the terms of the
-GNU General Public License, version 3, as published by the Free Software Foundation. It
+doction is free software: you can redistribute it and modify it under the terms of the GNU
+Affero General Public License, version 3, as published by the Free Software Foundation. It
 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY, without even
 the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-What that means in practice for a self-hosted wiki: running it, and modifying your own
-copy, carry no obligation. Distributing it, modified or not, means passing on the source
-under the same licence. Hosting it for other people is not distribution, so a private
-instance stays private.
+### What this obliges you to do
 
-Releases up to and including 0.31.3 were published under the MIT licence, and that grant
-is not withdrawn — anyone who received those versions keeps those terms. From 0.31.4
-onwards the project is GPL-3.0-only.
+doction is software you host for people, so the licence attaches to *operating* it and not
+only to handing out copies. Three cases, which is the whole of it:
 
-The bundled dependencies keep their own licences, all of them compatible with GPL-3.0:
-MIT, BSD, ISC, Apache-2.0, MPL-2.0, Blue Oak 1.0.0, and LGPL-3.0 for `psycopg`.
+| What you are doing | What you owe |
+| --- | --- |
+| Running a published release, unmodified | Nothing further. |
+| Modifying it, and keeping the instance to yourself or your team | Nothing further. |
+| Modifying it, and letting other people use it over a network | Those users are entitled to your modified source. |
+
+That third case is why the licence is AGPL and not GPL. Under the plain GPL, hosting a
+modified version for other people is not distribution, so nothing would be triggered and a
+fork could be sold as a service with its changes kept private.
+
+The instance helps you comply rather than leaving it to memory: set `SOURCE_URL` to where
+your source lives, and doction shows it to signed-in users in Settings. It defaults to this
+repository, so an unmodified deployment is already compliant with no configuration. If you
+run a modified fork, point it at your own source — the default would be a confidently
+incorrect claim.
+
+### Previous releases
+
+Relicensing is not retroactive. Releases through 0.31.3 were published under MIT and 0.31.4
+under GPL-3.0-only; both grants stand, and anyone who received those versions keeps those
+terms. AGPL-3.0-only applies from 0.31.5 onwards.
+
+### Dependencies
+
+The bundled dependencies keep their own licences, all compatible with AGPL-3.0: MIT, BSD,
+ISC, Apache-2.0, MPL-2.0, Blue Oak 1.0.0, CC0, and LGPL-3.0-only for `psycopg`.

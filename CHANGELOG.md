@@ -15,6 +15,37 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.31.5 — 2026-09-12
+
+### Changed
+
+- **Relicensed to AGPL-3.0-only.** `LICENSE` carries the verbatim GNU Affero General Public
+  License version 3 (661 lines, the FSF text, sha256 `0d96a4ff…079abcb0`).
+
+  The reason is narrow. doction is hosted for people, and the plain GPL attaches its
+  obligation to *distributing* a copy. An operator never hands anyone a copy, so a modified
+  fork could be sold as a hosted service with its changes kept private. The AGPL's section
+  13 attaches the obligation to network use instead, which is the case doction actually has.
+
+  **Relicensing is not retroactive.** Releases through 0.31.3 were published under MIT and
+  0.31.4 under GPL-3.0-only. Both grants stand and are not withdrawn: anyone who received
+  those versions keeps those terms. AGPL-3.0-only applies from this release onwards.
+
+  Dependency compatibility was re-established for AGPL-3.0 before the change: MIT, BSD-2/3,
+  ISC, Apache-2.0, MPL-2.0, PSF-2.0, 0BSD, Zlib, CC0, CC-BY-4.0, Blue Oak 1.0.0, and
+  LGPL-3.0-only for `psycopg`. Nothing in the tree is GPL-2.0-only or proprietary.
+
+### Added
+
+- `SOURCE_URL` and a licence field on `GET /api/system`, surfaced in Settings, so a running
+  instance offers its source to the people using it. It defaults to this repository, so an
+  unmodified deployment complies with no configuration, and it is configurable because an
+  operator who modifies doction owes their users *their* source, not this project's.
+- A licence-consistency check in `make check`. The licence is declared in seven places and
+  one of them, the published repository description, said "MIT licensed" two releases after
+  MIT was replaced without anyone noticing. The check reads `pyproject.toml` as the single
+  authored source and fails when any other declaration disagrees.
+
 ## 0.31.4 — 2026-09-12
 
 ### Added

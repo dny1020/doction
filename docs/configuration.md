@@ -28,6 +28,30 @@ that is public on GitHub.
 | `SECURE_COOKIES` | off | Set to `1` when a TLS-terminating proxy is in front. Marks the session cookie `Secure`, so it is never sent over plain HTTP. Leaving it off on a public instance means the session cookie travels in the clear on any accidental HTTP request. |
 | `DISABLE_REGISTRATION` | off | Set to `1` to close public sign-up. **Registration is open by default**: on a reachable instance, anyone who finds the URL can create an account. With the flag set, the first user can still register — so a fresh instance is never locked out — and everyone after that has to be added as a workspace member by an owner. |
 
+## Licence compliance
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `SOURCE_URL` | this project's repository | Where this instance's source lives. Reported by `GET /api/system` and shown to signed-in users in Settings. |
+
+doction is AGPL-3.0-only, and that licence attaches its obligation to *network use* rather
+than to handing out copies. An operator who modified doction and lets other people use it
+owes those users the modified source. The software surfaces the offer so it does not depend
+on the operator remembering.
+
+Three cases, which is the whole of it:
+
+| What you are doing | What you set |
+| --- | --- |
+| Running a published release, unmodified | Nothing. The default points at upstream, which is the source you are running. |
+| Modified, instance private to you or your team | Nothing. No obligation is triggered. |
+| Modified, other people use it over a network | `SOURCE_URL` must point at *your* source. |
+
+Leaving the default on a modified instance is worse than leaving it empty: the instance
+then makes a confident claim that the code it is running is at a URL where it is not. The
+software cannot verify that a URL serves the corresponding source, so that part stays the
+operator's responsibility.
+
 ## Storage
 
 | Variable | Default | What it does |
