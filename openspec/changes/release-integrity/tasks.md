@@ -17,7 +17,18 @@
 
 ### Notes on section 1
 
-<!-- Record what actually happened here, including anything that diverged from the plan. -->
+- **The gate uses `--check`, not a separate flag for the declared version.** The first cut
+  had `--declared` printing the section, which meant the Makefile had to extract the version
+  itself to print a confirmation, and the shell quoting for that broke. `--check` now reads
+  the declared version and prints its own one-line confirmation, so the caller needs to know
+  nothing. The bare form still prints the section for the release workflow.
+- **Two tests read the real CHANGELOG.md and are skipped in the Docker `test` stage — and CI
+  found that, again.** The module docstring originally asserted the opposite, that the file
+  is "present wherever pytest runs". It is not: that stage copies only app/, tests/, scripts/
+  and pyproject.toml, exactly as with the licence tests one change earlier. Only the two
+  file-reading cases skip; the four parametrised ones build their own changelog in a
+  temporary tree and keep running in CI, so the parser's rules stay covered where it
+  matters. Verified in the stripped stage *before* pushing this time.
 
 ## 2. Retries on the model downloads
 
