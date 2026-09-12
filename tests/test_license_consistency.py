@@ -19,6 +19,18 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 DECLARATION_FILES = ("LICENSE", "README.md", "CONTRIBUTING.md", "pyproject.toml")
+_EXTRA_FILES = ("frontend/package.json", "scripts/check_license.py")
+
+# El stage `test` del Dockerfile copia solo app/, tests/, scripts/ y pyproject.toml, así
+# que LICENSE, el README y CONTRIBUTING no están ahí. Copiarlos solo para esto haría que
+# una errata del README invalidase la capa y volviese a correr la suite entera, que es
+# justo lo que se evitó sacando el check del Dockerfile (ver design.md). El check sí corre
+# en CI, como paso previo al build; lo que se salta aquí son sus tests.
+_missing = [f for f in (*DECLARATION_FILES, *_EXTRA_FILES) if not (ROOT / f).exists()]
+pytestmark = pytest.mark.skipif(
+    bool(_missing),
+    reason=f"árbol recortado, faltan las declaraciones: {', '.join(_missing)}",
+)
 
 
 def _tree(tmp_path: Path) -> Path:

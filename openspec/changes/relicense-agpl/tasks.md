@@ -50,6 +50,13 @@
   exact phrasing; it fails when the description names a *different* licence family. Requiring
   an exact string would have forced the description into a template, and the actual bug was a
   stale name, not a missing one.
+- **The check's tests skip inside the Docker `test` stage, and that was found by CI, not
+  by review.** Moving the check out of the Dockerfile solved the cache problem for the check
+  but not for its tests, which run under pytest and therefore inside that stage — where
+  `LICENSE`, the README and `CONTRIBUTING.md` do not exist, so `shutil.copy` failed and the
+  build went red. They now skip with the missing files named. Copying those four files in
+  just for the tests would have reintroduced exactly the cache cost the design rejected. The
+  check itself still runs in CI as a step; what is skipped there is its coverage.
 - **The API response is cached.** After updating the description via the API, the public
   unauthenticated endpoint served the old value for a short while. Nothing was done about it:
   the check is not a gate on the description being freshly written, and a stale read resolves
