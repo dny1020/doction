@@ -38,13 +38,18 @@ jobs:
   # cubre: Dependabot abre PRs de actualización, esto reporta si hoy hay algo
   # vulnerable instalado.
   #
-  # NO corre en pull_request, a propósito. Un aviso publicado de madrugada pondría en
-  # rojo todos los PR abiertos, incluidos los que no tocan dependencias — y peor, los
-  # de Dependabot que vienen precisamente a arreglarlo, que quedarían bloqueados por
-  # el problema que resuelven. El gate de los PR es `dependency-review`, que solo mira
-  # lo que el PR *introduce*. Esto vigila la rama y el calendario.
+  # Solo en el cron semanal. Ni en pull_request ni en push, y por la misma razón en
+  # los dos casos: lo que esto detecta no lo introdujo el cambio que disparó la
+  # corrida. Un aviso publicado de madrugada pondría en rojo todos los PR abiertos
+  # —incluidos los de Dependabot que vienen a arreglarlo, bloqueados por el problema
+  # que resuelven—, y en main deja una marca roja fija hasta que exista una versión
+  # parcheada que se pueda fusionar. Un workflow permanentemente rojo se ignora, que
+  # es justo lo que esto quiere evitar.
+  #
+  # El gate de los PR es `dependency-review`, que solo mira lo que el PR *introduce*.
+  # Esto vigila el calendario: una revisión semanal que falla es una señal.
   audit:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
