@@ -58,3 +58,9 @@ evals/corpus*/
 graphify-out/
 .claudeignore
 .agents/
+
+# Salida del sitio de documentación y su árbol de staging: ambos se regeneran con
+# `make docs` desde los mismos archivos versionados, así que versionarlos sería una
+# segunda copia de cada documento.
+build/
+site/

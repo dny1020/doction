@@ -195,7 +195,7 @@ def _authenticate(request: Request, email: str, password: str):
     return user
 
 
-@api_router.post("/token")
+@api_router.post("/token", tags=["auth"])
 def api_token(request: Request, body: _TokenIn):
     user = _authenticate(request, body.email, body.password)
     return {
@@ -204,7 +204,7 @@ def api_token(request: Request, body: _TokenIn):
     }
 
 
-@api_router.post("/tokens", status_code=201)
+@api_router.post("/tokens", status_code=201, tags=["auth"])
 def api_create_token(request: Request, body: _ApiTokenIn):
     uid = _api_user(request)
     token = generate_api_token()
@@ -213,13 +213,13 @@ def api_create_token(request: Request, body: _ApiTokenIn):
     return {"id": token_id, "name": body.name.strip() or "token", "token": token}
 
 
-@api_router.get("/tokens")
+@api_router.get("/tokens", tags=["auth"])
 def api_list_tokens(request: Request):
     uid = _api_user(request)
     return [dataclasses.asdict(t) for t in db.list_api_tokens(uid)]
 
 
-@api_router.get("/webhooks")
+@api_router.get("/webhooks", tags=["webhooks"])
 def api_list_webhooks(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -235,9 +235,9 @@ def api_list_webhooks(request: Request):
     return hooks
 
 
-@api_router.get("/webhooks/{webhook_id}/deliveries")
+@api_router.get("/webhooks/{webhook_id}/deliveries", tags=["webhooks"])
 def api_webhook_deliveries(request: Request, webhook_id: int):
-    """Qué ha salido por este webhook y qué no. Solo lectura: mirar no reintenta."""
+    """What this webhook has delivered and what it has not. Read-only: looking is not a retry."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     if not any(hook.id == webhook_id for hook in db.list_webhooks(wid)):
@@ -245,7 +245,7 @@ def api_webhook_deliveries(request: Request, webhook_id: int):
     return [dataclasses.asdict(d) for d in db.list_deliveries(webhook_id)]
 
 
-@api_router.post("/webhooks", status_code=201)
+@api_router.post("/webhooks", status_code=201, tags=["webhooks"])
 def api_create_webhook(request: Request, body: _WebhookIn):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -259,7 +259,7 @@ def api_create_webhook(request: Request, body: _WebhookIn):
     return {"id": hook_id, "url": url, "events": body.events.strip(), "secret": secret}
 
 
-@api_router.delete("/webhooks/{webhook_id}", status_code=204)
+@api_router.delete("/webhooks/{webhook_id}", status_code=204, tags=["webhooks"])
 def api_delete_webhook(request: Request, webhook_id: int):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -267,14 +267,14 @@ def api_delete_webhook(request: Request, webhook_id: int):
         raise HTTPException(status_code=404, detail="Webhook not found")
 
 
-@api_router.delete("/tokens/{token_id}", status_code=204)
+@api_router.delete("/tokens/{token_id}", status_code=204, tags=["auth"])
 def api_revoke_token(request: Request, token_id: int):
     uid = _api_user(request)
     if not db.revoke_api_token(uid, token_id):
         raise HTTPException(status_code=404, detail="Token not found")
 
 
-@api_router.get("/workspaces")
+@api_router.get("/workspaces", tags=["workspaces"])
 def api_list_workspaces(request: Request):
     uid = _api_user(request)
     # Construimos el dict a mano para devolver solo estos campos (no user_id, etc.).
@@ -284,7 +284,7 @@ def api_list_workspaces(request: Request):
     ]
 
 
-@api_router.post("/workspaces", status_code=201)
+@api_router.post("/workspaces", status_code=201, tags=["workspaces"])
 def api_create_workspace(request: Request, body: _WorkspaceIn):
     uid = _api_user(request)
     slug = db.create_workspace(uid, body.name)
@@ -301,7 +301,7 @@ def _api_owned_workspace(uid: int, slug: str) -> Workspace:
     return ws
 
 
-@api_router.put("/workspaces/{slug}")
+@api_router.put("/workspaces/{slug}", tags=["workspaces"])
 def api_rename_workspace(request: Request, slug: str, body: _WorkspaceIn):
     uid = _api_user(request)
     _api_owned_workspace(uid, slug)  # exige ser owner
@@ -310,7 +310,7 @@ def api_rename_workspace(request: Request, slug: str, body: _WorkspaceIn):
     return {"slug": slug, "name": body.name.strip()}
 
 
-@api_router.delete("/workspaces/{slug}")
+@api_router.delete("/workspaces/{slug}", tags=["workspaces"])
 def api_delete_workspace(request: Request, slug: str) -> Response:
     uid = _api_user(request)
     _api_owned_workspace(uid, slug)  # exige ser owner
@@ -325,7 +325,7 @@ def api_delete_workspace(request: Request, slug: str) -> Response:
     return response
 
 
-@api_router.get("/workspaces/{slug}/members")
+@api_router.get("/workspaces/{slug}/members", tags=["workspaces"])
 def api_list_members(request: Request, slug: str):
     uid = _api_user(request)
     ws = db.get_workspace_by_slug(uid, slug)
@@ -342,7 +342,7 @@ def api_list_members(request: Request, slug: str):
     ]
 
 
-@api_router.post("/workspaces/{slug}/members", status_code=201)
+@api_router.post("/workspaces/{slug}/members", status_code=201, tags=["workspaces"])
 def api_add_member(request: Request, slug: str, body: _MemberIn):
     uid = _api_user(request)
     ws = _api_owned_workspace(uid, slug)
@@ -355,7 +355,7 @@ def api_add_member(request: Request, slug: str, body: _MemberIn):
     return {"workspace": slug, "user_id": int(target.id), "role": "member"}
 
 
-@api_router.delete("/workspaces/{slug}/members/{member_id}", status_code=204)
+@api_router.delete("/workspaces/{slug}/members/{member_id}", status_code=204, tags=["workspaces"])
 def api_remove_member(request: Request, slug: str, member_id: int):
     uid = _api_user(request)
     ws = _api_owned_workspace(uid, slug)
@@ -365,9 +365,9 @@ def api_remove_member(request: Request, slug: str, member_id: int):
         raise HTTPException(status_code=404, detail="Member not found")
 
 
-@api_router.get("/workspaces/{slug}/export")
+@api_router.get("/workspaces/{slug}/export", tags=["workspaces"])
 def api_export_workspace(request: Request, slug: str) -> Response:
-    """Descarga el workspace como zip de archivos markdown (una página por .md)."""
+    """Downloads the workspace as a zip of markdown files, one .md per page."""
     uid = _api_user(request)
     ws = db.get_workspace_by_slug(uid, slug)
     if ws is None:
@@ -383,14 +383,14 @@ def api_export_workspace(request: Request, slug: str) -> Response:
     )
 
 
-@api_router.get("/pages")
+@api_router.get("/pages", tags=["pages"])
 def api_list_pages(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     return db.list_pages_tree(wid)
 
 
-@api_router.post("/pages", status_code=201)
+@api_router.post("/pages", status_code=201, tags=["pages"])
 def api_create_page(request: Request, body: _PageIn):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -411,7 +411,7 @@ def api_create_page(request: Request, body: _PageIn):
     return {"slug": slug, "title": title}
 
 
-@api_router.get("/pages/{slug}/history")
+@api_router.get("/pages/{slug}/history", tags=["pages"])
 def api_page_history(request: Request, slug: str, limit: int = 50):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -421,7 +421,7 @@ def api_page_history(request: Request, slug: str, limit: int = 50):
     return git_repo.get_page_history(_workspace_slug(request, wid), slug, limit=limit)
 
 
-@api_router.get("/pages/{slug}/history/{sha}")
+@api_router.get("/pages/{slug}/history/{sha}", tags=["pages"])
 def api_page_at_commit(request: Request, slug: str, sha: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -434,7 +434,7 @@ def api_page_at_commit(request: Request, slug: str, sha: str):
     return {"slug": slug, "sha": sha, "content": content}
 
 
-@api_router.get("/pages/{slug}/history/{sha}/diff")
+@api_router.get("/pages/{slug}/history/{sha}/diff", tags=["pages"])
 def api_page_diff(request: Request, slug: str, sha: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -447,7 +447,7 @@ def api_page_diff(request: Request, slug: str, sha: str):
     return {"slug": slug, "sha": sha, "diff": diff}
 
 
-@api_router.get("/pages/{slug}/raw", response_class=PlainTextResponse)
+@api_router.get("/pages/{slug}/raw", response_class=PlainTextResponse, tags=["pages"])
 def api_get_page_raw(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -457,7 +457,7 @@ def api_get_page_raw(request: Request, slug: str):
     return page.content
 
 
-@api_router.get("/pages/{slug}")
+@api_router.get("/pages/{slug}", tags=["pages"])
 def api_get_page(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -476,7 +476,7 @@ def api_get_page(request: Request, slug: str):
     }
 
 
-@api_router.put("/pages/{slug}")
+@api_router.put("/pages/{slug}", tags=["pages"])
 def api_update_page(request: Request, slug: str, body: _PagePatch):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -493,9 +493,9 @@ def api_update_page(request: Request, slug: str, body: _PagePatch):
     return {"slug": slug, "title": new_title, "updated": True}
 
 
-@api_router.post("/pages/{slug}/move")
+@api_router.post("/pages/{slug}/move", tags=["pages"])
 def api_move_page(request: Request, slug: str, body: _MoveIn):
-    """Reparenta una página. Barato: el repo git es plano, no se mueve ningún fichero."""
+    """Reparents a page. Cheap: the git repo is flat, so no file moves."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     try:
@@ -507,9 +507,9 @@ def api_move_page(request: Request, slug: str, body: _MoveIn):
     return {"slug": moved, "parent_slug": body.parent_slug}
 
 
-@api_router.post("/pages/{slug}/rename")
+@api_router.post("/pages/{slug}/rename", tags=["pages"])
 def api_rename_page(request: Request, slug: str, body: _RenameIn):
-    """Cambia el slug dejando alias del anterior, para no romper [[wikilinks]]."""
+    """Changes the slug, leaving an alias for the old one so [[wikilinks]] keep resolving."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     try:
@@ -524,7 +524,7 @@ def api_rename_page(request: Request, slug: str, body: _RenameIn):
     return {"slug": renamed, "previous_slug": slug}
 
 
-@api_router.get("/pages/{slug}/children")
+@api_router.get("/pages/{slug}/children", tags=["pages"])
 def api_page_children(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -534,7 +534,7 @@ def api_page_children(request: Request, slug: str):
     return children
 
 
-@api_router.delete("/pages/{slug}", status_code=204)
+@api_router.delete("/pages/{slug}", status_code=204, tags=["pages"])
 def api_delete_page(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -542,10 +542,10 @@ def api_delete_page(request: Request, slug: str):
         raise HTTPException(status_code=404, detail="Page not found")
 
 
-@api_router.get("/pages/{slug}/suggest-links")
+@api_router.get("/pages/{slug}/suggest-links", tags=["intelligence"])
 def api_suggest_links(request: Request, slug: str):
-    """Wikilinks candidatos: páginas afines (embeddings o menciones de título)
-    que esta página todavía no enlaza."""
+    """Candidate wikilinks: related pages, by embeddings or title mentions, that this
+    page does not link to yet."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     result = suggest.suggest_links(wid, slug)
@@ -554,9 +554,9 @@ def api_suggest_links(request: Request, slug: str):
     return result
 
 
-@api_router.get("/pages/{slug}/suggest-tags")
+@api_router.get("/pages/{slug}/suggest-tags", tags=["intelligence"])
 def api_suggest_tags(request: Request, slug: str):
-    """Tags candidatos por TF-IDF frente al resto del workspace."""
+    """Candidate tags, by TF-IDF against the rest of the workspace."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     result = suggest.suggest_tags(wid, slug)
@@ -565,9 +565,9 @@ def api_suggest_tags(request: Request, slug: str):
     return result
 
 
-@api_router.get("/pages/{slug}/summary")
+@api_router.get("/pages/{slug}/summary", tags=["intelligence"])
 def api_page_summary(request: Request, slug: str, k: int = 3):
-    """Resumen extractivo (TextRank) de la página; `lead` si la semántica está apagada."""
+    """Extractive summary (TextRank) of the page; `lead` when semantic search is off."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     page = db.get_page(slug, wid)
@@ -577,38 +577,37 @@ def api_page_summary(request: Request, slug: str, k: int = 3):
     return {"slug": slug, **suggest.summarize(page.content, k=k)}
 
 
-@api_router.get("/insights")
+@api_router.get("/insights", tags=["intelligence"])
 def api_insights(request: Request):
-    """Salud del workspace: grafo de wikilinks + duplicados y clusters semánticos."""
+    """Workspace health: the wikilink graph plus duplicates and semantic clusters."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     return suggest.workspace_insights(wid)
 
 
-@api_router.get("/graph")
+@api_router.get("/graph", tags=["intelligence"])
 def api_graph(request: Request):
-    """Nodos y aristas del grafo de wikilinks, para dibujarlo.
+    """Nodes and edges of the wikilink graph, ready to draw.
 
-    Aparte de `/insights`, que resume: allí la pregunta es la salud del workspace
-    y aquí es su forma. El workspace sale del contexto de la petición como en el
-    resto de la API, no de la ruta.
+    Separate from `/insights`, which summarises: there the question is the workspace's
+    health and here it is its shape. The workspace comes from the request context as in
+    the rest of the API, not from the path.
     """
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     return graph.workspace_graph(wid)
 
 
-@api_router.get("/system")
+@api_router.get("/system", tags=["system"])
 def api_system(request: Request):
-    """Qué está corriendo este despliegue: versión, base de datos y recuperación.
+    """What this deployment is running: version, database and retrieval.
 
-    Solo lectura. Las banderas salen del entorno del proceso (`/opt/doction/.env` en
-    la Pi), así que un formulario que pareciera cambiarlas estaría mintiendo: no hay
-    forma de reescribir ese archivo y reiniciarse. Existe porque hasta ahora no había
-    manera de saber en qué modo de búsqueda estaba un servidor salvo mirando la forma
-    de los resultados.
+    Read-only. The flags come from the process environment, so a form that appeared to
+    change them would be lying: there is no way to rewrite that file and restart. It
+    exists because until now there was no way to tell which search mode a server was in
+    except by looking at the shape of its results.
 
-    Aparte de /health, que es anónimo y lo consume el healthcheck del contenedor.
+    Separate from /health, which is anonymous and is what the container healthcheck uses.
     """
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -653,25 +652,24 @@ def api_system(request: Request):
     return report
 
 
-@api_router.get("/notes")
+@api_router.get("/notes", tags=["pages"])
 def api_notes(request: Request, limit: int = 50, before: str | None = None):
-    """Feed cronológico de capturas (`type: memo`), paginado por cursor.
+    """Chronological feed of quick captures (`type: memo`), paginated by cursor.
 
-    Aparte del árbol a propósito: list_pages_tree no pagina y la captura rápida
-    crece sin límite.
+    Deliberately separate from the tree: list_pages_tree does not paginate and quick
+    capture grows without bound.
     """
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     return db.list_notes(wid, limit=limit, before=before)
 
 
-@api_router.get("/search")
+@api_router.get("/search", tags=["search"])
 def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bool = False):
-    """Búsqueda del workspace: `keyword` (FTS), `semantic` (embeddings) o `hybrid`.
+    """Workspace search: `keyword` (FTS), `semantic` (embeddings) or `hybrid`.
 
-    `uploads=1` añade además coincidencias en el texto OCR de las imágenes subidas
-    (items con `type: "upload"`) — opt-in para no romper a los clientes que esperan
-    solo páginas."""
+    `uploads=1` also matches text recognised in uploaded images (items with
+    `type: "upload"`). Opt-in, so clients that expect only pages keep working."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     results = embeddings.search(wid, q, mode=mode)
@@ -719,14 +717,14 @@ def _me_payload(user_id: int, active_slug: str | None) -> dict:
     }
 
 
-@api_router.get("/me")
+@api_router.get("/me", tags=["account"])
 def api_me(request: Request):
     user_id = _api_user(request)  # lanza 401 si no hay sesión
     active = getattr(request.state, "workspace", None)
     return _me_payload(user_id, active.slug if active else None)
 
 
-@api_router.post("/auth/login")
+@api_router.post("/auth/login", tags=["auth"])
 def api_login(request: Request, body: _TokenIn) -> Response:
     user = _authenticate(request, body.email, body.password)
     user_id = int(user.id)
@@ -736,7 +734,7 @@ def api_login(request: Request, body: _TokenIn) -> Response:
     return response
 
 
-@api_router.post("/auth/register", status_code=201)
+@api_router.post("/auth/register", status_code=201, tags=["auth"])
 def api_register(body: _TokenIn) -> Response:
     email = body.email.strip().lower()
     if not _registration_open():
@@ -760,7 +758,7 @@ def api_register(body: _TokenIn) -> Response:
     return response
 
 
-@api_router.post("/auth/logout")
+@api_router.post("/auth/logout", tags=["auth"])
 def api_logout() -> Response:
     response = JSONResponse({"ok": True})
     response.delete_cookie("session")
@@ -768,16 +766,16 @@ def api_logout() -> Response:
     return response
 
 
-@api_router.get("/i18n")
+@api_router.get("/i18n", tags=["system"])
 def api_i18n(request: Request):
-    """Catálogo de traducciones del idioma activo, para la SPA. Público (también en login)."""
+    """Translation catalogue for the active language, for the SPA. Public, login included."""
     lang = _lang(request)
     return {"lang": lang, "langs": list(i18n.LANGS), "t": i18n.get_catalog(lang)}
 
 
-@api_router.post("/lang/{code}")
+@api_router.post("/lang/{code}", tags=["account"])
 def api_set_lang(code: str) -> Response:
-    """Cambia el idioma de la SPA fijando la cookie `lang`."""
+    """Switches the SPA's language by setting the `lang` cookie."""
     if code not in i18n.LANGS:
         raise HTTPException(status_code=400, detail="Unsupported language")
     response = JSONResponse({"lang": code})
@@ -785,7 +783,7 @@ def api_set_lang(code: str) -> Response:
     return response
 
 
-@api_router.post("/workspaces/{slug}/switch")
+@api_router.post("/workspaces/{slug}/switch", tags=["workspaces"])
 def api_switch_workspace(request: Request, slug: str) -> Response:
     uid = _api_user(request)
     ws = db.get_workspace_by_slug(uid, slug)
@@ -796,9 +794,9 @@ def api_switch_workspace(request: Request, slug: str) -> Response:
     return response
 
 
-@api_router.get("/pages/{slug}/view")
+@api_router.get("/pages/{slug}/view", tags=["pages"])
 def api_page_view(request: Request, slug: str):
-    """Todo lo que la vista de lectura de la SPA necesita en una sola llamada."""
+    """Everything the SPA's reading view needs, in one call."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     page = db.get_page(slug, wid)
@@ -850,7 +848,7 @@ class _PasswordIn(BaseModel):
     confirm_password: str = Field(max_length=_MAX_PASSWORD_LEN)
 
 
-@api_router.post("/settings/profile")
+@api_router.post("/settings/profile", tags=["account"])
 def api_update_profile(request: Request, body: _ProfileIn):
     uid = _api_user(request)
     name = body.display_name.strip()[:40]
@@ -860,7 +858,7 @@ def api_update_profile(request: Request, body: _ProfileIn):
     return _me_payload(uid, active.slug if active else None)
 
 
-@api_router.post("/settings/password")
+@api_router.post("/settings/password", tags=["account"])
 def api_update_password(request: Request, body: _PasswordIn):
     uid = _api_user(request)
     user = db.get_user_by_id(uid)
@@ -878,7 +876,7 @@ def api_update_password(request: Request, body: _PasswordIn):
     return response
 
 
-@api_router.get("/trash")
+@api_router.get("/trash", tags=["pages"])
 def api_trash(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -888,7 +886,7 @@ def api_trash(request: Request):
     ]
 
 
-@api_router.post("/trash/{slug}/restore")
+@api_router.post("/trash/{slug}/restore", tags=["pages"])
 def api_trash_restore(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -897,7 +895,7 @@ def api_trash_restore(request: Request, slug: str):
     return {"slug": slug, "ok": True}
 
 
-@api_router.post("/trash/{slug}/purge", status_code=204)
+@api_router.post("/trash/{slug}/purge", status_code=204, tags=["pages"])
 def api_trash_purge(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -905,9 +903,9 @@ def api_trash_purge(request: Request, slug: str):
         raise HTTPException(status_code=404, detail="Page not found in trash")
 
 
-@api_router.post("/pages/{slug}/restore/{sha}")
+@api_router.post("/pages/{slug}/restore/{sha}", tags=["pages"])
 def api_restore_version(request: Request, slug: str, sha: str):
-    """Restaura el contenido de una versión antigua (commit git) como nueva versión."""
+    """Restores the content of an older version (a git commit) as a new version."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     page = db.get_page(slug, wid)
@@ -990,7 +988,10 @@ async def lifespan(_: FastAPI):
     db.reset_pool()
 
 
-app = FastAPI(title="doction", lifespan=lifespan)
+# Same version /health reports and the image is tagged with. Without it FastAPI declares 0.1.0
+# in /openapi.json, and a reference announcing a version the server never reports leaves the
+# reader unable to tell which of the two numbers is the software they are talking to.
+app = FastAPI(title="doction", version=VERSION, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # Imágenes subidas (pegadas/arrastradas en el editor) viven junto a la BD, no en la imagen.
@@ -1001,7 +1002,7 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 _UPLOAD_NAME_RE = re.compile(r"[0-9a-f]{32}\.[a-z0-9]{2,5}")
 
 
-@app.get("/uploads/{name}")
+@app.get("/uploads/{name}", tags=["uploads"])
 async def serve_upload(request: Request, name: str) -> Response:
     _api_user(request)  # lanza 401 si no hay sesión ni bearer
     if not _UPLOAD_NAME_RE.fullmatch(name):
@@ -1026,11 +1027,11 @@ SPA_DIR = BASE_DIR / "static" / "app"
 
 
 async def serve_spa(full_path: str = "") -> Response:
-    """Sirve la SPA de React.
+    """Serves the React SPA.
 
-    Devuelve el archivo pedido si existe (assets como /app/assets/...); en caso
-    contrario devuelve index.html, para que al recargar una ruta del lado cliente
-    (p. ej. /app/p/mi-pagina) React Router la resuelva.
+    Returns the requested file when it exists (assets such as /app/assets/...);
+    otherwise returns index.html, so reloading a client-side route such as
+    /app/p/my-page is resolved by React Router.
     """
     if full_path:
         candidate = (SPA_DIR / full_path).resolve()
@@ -1135,9 +1136,9 @@ def _lang_cookie(response: Response, lang: str) -> None:
     )
 
 
-@app.get("/health")
+@app.get("/health", tags=["system"])
 async def health() -> Response:
-    """Liveness + readiness: comprueba que la BD responde. 503 si no."""
+    """Liveness and readiness: checks that the database answers. 503 if it does not."""
     version = mcp.SERVER_INFO["version"]
     try:
         with db.connect() as conn:
@@ -1153,16 +1154,16 @@ async def health() -> Response:
 
 if APP_PATH != "/":
     # Con la SPA en una subruta, la raíz y los atajos de siempre llevan a ella.
-    @app.get("/")
+    @app.get("/", tags=["app"])
     async def home() -> Response:
-        """El frontend es la SPA de React, servida en APP_PATH."""
+        """The frontend is the React SPA, served at APP_PATH."""
         return RedirectResponse(APP_PATH + "/", status_code=HTTP_303_SEE_OTHER)
 
-    @app.get("/login")
+    @app.get("/login", tags=["app"])
     async def login_redirect() -> Response:
         return RedirectResponse(APP_PATH + "/login", status_code=HTTP_303_SEE_OTHER)
 
-    @app.get("/register")
+    @app.get("/register", tags=["app"])
     async def register_redirect() -> Response:
         return RedirectResponse(APP_PATH + "/register", status_code=HTTP_303_SEE_OTHER)
 
@@ -1179,10 +1180,10 @@ async def _ocr_index_upload(name: str, user_id: int, workspace_id: int, path: Pa
         logger.exception("ocr: fallo indexando %s", name)
 
 
-@app.post("/api/uploads")
+@app.post("/api/uploads", tags=["uploads"])
 async def upload_image(request: Request, file: UploadFile = File(...)) -> Response:
-    """Recibe una imagen (pegada/arrastrada en el editor), la guarda con nombre
-    derivado de su hash y devuelve la URL para insertarla como markdown."""
+    """Takes an image pasted or dragged into the editor, stores it under a name derived
+    from its hash, and returns the URL to insert as markdown."""
     uid = _api_user(request)  # lanza 401 si no hay sesión
     data = await file.read()
     # HTTPException para que el error salga como {"detail": ...}, igual que el
@@ -1324,8 +1325,8 @@ async def attach_user(request: Request, call_next):
 # `/{full_path:path}` se tragaría /api, /health, /uploads y /static si se hubiera
 # registrado donde está definida.
 if APP_PATH == "/":
-    app.get("/")(serve_spa)
-    app.get("/{full_path:path}")(serve_spa)
+    app.get("/", tags=["app"])(serve_spa)
+    app.get("/{full_path:path}", tags=["app"])(serve_spa)
 else:
-    app.get(APP_PATH)(serve_spa)
-    app.get(APP_PATH + "/{full_path:path}")(serve_spa)
+    app.get(APP_PATH, tags=["app"])(serve_spa)
+    app.get(APP_PATH + "/{full_path:path}", tags=["app"])(serve_spa)

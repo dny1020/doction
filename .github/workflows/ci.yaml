@@ -85,6 +85,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # El sitio de documentación se construye en estricto: un enlace interno que no resuelve
+  # aborta el build. Cubre lo que check_docs_reachable no puede ver, que es la navegación
+  # una vez la documentación es un sitio, y es lo que verifica el requisito de que el sitio
+  # falle antes de publicar un enlace roto.
+  #
+  # Job aparte y no un paso del job `test`: necesita mkdocs, que vive en el grupo `docs` y
+  # no se instala por defecto. Meterlo en `test` obligaría a instalar la cadena de
+  # documentación antes de un build de imagen que no la usa.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - name: El sitio se construye sin enlaces rotos
+        run: uv run --group docs python -m scripts.build_docs
+
   # Solo al hacer push a main, y solo si `test` y `web` pasaron: publica la imagen
   # en GHCR etiquetada con la versión de pyproject.toml y como :latest.
   # arm64 es para la Raspberry Pi; amd64, para todo lo demás.

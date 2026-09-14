@@ -869,7 +869,7 @@ def _handle_message(request: Request, msg) -> dict | None:
     return _error(msg_id, -32601, f"Method not found: {method}")
 
 
-@router.post("/mcp")
+@router.post("/mcp", tags=["mcp"])
 async def mcp_endpoint(request: Request) -> Response:
     try:
         body = await request.json()

@@ -1,6 +1,6 @@
 [project]
 name = "doction"
-version = "0.31.8"
+version = "0.31.9"
 description = "Minimalist, markdown-first DevOps knowledge system"
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
@@ -25,6 +25,13 @@ dev = [
     "httpx>=0.28",  # lo necesita el TestClient de starlette
     "ruff>=0.8",
     "pyright>=1.1.411",
+]
+# Separate from dev on purpose: the Docker `test` stage runs `uv sync --frozen`, which installs
+# dev, so a documentation toolchain there would be installed on every CI test build for nothing.
+# Get it with `uv sync --group docs`.
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
 ]
 
 [tool.uv]

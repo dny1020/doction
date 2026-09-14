@@ -133,20 +133,42 @@ to be rebuilt with those updates, which has no timeline. Revisit when the base i
 
 ---
 
+---
+
+## Documentation
+
+### The API reference describes no response shapes — **open**
+
+Every route handler returns `Response` or `JSONResponse`, so FastAPI has nothing to infer an
+output shape from: of 59 operations, one has a response schema for a 2xx. `/docs` therefore shows
+request bodies and status codes but tells a client nothing about what comes back.
+
+Fixing it means declaring Pydantic response models across all 59 handlers, which touches every
+route and is why `documentation-site` left it out. That change made the reference complete in its
+*coverage* of endpoints and correct in the version it declares, and a test now keeps it that way;
+completing the *descriptions* is this entry.
+
+*Deferred by `documentation-site`, where the measurement is recorded.*
+
+### GitHub Pages is not enabled — **decision**
+
+The deployment workflow exists, is pinned, and takes only `pages: write` and `id-token: write`.
+The Pages API answers 404 for this repository, so it has nothing to publish to. Enabling it is a
+repository setting rather than anything a commit can change, and until it is on, the site can be
+built locally with `make docs` but is not published anywhere.
+
+*Identified while implementing `documentation-site`.*
+
+---
+
 ## Project maturity
 
-Two phases of the open-source maturity plan remain. Neither is started.
-
-**Documentation.** A published documentation site, end-user documentation, and an API
-reference generated from the OpenAPI schema the application already serves. The existing
-`docs/` is operator-facing: it covers installing and running doction, and nothing explains
-how to *use* the wiki — writing a page, wikilinks, tags, frontmatter, search syntax, the
-graph. That is the real gap.
+One phase of the open-source maturity plan remains.
 
 **Community.** GitHub Sponsors, a public demo instance, and using Discussions. A demo needs
 `DISABLE_REGISTRATION=1` and a seeded read-only account, since sign-up is open by default.
 Most of this is account-level setup the maintainer has to do rather than work in the
 repository.
 
-*From the five-phase maturity review. The first three phases landed as `licensing`,
-`release-integrity` and `vulnerability-triage`.*
+*From the five-phase maturity review. The first four phases landed as `licensing`,
+`release-integrity`, `vulnerability-triage` and `documentation-site`.*

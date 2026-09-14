@@ -1,0 +1,73 @@
+site_name: doction
+site_description: Minimalist, markdown-first DevOps knowledge system
+site_url: https://dny1020.github.io/doction/
+repo_url: https://github.com/dny1020/doction
+repo_name: dny1020/doction
+copyright: AGPL-3.0-only
+
+# Not `docs/`: the site is built from a staged tree that also holds the root documents `docs/`
+# links to. scripts/build_docs.py stages it and is the only supported way to build.
+docs_dir: build/docs
+site_dir: site
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.details
+
+# Una advertencia de enlace roto tiene que ser un fallo, no una línea en el log: es lo único
+# que distingue un sitio publicado de uno publicado y roto.
+validation:
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+nav:
+  - Home: README.md
+  - Using doction:
+      - docs/writing-pages.md
+      - docs/linking.md
+      - docs/tags-and-metadata.md
+      - docs/search.md
+      - docs/graph.md
+      - docs/api.md
+      - docs/mcp.md
+  - Running doction:
+      - docs/install.md
+      - docs/configuration.md
+      - docs/architecture.md
+      - docs/operations.md
+      - docs/troubleshooting.md
+  - Project:
+      - docs/README.md
+      - CONTRIBUTING.md
+      - SECURITY.md
+      - DESIGN.md
+      - CHANGELOG.md
+      - ROADMAP.md
+      - AGENTS.md
+      - CODE_OF_CONDUCT.md
+      - How this project plans work: openspec/README.md

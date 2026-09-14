@@ -1,0 +1,59 @@
+name: Docs site
+
+# El sitio se publica desde main y solo cuando cambia la documentación o cómo se construye.
+# Un cambio de código que no toca nada de esto no tiene por qué republicar el sitio.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "scripts/build_docs.py"
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "SECURITY.md"
+      - "DESIGN.md"
+      - "CHANGELOG.md"
+      - "ROADMAP.md"
+      - "AGENTS.md"
+      - "CODE_OF_CONDUCT.md"
+      - "openspec/README.md"
+      - ".github/workflows/pages.yaml"
+  workflow_dispatch:
+
+# Lo mínimo para publicar en Pages y nada más: `contents: read` para el checkout,
+# `pages: write` para publicar y `id-token: write` porque el despliegue se autentica
+# con OIDC. Igual que release.yaml, que solo pide `contents: write`.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un despliegue a la vez, y sin cancelar el que ya está en vuelo: cancelar a medias
+# deja el sitio publicado a medias.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      # El mismo comando que corre `make docs` y que corre el job `docs` de CI: estricto,
+      # así que un enlace roto falla aquí también en vez de publicarse.
+      - name: Construir el sitio
+        run: uv run --group docs python -m scripts.build_docs
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -2,7 +2,20 @@
 
 The [project README](../README.md) is the tour: what doction is, the feature list, a quick
 start, and the REST and MCP surfaces. These pages are the reference you reach for once it
-is running.
+is running: the first group is for using the wiki, the second for running the server.
+
+## Using doction
+
+| Page | What it answers |
+| --- | --- |
+| [Writing pages](writing-pages.md) | Creating pages, the tree, renames, history, and getting a deleted page back |
+| [Linking pages](linking.md) | `[[wikilinks]]`, what resolves as a target, and why a broken link is kept |
+| [Tags and metadata](tags-and-metadata.md) | `#tags`, the block at the top of a page, and the one spelling of it that is silently ignored |
+| [Searching](search.md) | The three modes, and what a query actually does to what you typed |
+| [The graph](graph.md) | The link graph, its limits, and the insights that read it without drawing it |
+| [REST API](api.md) | Every endpoint the application serves, grouped, with the auth each needs |
+
+## Running doction
 
 | Page | What it answers |
 | --- | --- |

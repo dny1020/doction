@@ -58,8 +58,16 @@ uv run ruff format --check .     # formatting (drop --check to apply)
 uv run pyright app tests         # types — pyright, not mypy
 uv run pytest                    # backend tests
 cd frontend && npm run check     # eslint + prettier + build + no-remote-asset check
+make license                     # the licence agrees everywhere it is declared
+make changelog                   # the declared version has a CHANGELOG entry
+make docs-reachable              # no tracked document points at an untracked file
+make docs                        # the documentation site builds with no broken link
 openspec validate --all --strict # the spec suite in openspec/
 ```
+
+`make docs` needs the documentation toolchain, which is not installed by default because the
+Docker test stage would pick it up. Get it once with `uv sync --group docs`, and use
+`make docs-serve` to preview the site locally.
 
 The frontend unit tests are **not** in that target. Run them yourself when you touch
 anything under `frontend/src/`:

@@ -15,6 +15,34 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.31.9 — 2026-09-14
+
+End-user documentation, and two gates that keep documentation from going quietly wrong.
+
+### Added
+
+- **Documentation for using the wiki**, not only for running it: writing pages, linking,
+  tags and the metadata block, searching, the graph, and a complete REST reference. The
+  behaviour they describe was measured against a running instance.
+- **A published documentation site**, built with MkDocs from the tracked documentation and
+  deployed to GitHub Pages. The build runs with `--strict`, so an internal link that does
+  not resolve fails instead of publishing. `make docs` builds it, `make docs-serve` previews
+  it, and the toolchain lives in a `docs` dependency group that the Docker test stage does
+  not install.
+- **Tests that hold the documentation to the code.** The documented parsing and search
+  behaviours now fail a test when the code stops behaving that way, and the failure names the
+  page to update. A second test compares the documented endpoint list against the served
+  OpenAPI schema in both directions, so a route added without documentation fails the gate.
+
+### Changed
+
+- `/openapi.json` now declares the running version instead of FastAPI's `0.1.0` default, so
+  the schema, `/health` and the image tag agree.
+- All 59 operations carry a tag, so `/docs` and the reference are grouped by area rather
+  than being one flat list.
+- The 21 route docstrings that are published as API descriptions are now in English, matching
+  the project's stated convention. No behaviour changed.
+
 ## 0.31.8 — 2026-09-14
 
 No application code changed. This release exists because the image content changed and

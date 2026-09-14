@@ -1,7 +1,8 @@
 # Atajos del flujo de este repositorio. Cada objetivo es el comando que ya está
 # documentado en CLAUDE.md; el Makefile no inventa ninguno.
 .PHONY: setup dev frontend build-web test test-clean lint format format-check \
-        typecheck spec license changelog docs-reachable check eval image image-test up down logs restart \
+        typecheck spec license changelog docs-reachable docs docs-serve check eval image image-test \
+        up down logs restart \
         graph clean
 
 # ── Puesta a punto ───────────────────────────────────────────────────────────
@@ -66,6 +67,15 @@ changelog:
 docs-reachable:
 	uv run python -m scripts.check_docs_reachable
 
+# El sitio publicado se construye en estricto: un enlace interno que no resuelve es un
+# fallo, no una advertencia en el log. Cubre lo que docs-reachable no puede ver, que es
+# la navegación una vez la documentación es un sitio. `docs-serve` para previsualizar.
+docs:
+	uv run --group docs python -m scripts.build_docs
+
+docs-serve:
+	uv run --group docs python -m scripts.build_docs --serve
+
 check:
 	$(MAKE) lint
 	$(MAKE) format-check
@@ -75,6 +85,7 @@ check:
 	$(MAKE) license
 	$(MAKE) changelog
 	$(MAKE) docs-reachable
+	$(MAKE) docs
 	$(MAKE) spec
 
 # ── Recuperación ─────────────────────────────────────────────────────────────
