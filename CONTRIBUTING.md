@@ -113,10 +113,15 @@ Maintainer task, recorded here so the process is not folklore.
 4. Tag the commit `vX.Y.Z` and push the tag. Pushing it publishes the GitHub Release
    automatically, with that version's changelog section as the body. Nothing else to do.
 
-**A published version tag cannot be moved or deleted.** A ruleset refuses both. A version is
-a promise that a name refers to one commit, and everything else — the notes, the provenance,
-the image contents — describes whatever that name resolves to. If a release turns out wrong,
-publish the next version; do not repoint the tag.
+**A published version tag cannot be moved or deleted.** The "Protect version tags" ruleset
+refuses deletion and *any* update to a `v*` tag, forward moves included — a tag is not a
+branch, so there is no such thing as a legitimate fast-forward for a version. A version is a
+promise that a name refers to one commit, and everything else, the notes and the provenance
+and the image contents, describes whatever that name resolves to.
+
+If a release turns out wrong, **publish the next version**. Do not repoint the tag. The
+ruleset has no bypass actor, so repairing a tag means deliberately disabling it first, which
+is the friction it is meant to have.
 
 Only tags matching `vX.Y.Z` trigger a release, so an experimental or mistyped tag is ignored
 rather than published.

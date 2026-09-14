@@ -46,11 +46,11 @@
 
 ## 3. SBOM and fuller provenance
 
-- [ ] 3.1 Add `sbom: true` and `provenance: mode=max` to the publish build. Verify by
+- [x] 3.1 Add `sbom: true` and `provenance: mode=max` to the publish build. Verify by
       pushing and then reading the published image: `docker buildx imagetools inspect
       --format '{{json .SBOM}}'` must be non-empty, and provenance must carry build steps
       and resolved dependencies rather than only the builder.
-- [ ] 3.2 **Inspect a real published attestation for credential-shaped content** before
+- [x] 3.2 **Inspect a real published attestation for credential-shaped content** before
       calling this done. Verify no token, password or registry credential appears in either
       attestation. A reasoned argument that none were passed is not the verification.
 - [x] 3.3 Document in `docs/operations.md` how an operator reads the SBOM and the provenance
@@ -59,7 +59,17 @@
 
 ### Notes on section 3
 
-<!-- Record what actually happened here, including anything that diverged from the plan. -->
+- **Provenance was already on.** `build-push-action` emits it by default at `mode=min`, so
+  the two `unknown/unknown` manifests on the image predate this change. The work was raising
+  the detail level, not adding the mechanism. `mode=max` took `resolvedDependencies` from 2
+  to 3 and, more usefully, recorded the `RUN` commands — the retry flags added in section 2
+  are visible in the published attestation.
+- **SBOM: 1312 packages on amd64, 1314 on arm64, SPDX-2.3.**
+- **3.2 found nothing, and was worth running anyway.** Both attestations were scanned for
+  credential *shapes* rather than the word "token": GitHub token prefixes, PEM private keys,
+  JWTs, basic-auth headers, credentials embedded in URLs, and docker config `auths` blocks.
+  Zero matches across 219 KB of provenance and 18 MB of SBOM. The only occurrences of
+  "token" are `tokenizer.json` and the `tokenizers` package.
 
 ## 4. The release workflow
 
@@ -70,7 +80,7 @@
 - [x] 4.2 Verify it ignores a tag that is not a version: the trigger pattern must not match
       a tag such as `rm`. Confirm by inspecting the pattern and, if cheap, by pushing and
       deleting a throwaway non-version tag before the ruleset in section 5 exists.
-- [ ] 4.3 Publish the release for the existing `v0.31.5` tag, since 0.31.5 is where releases
+- [x] 4.3 Publish the release for the existing `v0.31.5` tag, since 0.31.5 is where releases
       start and its tag already exists. Verify the release appears with the 0.31.5 changelog
       section as its body.
 - [x] 4.4 Record the release step in `CONTRIBUTING.md` and `docs/operations.md`, replacing
@@ -85,21 +95,36 @@
 
 - [x] 5.1 Delete the stray `rm` tag, locally and on the remote. Do this **before** the
       ruleset exists. Verify `git ls-remote --tags` no longer lists it.
-- [ ] 5.2 Create a ruleset targeting `refs/tags/v*` that blocks deletion and
+- [x] 5.2 Create a ruleset targeting `refs/tags/v*` that blocks deletion and
       non-fast-forward, with no creation restriction. Verify by attempting to delete and to
       move a published version tag: both must be refused, and creating a new one must still
       work.
-- [ ] 5.3 Record in `CONTRIBUTING.md` that a published version tag cannot be moved or
+- [x] 5.3 Record in `CONTRIBUTING.md` that a published version tag cannot be moved or
       deleted, and what to do instead when a release is wrong: publish the next version.
       Verify the text names the ruleset so someone hitting the refusal knows why.
 
 ### Notes on section 5
 
-<!-- Record what actually happened here, including anything that diverged from the plan. -->
+- **`non_fast_forward` does not stop a version tag from moving, and the test proved it by
+  breaking the tag.** The plan said "blocks deletion and non-fast-forward", which is what was
+  built first. Deleting was refused; moving `v0.31.5` from `453942e` to a later commit was
+  *accepted*, because a later commit on the same history is a fast-forward and that rule only
+  blocks the other kind. A tag is not a branch: for a version, every move is wrong, forward
+  included. The ruleset now also carries `update`, which blocks any change to the ref, and all
+  three cases are refused.
+- **The tag was restored exactly, not reconstructed.** The force-push replaced an annotated
+  tag with a lightweight one, but the original tag object `015ec7a` was still in the local
+  object store with its tagger, date and message, so `git update-ref` put it back byte for
+  byte. Repairing required setting the ruleset to `disabled` for the duration, since it has
+  no bypass actor — which is the intended posture: an admin escape hatch would have made the
+  earlier delete test pass for the wrong reason.
+- **Creation is not tested with a throwaway tag.** With `deletion` in force, a test tag could
+  not be cleaned up afterwards. It is exercised by the next real release tag instead, which
+  also gives the release workflow its first end-to-end run.
 
 ## 6. Close out
 
-- [ ] 6.1 Run the whole gate: `make check` plus `cd frontend && npm run test`. Verify ruff,
+- [x] 6.1 Run the whole gate: `make check` plus `cd frontend && npm run test`. Verify ruff,
       ruff format, pyright, pytest, the frontend gate, the licence check, the changelog check
       and `openspec validate --all --strict` all pass.
 - [ ] 6.2 Confirm the end state against the capability: the 0.31.5 release exists with notes

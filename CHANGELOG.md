@@ -15,6 +15,44 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.31.6 — 2026-09-13
+
+### Added
+
+- **A GitHub Release is published when a version tag is pushed**, with that version's
+  `CHANGELOG.md` section as its body. 40 tags existed and no releases did, so nothing on the
+  repository said what a version contained. The workflow triggers on
+  `v[0-9]+.[0-9]+.[0-9]+` rather than `v*`: this repository carried a mistyped tag named
+  `rm`, and the looser pattern would have published a release for it. Releases start here and
+  are not backfilled — the changelog describes earlier history in ranges, so per-version
+  notes for those 30 tags do not exist and would have to be invented.
+- **Published images carry an SBOM** (1312 packages, SPDX-2.3) and SLSA provenance at
+  `mode=max`, which records the build steps and resolved inputs rather than only the builder.
+  Provenance was already being emitted at `mode=min` by default; what changed is the detail
+  level. `docs/operations.md` documents how to read both from an image you pulled.
+- **A version with no `CHANGELOG.md` entry now fails the gate.** Release notes are derived
+  from that file, so a version nobody described is a release nobody can read.
+  `scripts/changelog.py` is one parser with two callers: the gate asserts the version
+  declared in `pyproject.toml` has a section, and the release workflow prints that section as
+  its notes. It checks the declared version rather than the tag, because at tag time the tag
+  already exists and the ruleset below forbids deleting it.
+
+### Changed
+
+- The four model downloads retry transient failures (`--retry 5 --retry-delay 5`). The 0.31.4
+  publish died on HTTP 429 from Hugging Face; the content is pinned by revision and verified
+  by checksum, so that was availability, not integrity, and a release stopped by a momentary
+  rate limit is a release stopped for no reason. `--retry-all-errors` is deliberately omitted
+  so a 404 or a renamed revision still fails promptly.
+
+### Security
+
+- **A published version tag can no longer be moved or deleted.** A ruleset blocks deletion,
+  non-fast-forward, and any update to a `v*` tag. The middle rule alone was not enough and
+  the test proved it: moving a tag to a *later* commit is a fast-forward, which
+  `non_fast_forward` permits. For a version, every move is wrong.
+- The stray `rm` tag is gone. It had only ever existed locally.
+
 ## 0.31.5 — 2026-09-12
 
 ### Changed
