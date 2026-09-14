@@ -66,15 +66,6 @@ code disagree.
 
 *Identified during the five-phase maturity review, and repeatedly since.*
 
-### Five tests still perform requests inside `assert` — **open**
-
-`assert client.post(...)` in `tests/test_tokens.py` and `tests/test_spa_api.py`. Under
-`python -O` the assertion is stripped and the request never happens, so the test passes
-having tested nothing. Four instances of the same pattern were fixed when CodeQL flagged
-them; these were not flagged and were left deliberately, to keep that change scoped.
-
-*Identified in the notes of `2026-09-14-vulnerability-triage`.*
-
 ### The `knowledge-graph` capability has a `TBD` Purpose — **open**
 
 `openspec/specs/knowledge-graph/spec.md` opens with the placeholder the archive process

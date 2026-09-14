@@ -32,7 +32,8 @@ def test_register_validation(client):
 def test_logout_clears_session(client):
     _register(client)
     assert client.get("/api/me").status_code == 200
-    assert client.post("/api/auth/logout").status_code == 200
+    logout = client.post("/api/auth/logout")
+    assert logout.status_code == 200
     assert client.get("/api/me").status_code == 401
 
 
@@ -63,7 +64,8 @@ def test_switch_workspace(client):
     r = client.post(f"/api/workspaces/{other['slug']}/switch")
     assert r.status_code == 200
     assert r.json()["slug"] == other["slug"]
-    assert client.post("/api/workspaces/does-not-exist/switch").status_code == 404
+    bad = client.post("/api/workspaces/does-not-exist/switch")
+    assert bad.status_code == 404
 
 
 def test_page_view(client):
@@ -154,12 +156,14 @@ def test_trash_restore_and_purge(client):
     trash = client.get("/api/trash").json()
     assert any(p["slug"] == slug for p in trash)
     # Restaurar la saca de la papelera y la vuelve visible.
-    assert client.post(f"/api/trash/{slug}/restore").status_code == 200
+    restored = client.post(f"/api/trash/{slug}/restore")
+    assert restored.status_code == 200
     assert all(p["slug"] != slug for p in client.get("/api/trash").json())
     assert client.get(f"/api/pages/{slug}/view").status_code == 200
     # Borrar de nuevo y purgar definitivamente.
     client.delete(f"/api/pages/{slug}")
-    assert client.post(f"/api/trash/{slug}/purge").status_code == 204
+    purged = client.post(f"/api/trash/{slug}/purge")
+    assert purged.status_code == 204
     assert all(p["slug"] != slug for p in client.get("/api/trash").json())
 
 
@@ -171,7 +175,8 @@ def test_restore_version(client):
     history = client.get(f"/api/pages/{slug}/history").json()
     assert len(history) >= 2
     old_sha = history[-1]["sha"]  # el commit más antiguo = "version one"
-    assert client.post(f"/api/pages/{slug}/restore/{old_sha}").status_code == 200
+    restored = client.post(f"/api/pages/{slug}/restore/{old_sha}")
+    assert restored.status_code == 200
     assert "version one" in client.get(f"/api/pages/{slug}").json()["content"]
 
 
@@ -204,9 +209,11 @@ def test_i18n_catalog_default_english(client):
 
 
 def test_set_language_switches_catalog(client):
-    assert client.post("/api/lang/es").status_code == 200
+    r = client.post("/api/lang/es")
+    assert r.status_code == 200
     body = client.get("/api/i18n").json()
     assert body["lang"] == "es"
     assert body["t"]["settings"] == "Configuración"
     # Un idioma no soportado se rechaza.
-    assert client.post("/api/lang/zz").status_code == 400
+    bad = client.post("/api/lang/zz")
+    assert bad.status_code == 400
