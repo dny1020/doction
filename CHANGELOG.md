@@ -15,6 +15,45 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.31.8 — 2026-09-14
+
+No application code changed. This release exists because the image content changed and
+publishing different content under an existing version tag contradicts what
+`release-integrity` is for — see the roadmap entry about `publish` running on every push.
+
+### Added
+
+- **`AGENTS.md`**, shipped, explaining the one thing nothing else did: behaviour here is
+  specified before it is written, `openspec/specs/` holds the contracts and
+  `openspec/changes/archive/` holds the reasoning. The repository was already shipping 112
+  OpenSpec files while `CONTRIBUTING.md` mentioned openspec once, as a command inside the
+  gate, and the README and `docs/` not at all. It is a map rather than a copy: everything
+  already documented elsewhere is a pointer, because one truth in two files becomes two
+  facts that disagree.
+- **`openspec/README.md`**, explaining the two directories and how to read a capability
+  versus an archived change — including that the notes at the end of an archived `tasks.md`
+  are where a decision's reasoning lives.
+- **`ROADMAP.md`**, making nine identified-and-deferred items visible, in priority order,
+  with no dates. Each names where it was identified. Five became labelled issues; four are
+  decisions for the maintainer and say so, because an issue tracker misrepresents a decision
+  as available work.
+- **A discoverability check** (`scripts/check_docs_reachable.py`), in the gate and in CI: no
+  tracked document may reference an untracked file. `CLAUDE.md` and `.claude/` are gitignored
+  deliberately, which makes a document citing them a dead end for everyone but the
+  maintainer.
+- **A sign-off check** (`scripts/check_signoff.py`) on pull requests. Every commit must carry
+  a `Signed-off-by` matching its author, certifying the terms the work is offered under. It
+  was verified against constructed commits rather than trusted, since every commit in this
+  project's history is a direct push to `main` and the check will not fire for a long time.
+
+### Changed
+
+- `CONTRIBUTING.md` now says proposals precede code, points at the workflow it never named,
+  requires sign-off with the exact commands, and states the consequence: sign-off transfers
+  no copyright, so doction cannot be relicensed without every contributor's permission. It
+  also records that an item a change defers reaches the roadmap rather than staying in that
+  change's notes.
+
 ## 0.31.7 — 2026-09-14
 
 ### Security

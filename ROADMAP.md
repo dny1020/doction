@@ -105,6 +105,23 @@ repository settings rather than anything a commit can change.
 
 *Identified in the installation health review.*
 
+### `publish` republishes an existing version tag — **decision**
+
+`publish` runs on every push to `main` and tags the image with the version in
+`pyproject.toml`. A push that does not bump the version therefore republishes that tag with
+different content: 0.31.4 was published three times and 0.31.7 twice. The
+`release-integrity` capability requires that a published version identifier be stable, and
+that requirement is written about git tags, so the letter is satisfied while the purpose is
+not.
+
+The root fix is for `publish` to refuse when the declared version already exists in the
+registry, which turns "forgot to bump" into a failed build rather than a silently
+overwritten release. Until then the workaround is bumping the version for any change that
+alters the image, which is what 0.31.8 did.
+
+*Identified during the five-phase maturity review and again while implementing
+`contributor-onramp`, where it forced a version bump for a documentation-only change.*
+
 ### The runtime image carries 75 MB of superseded files — **decision**
 
 Applying Debian security updates in the runtime stage grew the image from 666 MB to 741 MB,

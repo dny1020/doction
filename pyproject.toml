@@ -1,6 +1,6 @@
 [project]
 name = "doction"
-version = "0.31.7"
+version = "0.31.8"
 description = "Minimalist, markdown-first DevOps knowledge system"
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
