@@ -39,6 +39,11 @@ jobs:
       - name: La versión declarada tiene entrada en el CHANGELOG
         run: python3 -m scripts.changelog --check
 
+      # Necesita el índice de git, no la imagen: compara enlaces de documentos versionados
+      # contra lo que un clon contiene de verdad.
+      - name: La documentación no apunta a ficheros que no viajan
+        run: python3 -m scripts.check_docs_reachable
+
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
       - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
@@ -47,6 +52,21 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Procedencia de licencia: cada commit de un PR certifica bajo qué términos se aporta.
+  # Solo en pull_request, y por eso no se disparará en mucho tiempo: todo el historial de
+  # este repositorio son pushes directos a main. Se hace antes de que haga falta porque
+  # pedirle la firma al contribuidor 1 es trivial y reconstruirla desde el 20 es imposible.
+  signoff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Necesita la historia del PR y la base para calcular el rango.
+          fetch-depth: 0
+      - name: Cada commit certifica sus términos
+        run: python3 -m scripts.check_signoff
 
   # La puerta del frontend vive en el stage `web`, que corre `npm run check`
   # (eslint + prettier + vitest + build + comprobación de assets locales). Sin este

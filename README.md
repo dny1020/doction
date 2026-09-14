@@ -38,6 +38,11 @@ The rest of this README is the tour. The reference lives in [`docs/`](docs/READM
 Contributing is in [CONTRIBUTING.md](CONTRIBUTING.md), the security model and reporting
 channel in [SECURITY.md](SECURITY.md), and release notes in [CHANGELOG.md](CHANGELOG.md).
 
+Changing doction starts with [AGENTS.md](AGENTS.md) — behaviour here is specified before it
+is written, and [`openspec/`](openspec/README.md) holds both the current contracts and the
+reasoning behind every past decision. What is identified and not yet done is in
+[ROADMAP.md](ROADMAP.md).
+
 ---
 
 ## Features

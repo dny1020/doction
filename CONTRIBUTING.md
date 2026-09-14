@@ -6,9 +6,20 @@ change merged is to keep it in that shape.
 
 ## Before you write code
 
+**Behaviour is specified before it is written.** doction uses OpenSpec: a non-trivial change
+starts as a proposal, grows a spec delta and a design, and only then a task list. A pull
+request with code and no proposal is the wrong shape for this repository.
+[`openspec/README.md`](openspec/README.md) explains the two directories and how to read them;
+[`AGENTS.md`](AGENTS.md) is the short orientation.
+
+Read the archive for the area you are touching before proposing. The notes at the end of an
+archived `tasks.md` record what diverged from the plan and why, which is the part no commit
+message carries.
+
 - **Open an issue first for anything non-trivial.** A bug fix or a typo needs no
   ceremony. A new endpoint, a new dependency, or a new page in the UI does — it is
-  cheaper to disagree about scope in an issue than in a diff.
+  cheaper to disagree about scope in an issue than in a diff. What is already identified and
+  not yet done is in [`ROADMAP.md`](ROADMAP.md).
 - **Read the design doc.** `DESIGN.md` describes the visual system as *implemented*: every
   token in it was read out of `app/static/style.css`. When the document and the code
   disagree, the document is the defect.
@@ -128,6 +139,13 @@ rather than published.
 
 Deploying is manual and separate — see `docs/operations.md`.
 
+### When a change defers something
+
+Write it into [`ROADMAP.md`](ROADMAP.md), not only into the change's `tasks.md` notes. An
+item that exists solely in an archived change is an item nobody will find: the notes explain
+what happened, the roadmap says what is still pending. Say where the item was identified, so
+the next reader can follow the reasoning rather than rebuild it.
+
 ## Code scanning alerts
 
 CodeQL and Trivy report into the repository's Security tab. **An alert has two possible
@@ -163,7 +181,29 @@ Participating means agreeing to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Contributions are accepted under the
 [GNU Affero General Public License v3.0 only](LICENSE), the same terms as the rest of the
-project. Opening a pull request means you agree your work ships under that licence.
+project.
+
+### Sign your commits
+
+**Every commit in a pull request must carry a `Signed-off-by` trailer.** Add it with `-s`:
+
+```bash
+git commit -s -m "fix(search): ..."
+git commit --amend -s --no-edit     # fixing the last one
+git rebase --signoff main           # fixing a whole branch
+```
+
+The trailer is a [Developer Certificate of Origin](https://developercertificate.org/): it
+certifies that you wrote the change or have the right to submit it, and that you offer it
+under this project's licence. A note in a contributing guide saying that opening a pull
+request implies agreement asserts your consent without evidencing it; a trailer on the
+commit is a record that survives whatever this document happened to say at the time. CI
+checks it and the failure message tells you the exact command.
+
+**Sign-off transfers no copyright, and that has a consequence worth knowing.** You keep
+ownership of what you write, which means **doction cannot be relicensed without the
+permission of everyone who has contributed**. That follows from choosing AGPL-3.0-only over
+a dual licence, and it is deliberate rather than an oversight.
 
 The project was MIT through 0.31.3, GPL-3.0-only at 0.31.4, and is AGPL-3.0-only from
 0.31.5.

@@ -1,7 +1,7 @@
 # Atajos del flujo de este repositorio. Cada objetivo es el comando que ya está
 # documentado en CLAUDE.md; el Makefile no inventa ninguno.
 .PHONY: setup dev frontend build-web test test-clean lint format format-check \
-        typecheck spec license changelog check eval image image-test up down logs restart \
+        typecheck spec license changelog docs-reachable check eval image image-test up down logs restart \
         graph clean
 
 # ── Puesta a punto ───────────────────────────────────────────────────────────
@@ -60,6 +60,12 @@ license:
 changelog:
 	uv run python -m scripts.changelog --check
 
+# La orientación que no viaja en el clon no orienta a nadie. CLAUDE.md y .claude/ están
+# ignorados a propósito, así que un documento versionado que los cite es un callejón sin
+# salida para todo el mundo salvo el mantenedor.
+docs-reachable:
+	uv run python -m scripts.check_docs_reachable
+
 check:
 	$(MAKE) lint
 	$(MAKE) format-check
@@ -68,6 +74,7 @@ check:
 	cd frontend && npm run check
 	$(MAKE) license
 	$(MAKE) changelog
+	$(MAKE) docs-reachable
 	$(MAKE) spec
 
 # ── Recuperación ─────────────────────────────────────────────────────────────
