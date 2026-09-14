@@ -89,7 +89,16 @@
 
 ### Notes on section 4
 
-<!-- Record what actually happened here, including anything that diverged from the plan. -->
+- **`gh release create` instead of a third-party action.** One less SHA to pin, and the CLI
+  is already on the runner.
+- **4.3 was done by hand, deliberately.** The v0.31.5 tag already existed, so the workflow
+  could not fire for it without deleting and re-pushing the tag — which this same change
+  forbids. The release was created with the same notes the workflow would have used, from
+  the same parser.
+- **The workflow's first real run was v0.31.6, and it worked unattended.** Pushing the tag
+  triggered it, the notes came out of the changelog, and the release appeared without
+  anything else being done. That same push also confirmed tag *creation* is still permitted
+  under the ruleset, which is why no throwaway tag was needed.
 
 ## 5. The version identifier becomes stable
 
@@ -127,10 +136,25 @@
 - [x] 6.1 Run the whole gate: `make check` plus `cd frontend && npm run test`. Verify ruff,
       ruff format, pyright, pytest, the frontend gate, the licence check, the changelog check
       and `openspec validate --all --strict` all pass.
-- [ ] 6.2 Confirm the end state against the capability: the 0.31.5 release exists with notes
+- [x] 6.2 Confirm the end state against the capability: the 0.31.5 release exists with notes
       from the changelog, its image reports a non-empty SBOM and `mode=max` provenance, the
       `v*` tags refuse to move, and `rm` is gone.
 
 ### Notes on section 6
 
-<!-- Record what actually happened here, including anything that diverged from the plan. -->
+End state, verified against the published artefacts rather than the code that produces them:
+
+| Claim | Evidence |
+| --- | --- |
+| Releases exist with notes from the changelog | 0.31.5 and 0.31.6, bodies match their sections |
+| The image can be enumerated | SBOM 1312 packages on amd64, 1314 on arm64, SPDX-2.3 |
+| Its origin can be traced | provenance at `mode=max`, records the `RUN` commands |
+| No secrets leaked | zero credential shapes across 219 KB + 18 MB of attestations |
+| Version tags are stable | move and delete both refused on 0.31.5 and 0.31.6 |
+| Creating a tag still works | v0.31.6 pushed and accepted |
+| The stray tag is gone | `rm` absent from the remote |
+
+One thing this change did not fix and is worth knowing: the network dropped mid-run, and the
+licence check degraded to a visible SKIP and passed, as designed. `uv lock` could not run at
+all, which is expected — it needs an index. The gate's offline behaviour is therefore
+partially confirmed by accident.
