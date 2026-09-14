@@ -394,14 +394,17 @@ def api_list_pages(request: Request):
 def api_create_page(request: Request, body: _PageIn):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    slug = db.create_page(
-        uid,
-        wid,
-        body.title,
-        body.content,
-        parent_slug=body.parent_slug,
-        requested_slug=body.slug,
-    )
+    try:
+        slug = db.create_page(
+            uid,
+            wid,
+            body.title,
+            body.content,
+            parent_slug=body.parent_slug,
+            requested_slug=body.slug,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     page = db.get_page(slug, wid)
     title = page.title if page else body.title
     _commit_page(request, wid, slug, title, body.content)
@@ -482,7 +485,10 @@ def api_update_page(request: Request, slug: str, body: _PagePatch):
         raise HTTPException(status_code=404, detail="Page not found")
     new_title = body.title if body.title is not None else page.title
     new_content = body.content if body.content is not None else page.content
-    db.update_page(uid, wid, slug, new_title, new_content)
+    try:
+        db.update_page(uid, wid, slug, new_title, new_content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     _commit_page(request, wid, slug, new_title, new_content)
     return {"slug": slug, "title": new_title, "updated": True}
 

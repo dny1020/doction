@@ -268,8 +268,10 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
     # El destino real de un wikilink es la página; dst_slug se conserva porque es
     # la única representación que tiene un enlace roto, y los enlaces rotos son
     # información (los reporta graph.link_insights).
-    "ALTER TABLE page_links ADD COLUMN IF NOT EXISTS dst_page_id BIGINT "
-    "REFERENCES pages(id) ON DELETE SET NULL",
+    (
+        "ALTER TABLE page_links ADD COLUMN IF NOT EXISTS dst_page_id BIGINT "
+        "REFERENCES pages(id) ON DELETE SET NULL"
+    ),
     "CREATE INDEX IF NOT EXISTS page_links_dst_page_idx ON page_links(dst_page_id)",
     # Backfill idempotente: resuelve los enlaces que ya existían.
     """
@@ -322,8 +324,10 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
     )
     """,
     # El worker busca pendientes por (delivered_at IS NULL, next_attempt_at).
-    "CREATE INDEX IF NOT EXISTS webhook_deliveries_due_idx "
-    "ON webhook_deliveries(next_attempt_at) WHERE delivered_at IS NULL",
+    (
+        "CREATE INDEX IF NOT EXISTS webhook_deliveries_due_idx "
+        "ON webhook_deliveries(next_attempt_at) WHERE delivered_at IS NULL"
+    ),
     "CREATE INDEX IF NOT EXISTS page_links_src_idx ON page_links(src_page_id)",
     """
     CREATE TABLE IF NOT EXISTS page_chunks (
@@ -571,6 +575,26 @@ def init_db() -> None:
         _converge_search_vectors(conn, force=mapping_changed)
         _ensure_default_workspaces(conn)
         _ensure_member_owners(conn)
+
+
+# Una página es una nota, no un volcado. El mayor documento markdown de este propio
+# repositorio ronda los 18 KB, así que 1 MiB deja ~55x de margen sobre lo que alguien
+# escribe de verdad.
+#
+# Esto NO es el arreglo del ReDoS: ese vive en el patrón de meta.py, que ya es lineal.
+# Es el techo de lo que una sola petición puede costar cuando un parser resulte ser peor
+# de lo que se creía — que es exactamente lo que pasó. Va aquí y no en los modelos
+# Pydantic porque MCP llama a create_page/update_page directamente y se los salta, y la
+# superficie de agentes es justo donde es fácil generar una página enorme.
+MAX_CONTENT_BYTES = 1024 * 1024
+
+
+def _check_content_size(content: str) -> None:
+    size = len(content.encode("utf-8"))
+    if size > MAX_CONTENT_BYTES:
+        raise ValueError(
+            f"page content is {size:,} bytes, over the {MAX_CONTENT_BYTES:,}-byte limit"
+        )
 
 
 def slugify(text: str) -> str:
@@ -967,6 +991,7 @@ def create_page(
     parent_slug: str | None = None,
     requested_slug: str | None = None,
 ) -> str:
+    _check_content_size(content)
     title = title.strip() or meta.derive_title(content)
     # Sin requested_slug ni título propio, el slug sale de una marca temporal: si
     # se derivara del título, cien capturas sin título darían untitled-2 … -101.
@@ -1014,6 +1039,7 @@ def create_page(
 
 def update_page(user_id: int, workspace_id: int, slug: str, title: str, content: str) -> str | None:
     """Actualiza una página manteniendo el slug estable; devuelve slug o None si no existe."""
+    _check_content_size(content)
     title = title.strip() or meta.derive_title(content)
     with connect() as conn:
         row = conn.execute(

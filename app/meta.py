@@ -12,7 +12,15 @@ _FRONTMATTER_RE = re.compile(r"^---[ \t]*\n(.*?)\n---[ \t]*\n?", re.DOTALL)
 _FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 _INLINE_CODE_RE = re.compile(r"`[^`]*`")
 _TAG_RE = re.compile(r"(?:^|\s)#([A-Za-z][\w-]*)")
-_WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
+# El `[` excluido de ambas clases no es cosmético: es lo que impide el escaneo
+# cuadrático. Con `[^\]|]+`, una entrada de la forma `[[`*n seguida de texto sin
+# cerrar hacía que cada posición `[[` recorriese toda la cola antes de fallar —
+# 24 KB costaban 7,9 s de CPU, y extract_links corre dentro del guardado. Al no
+# poder pasar del siguiente `[`, un intento mal empezado falla de inmediato.
+# El tope de longitud es defensa añadida y dice algo cierto: un destino de
+# wikilink es un título, no un documento. Medido: 1869 ms -> 0,10 ms a n=4000,
+# con resultados idénticos sobre wikilinks legítimos. Ver tests/test_meta_redos.py.
+_WIKILINK_RE = re.compile(r"\[\[([^\]|\[]{1,200})(?:\|[^\]\[]{0,200})?\]\]")
 
 
 def normalize_tag(tag: str) -> str:

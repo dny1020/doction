@@ -15,6 +15,60 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.31.7 — 2026-09-14
+
+### Security
+
+- **Fixed a quadratic denial of service in wikilink parsing.** The pattern scanned
+  `[[`-repeated content with an unterminated tail in time proportional to the square of its
+  length: 24 KB cost 7.9 seconds of CPU, while 80 KB of legitimate wikilinks cost 3.6 ms.
+  `extract_links` runs inside the page save, synchronously, in the request path, and there was
+  no limit on page size, so any workspace member could make one request consume minutes of
+  CPU. On a single-process deployment that blocks everything.
+
+  Excluding `[` from the target class is what removes the quadratic behaviour, since a scan
+  started at the wrong position can no longer run past the next `[`. Measured at 1869 ms →
+  0.10 ms on the adversarial shape, with identical results on real wikilinks. A regression
+  test asserts the *ratio* between adversarial and benign input of the same length, and was
+  verified to fail against the old pattern.
+
+  Found by CodeQL (`py/polynomial-redos`), where it had sat unread for weeks among twenty
+  findings that were not real.
+
+- **Page content is now limited to 1 MiB.** Not the fix for the above — that is in the
+  pattern — but a ceiling on what any single request can cost when a parser later turns out
+  to be worse than believed. The value is ~55x the longest markdown document in this
+  repository. Enforced where REST and MCP converge, because MCP calls the database layer
+  directly and would have bypassed a check on the request models.
+
+- **The runtime image no longer carries pip or uv.** The application starts from a
+  virtualenv that is already built, so neither is needed to run it. That removes
+  `setuptools` (CVE-2025-47273, CVE-2026-59890) and `msgpack` (GHSA-6v7p-g79w-8964) with
+  them: both were vendored inside pip rather than installed as packages.
+
+- **Debian security updates are applied in the runtime image**, closing 13 findings against
+  `libpcre2-8-0`, `libsqlite3-0`, `gzip`, `libc6` and `libc-bin`. Each had a fixed version
+  published within the same Debian release, so none was dismissible. This adds about 75 MB
+  to the image: Docker layers are additive, so upgrading a package writes the new files
+  above while the originals remain below.
+
+- **The code scanning queue is triaged, and staying triaged is now the rule.** Eleven
+  findings were dismissed with a specific written reason rather than the words "false
+  positive"; eight were fixed in code. `CONTRIBUTING.md` and `SECURITY.md` record that an
+  alert is fixed or dismissed-with-reason and never left undecided, and that an additional
+  scanner — OpenSSF Scorecard is the pending case — is enabled only once the queue is at
+  zero.
+
+### Fixed
+
+- `scripts/changelog.py` reported an error naming `--declared`, a flag renamed to `--check`
+  when it was introduced, and had a code path a static analyser read as leaving a variable
+  unassigned. Both corrected.
+- Four tests performed a `DELETE` inside an `assert`, so running under `python -O` would have
+  stripped the request and passed without testing anything.
+- Two wrapped SQL statements in the schema list are now explicitly parenthesised. Adjacent
+  string literals in a list are indistinguishable from a forgotten comma.
+
 ## 0.31.6 — 2026-09-13
 
 ### Added

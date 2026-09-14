@@ -80,11 +80,26 @@ RUN npm run check
 
 FROM base AS runtime
 
-RUN uv sync --frozen --no-dev && uv cache clean
+# uv construye el venv y después no hace falta: la aplicación arranca
+# `.venv/bin/uvicorn`, no pip ni uv. Quitarlos de la imagen quita con ellos setuptools y
+# msgpack, que no están instalados como paquetes sino vendorizados dentro de pip
+# (pip/_vendor/pkg_resources 70.3.0 y pip/_vendor/msgpack) y aportaban tres hallazgos de
+# Trivy. Un componente que no se envía no vuelve a aparecer en un escaneo; un descarte hay
+# que rejustificarlo cada vez.
+RUN uv sync --frozen --no-dev && uv cache clean \
+    && pip uninstall -y uv pip 2>/dev/null || true
 
 # OCR local opt-in (OCR_UPLOADS=1): tesseract indexa el texto de las imágenes
 # subidas para la búsqueda. Solo en runtime — el stage test no lo necesita.
-RUN apt-get update -qq && apt-get install -y --no-install-recommends \
+#
+# En la misma capa se aplican las actualizaciones de seguridad de Debian. Trivy reportaba
+# 13 hallazgos —libpcre2-8-0, libsqlite3-0, gzip, libc6, libc-bin— y todos tenían ya
+# publicado el arreglo dentro de la misma release de Debian, así que no eran descartables:
+# existía la versión corregida y esta imagen enviaba la anterior. Va aquí y no en `base`
+# para que el stage `test` no pague la descarga en cada build.
+RUN apt-get update -qq \
+    && apt-get -y --no-install-recommends upgrade \
+    && apt-get install -y --no-install-recommends \
         tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa \
     && rm -rf /var/lib/apt/lists/*
 

@@ -70,9 +70,12 @@ Out of scope:
   startup; setting a real key is the operator's job;
 - exposing Postgres to an untrusted network. The shipped compose files bind it to
   loopback or an internal-only network;
-- denial of service through large uploads, expensive search queries, or embedding a huge
-  corpus. There is no per-tenant quota and that is a known design gap, not a
-  vulnerability;
+- denial of service through work that is expensive but *proportionate*: large uploads, a
+  costly search, embedding a huge corpus. There is no per-tenant quota and that is a known
+  design gap rather than a vulnerability. **Disproportionate cost is in scope**: an input
+  whose processing grows faster than its size — a quadratic parser, say — is a vulnerability,
+  because a small request buys a large amount of work. One such bug has already been found
+  and fixed here;
 - missing security headers that a reverse proxy is expected to add (HSTS, CSP on the
   proxy level);
 - findings from an automated scanner with no demonstrated impact.
@@ -96,6 +99,26 @@ Knowing the intended boundaries makes reports sharper.
   frontend.
 - **The container runs non-root** (uid 1000) and `/uploads/*` is served by an
   authenticated route, not a public static mount.
+
+## Scanners and their queue
+
+CodeQL (`security-and-quality`) analyses Python and JavaScript; Trivy scans the published
+runtime image. Both report into the repository's Security tab, and both run weekly as well as
+on changes.
+
+**A finding is fixed or dismissed with a written reason — never left undecided.** Dismissals
+record what specifically makes the finding inapplicable, so a later reader can judge whether
+the argument still holds.
+
+**An additional scanner is enabled only when that queue is at zero.** OpenSSF Scorecard is
+the pending case: it publishes its results as SARIF into this same queue, so turning it on
+while a backlog exists would make its findings indistinguishable from the backlog. That is
+not a hypothetical concern — this queue once held a real quadratic denial of service that
+went unread for weeks because twenty false positives were sitting on top of it.
+
+Where a finding names a component the application does not use, the component is removed
+rather than dismissed. A dismissal has to be re-justified on every rescan; a component that
+is not shipped cannot be found again.
 
 ## Hardening checklist for operators
 

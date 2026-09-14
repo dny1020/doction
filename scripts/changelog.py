@@ -68,6 +68,9 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # `parser.error()` sale del proceso, pero un análisis estático no lo sabe y ve
+    # `version` posiblemente sin asignar. El `return` lo hace explícito, y el mensaje
+    # nombra `--check`: decía `--declared`, una bandera que dejó de existir al renombrarla.
     if args.check:
         try:
             version = declared_version()
@@ -77,7 +80,8 @@ def main() -> int:
     elif args.version:
         version = args.version.removeprefix("v")
     else:
-        parser.error("give a version or --declared")
+        print("error: give a version or --check", file=sys.stderr)
+        return 2
 
     body = section(version)
     if body is None:

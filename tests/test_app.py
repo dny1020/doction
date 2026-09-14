@@ -82,7 +82,8 @@ def test_api_pages_crud(client):
     assert client.get(f"/api/pages/{slug}", headers=hdrs).json()["content"] == "# Steps\nDo Y."
 
     # delete
-    assert client.delete(f"/api/pages/{slug}", headers=hdrs).status_code == 204
+    deleted = client.delete(f"/api/pages/{slug}", headers=hdrs)
+    assert deleted.status_code == 204
     assert client.get(f"/api/pages/{slug}", headers=hdrs).status_code == 404
 
 

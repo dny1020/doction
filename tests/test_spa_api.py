@@ -149,7 +149,8 @@ def test_update_password(client):
 def test_trash_restore_and_purge(client):
     _register(client)  # siembra páginas
     slug = "welcome-to-doction"
-    assert client.delete(f"/api/pages/{slug}").status_code == 204
+    deleted = client.delete(f"/api/pages/{slug}")
+    assert deleted.status_code == 204
     trash = client.get("/api/trash").json()
     assert any(p["slug"] == slug for p in trash)
     # Restaurar la saca de la papelera y la vuelve visible.
@@ -184,11 +185,13 @@ def test_workspace_rename_and_delete(client):
     assert r.status_code == 200
     assert any(w["name"] == "Job" for w in client.get("/api/me").json()["workspaces"])
     # Borrar.
-    assert client.delete(f"/api/workspaces/{work['slug']}").status_code == 200
+    deleted = client.delete(f"/api/workspaces/{work['slug']}")
+    assert deleted.status_code == 200
     assert all(w["slug"] != work["slug"] for w in client.get("/api/me").json()["workspaces"])
     # No se puede borrar el último workspace que queda.
     last = client.get("/api/me").json()["workspaces"][0]
-    assert client.delete(f"/api/workspaces/{last['slug']}").status_code == 400
+    refused = client.delete(f"/api/workspaces/{last['slug']}")
+    assert refused.status_code == 400
 
 
 def test_i18n_catalog_default_english(client):

@@ -128,6 +128,26 @@ rather than published.
 
 Deploying is manual and separate — see `docs/operations.md`.
 
+## Code scanning alerts
+
+CodeQL and Trivy report into the repository's Security tab. **An alert has two possible
+outcomes: fixed, or dismissed with a reason that says what makes it not apply.** Leaving one
+open and unexamined is not one of them, and neither is dismissing one with the words "false
+positive" and nothing else.
+
+The reason is the point. Whoever dismisses an alert will not remember the argument in six
+months, and the next person needs enough to disagree with. Write what specifically makes it
+inapplicable — the sanitiser the analyser did not see, the validation that happens earlier,
+the reason a value cannot hold the character the rule is worried about.
+
+If you cannot state a specific reason, the alert is not a false positive. Say so and leave it
+open rather than dismissing it.
+
+This is not bureaucracy. This queue once sat unread for weeks with a genuine quadratic
+denial-of-service in it, hidden among twenty findings that were not real. The cost of an
+unread queue is not untidiness; it is that a real finding becomes indistinguishable from
+noise.
+
 ## Reporting bugs and asking for features
 
 Use the issue templates. A bug report without the version from `/health` and a
