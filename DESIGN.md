@@ -1,88 +1,85 @@
-# Sistema visual de doction
+# Visual system
 
-Este documento describe el diseño **tal como está implementado**, no como se
-pretendía. Cada valor de aquí está en `app/static/style.css` y se puede verificar
-leyéndolo. Cuando los dos discrepan, el defecto está en este documento antes que
-en la hoja de estilos.
+This document describes the design **as implemented**, not as intended. Every value
+here is in `app/static/style.css` and can be verified by reading it. When the two
+disagree, the defect is in this document before it is in the stylesheet.
 
-Concepto: cuaderno técnico moderno. Cálido, editorial, sobrio, sin apariencia de
-plantilla generada.
+Concept: modern technical notebook. Warm, editorial, restrained, with no look of a
+generated template.
 
 ---
 
-## 1. Intención
+## 1. Intent
 
-doction debe sentirse como un sistema de conocimiento técnico de calidad, no como
-un panel de control ni como una aplicación de notas genérica.
+doction should feel like a quality technical knowledge system, not a dashboard and not
+a generic notes app.
 
-### Principios
+### Principles
 
-1. El documento es el protagonista visual.
-2. Pocas decisiones visuales, pero deliberadas.
-3. El material se siente más de lo que se ve.
-4. La jerarquía se construye con tipografía, ritmo, alineación y tono, no con
-   tarjetas.
-5. Lo técnico usa monoespaciada, densidad controlada y color restringido.
-6. El diseño no añade ni quita funcionalidad, rutas, paneles ni información.
+1. The document is the visual protagonist.
+2. Few visual decisions, but deliberate ones.
+3. Material is felt more than it is seen.
+4. Hierarchy is built with typography, rhythm, alignment and tone, not with cards.
+5. Technical content uses monospace, controlled density, and restrained color.
+6. Design neither adds nor removes functionality, routes, panels, or information.
 
-### Anti-patrones
+### Anti-patterns
 
-No implementar degradados morados o azul eléctrico, fondos con ruido visible,
-pergamino o estética retro, todo dentro de tarjetas, bordes de más de 8px,
-píldoras salvo las genuinamente redondas, sombras grandes o repetidas,
-glassmorphism, etiquetas «AI» o «MCP» como decoración, paneles o métricas
-inventados, grafos neón, ni imitaciones de Notion, GitBook, Obsidian o Linear.
+Do not implement purple or electric-blue gradients, visible-noise backgrounds,
+parchment or retro aesthetics, everything inside cards, borders wider than 8px, pills
+except genuinely round ones, large or repeated shadows, glassmorphism, "AI" or "MCP"
+labels as decoration, invented panels or metrics, neon graphs, or imitations of Notion,
+GitBook, Obsidian, or Linear.
 
 ---
 
 ## 2. Color
 
-Todo el color va en `oklch()`. Las ratios de contraste se miden siempre contra la
-**peor** superficie en la que el token aparece, nunca contra la página: un valor
-medido solo contra el lienzo pasa la revisión y falla luego en una fila con el
-puntero encima.
+All color goes through `oklch()`. Contrast ratios are always measured against the
+**worst** surface the token appears on, never against the page: a value measured only
+against the canvas passes review and then fails on a row with the pointer over it.
 
-### Tema claro
+### Light theme
 
 ```css
 :root {
-  /* Superficies: papel técnico cálido */
+  /* Surfaces: warm technical paper */
   --background:     oklch(0.965 0.012 94);
   --surface:        oklch(0.982 0.008 92);
   --surface-raised: oklch(0.994 0.004 90);
   --surface-muted:  oklch(0.936 0.016 91);
   --surface-inset:  oklch(0.908 0.020 91);
 
-  /* Tinta: verde oscuro, no azul */
+  /* Ink: dark green, not blue */
   --ink:        oklch(0.245 0.030 151);  /* 15.00:1 */
   --ink-strong: oklch(0.185 0.026 150);
   --ink-muted:  oklch(0.445 0.025 151);  /*  7.01:1 */
   --ink-subtle: oklch(0.501 0.020 151);  /*  4.50:1 */
 
-  /* Verde funcional: lo que se pulsa y lo que se lee */
+  /* Functional green: what gets clicked and what gets read */
   --green:       oklch(0.365 0.055 151);  /* 9.69:1 */
   --green-hover: oklch(0.315 0.052 151);
   --green-soft:  oklch(0.915 0.030 151);
   --green-ring:  oklch(0.365 0.055 151 / 0.60);  /* 3.03:1 */
 
-  /* Naranja: señal, no color dominante */
-  --orange:     oklch(0.635 0.155 52);   /* decoración */
-  --orange-ink: oklch(0.515 0.133 52);   /* 4.50:1, marcas que informan */
+  /* Orange: signal, not a dominant color */
+  --orange:     oklch(0.635 0.155 52);   /* decoration */
+  --orange-ink: oklch(0.515 0.133 52);   /* 4.50:1, marks that inform */
 
-  /* Líneas */
+  /* Lines */
   --border-subtle:  oklch(0.875 0.018 90);
-  --border-default: oklch(0.600 0.024 90);  /* 3.00:1, delimita controles */
+  --border-default: oklch(0.600 0.024 90);  /* 3.00:1, delimits controls */
 
-  /* Estado */
+  /* State */
   --danger:      oklch(0.525 0.185 28);  /* 4.51:1 */
   --danger-soft: oklch(0.911 0.046 28);
   --ok-soft:     oklch(0.981 0.030 148);
 
-  /* Superficies compuestas, precalculadas */
+  /* Composite surfaces, precomputed */
   --callout-bg: oklch(0.960 0.022 63.2);
   --input-bg:   oklch(0.987 0.007 97.3);
 
-  /* Código */
+  /* Code */
   --code-inline-bg: oklch(0.915 0.030 151);
   --code-bg:        oklch(0.205 0.024 151);
   --code-text:      oklch(0.930 0.018 96);
@@ -92,11 +89,10 @@ puntero encima.
 }
 ```
 
-### Tema oscuro
+### Dark theme
 
-El selector es `[data-theme="dark"]` sobre `<html>`, **no** `.dark`: de él
-dependen el conmutador de tema, el script antiparpadeo de `index.html` y
-Preferencias.
+The selector is `[data-theme="dark"]` on `<html>`, **not** `.dark`: the theme toggle,
+`index.html`'s anti-flash script, and Preferences all depend on it.
 
 ```css
 [data-theme="dark"] {
@@ -120,32 +116,32 @@ Preferencias.
 }
 ```
 
-**El croma del oscuro es deliberadamente bajo.** Con 0.018–0.023 el carbón se
-lee verde y, sumado al chrome, la aplicación entera queda teñida. El verde se
-reserva para donde dice algo: acento, elemento activo y código.
+**Dark chroma is deliberately low.** At 0.018–0.023 the charcoal reads as green, and
+combined with the chrome, the whole app ends up tinted. Green is reserved for where it
+says something: accent, active element, and code.
 
-### El naranja se parte por consecuencia
+### Orange splits by consequence
 
-Sobre papel el naranja de identidad mide 2.48:1, por debajo del 3:1 que necesita
-una marca que informa. Por eso hay dos:
+On paper the identity orange measures 2.48:1, below the 3:1 an informative mark needs.
+That's why there are two:
 
-- `--orange` **decora** y puede no verse: un filete, un glifo junto a una palabra
-  que ya está escrita. Si nadie pierde nada por no verlo, es este.
-- `--orange-ink` **informa** y por eso mide 4.50:1.
+- `--orange` **decorates** and can go unseen: a rule, a glyph next to a word that is
+  already written. If no one loses anything by not seeing it, this is the one.
+- `--orange-ink` **informs**, and that's why it measures 4.50:1.
 
-La pregunta que decide cuál usar es qué pierde quien no vea la marca.
+The question that decides which one to use is what whoever doesn't see the mark loses.
 
-Sobre carbón el naranja sí llega, así que en tema oscuro un solo valor cubre los
-dos papeles. La regla no cambia entre temas; cambia cuántos tonos hacen falta
-para cumplirla.
+On charcoal, orange does reach the ratio, so in dark theme a single value covers both
+roles. The rule doesn't change between themes; what changes is how many shades it takes
+to meet it.
 
 ---
 
-## 3. Tipografía
+## 3. Typography
 
-Tres familias, autohospedadas en `app/static/vendor/fonts/`. doction se sirve en
-LAN, en VPN y a veces sin salida a internet, así que una petición a un CDN
-fallaría justo donde más se usa.
+Three families, self-hosted at `app/static/vendor/fonts/`. doction is served on a LAN,
+over a VPN, and sometimes with no route to the internet, so a request to a CDN would
+fail exactly where it's used most.
 
 ```css
 --font-ui:      'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
@@ -154,25 +150,25 @@ fallaría justo donde más se usa.
 --font-data:    var(--font-mono);
 ```
 
-- **Manrope** — navegación, cuerpo, formularios, botones, tablas y controles.
-  Vendorizada en 400, 500 y 600.
-- **Instrument Serif** — solo el título de página y el H1 del documento. Un peso.
-- **JetBrains Mono** — código, rutas, atajos, marcas de tiempo y metadatos. Nunca
-  una frase. Esta última regla es la que hace que la aplicación se lea como
-  documentación y no como una aplicación con contenido dentro.
+- **Manrope** — navigation, body, forms, buttons, tables and controls. Vendored at
+  400, 500 and 600.
+- **Instrument Serif** — only the page title and the document's H1. One weight.
+- **JetBrains Mono** — code, paths, shortcuts, timestamps and metadata. Never a
+  sentence. That last rule is what makes the app read as documentation rather than as
+  an application with content inside it.
 
-`Inter` figura en la cadena pero **no se vendoriza**: sería pagar dos veces por un
-caso que no puede ocurrir, porque ambas caras vendrían del mismo origen. El
-respaldo real es `system-ui`.
+`Inter` appears in the stack but **is not vendored**: that would be paying twice for a
+case that can't happen, since both faces would come from the same origin. The real
+fallback is `system-ui`.
 
-### Escala
+### Scale
 
 ```css
---text-xs:   0.6875rem;  /* 11px — metadatos */
+--text-xs:   0.6875rem;  /* 11px — metadata */
 --text-sm:   0.75rem;    /* 12px */
---text-base: 0.875rem;   /* 14px — interfaz */
---text-nav:  0.8125rem;  /* 13px — navegación */
---text-md:   1rem;       /* 16px — cuerpo del documento */
+--text-base: 0.875rem;   /* 14px — interface */
+--text-nav:  0.8125rem;  /* 13px — navigation */
+--text-md:   1rem;       /* 16px — document body */
 --text-lg:   1.125rem;   /* 18px */
 --text-xl:   1.375rem;   /* 22px */
 --text-2xl:  1.75rem;    /* 28px */
@@ -180,26 +176,26 @@ respaldo real es `system-ui`.
 --text-4xl:  3.25rem;    /* 52px */
 ```
 
-| Elemento | Familia | Tamaño | Interlínea |
+| Element | Family | Size | Line height |
 |---|---|---|---|
-| Título de página | display | 52px | 1.03 |
-| H1 del documento | display | 36px | 1.15 |
-| H2 | interfaz, 600 | 22px | 1.3 |
-| H3 | interfaz, 600 | 16px | 1.45 |
-| Cuerpo del documento | interfaz | 16px | 1.78 |
-| Interfaz | interfaz | 14px | 1.45 |
-| Navegación | interfaz | 13px | 1.3 |
-| Metadatos | datos | 11px | 1.45 |
+| Page title | display | 52px | 1.03 |
+| Document H1 | display | 36px | 1.15 |
+| H2 | interface, 600 | 22px | 1.3 |
+| H3 | interface, 600 | 16px | 1.45 |
+| Document body | interface | 16px | 1.78 |
+| Interface | interface | 14px | 1.45 |
+| Navigation | interface | 13px | 1.3 |
+| Metadata | data | 11px | 1.45 |
 
-Los H2 y H3 van en la cara de interfaz, no en la serif: a 22 y 16px la serif
-tiene el ojo demasiado pequeño para pesar como un encabezado.
+H2 and H3 use the interface face, not the serif: at 22 and 16px the serif's x-height is
+too small to carry weight as a heading.
 
-Peso 400 para texto, 500 para controles y navegación, 600 solo para encabezados
-de interfaz. Evitar 700.
+Weight 400 for text, 500 for controls and navigation, 600 only for interface headings.
+Avoid 700.
 
 ---
 
-## 4. Retícula
+## 4. Grid
 
 ```css
 --sidebar-width:      280px;
@@ -212,32 +208,32 @@ de interfaz. Evitar 700.
 
 ```text
 Viewport
-├── Sidebar fijo: 280px, pegado al borde
-└── Área principal
-    ├── Barra superior: 56px
-    └── Zona de documento (máx. 1720px)
-        ├── Margen izquierdo: 72px
-        ├── Columna de lectura: máx. 760px
-        ├── Separación: 96px
-        └── Índice: 220px
+├── Fixed sidebar: 280px, pinned to the edge
+└── Main area
+    ├── Top bar: 56px
+    └── Document zone (max. 1720px)
+        ├── Left margin: 72px
+        ├── Reading column: max. 760px
+        ├── Gap: 96px
+        └── Table of contents: 220px
 ```
 
-Reglas de composición:
+Composition rules:
 
-- El sidebar **se ancla al borde de la ventana**. El tope de 1720px limita el
-  contenido, no el shell: puesto sobre el conjunto, el panel quedaba flotando con
-  el fondo asomando a su izquierda.
-- El contenido **arranca** a 72px del lateral. Centrarlo haría que el margen
-  dependiera del ancho de la ventana.
-- El índice respira a 96px del documento. Es texto pequeño y gris junto a texto de
-  lectura, y el aire es lo único que los separa.
-- Nada de una tarjeta blanca gigante alrededor del documento.
+- The sidebar **anchors to the window's edge**. The 1720px cap limits the content, not
+  the shell: applied to the whole thing, the panel ended up floating with the
+  background peeking out to its left.
+- Content **starts** 72px from the side. Centering it would make the margin depend on
+  the window's width.
+- The table of contents breathes at 96px from the document. It's small, gray text next
+  to reading text, and whitespace is the only thing that separates them.
+- No giant white card around the document.
 
 ---
 
-## 5. Espaciado
+## 5. Spacing
 
-Base de 4px, más un escalón óptico por debajo.
+A 4px base, plus one optical step below it.
 
 ```css
 --space-0:  2px;   --space-1:  4px;   --space-2:  8px;   --space-3: 12px;
@@ -246,15 +242,15 @@ Base de 4px, más un escalón óptico por debajo.
 --space-16: 64px;  --space-20: 80px;  --space-24: 96px;
 ```
 
-`--space-0` existe porque hay diecisiete sitios con separaciones de 2px bajo texto
-de 11 y 12px, y subirlos a 4 engorda cada insignia y cada marca en línea.
+`--space-0` exists because there are seventeen places with 2px gaps under 11 and
+12px text, and bumping them to 4 fattens every badge and every inline mark.
 
-Ritmo del documento: 56px sobre un H2, 36px sobre un H3, 24px bajo un párrafo,
-28px alrededor de un bloque de código o una nota.
+Document rhythm: 56px above an H2, 36px above an H3, 24px below a paragraph, 28px
+around a code block or a note.
 
 ---
 
-## 6. Radio, bordes y sombras
+## 6. Radius, borders and shadows
 
 ```css
 --radius-xs: 2px;   --radius-sm: 4px;   --radius-md: 6px;   --radius-lg: 8px;
@@ -265,18 +261,18 @@ Ritmo del documento: 56px sobre un H2, 36px sobre un H3, 24px bajo un párrafo,
 --shadow-3: 0 12px 32px oklch(0.20 0.02 150 / 0.10);
 ```
 
-Radio estándar de interfaz 4px; código 6px; modales 8px. La píldora sobrevive
-solo en lo genuinamente redondo: avatares y puntos de tema.
+Standard interface radius 4px; code 6px; modals 8px. The pill survives only on what's
+genuinely round: avatars and theme dots.
 
-Las sombras son para lo que flota —menús, ventanas emergentes, modales—. Una
-superficie que se apoya en la página lleva línea, no sombra.
+Shadows are for what floats — menus, popovers, modals. A surface that rests on the page
+gets a line, not a shadow.
 
 ---
 
 ## 7. Material
 
-El material es tonal, no textural. **Nada de ruido, grano visible, texturas ni
-imágenes de papel.**
+Material is tonal, not textural. **No noise, visible grain, textures, or paper
+images.**
 
 ```css
 --material: linear-gradient(
@@ -287,10 +283,10 @@ imágenes de papel.**
 );
 ```
 
-La fuerza cambia entre temas: sobre carbón, el mismo valor que sobre papel pinta
-una banda diagonal con borde duro cruzando el documento en vez de sentirse.
+Strength changes between themes: on charcoal, the same value that works on paper
+paints a hard-edged diagonal band across the document instead of just being felt.
 
-| | claro | oscuro |
+| | light | dark |
 |---|---|---|
 | `--material-sheen` | 0.18 | 0.030 |
 | `--material-warm` | 0.05 | 0.018 |
@@ -299,16 +295,16 @@ una banda diagonal con borde duro cruzando el documento en vez de sentirse.
 
 ## 8. Chrome
 
-La navegación **no es papel**: es una región de tinta verde oscura, en los dos
-temas, y el documento es la superficie clara a su lado. Ese contraste es lo que da
-jerarquía: el chrome recede, el documento manda.
+Navigation **is not paper**: it's a region of dark green ink, in both themes, and the
+document is the light surface next to it. That contrast is what gives hierarchy: the
+chrome recedes, the document leads.
 
 ```css
---nav-bg:        oklch(0.145 0.028 151);  /* extremo superior del degradado */
---nav-bg-end:    oklch(0.115 0.022 151);  /* extremo inferior */
+--nav-bg:        oklch(0.145 0.028 151);  /* top end of the gradient */
+--nav-bg-end:    oklch(0.115 0.022 151);  /* bottom end */
 --nav-hover:     oklch(0.185 0.030 151);
 --nav-active-bg: oklch(0.310 0.040 151 / 0.72);
---nav-edge:      oklch(0.330 0.030 151);  /* el canto, medido contra el LIENZO */
+--nav-edge:      oklch(0.330 0.030 151);  /* the edge, measured against the CANVAS */
 
 --nav-ink:            oklch(0.928 0.014 93);   /* 11.37:1 */
 --nav-ink-strong:     oklch(0.975 0.007 93);   /* 13.08:1 */
@@ -319,88 +315,86 @@ jerarquía: el chrome recede, el documento manda.
 --nav-orange:         oklch(0.635 0.155 52);   /*  3.88:1 */
 ```
 
-El chrome **es más oscuro que el documento también en tema oscuro**. Si queda más
-claro, el panel avanza en vez de recederse y la aplicación se lee como una sola
-masa.
+The chrome **is darker than the document even in dark theme**. If it's lighter, the
+panel advances instead of receding, and the app reads as a single mass.
 
-Sus cuatro suelos reales son los dos extremos del degradado más el fondo del
-elemento activo compuesto sobre cada uno. Todo lo que va encima se mide contra el
-peor de los cuatro.
+Its four real floors are the gradient's two ends plus the active element's background
+composited over each. Everything on top of it is measured against the worst of the
+four.
 
-El elemento activo lleva superficie verde tenue y un filete izquierdo de 2px en
-naranja, **no** un relleno: el naranja señala el borde y el peso y la tinta hacen
-el resto, así que el color nunca viaja solo.
+The active element carries a faint green surface and a 2px orange left rule, **not** a
+fill: orange marks the edge, and weight plus ink do the rest, so color never travels
+alone.
 
-### Cómo está implementado
+### How it's implemented
 
-El chrome redefine los **nombres** de token dentro de su ámbito en lugar de
-reescribir las reglas que contiene. `var()` se resuelve en el elemento que hace
-match con las propiedades que ese elemento hereda, así que todo lo que vive dentro
-se re-tematiza solo.
+The chrome redefines token **names** within its scope instead of rewriting the rules it
+contains. `var()` resolves at the element that matches, against the properties that
+element inherits, so everything living inside re-themes itself automatically.
 
-Dos consecuencias que se aprendieron midiendo:
+Two consequences learned by measuring:
 
-- **Todo nombre que el chrome redefina hay que redefinirlo también en la reentrada
-  al lienzo.** Un nombre olvidado no falla ruidosamente: resuelve al valor del
-  lienzo, que es el equivocado justo donde se olvidó.
-- **Lo que se declara dentro pero se pinta fuera tiene que volver al lienzo.** El
-  diálogo de mover y renombrar vive en el árbol pero `showModal()` lo pinta
-  centrado sobre el documento; sin devolverlo, salía oscuro mientras el diálogo
-  idéntico del resto de la aplicación salía claro.
+- **Every name the chrome redefines has to be redefined again at the re-entry to the
+  canvas.** A forgotten name doesn't fail loudly: it resolves to the canvas value,
+  which is the wrong one exactly where it was forgotten.
+- **What's declared inside but painted outside has to return to the canvas.** The
+  move-and-rename dialog lives in the tree, but `showModal()` paints it centered over
+  the document; without returning it, it came out dark while the identical dialog
+  elsewhere in the app came out light.
 
-### El suelo no puede aclararse
+### The floor can't be lightened
 
-El disco del avatar toma su color de un `style` inline, no de un token, y es un
-límite de control que necesita 3:1. Sobre el suelo actual mide 3.68:1. Aclarar el
-chrome lo baja por debajo del umbral sin que nada en el sidebar lo delate.
-
----
-
-## 9. Documento
-
-- Encabezado con aire arriba y una línea que lo cierra abajo.
-- Migas de pan en la cara de datos, mayúsculas, 11px. Su separador lleva el
-  naranja decorativo: es `aria-hidden`, así que no debe contraste a nadie.
-- Franja de metadatos con los dos campos que existen, fecha de actualización y
-  último editor. No hay propietario ni tiempo de lectura.
-- Enlaces en verde. Un wikilink a una página que aún no existe se pinta apagado:
-  allí es algo por escribir, no un error.
-- Separadores: una línea fina y mucho espacio vertical.
-- Ninguna sección del markdown va dentro de un contenedor.
-
-### Notas
-
-Filete izquierdo de 2px en naranja sobre un fondo cálido tenue, sin cursiva:
-párrafos enteros en cursiva se leen peor.
-
-### Código
-
-El **bloque** es una losa oscura, un inset de terminal dentro de un libro. Su
-color de texto se declara en el bloque, no en el resaltador: el resaltado solo se
-aplica a las vallas que declaran lenguaje, y una valla pelada heredaría la tinta
-del documento sobre la losa.
-
-El **código en línea** no comparte esa superficie. Es tipografía dentro de una
-frase, va en verde sobre verde tenue; sobre la losa cada `` `foo` `` de un párrafo
-sería una pastilla negra.
-
-El resaltado se reduce a tres señales sobre la tinta del código: comentarios
-apagados, cadenas en verde, números en naranja. El resto se queda en `--code-text`.
+The avatar disc takes its color from an inline `style`, not a token, and it's a control
+boundary that needs 3:1. Against the current floor it measures 3.68:1. Lightening the
+chrome would drop it below the threshold without anything in the sidebar giving it
+away.
 
 ---
 
-## 10. Índice
+## 9. Document
 
-Ancho 220px, posición pegajosa, a 96px del documento. Tipografía de interfaz a
-12px y el rótulo en datos a 11px. Sin tarjeta ni fondo flotante.
+- Header with air above it and a line closing it below.
+- Breadcrumbs in the data face, uppercase, 11px. Their separator carries the decorative
+  orange: it's `aria-hidden`, so it owes no one contrast.
+- Metadata strip with the two fields that exist, last-updated date and last editor.
+  There's no owner and no reading time.
+- Links in green. A wikilink to a page that doesn't exist yet is painted dim: there,
+  it's something to be written, not an error.
+- Dividers: a thin line and plenty of vertical space.
+- No markdown section sits inside a container.
 
-El estado activo tiene **un solo portador**: el filete naranja. El texto sube a
-tinta principal, que ya es contraste suficiente sin depender del color. Decirlo
-con el color y con el filete a la vez sube el volumen del índice entero.
+### Notes
+
+2px orange left rule over a faint warm background, no italics: whole paragraphs in
+italics read worse.
+
+### Code
+
+The **block** is a dark slab, a terminal inset inside a book. Its text color is
+declared on the block, not on the highlighter: highlighting only applies to fences
+that declare a language, and a bare fence would inherit the document's ink over the
+slab.
+
+**Inline code** doesn't share that surface. It's typography inside a sentence, green on
+faint green; on the slab, every `` `foo` `` in a paragraph would be a black pill.
+
+Highlighting is reduced to three signals over the code's ink: dimmed comments, strings
+in green, numbers in orange. Everything else stays `--code-text`.
 
 ---
 
-## 11. Controles
+## 10. Table of contents
+
+220px wide, sticky position, 96px from the document. Interface typography at 12px and
+the label in the data face at 11px. No card and no floating background.
+
+The active state has **a single carrier**: the orange rule. The text steps up to the
+primary ink, which is already enough contrast without relying on color. Saying it with
+color and with the rule at once turns up the volume of the whole table of contents.
+
+---
+
+## 11. Controls
 
 ```css
 .button-primary  { height: 32px; background: var(--green); border-radius: var(--radius-sm); }
@@ -409,70 +403,68 @@ con el color y con el filete a la vez sube el volumen del índice entero.
 .input:focus     { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-ring); }
 ```
 
-El anillo de foco mide 3.03:1 en claro y 3.00:1 en oscuro. Un indicador de foco
-necesita 3:1, y este ha tenido que subirse dos veces por quedarse corto: cualquier
-propuesta de bajarlo va contra una corrección deliberada.
+The focus ring measures 3.03:1 in light and 3.00:1 in dark. A focus indicator needs
+3:1, and this one has had to be raised twice for falling short: any proposal to lower
+it goes against a deliberate correction.
 
-### Barra de desplazamiento
+### Scrollbar
 
-Propia, no la del sistema. Definida una vez y heredada por los tres sitios que
-desplazan —árbol, menú de workspaces e índice—, así que dentro del chrome se
-re-tematiza sola. 8px de ancho, pulgar redondeado a su propio ancho y más fino que
-la pista gracias a un borde transparente.
+Custom, not the system's. Defined once and inherited by the three places that scroll —
+the tree, the workspaces menu, and the table of contents — so inside the chrome it
+re-themes itself. 8px wide, thumb rounded to its own width and thinner than the track
+thanks to a transparent border.
 
-### Un control, una acción
+### One control, one action
 
-Con el sidebar plegado solo debe verse **un** botón para desplegarlo, el de la
-barra superior. El botón flotante que existía para eso se retiró cuando la barra
-pasó a verse a todos los anchos.
-
----
-
-## 12. Grafo
-
-Nodos sin brillo ni efectos. El nodo en reposo es una superficie con contorno
-verde; el activo se rellena de verde y lleva una señal naranja mínima en el
-contorno. Las relaciones son líneas cartográficas, no constelaciones. El fondo usa
-profundidad tonal suave, sin cuadrículas.
-
-Dos estados propios de doction que el lenguaje general no nombra: una página
-**huérfana** se apaga en vez de alarmar, porque no es un error sino algo que nadie
-ha conectado todavía; un enlace **roto** se dibuja discontinuo en el tono de
-peligro, porque aquí sí es un hallazgo.
+With the sidebar collapsed, only **one** button to expand it should be visible: the one
+in the top bar. The floating button that used to exist for that was removed once the
+bar became visible at every width.
 
 ---
 
-## 13. Movimiento
+## 12. Graph
+
+Nodes with no glow and no effects. The resting node is a surface with a green outline;
+the active one fills with green and carries a minimal orange signal on the outline.
+Relationships are cartographic lines, not constellations. The background uses soft
+tonal depth, no grids.
+
+Two states specific to doction that the general vocabulary doesn't name: an **orphan**
+page dims instead of alarming, because it isn't an error, just something no one has
+connected yet; a **broken** link is drawn dashed in the danger tone, because here it
+genuinely is a finding.
+
+---
+
+## 13. Motion
 
 ```css
 --ease-standard: cubic-bezier(0.2, 0, 0, 1);
---duration-fast: 120ms;   /* color, fondo, borde */
---duration-base: 180ms;   /* sombra, opacidad */
---duration-slow: 240ms;   /* el cajón móvil */
+--duration-fast: 120ms;   /* color, background, border */
+--duration-base: 180ms;   /* shadow, opacity */
+--duration-slow: 240ms;   /* the mobile drawer */
 ```
 
-Solo color, fondo, borde, sombra y opacidad. Nada de rebotes, entradas dramáticas,
-animaciones continuas ni parallax.
+Only color, background, border, shadow and opacity. No bounces, dramatic entrances,
+continuous animations, or parallax.
 
 ---
 
-## 14. Cómo se verifica
+## 14. How it's verified
 
-Estas reglas se comprueban, no se confían.
+These rules are checked, not trusted.
 
-- **Contraste medido desde la propia hoja de estilos**, no desde una tabla escrita
-  a mano: se parsean los bloques de token y se calcula cada par contra los seis
-  suelos —lienzo claro, lienzo oscuro, los dos extremos del chrome, la losa de
-  código y el fondo compuesto de las notas—. Cero fallos es la condición de
-  entrega.
-- **Gamut**: un color fuera de sRGB lo remapea el navegador a algo que el autor no
-  eligió, así que una ratio calculada sobre el valor original describe un color que
-  nadie ve.
-- **Ningún literal de color fuera de los bloques de token**, y ningún token sin
-  llamadas.
-- **En un navegador de verdad, no solo en capturas.** Dos defectos de la última
-  ronda —una banda diagonal en el material y una nota marrón saturada— eran
-  evidentes en pantalla y no lo fueron en 102 capturas automatizadas.
-- **Reconstruir antes de medir.** La hoja se enlaza con un hash de contenido que
-  solo cambia al construir; sin `make build-web` la medición describe la hoja
-  anterior.
+- **Contrast measured from the stylesheet itself**, not from a hand-written table: the
+  token blocks are parsed and every pair is calculated against the six floors — light
+  canvas, dark canvas, the chrome's two ends, the code slab, and the notes' composited
+  background. Zero failures is the condition for shipping.
+- **Gamut**: a color outside sRGB gets remapped by the browser to something the author
+  didn't choose, so a ratio calculated on the original value describes a color no one
+  sees.
+- **No color literal outside the token blocks**, and no token with zero callers.
+- **In a real browser, not only in screenshots.** Two defects from the last round — a
+  diagonal band in the material and an oversaturated brown note — were obvious on
+  screen and weren't caught in 102 automated screenshots.
+- **Rebuild before measuring.** The stylesheet is linked with a content hash that only
+  changes on build; without `make build-web` the measurement describes the previous
+  stylesheet.
