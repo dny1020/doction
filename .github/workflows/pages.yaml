@@ -1,24 +1,30 @@
 name: Docs site
 
+# Manual only, for now. GitHub Pages is not enabled for this repository and will not be:
+# documentation is planned to move to a doction.dev domain instead, so `configure-pages` has
+# nothing to resolve and every automatic run fails on a decision rather than a defect. The
+# push trigger below stays commented rather than deleted because the path list is the part
+# worth keeping — restore it, and the site publishes again on the same terms as before.
+#
 # El sitio se publica desde main y solo cuando cambia la documentación o cómo se construye.
 # Un cambio de código que no toca nada de esto no tiene por qué republicar el sitio.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "docs/**"
-      - "mkdocs.yml"
-      - "scripts/build_docs.py"
-      - "README.md"
-      - "CONTRIBUTING.md"
-      - "SECURITY.md"
-      - "DESIGN.md"
-      - "CHANGELOG.md"
-      - "ROADMAP.md"
-      - "AGENTS.md"
-      - "CODE_OF_CONDUCT.md"
-      - "openspec/README.md"
-      - ".github/workflows/pages.yaml"
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "docs/**"
+  #     - "mkdocs.yml"
+  #     - "scripts/build_docs.py"
+  #     - "README.md"
+  #     - "CONTRIBUTING.md"
+  #     - "SECURITY.md"
+  #     - "DESIGN.md"
+  #     - "CHANGELOG.md"
+  #     - "ROADMAP.md"
+  #     - "AGENTS.md"
+  #     - "CODE_OF_CONDUCT.md"
+  #     - "openspec/README.md"
+  #     - ".github/workflows/pages.yaml"
   workflow_dispatch:
 
 # Lo mínimo para publicar en Pages y nada más: `contents: read` para el checkout,

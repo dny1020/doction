@@ -150,14 +150,22 @@ completing the *descriptions* is this entry.
 
 *Deferred by `documentation-site`, where the measurement is recorded.*
 
-### GitHub Pages is not enabled — **decision**
+### The docs site will not be served from GitHub Pages — **decision**
 
-The deployment workflow exists, is pinned, and takes only `pages: write` and `id-token: write`.
-The Pages API answers 404 for this repository, so it has nothing to publish to. Enabling it is a
-repository setting rather than anything a commit can change, and until it is on, the site can be
-built locally with `make docs` but is not published anywhere.
+Enabling Pages was left open as a repository-setting decision (see the original note below);
+the direction has since changed. Documentation and API exposure are planned to move to a
+`doction.dev` domain once it is acquired, rather than to a `github.io` subdomain, so Pages will
+not be enabled for this repository. The deployment workflow
+(`.github/workflows/pages.yaml`) exists, is pinned, and takes only `pages: write` and
+`id-token: write`, but it has nothing to publish to and is not going to get one, so its push
+trigger is commented out and it now runs only on `workflow_dispatch`. It was failing on every
+push that touched a path it watched (`docs/**`, `README.md`, `CHANGELOG.md`, and the other
+root documents in its `nav`), on a decision rather than a defect. The path list is kept in the
+file rather than deleted, so restoring the trigger is uncommenting it. `make docs` still builds
+the site locally in strict mode; only the deployment step is affected.
 
-*Identified while implementing `documentation-site`.*
+*Original decision identified while implementing `documentation-site`; direction changed by
+the maintainer once a `doction.dev` domain became the plan.*
 
 ---
 
