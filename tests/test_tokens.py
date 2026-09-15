@@ -20,7 +20,8 @@ def _create_pat(client, jwt: str, name: str = "agent") -> dict:
 
 
 def test_create_requires_auth(client):
-    assert client.post("/api/tokens", json={"name": "x"}).status_code == 401
+    r = client.post("/api/tokens", json={"name": "x"})
+    assert r.status_code == 401
 
 
 def test_create_returns_plaintext_once(client):
