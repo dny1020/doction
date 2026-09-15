@@ -15,6 +15,35 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.31.10 — 2026-09-14
+
+Repository hygiene. No application behaviour changed — this release touches demo
+content, documentation wording, an OpenSpec rationale, a local tooling config, and a
+handful of dead files.
+
+### Changed
+
+- doction no longer frames itself around a specific device. The seeded demo runbook,
+  `docs/install.md`, `docs/operations.md`, and the rationale prose in the
+  `client-resilience`, `visual-language`, and `retrieval-ranking` specs now describe the
+  actual constraint (self-hosted, modest hardware, often behind a VPN with no public
+  route) instead of naming "Raspberry Pi" as the product's identity. The Raspberry Pi
+  stays as a real, measured example where docs already cited concrete numbers — this is
+  wording, not a retraction of those measurements.
+- `.graphifyignore` no longer duplicates `.gitignore`. It kept 3 entries whose exclusion
+  Graphify does not already get for free — `app/static/vendor/` (vendored, minified,
+  git-tracked on purpose), `graphify-out/`, and a broader `*.log` — down from 25. This
+  also fixes a real bug: a duplicated `.env.*` rule was re-excluding `.env.example` from
+  the knowledge graph even though `.gitignore`'s own `!.env.example` exception says it
+  should be readable.
+
+### Removed
+
+- `.agents/skills/.openspec-target`, a tracked leftover from an agent-tooling scaffold
+  retired in `cb5e85d` (it named `codex`, not this project's tooling, and nothing
+  referenced it).
+- The empty `tools/` directory, unreferenced and without git history.
+
 ## 0.31.9 — 2026-09-14
 
 End-user documentation, and two gates that keep documentation from going quietly wrong.
