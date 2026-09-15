@@ -153,6 +153,13 @@
 - **4.6 cannot be done yet.** The Pages API still answers 404 for this repository, so the
   deployment workflow has nothing to publish to. It is written and pinned; enabling Pages is a
   repository setting.
+- **4.6 will not be done under this plan.** The maintainer decided against enabling GitHub
+  Pages at all: documentation and API exposure are planned to move to a `doction.dev` domain
+  once acquired, not to a `github.io` subdomain. Recorded in `ROADMAP.md` under "The docs site
+  will not be served from GitHub Pages." The task stays unchecked per its own instruction — the
+  site was never verified as published, and now will not be under this workflow. The pinned
+  `pages.yaml` deployment workflow keeps failing on every push that touches a watched path;
+  it is left in place, unremoved, pending a decision on whether to retire or repoint it.
 
 ## 5. Close out
 
@@ -162,7 +169,7 @@
 - [x] 5.2 Add the deferred items to `ROADMAP.md`: response models across the 59 handlers, and the
       Community phase. Verify each names where it was identified, as the `contribution`
       capability requires.
-- [ ] 5.3 Bump the version in `pyproject.toml` and release. `publish` runs on every push to
+- [x] 5.3 Bump the version in `pyproject.toml` and release. `publish` runs on every push to
       `main` and republishes an unbumped version tag, and this change alters `app/` and
       `scripts/`, so it needs a version of its own. Verify the release workflow created the
       GitHub Release and that the CHANGELOG entry exists, since a version tag without one fails
@@ -182,3 +189,10 @@
   succeed until Pages is enabled on the repository, so the first push would put a red run on
   `main` for a reason that is a settings change rather than a defect. Enabling Pages first makes
   the same push green.
+- **5.3 shipped later than planned, and under a different tag.** This change's version bump
+  (0.31.9) was pushed with the rest of `main` but never tagged on its own — the next release
+  bundled it with a separate repository-hygiene change into `v0.31.10` instead, which is the
+  tag that actually has the GitHub Release and satisfies this task. `pages.yaml` did run on that
+  push and did fail, exactly as predicted above, but for the reason recorded in the note on 4.6:
+  Pages was never enabled, and by the time 0.31.10 shipped the maintainer had decided it would
+  not be.
