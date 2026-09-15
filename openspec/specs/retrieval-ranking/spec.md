@@ -107,7 +107,8 @@ composed itself. It returns passages that exist in the corpus, with provenance. 
 connected agent's job.
 
 This is the product's architecture, not a temporary limitation: the boundary is what lets doction
-run on a Raspberry Pi, stay auditable, and answer with text that can be traced to a page.
+run on modest self-hosted hardware, stay auditable, and answer with text that can be
+traced to a page.
 
 #### Scenario: Assembled context is quoted, not written
 

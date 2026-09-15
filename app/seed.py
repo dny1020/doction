@@ -11,7 +11,7 @@ Use the **+ New** button to create your first page, or edit this one to make it 
 """
 
 RUNBOOK = """\
-# Runbook: Deploy to Raspberry Pi
+# Runbook: Deploy to production
 
 A short example of the kind of operational note this wiki is built for.
 
@@ -19,7 +19,7 @@ A short example of the kind of operational note this wiki is built for.
 
 1. Push to `main` — the Gitea runner builds the image.
 2. The `package` job runs a smoke test against `/docs`.
-3. On success, pull and restart the container on the Pi.
+3. On success, pull and restart the container on the server.
 
 ```bash
 docker pull api-test:latest
@@ -49,6 +49,6 @@ MARKDOWN_NOTES = """\
 
 SEED_PAGES = [
     ("Welcome to doction", WELCOME),
-    ("Runbook: Deploy to Raspberry Pi", RUNBOOK),
+    ("Runbook: Deploy to production", RUNBOOK),
     ("Markdown Cheatsheet", MARKDOWN_NOTES),
 ]

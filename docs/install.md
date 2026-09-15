@@ -2,7 +2,7 @@
 
 doction is two containers: the app, and a Postgres it talks to. There is no third
 service, no broker, and no external API. The published image is multi-arch, so the same
-tag runs on amd64 and on a Raspberry Pi.
+tag runs on amd64 and arm64 hardware — from a cloud VM to a small self-hosted board.
 
 ## Requirements
 
@@ -15,8 +15,9 @@ tag runs on amd64 and on a Raspberry Pi.
 | Disk | the git repo of your pages, plus uploads, plus the Postgres volume | — |
 | Postgres | 16 | 16 |
 
-A Raspberry Pi 4 with 2 GB runs it with semantic search on. The reference deployment caps
-the app container at 768 MB.
+doction runs comfortably on modest self-hosted hardware — for example, a Raspberry Pi 4
+with 2 GB runs it with semantic search on. The reference deployment caps the app
+container at 768 MB.
 
 ## Option 1: Docker Compose
 

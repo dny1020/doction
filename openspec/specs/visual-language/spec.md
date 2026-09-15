@@ -157,9 +157,9 @@ would.
 ### Requirement: The visual language costs nothing at runtime
 
 Every font the interface renders SHALL be served by the deployment itself, and the set SHALL be
-justified against its weight. doction runs on a Raspberry Pi and in networks with no route out, so
-a family that cannot be vendored cannot be used, and a family that is vendored is paid for on every
-cold load.
+justified against its weight. doction runs on modest self-hosted hardware and in networks with
+no route out, so a family that cannot be vendored cannot be used, and a family that is vendored
+is paid for on every cold load.
 
 A type family SHALL be added only if a role in the language requires it and no already-present
 family can fill that role.

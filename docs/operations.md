@@ -173,8 +173,9 @@ just uvicorn's — the root logger is configured at import time for that reason.
 
 ## Capacity and resource use
 
-The reference deployment is a Raspberry Pi with the app container capped at `768m`, with
-`SEMANTIC_SEARCH=1` on and the reranker off. That limit has room to spare.
+The reference deployment runs on modest self-hosted hardware (a Raspberry Pi) with the
+app container capped at `768m`, with `SEMANTIC_SEARCH=1` on and the reranker off. That
+limit has room to spare.
 
 The two optional models are what move the number. The embedding model is ~23 MB on disk;
 enabling the reranker on top needs roughly 80–100 MB more resident memory, which is the

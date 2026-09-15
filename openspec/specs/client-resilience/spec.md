@@ -2,9 +2,9 @@
 
 ## Purpose
 Defines how the client behaves when the server it depends on is slow, unreachable, or asked to do
-the same thing twice. doction is self-hosted, often on a Raspberry Pi behind a VPN, so an
-unreachable server is an ordinary condition rather than an exceptional one. Losing someone's
-writing to it is not acceptable.
+the same thing twice. doction is self-hosted, often on modest hardware reachable only over a
+VPN, so an unreachable server is an ordinary condition rather than an exceptional one. Losing
+someone's writing to it is not acceptable.
 
 ## Requirements
 
