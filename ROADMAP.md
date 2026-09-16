@@ -56,16 +56,6 @@ PostgreSQL. It is the first thing a new user reads, and it is wrong.
 
 ## Consistency
 
-### Comments are mixed Spanish and English — **decision**
-
-`CONTRIBUTING.md` states that code, comments and docs are English regardless of the
-conversation's language. Much of `app/`, the workflows, `compose.yaml` and the `Makefile` are
-in Spanish, including comments added recently. Either the convention changes or the codebase
-converges on it; what is not defensible is the current state, where the stated rule and the
-code disagree.
-
-*Identified during the five-phase maturity review, and repeatedly since.*
-
 ### The `knowledge-graph` capability has a `TBD` Purpose — **open**
 
 `openspec/specs/knowledge-graph/spec.md` opens with the placeholder the archive process
