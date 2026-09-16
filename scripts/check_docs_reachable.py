@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 """Fails when tracked documentation points at a file a clone does not contain.
 
-Orientation that depends on an untracked file is orientation nobody else can follow. This
-project deliberately gitignores `CLAUDE.md` and `.claude/`, which is the right policy and
-also the trap: a document that tells a reader to consult them dead-ends for everyone but the
-maintainer. The same applies to a link written before the file it names.
-
     uv run python -m scripts.check_docs_reachable
 
-Scope is narrow on purpose: markdown links to paths inside the repository. No URLs, no
-anchors, no external targets — the gate has to pass on a machine with no route out, and a
-network link checker fails for reasons that have nothing to do with this.
+`CLAUDE.md` and `.claude/` are gitignored on purpose, so a versioned document citing them
+dead-ends for everyone but the maintainer.
+
+Scope is narrow on purpose — markdown links to paths inside the repository, no URLs or
+anchors: the gate has to pass on a machine with no route out.
 """
 
 import argparse
@@ -36,8 +33,8 @@ def tracked_files() -> set[str]:
 
 
 def tracked_markdown(tracked: set[str]) -> list[str]:
-    # openspec/changes/archive queda fuera: son registros históricos, y una referencia que
-    # era válida cuando se escribió no debe romper la puerta si el fichero se movió después.
+    # openspec/changes/archive is excluded: they are historical records, and a reference
+    # that was valid when written should not fail the gate because the file later moved.
     return sorted(
         p for p in tracked if p.endswith(".md") and not p.startswith("openspec/changes/archive/")
     )

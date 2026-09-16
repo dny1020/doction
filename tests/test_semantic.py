@@ -112,7 +112,7 @@ def test_sgrep_ranks_by_meaning(client):
     results = _data(_call(client, token, "sgrep", {"query": "sip routing"}))
     assert results, results
     assert results[0]["slug"] == "kamailio-dispatcher"
-    # La semántica la encontró: trae puntuación de coseno y posición en su lista.
+    # Found semantically: it carries a cosine score and a rank in that list.
     assert results[0]["score"] is not None
     assert results[0]["vector_rank"] is not None
     # the coffee page should not be the top hit
@@ -120,7 +120,7 @@ def test_sgrep_ranks_by_meaning(client):
 
 
 def test_sgrep_reports_which_retrievers_found_a_page(client):
-    """La procedencia es parte del resultado: exacto y vecino semántico se distinguen."""
+    """Provenance is part of the result: an exact hit and a semantic neighbour differ."""
     token = _token(client)
     _seed_pages(client, token)
     results = _data(_call(client, token, "sgrep", {"query": "dispatcher"}))
@@ -144,7 +144,7 @@ def test_rag_returns_chunks_with_provenance(client):
 
 
 def test_semantic_falls_back_to_fts_when_disabled(client, monkeypatch):
-    """Sin canal vectorial, la híbrida es la léxica: un solo canal no se fusiona consigo."""
+    """With no vector channel, hybrid is lexical: one channel does not fuse with itself."""
     token = _token(client)
     _seed_pages(client, token)
     monkeypatch.setenv("SEMANTIC_SEARCH", "0")
@@ -185,7 +185,7 @@ def test_min_score_filters_weak_hits(client):
 
 
 def test_min_score_does_not_break_fts_fallback(client, monkeypatch):
-    """En el fallback FTS el score es None: filtrar por número reventaría."""
+    """In the FTS fallback the score is None, so filtering by number would blow up."""
     import app.embeddings as emb
 
     token = _token(client)
@@ -229,26 +229,22 @@ def test_hybrid_puts_exact_matches_first_without_duplicates(client):
     slugs = [r["slug"] for r in results]
     assert slugs[0] == "kamailio-dispatcher"
     assert results[0]["via"] == "both", "sale por las dos listas"
-    # FTS resalta el término exacto, y lo hace en `parts`: el snippet es texto plano.
+    # FTS highlights the exact term in `parts`; the snippet itself is plain text.
     assert "<mark>" not in results[0]["snippet"]
     assert any(part["match"] for part in results[0]["parts"])
     assert len(slugs) == len(set(slugs)), slugs
-    # Lo que aporta la semántica va detrás de los exactos, nunca intercalado.
+    # What semantics adds comes after the exact hits, never interleaved.
     vias = [r["via"] for r in results]
     assert vias == sorted(vias, key=lambda v: v != "fts")
 
 
 def test_hybrid_finds_pages_that_fts_alone_misses(client):
-    """El punto del híbrido: rescatar lo que FTS deja fuera.
-
-    `_fts_query` une los términos con AND, así que basta una palabra de más para que
-    FTS no devuelva nada aunque la página sea la buena. La semántica sí la puntúa.
-    """
+    """The point of hybrid: `_fts_query` ANDs its terms, so one extra word returns nothing."""
     token = _token(client)
     _call(client, token, "create_page", {"title": "Espresso", "content": "espresso"})
     _drain()
 
-    assert _search(client, token, "espresso", "keyword")  # término exacto: FTS lo ve
+    assert _search(client, token, "espresso", "keyword")  # exact term, so FTS sees it
     assert not _search(client, token, "espresso cappuccino", "keyword")  # AND: falta una
     rescatados = _search(client, token, "espresso cappuccino", "hybrid")
     assert [r["slug"] for r in rescatados] == ["espresso"]
@@ -263,7 +259,7 @@ def test_hybrid_degrades_to_fts_when_semantic_off(client, monkeypatch):
     results = _search(client, token, "dispatcher", "hybrid")
     slugs = [r["slug"] for r in results]
     assert slugs == ["kamailio-dispatcher"]
-    assert len(slugs) == len(set(slugs))  # el fallback FTS no se duplica a sí mismo
+    assert len(slugs) == len(set(slugs))  # the FTS fallback does not duplicate itself
 
 
 @pytest.mark.skipif(
@@ -271,7 +267,7 @@ def test_hybrid_degrades_to_fts_when_semantic_off(client, monkeypatch):
     reason="real ONNX model not present (set REAL_MODEL_PATH to run)",
 )
 def test_real_onnx_embedder_similarity():
-    """Integración opt-in: valida el encoder ONNX real (mean-pooling, normalización)."""
+    """Opt-in integration test against the real ONNX encoder."""
     import app.embeddings as emb
 
     emb.reset_embedder()
@@ -289,13 +285,12 @@ def test_real_onnx_embedder_similarity():
     assert sims[2] > sims[1]  # sip-related closer than coffee
 
 
-# ── Fusión de rangos recíprocos ──────────────────────────────────────────────
-# Antes la híbrida concataba: los aciertos de FTS delante y los semánticos detrás,
-# así que FTS iba primero por posición y no por mérito. Ahora se combinan por rango.
+# ── Reciprocal rank fusion ───────────────────────────────────────────────────
+# The two lists combine by rank, so neither leads on position rather than merit.
 
 
 def test_rrf_combines_positions_not_scores():
-    """La fórmula, aislada: 1/(60+posición) sumado por cada lista donde sale."""
+    """The formula alone: 1/(60 + position), summed over every list it appears in."""
     from app import embeddings as emb
 
     scores = emb._rrf([(1.0, ["a", "b", "c"]), (1.0, ["c", "a"])])
@@ -307,7 +302,7 @@ def test_rrf_combines_positions_not_scores():
 
 
 def test_rrf_with_one_empty_list_is_the_other_list():
-    """Un canal que no devuelve no rompe la fusión ni cambia el orden del otro."""
+    """A channel that returns nothing breaks neither the fusion nor the other's order."""
     from app import embeddings as emb
 
     scores = emb._rrf([(1.0, []), (1.0, ["x", "y"])])
@@ -327,7 +322,7 @@ def test_hybrid_is_deterministic(client):
 
 
 def test_hybrid_carries_both_ranks(client):
-    """El orden se puede revisar, no solo creer: cada acierto trae su posición."""
+    """The order can be checked rather than believed: every hit carries its rank."""
     from app import embeddings as emb
 
     token = _token(client)
@@ -349,7 +344,7 @@ def test_hybrid_never_scores_a_cosine_against_a_ts_rank(client):
     hits = emb.search(1, "sip routing", mode="hybrid")
     expected = sorted(hits, key=lambda h: (-h["rrf"], h["slug"]))
     assert [h["slug"] for h in hits] == [h["slug"] for h in expected]
-    # Y la puntuación de fusión se puede recomputar desde los dos rangos solos.
+    # And the fusion score can be recomputed from the two ranks alone.
     for hit in hits:
         total = 0.0
         if hit["lexical_rank"]:

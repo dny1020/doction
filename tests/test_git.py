@@ -57,7 +57,7 @@ def test_history_endpoint_returns_commits(client):
     assert "sha" in history[0]
     assert "timestamp" in history[0]
     assert "message" in history[0]
-    # El autor del commit es el email del usuario que inició sesión.
+    # The commit author is the email of the user who is logged in.
     assert history[0]["author"] == "u@test.com"
 
 

@@ -69,7 +69,7 @@ def test_switch_workspace(client):
 
 
 def test_page_view(client):
-    _register(client)  # siembra páginas de ejemplo
+    _register(client)  # seeds the example pages
     r = client.get("/api/pages/welcome-to-doction/view")
     assert r.status_code == 200
     body = r.json()
@@ -93,14 +93,14 @@ def test_update_profile(client):
     body = r.json()
     assert body["display_name"] == "Ada"
     assert body["avatar_color"] == "#3B73B8"
-    # Un color fuera de la paleta se ignora (queda en automático).
+    # A colour outside the palette is ignored, leaving the automatic one.
     r2 = client.post("/api/settings/profile", json={"display_name": "Ada", "avatar_color": "#000"})
     assert r2.json()["avatar_color"] is None
 
 
 def test_legacy_avatar_color_maps_forward(client):
-    """Quien ya había elegido un color de la paleta vieja no se queda con el
-    ilegible: se traduce al de la posición equivalente, no se descarta."""
+    """A colour chosen from the old palette is translated to the same position in the
+    new one rather than discarded."""
     _register(client)
     r = client.post(
         "/api/settings/profile",
@@ -111,7 +111,7 @@ def test_legacy_avatar_color_maps_forward(client):
 
 def test_update_password(client):
     _register(client)
-    # Contraseña actual incorrecta.
+    # Wrong current password.
     bad = client.post(
         "/api/settings/password",
         json={
@@ -121,7 +121,7 @@ def test_update_password(client):
         },
     )
     assert bad.status_code == 400
-    # Confirmación que no coincide.
+    # Confirmation does not match.
     mism = client.post(
         "/api/settings/password",
         json={
@@ -131,7 +131,7 @@ def test_update_password(client):
         },
     )
     assert mism.status_code == 400
-    # Cambio correcto y login con la nueva contraseña.
+    # A correct change, then logging in with the new password.
     ok = client.post(
         "/api/settings/password",
         json={
@@ -149,7 +149,7 @@ def test_update_password(client):
 
 
 def test_trash_restore_and_purge(client):
-    _register(client)  # siembra páginas
+    _register(client)  # seeds pages
     slug = "welcome-to-doction"
     deleted = client.delete(f"/api/pages/{slug}")
     assert deleted.status_code == 204
@@ -174,7 +174,7 @@ def test_restore_version(client):
     client.put(f"/api/pages/{slug}", json={"content": "version two"})
     history = client.get(f"/api/pages/{slug}/history").json()
     assert len(history) >= 2
-    old_sha = history[-1]["sha"]  # el commit más antiguo = "version one"
+    old_sha = history[-1]["sha"]  # the oldest commit is "version one"
     restored = client.post(f"/api/pages/{slug}/restore/{old_sha}")
     assert restored.status_code == 200
     assert "version one" in client.get(f"/api/pages/{slug}").json()["content"]
@@ -193,14 +193,14 @@ def test_workspace_rename_and_delete(client):
     deleted = client.delete(f"/api/workspaces/{work['slug']}")
     assert deleted.status_code == 200
     assert all(w["slug"] != work["slug"] for w in client.get("/api/me").json()["workspaces"])
-    # No se puede borrar el último workspace que queda.
+    # The last remaining workspace cannot be deleted.
     last = client.get("/api/me").json()["workspaces"][0]
     refused = client.delete(f"/api/workspaces/{last['slug']}")
     assert refused.status_code == 400
 
 
 def test_i18n_catalog_default_english(client):
-    r = client.get("/api/i18n")  # público: no requiere sesión
+    r = client.get("/api/i18n")  # public, no session required
     assert r.status_code == 200
     body = r.json()
     assert body["lang"] == "en"

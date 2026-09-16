@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 """Prints a version's CHANGELOG.md section, or fails when it has none.
 
-One parser, two callers. `make changelog` runs it against the version declared in
-pyproject.toml and throws the output away, so a version bump cannot be merged without its
-entry. The release workflow runs it against a pushed tag and uses the output as the release
-notes. A separate "does an entry exist" check would be a second implementation of the same
-heading rule, and the two would eventually disagree about the format.
-
     uv run python -m scripts.changelog 0.31.5      # prints the section
     uv run python -m scripts.changelog --check     # gate: the declared version has one
 
-Range headings such as `## 0.28.0 – 0.30.0` are deliberately not a match for any single
-version. They describe history that was reconstructed in bulk, and matching one would give
-a new release notes about three old versions.
+One parser, two callers: the gate and the release workflow. A separate "does an entry
+exist" check would be a second implementation of the same heading rule.
+
+Range headings such as `## 0.28.0 – 0.30.0` deliberately match no single version — they
+describe history reconstructed in bulk.
 """
 
 import argparse
@@ -33,9 +29,8 @@ def declared_version() -> str:
 def section(version: str) -> str | None:
     """The body under `## <version>`, up to the next `## ` heading.
 
-    The heading may carry a date (`## 0.31.5 — 2026-09-12`), so the version has to be
-    followed by a boundary rather than the end of the line. Requiring that boundary is also
-    what stops `0.31` from matching `## 0.31.5`.
+    The heading may carry a date, so the version is followed by a boundary rather than the
+    end of the line — which is also what stops `0.31` matching `## 0.31.5`.
     """
     try:
         lines = CHANGELOG.read_text(encoding="utf-8").splitlines()
@@ -68,9 +63,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # `parser.error()` sale del proceso, pero un análisis estático no lo sabe y ve
-    # `version` posiblemente sin asignar. El `return` lo hace explícito, y el mensaje
-    # nombra `--check`: decía `--declared`, una bandera que dejó de existir al renombrarla.
+    # `parser.error()` exits, but a static analyser cannot know that and sees `version`
+    # as possibly unassigned; the `return` makes it explicit.
     if args.check:
         try:
             version = declared_version()

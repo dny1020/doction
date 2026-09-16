@@ -1,12 +1,6 @@
-"""El contexto ensamblado: acotado por presupuesto y sin repetir pasajes.
+"""The assembled context: bounded by budget, never repeating a passage.
 
-Antes esto devolvía seis fragmentos fijos, que no es una cota de nada: seis secciones
-cortas caben en cualquier sitio y seis largas se comen la ventana del modelo que las
-va a leer. Y nadie comparaba un fragmento con otro, así que dos trozos de una misma
-sección gastaban el contexto dos veces en la misma frase.
-
-Los dos canales —vectorial y léxico— pasan por el mismo empaquetado: un contrato, dos
-fuentes.
+Both channels, vector and lexical, go through the same packing — one contract, two sources.
 """
 
 import pytest
@@ -70,13 +64,13 @@ def test_budget_bounds_the_context_not_a_fragment_count(semantic_client):
     total = sum(len(c["text"]) for c in out["chunks"])
     assert total <= 4000
     assert out["chunks"], out
-    # Y con más presupuesto entra más contexto: la cota es el presupuesto, no un seis.
+    # More budget lets more context in: the bound is the budget, not a count of six.
     grande = embeddings.rag_context(1, "certbot renovación", budget=12000)
     assert sum(len(c["text"]) for c in grande["chunks"]) > total
 
 
 def test_a_fragment_that_does_not_fit_is_left_out_whole(semantic_client):
-    """Cortarlo por la mitad devolvería un texto que la página no dice."""
+    """Cutting it in half would return text the page does not say."""
     client = semantic_client
     token = _token(client)
     _page(client, token, "Runbook TLS", _long_page(sections=6))
@@ -85,8 +79,8 @@ def test_a_fragment_that_does_not_fit_is_left_out_whole(semantic_client):
     out = embeddings.rag_context(1, "certbot renovación", budget=2500)
     assert out["truncated"] is True
     for chunk in out["chunks"]:
-        # Cada fragmento contra SU página: el workspace trae las páginas de ejemplo
-        # del registro, así que no todos vienen de la que sembró este test.
+        # Each chunk against its own page: registration seeds example pages, so not all
+        # of them come from the one this test wrote.
         page = client.get(
             "/api/pages/" + chunk["slug"], headers={"Authorization": f"Bearer {token}"}
         ).json()["content"]
@@ -114,11 +108,11 @@ def test_limit_still_caps_the_pieces_for_whoever_wants_fewer(semantic_client):
     assert out["truncated"] is True
 
 
-# ── Deduplicación ────────────────────────────────────────────────────────────
+# ── Deduplication ────────────────────────────────────────────────────────────
 
 
 def test_two_pieces_of_one_section_collapse(semantic_client):
-    """Una sección más larga que el techo sale en varios fragmentos: cuenta una vez."""
+    """A section past the ceiling becomes several chunks and still counts once."""
     client = semantic_client
     token = _token(client)
     largo = "Certbot renovación. " + ("detalle del procedimiento " * 200)
@@ -149,7 +143,7 @@ def test_distinct_sections_of_one_page_both_survive(semantic_client):
 
 
 def test_says_the_same_recognises_the_three_shapes():
-    """La regla, aislada: misma sección, contención literal, o casi las mismas palabras."""
+    """The rule alone: same section, literal containment, or nearly the same words."""
     a = {"slug": "p", "section": "S", "text": "uno dos tres"}
     b = {"slug": "p", "section": "S", "text": "cuatro cinco seis"}
     assert embeddings._says_the_same(a, b), "misma sección de la misma página"
@@ -165,13 +159,13 @@ def test_says_the_same_recognises_the_three_shapes():
 
 
 def test_says_the_same_does_not_collapse_short_unrelated_fragments():
-    """Dos frases cortas del mismo tema comparten casi todo: ahí el solape no vale."""
+    """Two short sentences on one topic share almost everything, so overlap says nothing."""
     uno = {"slug": "p", "section": "A", "text": "renovar el certificado con certbot"}
     otro = {"slug": "q", "section": "B", "text": "borrar el certificado con openssl"}
     assert not embeddings._says_the_same(uno, otro)
 
 
-# ── El mismo contrato en el canal léxico ─────────────────────────────────────
+# ── The same contract on the lexical channel ─────────────────────────────────
 
 
 def test_the_lexical_channel_honours_the_budget(client):
@@ -204,7 +198,7 @@ def test_the_lexical_channel_reports_no_score_rather_than_inventing_one(client):
 
 
 def test_search_keeps_its_highlighted_extracts(client):
-    """La búsqueda de la interfaz no cambia: el resaltado es lo que pinta la barra."""
+    """The UI search is unchanged: the highlighting is what the sidebar paints."""
     token = _token(client)
     _page(client, token, "Doc", "# Doc\n\n## Certbot\n\nRenovar con certbot renew.\n")
 

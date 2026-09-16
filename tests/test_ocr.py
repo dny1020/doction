@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 from app import ocr
 
-# Solo importa el prefijo (magic bytes); extract_text está monkeypatcheado.
+# Only the magic-byte prefix matters; extract_text is monkeypatched.
 PNG = b"\x89PNG\r\n\x1a\n" + b"fake-png-payload"
 
 
@@ -126,5 +126,5 @@ def test_extract_text_without_binary(monkeypatch, tmp_path):
 
 def test_index_upload_skips_empty_text(monkeypatch):
     monkeypatch.setattr(ocr, "extract_text", lambda path: "   \n ")
-    # Sin texto no debe tocar la base de datos (no hay conexión válida en este test).
+    # With no text it must not touch the database; there is no valid connection here.
     assert ocr.index_upload("x.png", 1, 1, Path("/nonexistent.png")) is False

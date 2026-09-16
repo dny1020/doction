@@ -1,11 +1,8 @@
-"""Tests del grafo de wikilinks: parser, aristas y análisis estructural.
+"""Wikilink graph: the parser, the edges and the structural analysis.
 
-El motor relacional ya existía cuando se abrió el change 006 — `page_links`, el
-parser de `meta` y `graph.link_insights` llevaban tiempo funcionando. Lo que no
-existía era la prueba de que aguantan los casos que rompen un grafo: código que
-parece un enlace, una página borrada que deja huecos, un ciclo, un enlace a sí
-misma. Eso es lo que se cubre aquí; renombrado y referencia adelantada ya viven
-en test_tree_v2.
+The cases covered are the ones that break a graph: code that looks like a link, a deleted
+page leaving holes, a cycle, a self-link. Renames and forward references live in
+test_tree_v2.
 """
 
 from app import graph, meta
@@ -36,8 +33,7 @@ def _backlinks(client, token, slug) -> list[str]:
 
 
 def test_wikilink_inside_a_fence_is_not_a_link():
-    """Documentar la sintaxis no es usarla: una página que explica los wikilinks
-    dentro de un bloque de código no debe enlazar a nada."""
+    """Documenting the syntax is not using it: wikilinks inside a code block link nothing."""
     content = "Se escriben así:\n\n```\n[[no-soy-un-enlace]]\n```\n\npero [[si-lo-soy]] sí."
     assert meta.extract_links(content) == ["si-lo-soy"]
 
@@ -53,8 +49,7 @@ def test_malformed_wikilinks_are_ignored():
 
 
 def test_repeated_target_yields_one_edge():
-    """El grafo tiene aristas, no menciones: enlazar tres veces a la misma página
-    es una sola relación. El conteo de menciones es otra pregunta."""
+    """The graph has edges, not mentions: linking three times is one relation."""
     content = "[[destino]] y otra vez [[destino]] y [[destino|con texto]]."
     assert meta.extract_links(content) == ["destino"]
 
@@ -92,8 +87,8 @@ def test_deleting_a_page_drops_its_outgoing_edges(client):
 
 
 def test_deleting_a_target_leaves_the_link_broken_not_dangling(client):
-    """Borrar el destino no borra el enlace de quien apuntaba: el enlace roto es
-    lo único que dice que alguien contaba con esa página."""
+    """Deleting the target keeps the link: a broken link is the only sign someone
+    expected that page to exist."""
     token = _token(client)
     destino = _create(client, token, title="Destino", content="soy el destino")
     _create(client, token, title="Origen", content="apunto a [[destino]]")
@@ -117,12 +112,11 @@ def test_restoring_a_target_resolves_the_link_again(client):
     assert _backlinks(client, token, "destino") == ["origen"]
 
 
-# ── el análisis ──────────────────────────────────────────────────────────────
+# ── The analysis ─────────────────────────────────────────────────────────────
 
 
 def test_link_insights_terminates_on_a_cycle(client, main_module):
-    """PageRank sobre un ciclo converge; lo que se prueba es que ninguna de las
-    tres páginas se pierde y que el análisis devuelve algo utilizable."""
+    """PageRank converges on a cycle, keeping all three pages and returning something usable."""
     token = _token(client)
     _create(client, token, title="Uno", content="voy a [[dos]]")
     _create(client, token, title="Dos", content="voy a [[tres]]")
@@ -132,14 +126,14 @@ def test_link_insights_terminates_on_a_cycle(client, main_module):
     out = graph.link_insights(wid)
     central = {p["slug"] for p in out["central"]}
     assert {"uno", "dos", "tres"} <= central
-    # El registro siembra páginas de ejemplo, así que hay más huérfanas; lo que
-    # importa es que ninguna del ciclo lo sea.
+    # Registration seeds example pages, so there are other orphans; what matters is
+    # that none of the cycle's pages is one.
     orphans = {p["slug"] for p in out["orphans"]}
     assert orphans.isdisjoint({"uno", "dos", "tres"})
 
 
 def test_a_self_link_is_not_a_relation(client, main_module):
-    """Una página que se enlaza a sí misma no deja de estar sola."""
+    """A page that links to itself is still alone."""
     token = _token(client)
     _create(client, token, title="Sola", content="me cito a mí misma: [[sola]]")
 
@@ -159,12 +153,11 @@ def test_broken_link_names_who_points_at_it(client, main_module):
     assert "origen" in broken["nunca-escrita"]["sources"]
 
 
-# ── los índices ──────────────────────────────────────────────────────────────
+# ── The indexes ──────────────────────────────────────────────────────────────
 
 
 def test_both_directions_of_the_graph_are_indexed(client, main_module):
-    """Las dos preguntas del grafo — quién me enlaza, a quién enlazo — se
-    responden por índice. Sin esto, cada vista de lectura escanea la tabla."""
+    """Both graph questions are answered by index; without these, every read scans the table."""
     token = _token(client)
     _create(client, token, title="Destino", content="soy el destino")
     _create(client, token, title="Origen", content="apunto a [[destino]]")
@@ -176,12 +169,12 @@ def test_both_directions_of_the_graph_are_indexed(client, main_module):
                 "SELECT indexname FROM pg_indexes WHERE tablename = 'page_links'"
             ).fetchall()
         }
-    assert "page_links_src_idx" in idx  # a quién enlazo
-    assert "page_links_dst_idx" in idx  # quién me enlaza (por slug, aún sin resolver)
-    assert "page_links_dst_page_idx" in idx  # quién me enlaza (ya resuelto)
+    assert "page_links_src_idx" in idx  # what I link to
+    assert "page_links_dst_idx" in idx  # what links to me, by slug, still unresolved
+    assert "page_links_dst_page_idx" in idx  # what links to me, resolved
 
 
-# ── el contexto de una mención ───────────────────────────────────────────────
+# ── A mention's context ──────────────────────────────────────────────────────
 
 
 def test_mention_context_is_the_sentence_around_the_link(client):
@@ -208,8 +201,7 @@ def test_mention_context_is_the_sentence_around_the_link(client):
 
 
 def test_mention_context_carries_no_markup(client):
-    """El contexto son tramos de texto: lo que se cita de otra página no puede
-    meter elementos en el renderizado de esta."""
+    """Context travels as text spans, so a quoted page cannot inject elements into this one."""
     token = _token(client)
     _create(client, token, title="Failover", content="soy el destino")
     _create(
@@ -226,8 +218,7 @@ def test_mention_context_carries_no_markup(client):
 
 
 def test_a_mention_without_a_findable_sentence_still_lists(client):
-    """Si el enlace se escribió contra un slug anterior, la mención sigue siendo
-    cierta; lo único que falta es la frase."""
+    """A link written against an older slug is still a true mention; only the sentence is lost."""
     token = _token(client)
     destino = _create(client, token, title="Destino", content="soy el destino")
     _create(client, token, title="Origen", content=f"apunto a [[{destino['slug']}]]")
@@ -259,8 +250,7 @@ def test_graph_returns_nodes_and_edges(client):
 
 
 def test_graph_keeps_a_broken_edge_with_its_target(client):
-    """La arista rota se devuelve entera. Descartarla dejaría la vista diciendo
-    que todo está conectado."""
+    """The broken edge is returned whole; dropping it would show everything as connected."""
     token = _token(client)
     _create(client, token, title="Origen", content="apunto a [[nunca-escrita]]")
 
@@ -289,7 +279,7 @@ def test_graph_truncates_by_centrality(client, main_module):
     assert len(small["nodes"]) == 3
     assert small["truncated"] is True
     assert small["pages"] > 3
-    # La más enlazada no se cae del recorte: para eso se recorta por PageRank.
+    # The most-linked page survives the trim: that is what trimming by PageRank is for.
     assert "centro" in {n["slug"] for n in small["nodes"]}
 
 

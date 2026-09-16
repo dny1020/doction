@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Crea un usuario de doction desde la línea de comandos, sin pasar por el registro web.
+"""Creates a doction user from the command line, bypassing web registration.
 
-Útil para self-hosters que cierran el registro, o para automatizar el alta. Usa el mismo
-DATABASE_URL que la app, así que apúntalo a la BD real.
+Uses the same DATABASE_URL as the app, so point it at the real database.
 
-    # en un checkout local
+    # in a local checkout
     uv run python -m scripts.create_user alice@example.com
     DATABASE_URL=postgresql://doction:doction@localhost:5432/doction \\
         uv run python -m scripts.create_user bob@corp.io
 
-    # dentro del contenedor desplegado
+    # inside the deployed container
     docker exec -it doction python -m scripts.create_user alice@example.com
 """
 

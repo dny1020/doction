@@ -1,15 +1,11 @@
 """Tests for the changelog parser that produces release notes.
 
-The parser is the only thing that knows the heading format, and both the gate and the
-release workflow depend on it. The case worth guarding hardest is the range heading: the
-changelog was reconstructed in bulk at 0.31.3, so sections like `## 0.28.0 – 0.30.0`
-describe three versions at once. Matching one of those for a single version would give a
+The case worth guarding hardest is the range heading: sections like `## 0.28.0 – 0.30.0`
+describe three versions at once, and matching one for a single version would produce
 release notes about versions it has nothing to do with.
 
-Two of these read the real CHANGELOG.md and are skipped where it is absent — the Docker
-`test` stage copies only app/, tests/, scripts/ and pyproject.toml. The rest build their own
-changelog in a temporary tree, so the parser's actual rules stay covered everywhere,
-including in CI.
+Two of these read the real CHANGELOG.md and skip where the tree is stripped; the rest
+build their own in a temporary tree, so the parser stays covered in CI too.
 """
 
 import subprocess
@@ -20,8 +16,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# Solo para los casos que miran el CHANGELOG.md real. Los parametrizados escriben el suyo
-# en un árbol temporal y corren en cualquier sitio, que es donde vive la lógica del parser.
+# Only for the cases that read the real CHANGELOG.md; the parametrized ones write their own
+# in a temporary tree and run anywhere.
 needs_real_changelog = pytest.mark.skipif(
     not (ROOT / "CHANGELOG.md").exists(),
     reason="árbol recortado: CHANGELOG.md no está presente",
@@ -43,7 +39,7 @@ def test_prints_the_section_for_a_described_version():
     r = _run("0.31.5")
     assert r.returncode == 0, r.stderr
     assert "AGPL-3.0-only" in r.stdout
-    # Debe parar en el siguiente encabezado, no arrastrar la versión anterior.
+    # Must stop at the next heading rather than dragging in the previous version.
     assert "## 0.31.4" not in r.stdout
 
 
@@ -75,7 +71,7 @@ def test_does_not_match_a_version_prefix():
 @needs_real_changelog
 def test_skips_the_unreleased_section():
     r = _run("Unreleased")
-    # `Unreleased` no es una versión; que case o no, nunca debe salir como notas de una.
+    # `Unreleased` is not a version and must never come out as one's release notes.
     if r.returncode == 0:
         assert "Nothing yet" in r.stdout or not r.stdout.strip()
 

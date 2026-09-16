@@ -1,9 +1,8 @@
-"""Las dos propiedades que la spec de `chunking` exige del texto que se embebe.
+"""The two properties the `chunking` spec demands of the embedded text.
 
-Tiran en direcciones opuestas y por eso están las dos aquí. Una quiere contexto de
-página dentro del embedding para que dos secciones iguales de páginas distintas no
-colisionen; la otra lo quiere fuera, porque lo que comparten todas las secciones de una
-página no dice cuál de ellas responde.
+They pull in opposite directions, which is why both live here: one wants page context
+inside the embedding so identical sections of different pages do not collide, the other
+wants it out, because what every section of a page shares cannot say which one answers.
 """
 
 import pytest
@@ -46,7 +45,7 @@ IDENTICA = "## Configuración\n\nEditar el fichero y reiniciar el servicio para 
 
 
 def test_sibling_sections_stay_apart(semantic_client):
-    """Una consulta contestada por una sección recupera esa y no una hermana."""
+    """A query answered by one section retrieves that section, not a sibling."""
     client = semantic_client
     token = _token(client)
     _page(
@@ -95,17 +94,12 @@ def test_sibling_sections_are_not_near_identical_vectors(semantic_client):
 
 
 def test_identically_worded_sections_in_different_pages_do_not_collide(semantic_client):
-    """La otra mitad del contrato, comprobada donde importa: en el resultado.
+    """The other half of the contract, checked where it matters: in the result.
 
-    Con el mismo texto, dos secciones producen el mismo vector, y eso es correcto: no
-    hay nada *en la sección* que las distinga. Lo que la spec pide es que una consulta
-    que casa con una no puntúe igual a la otra, y eso se resuelve en el ranking de
-    páginas, donde el canal léxico sí ve el título.
-
-    Se intentó romper la igualdad de vectores metiendo un identificador de página en el
-    texto embebido. Medido: 0.07 de recall@1 de página perdido en hybrid y en el
-    contexto ensamblado, y cero ganancia en sección. La propiedad se sostiene aquí sin
-    pagar eso.
+    Identical text produces identical vectors, which is correct — nothing *in the section*
+    tells them apart. The spec asks that a query matching one does not score the other
+    equally, and that is settled in the page ranking, where the lexical channel sees the
+    title.
     """
     client = semantic_client
     token = _token(client)

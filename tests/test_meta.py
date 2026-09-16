@@ -64,10 +64,7 @@ def test_chunk_markdown_drops_frontmatter():
     assert "type: note" not in "".join(c.text for c in chunks)
 
 
-# ── Troceado por encabezados ─────────────────────────────────────────────────
-# Antes esto partía en ventanas de tamaño fijo: un encabezado y su párrafo caían en
-# fragmentos distintos cada vez que la ventana cortaba entre ellos, y una valla de
-# código más larga que la ventana se troceaba por posición de carácter.
+# ── Heading-based chunking ───────────────────────────────────────────────────
 
 
 def test_each_section_is_its_own_chunk():

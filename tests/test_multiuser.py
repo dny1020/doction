@@ -2,7 +2,7 @@
 
 
 def _register(client, email: str) -> None:
-    # El registro inicia sesión (cookie); se limpia para no contaminar al siguiente usuario.
+    # Registering logs in; clear the cookie so it cannot leak into the next user.
     client.cookies.clear()
     client.post("/api/auth/register", json={"email": email, "password": "password123"})
     client.cookies.clear()
@@ -35,24 +35,24 @@ def test_member_sees_and_edits_shared_workspace(client):
     assert r.status_code == 201
     page_slug = r.json()["slug"]
 
-    # B aún no es miembro: no ve el workspace de A.
+    # B is not a member yet and cannot see A's workspace.
     b_slugs = {w["slug"] for w in client.get("/api/workspaces", headers=_h(tb)).json()}
     assert a_slug not in b_slugs
 
-    # A añade a B como miembro.
+    # A adds B as a member.
     r = client.post(
         f"/api/workspaces/{a_slug}/members", json={"email": "b@test.com"}, headers=_h(ta)
     )
     assert r.status_code == 201
 
-    # Ahora B ve el workspace y lee la página (apuntando con ?ws=).
+    # Now B sees the workspace and reads the page, pointing at it with ?ws=.
     b_slugs = {w["slug"] for w in client.get("/api/workspaces", headers=_h(tb)).json()}
     assert a_slug in b_slugs
     r = client.get(f"/api/pages/{page_slug}?ws={a_slug}", headers=_h(tb))
     assert r.status_code == 200
     assert r.json()["content"] == "v1"
 
-    # B edita (member = CRUD); el autor git del commit es B y updated_by también.
+    # B edits (member means CRUD); the git author and updated_by are both B.
     r = client.put(
         f"/api/pages/{page_slug}?ws={a_slug}", json={"content": "v2 by b"}, headers=_h(tb)
     )
@@ -79,7 +79,7 @@ def test_member_cannot_manage_workspace(client):
     a_slug = _default_slug(client, ta)
     client.post(f"/api/workspaces/{a_slug}/members", json={"email": "b@test.com"}, headers=_h(ta))
 
-    # B (member) no puede añadir ni quitar miembros.
+    # B, a member, cannot add or remove members.
     r = client.post(
         f"/api/workspaces/{a_slug}/members", json={"email": "a@test.com"}, headers=_h(tb)
     )
@@ -104,7 +104,7 @@ def test_removing_member_revokes_access(client):
     r = client.delete(f"/api/workspaces/{a_slug}/members/{b_id}", headers=_h(ta))
     assert r.status_code == 204
 
-    # B deja de ver el workspace y no puede leer la página por su slug.
+    # B can no longer see the workspace or read the page by slug.
     b_slugs = {w["slug"] for w in client.get("/api/workspaces", headers=_h(tb)).json()}
     assert a_slug not in b_slugs
     r = client.get(f"/api/pages/{page_slug}?ws={a_slug}", headers=_h(tb))
@@ -131,19 +131,18 @@ def test_add_unknown_user_is_404(client):
 
 
 def test_workspace_slugs_are_globally_unique(client):
-    # Dos usuarios → dos workspaces "Personal"; los slugs no deben colisionar
-    # (el slug es además el nombre de carpeta del repo git).
+    # Two users mean two "Personal" workspaces, and the slugs must not collide —
+    # a slug is also a directory name in the git repo.
     _register(client, "a@test.com")
     _register(client, "b@test.com")
     ta, tb = _token(client, "a@test.com"), _token(client, "b@test.com")
     assert _default_slug(client, ta) != _default_slug(client, tb)
 
 
-# ── El workspace pedido en la URL manda ───────────────────────────────────────
-# La SPA saca el workspace de la ruta (/w/<slug>/…) y lo manda en cada petición.
-# Antes un ?ws= que no resolvía caía en silencio al primer workspace del usuario,
-# así que un enlace compartido enseñaba una página de otro sitio en vez de decir
-# que no la había.
+# ── The workspace asked for in the URL wins ──────────────────────────────────
+# The SPA takes the workspace from the path (/w/<slug>/...) and sends it on every
+# request. A ?ws= that does not resolve is an error: falling back silently would show
+# a shared link a page from somewhere else instead of saying it is not there.
 
 
 def test_unknown_workspace_is_404_not_a_fallback(client):
@@ -153,7 +152,7 @@ def test_unknown_workspace_is_404_not_a_fallback(client):
 
     r = client.get("/api/pages?ws=no-such-workspace", headers=_h(ta))
     assert r.status_code == 404
-    # Sin ?ws= la misma petición sigue funcionando.
+    # Without ?ws= the same request still works.
     assert client.get("/api/pages", headers=_h(ta)).status_code == 200
 
 
@@ -169,7 +168,7 @@ def test_someone_elses_workspace_reads_as_missing(client):
 
 
 def test_explicit_workspace_beats_the_cookie(client):
-    """Dos pestañas en workspaces distintos no se pisan: manda la URL."""
+    """Two tabs in different workspaces do not collide: the URL wins."""
     _register(client, "a@test.com")
     ta = _token(client, "a@test.com")
     first = _default_slug(client, ta)

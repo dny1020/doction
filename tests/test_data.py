@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 @pytest.fixture()
 def client(main_module):
     with TestClient(main_module.app) as c:
-        # Registro por la API: deja la cookie de sesión, que autentica /api/*.
+        # Registering through the API leaves the session cookie that authenticates /api/*.
         c.post("/api/auth/register", json={"email": "u@example.com", "password": "password123"})
         yield c
 

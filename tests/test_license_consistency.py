@@ -1,12 +1,8 @@
 """Tests for the licence-consistency check itself.
 
-The check exists because seven declarations of one fact drifted and nobody noticed. A check
-nobody verifies is the same class of problem, so these tests break each declaration in a
-temporary copy of the tree and assert the check reports the file that disagrees.
-
-The network half (the published repository description) is not exercised here: it needs the
-GitHub API, and the suite has to pass with no route out. It degrades to a visible skip, which
-is asserted below.
+Each declaration is broken in a temporary copy of the tree, and the check has to report the
+file that disagrees. The network half needs the GitHub API, so it is not exercised here —
+only its visible skip is.
 """
 
 import json
@@ -21,11 +17,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DECLARATION_FILES = ("LICENSE", "README.md", "CONTRIBUTING.md", "pyproject.toml")
 _EXTRA_FILES = ("frontend/package.json", "scripts/check_license.py")
 
-# El stage `test` del Dockerfile copia solo app/, tests/, scripts/ y pyproject.toml, así
-# que LICENSE, el README y CONTRIBUTING no están ahí. Copiarlos solo para esto haría que
-# una errata del README invalidase la capa y volviese a correr la suite entera, que es
-# justo lo que se evitó sacando el check del Dockerfile (ver design.md). El check sí corre
-# en CI, como paso previo al build; lo que se salta aquí son sus tests.
+# The Dockerfile `test` stage copies only app/, tests/, scripts/ and pyproject.toml, so
+# LICENSE, the README and CONTRIBUTING are not there. Copying them in would let a README
+# typo invalidate the layer and rerun the whole suite. The check itself still runs in CI,
+# before the build; only its tests skip here.
 _missing = [f for f in (*DECLARATION_FILES, *_EXTRA_FILES) if not (ROOT / f).exists()]
 pytestmark = pytest.mark.skipif(
     bool(_missing),
@@ -46,8 +41,8 @@ def _tree(tmp_path: Path) -> Path:
 
 
 def _run(tree: Path) -> subprocess.CompletedProcess[str]:
-    # --repo con un nombre inexistente evita depender de la red: la mitad remota se salta
-    # y las comprobaciones de ficheros, que son lo que se prueba aquí, siguen corriendo.
+    # A --repo that does not exist avoids depending on the network: the remote half skips
+    # and the file checks, which are what is under test, still run.
     return subprocess.run(
         [sys.executable, "-m", "scripts.check_license", "--repo", "invalid/does-not-exist-404"],
         cwd=tree,
