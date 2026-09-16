@@ -97,7 +97,7 @@ export default function History() {
                 key={commit.sha}
                 slug={slug}
                 commit={commit}
-                canRestore={index !== 0} // la primera es la versión actual
+                canRestore={index !== 0} // the first one is the current version
                 onRestore={onRestore}
               />
             ))}

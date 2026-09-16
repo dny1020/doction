@@ -35,7 +35,7 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
   const params = useParams()
 
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState(null) // null = mostrar árbol; [] = sin resultados
+  const [results, setResults] = useState(null) // null shows the tree; [] means no matches
   const [wsOpen, setWsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [theme, setTheme] = useState(getTheme())

@@ -6,8 +6,8 @@ import { api } from './api.js'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null) // objeto de /api/me, o null si no hay sesión
-  const [loading, setLoading] = useState(true) // true mientras comprobamos la sesión inicial
+  const [user, setUser] = useState(null) // the /api/me object, or null when signed out
+  const [loading, setLoading] = useState(true) // true while the initial session is checked
 
   // On start, try to load the user from the session cookie.
   useEffect(() => {

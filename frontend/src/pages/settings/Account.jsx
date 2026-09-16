@@ -21,7 +21,7 @@ function ProfileSection() {
   const { t } = useI18n()
   const toast = useToast()
   const [name, setName] = useState(user.display_name || '')
-  const [color, setColor] = useState(user.avatar_color || '') // '' = automático
+  const [color, setColor] = useState(user.avatar_color || '') // '' means automatic
   const [busy, setBusy] = useState(false)
 
   const previewColor = color || autoColor(user.email)

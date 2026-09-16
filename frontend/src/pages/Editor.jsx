@@ -57,7 +57,7 @@ export default function Editor({ mode }) {
   const initialRef = useRef({ title: '', content: '' })
   const currentRef = useRef({ title: '', content: '' })
   currentRef.current = { title, content }
-  const savedRef = useRef(false) // true tras guardar: la navegación ya no se bloquea
+  const savedRef = useRef(false) // true after a save, so navigation stops being blocked
 
   function isDirty() {
     if (savedRef.current) return false
