@@ -54,18 +54,6 @@ PostgreSQL. It is the first thing a new user reads, and it is wrong.
 
 ---
 
-## Consistency
-
-### The `knowledge-graph` capability has a `TBD` Purpose — **open**
-
-`openspec/specs/knowledge-graph/spec.md` opens with the placeholder the archive process
-leaves when a delta carried no Purpose. Every other capability describes what it is for. A
-good first task: read the capability's requirements and write the two sentences.
-
-*Identified while syncing the `licensing` capability.*
-
----
-
 ## Security and supply chain
 
 ### OpenSSF Scorecard is unblocked and not enabled — **decision**
