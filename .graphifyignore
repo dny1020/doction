@@ -1,21 +1,14 @@
-# Qué NO entra en el grafo de conocimiento, más allá de lo que .gitignore ya
-# excluye (Graphify combina ambos archivos, así que no hay que repetir aquí lo
-# que .gitignore ya cubre).
+# What stays out of the knowledge graph, beyond what .gitignore already excludes
+# (Graphify combines both files).
 #
-# El criterio no es «lo que ocupa» sino «lo que no responde preguntas». Un
-# artefacto regenerable, un binario o una dependencia añaden nodos que nadie va
-# a consultar y diluyen los que sí. Lo que explica decisiones —specs, changes
-# archivados, README, DESIGN.md— se queda dentro a propósito: de ahí salió lo
-# más útil que el grafo ha encontrado.
+# The criterion is not size but whether it answers questions: a regenerable artifact
+# or a dependency adds nodes nobody will query and dilutes the ones that matter.
 
-# Dependencias vendorizadas. .gitignore no las excluye (están versionadas a
-# propósito para que el frontend las sirva); son de terceros, pesan mucho y no
-# dicen nada sobre doction. Las fuentes, además, son binarias/minificadas.
+# Third-party, heavy, binary or minified, and says nothing about doction.
 app/static/vendor/
 
-# La salida del propio grafo. Sin esto, cada pasada se comería la anterior: son
-# 7 MB de JSON y HTML que describen el grafo, no el proyecto.
+# The graph's own output: 7 MB of JSON and HTML describing the graph, not the project.
 graphify-out/
 
-# Más amplio que el único *.log que excluye .gitignore (jobs_output.log).
+# Broader than the single *.log .gitignore excludes.
 *.log
