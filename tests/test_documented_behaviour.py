@@ -1,16 +1,10 @@
 """Holds the user documentation to what the code actually does.
 
-Every assertion here mirrors a claim made in `docs/search.md` or
-`docs/tags-and-metadata.md`. They assert **current** behaviour, including behaviour that is
-surprising and that someone may later decide to change: a query has no syntax, and the metadata
-block is not YAML.
+Every assertion mirrors a claim in `docs/search.md` or `docs/tags-and-metadata.md`, including
+the surprising ones — a query has no syntax, the metadata block is not YAML. When one fails,
+the change that broke it made the documentation untrue, and the message says which page to fix.
 
-That is the point. Documentation that has quietly become wrong is worse than documentation that
-is missing, because a reader cannot tell. When one of these fails, the change that made it fail
-is a change that made the documentation untrue, and the message says which page to fix.
-
-These do not read the documentation, only the code, so they run in the stripped Docker `test`
-stage like any other test.
+These read only the code, so they run in the stripped Docker `test` stage like any other test.
 """
 
 from app import meta

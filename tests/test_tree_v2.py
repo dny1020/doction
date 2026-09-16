@@ -1,8 +1,8 @@
-"""Tests del modelo v2: mover, renombrar con alias, captura y feed.
+"""The v2 model: move, rename with aliases, quick capture and the feed.
 
-Cubre lo que SPEC.md especifica: el árbol ya existía, así que lo que se prueba
-aquí es que mover sea seguro (ciclos), que renombrar no rompa los [[wikilinks]]
-y que la captura rápida no colapse ni la nomenclatura ni la barra lateral.
+The tree already existed, so what is tested here is that moving is cycle-safe, that renaming
+does not break [[wikilinks]], and that quick capture collapses neither the slug namespace
+nor the sidebar.
 """
 
 
@@ -55,7 +55,7 @@ def test_move_to_root_with_null_parent(client):
 
 
 def test_move_rejects_cycle(client):
-    """parent_id no tiene restricción contra bucles y el DFS del árbol colgaría."""
+    """parent_id has no constraint against cycles, and the tree's DFS would hang."""
     token = _token(client)
     abuelo = _create(client, token, title="Abuelo", content="x")
     padre = _create(client, token, title="Padre2", content="y", parent_slug=abuelo["slug"])
@@ -107,7 +107,7 @@ def test_rename_keeps_old_slug_resolving(client):
 
     # El slug nuevo responde...
     assert client.get("/api/pages/kamailio-sbc", headers=_h(token)).status_code == 200
-    # ...y el anterior sigue resolviendo a la misma página.
+    # ...and the old one still resolves to the same page.
     old = client.get(f"/api/pages/{page['slug']}", headers=_h(token))
     assert old.status_code == 200
     assert old.json()["slug"] == "kamailio-sbc"
@@ -132,7 +132,7 @@ def test_rename_cannot_steal_an_alias(client):
     page = _create(client, token, title="Uno", content="x")
     client.post(f"/api/pages/{page['slug']}/rename", json={"slug": "dos"}, headers=_h(token))
 
-    # "uno" quedó como alias: una página nueva no puede quedarse con ese slug.
+    # "uno" is now an alias, so a new page cannot take that slug.
     otra = _create(client, token, title="Otra", content="y", slug="uno")
     assert otra["slug"] != "uno"
 
@@ -167,7 +167,7 @@ def test_capture_without_title_does_not_collide(client):
     assert not any(s.startswith("untitled") for s in slugs)
 
 
-# ── feed y árbol ─────────────────────────────────────────────────────────────
+# ── Feed and tree ────────────────────────────────────────────────────────────
 
 
 def test_memos_are_in_the_feed_and_out_of_the_tree(client):
@@ -179,8 +179,8 @@ def test_memos_are_in_the_feed_and_out_of_the_tree(client):
     assert len(feed) == 1
     assert feed[0]["excerpt"]
 
-    # El registro siembra páginas de ejemplo, así que se comprueba la ausencia
-    # del memo, no el tamaño del árbol.
+    # Registration seeds example pages, so this asserts the memo's absence rather
+    # than the size of the tree.
     tree = client.get("/api/pages", headers=_h(token)).json()
     slugs = {p["slug"] for p in tree}
     assert "doc-normal" in slugs
@@ -188,11 +188,7 @@ def test_memos_are_in_the_feed_and_out_of_the_tree(client):
 
 
 def test_filing_a_memo_moves_it_from_the_inbox_into_the_tree(client):
-    """El triaje es move_page, sin reescribir el frontmatter.
-
-    Antes la bandeja era `type: memo` a secas, asi que una nota archivada seguia
-    fuera del arbol Y dentro del feed: se quedaba en tierra de nadie.
-    """
+    """Filing is move_page, without rewriting anyone's frontmatter."""
     token = _token(client)
     _create(client, token, title="Homelab", content="raiz")
     memo = _create(client, token, content="---\ntype: memo\n---\nrevisar el router")
@@ -245,7 +241,7 @@ def test_feed_paginates_by_cursor(client):
 
     page1 = client.get("/api/notes?limit=2", headers=_h(token)).json()
     assert len(page1) == 2
-    # Orden descendente por fecha de creación.
+    # Ordered by creation date, newest first.
     assert page1[0]["created_at"] >= page1[1]["created_at"]
 
     page2 = client.get(
@@ -268,8 +264,8 @@ def test_children_lists_direct_descendants_only(client):
 
 
 def test_inbox_excerpt_hides_the_frontmatter(client):
-    """La captura rápida existe para no escribir metadatos; enseñarlos en el
-    extracto convierte `--- type: memo ---` en el texto de la nota."""
+    """Quick capture exists so nobody writes metadata; showing it in the excerpt turns
+    `--- type: memo ---` into the note's text."""
     token = _token(client)
     _create(client, token, content="---\ntype: memo\n---\n\nrevisar el dispatcher del SBC")
 

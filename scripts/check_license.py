@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
 """Fails when the licence is not declared identically everywhere it is declared.
 
-The licence lives in seven places and nobody remembers all seven. The published repository
-description said "MIT licensed" for two releases after MIT was replaced, across several
-reviews, because no check looked. This is that check.
-
-`pyproject.toml` is the single authored source, the same file `app/version.py` already
-treats as the one place a project fact lives. Everything else must agree with it.
-
     uv run python -m scripts.check_license
     uv run python -m scripts.check_license --repo dny1020/doction
 
-The repository description is the one declaration a commit cannot reach, so it is verified
-over the network rather than written. With no route out, or no repository to ask about, that
-half reports a visible SKIP and the rest still runs: `make check` has to pass on a machine
-with no internet. A silent skip would reproduce the very failure this exists to catch, so
-the skip is printed as loudly as a failure.
+The licence lives in seven places and nobody remembers all seven; the published repository
+description said "MIT licensed" for two releases after MIT was replaced. `pyproject.toml` is
+the single authored source and everything else must agree with it.
+
+The repository description is the one declaration a commit cannot reach, so it is checked
+over the network. With no route out that half prints a SKIP as loudly as a failure — a
+silent skip would reproduce the very failure this exists to catch.
 """
 
 import argparse

@@ -1,12 +1,8 @@
 """Tests for the check that tracked documentation reaches only tracked files.
 
-The failure it guards against is specific to this repository: `CLAUDE.md` and `.claude/` are
-gitignored on purpose, so a versioned document citing them dead-ends for everyone but the
-maintainer. The same applies to a link written before its target exists.
-
-Skipped where the tree is stripped. The Docker `test` stage copies only `app/`, `tests/`,
-`scripts/` and `pyproject.toml`, so there is no git index and no markdown to compare — a
-lesson from the previous two changes, where tests like these turned `main` red twice.
+`CLAUDE.md` and `.claude/` are gitignored on purpose, so a versioned document citing them
+dead-ends for everyone but the maintainer. Skipped where the tree is stripped: the Docker
+`test` stage has no git index and no markdown to compare.
 """
 
 import subprocess
@@ -42,7 +38,7 @@ def test_passes_on_the_real_tree():
 
 @needs_checkout
 def test_it_actually_examined_something():
-    """Un check que no encuentra referencias pasaría por vacío, no por correcto."""
+    """A check that finds no references would pass for being empty, not for being right."""
     r = _run()
     count = int(r.stdout.split("docs: ")[1].split()[0])
     assert count > 20, f"solo examinó {count} referencias; ¿dejó de encontrarlas?"
@@ -78,7 +74,7 @@ def test_catches_a_reference_to_a_file_that_does_not_exist():
 
 @needs_checkout
 def test_external_links_and_anchors_are_not_checked():
-    """El gate tiene que pasar sin salida a internet, así que no se validan URLs."""
+    """The gate has to pass with no route out, so URLs are not validated."""
     doc = ROOT / "AGENTS.md"
     original = doc.read_text(encoding="utf-8")
     try:
@@ -93,7 +89,7 @@ def test_external_links_and_anchors_are_not_checked():
 
 
 def test_skips_cleanly_outside_a_checkout(tmp_path):
-    """Sin índice de git no hay nada contra lo que comparar; eso es un skip, no un fallo."""
+    """With no git index there is nothing to compare against: a skip, not a failure."""
     (tmp_path / "scripts").mkdir()
     (tmp_path / "scripts/__init__.py").touch()
     (tmp_path / "scripts/check_docs_reachable.py").write_text(

@@ -9,7 +9,7 @@ import base64
 
 
 def _register(client, email: str = "user@example.com", password: str = "password123"):
-    """Crea un usuario por la API (deja la cookie de sesión en el cliente)."""
+    """Create a user through the API, leaving the session cookie on the client."""
     return client.post("/api/auth/register", json={"email": email, "password": password})
 
 
@@ -135,7 +135,7 @@ _TINY_PNG = base64.b64decode(
 
 
 def test_image_upload_and_serve(client):
-    _register(client)  # deja la cookie de sesión
+    _register(client)  # leaves the session cookie behind
     r = client.post("/api/uploads", files={"file": ("shot.png", _TINY_PNG, "image/png")})
     assert r.status_code == 200
     url = r.json()["url"]

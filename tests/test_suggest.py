@@ -219,12 +219,10 @@ def test_insights_graph_sections(client):
 
 def test_insights_detects_duplicates(client):
     _register(client)
-    # Un cuerpo de tamaño realista, no una frase. El encoder de pruebas es una bolsa
-    # de palabras, así que lo que el troceador antepone —el encabezado y el
-    # identificador de página, que por definición difieren entre dos páginas— pesa
-    # tanto como el contenido cuando el contenido son doce palabras. Con el modelo
-    # real dos páginas idénticas miden 0.976 y el umbral es 0.90; con doce palabras el
-    # stub bajaba a 0.87 y el test medía su propia escala, no el comportamiento.
+    # A realistically sized body, not one sentence. The test encoder is a bag of words,
+    # so what the chunker prepends weighs as much as the content when the content is
+    # twelve words: the stub scored 0.87 against a 0.90 threshold and the test was
+    # measuring its own scale rather than the behaviour.
     same = " ".join(
         [
             "identical content about kamailio dispatcher failover and sip routing here",

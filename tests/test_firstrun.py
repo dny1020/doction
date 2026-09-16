@@ -1,4 +1,4 @@
-"""Primer arranque (sin usuarios) y creación de usuarios por CLI."""
+"""First run with no users, and creating users from the CLI."""
 
 import sys
 
@@ -12,7 +12,7 @@ def app_mod(main_module):
 
 
 def test_root_redirects_to_spa(app_mod):
-    """La raíz lleva a la SPA de React (servida en /app)."""
+    """The root leads to the React SPA, served at /app."""
     with TestClient(app_mod.app) as c:
         r = c.get("/", follow_redirects=False)
         assert r.status_code in (303, 307)
@@ -20,7 +20,7 @@ def test_root_redirects_to_spa(app_mod):
 
 
 def test_registration_open_when_no_users(app_mod):
-    """Instancia recién autoalojada sin usuarios → el registro está abierto (bootstrap)."""
+    """A freshly self-hosted instance with no users has registration open."""
     with TestClient(app_mod.app) as c:
         r = c.post(
             "/api/auth/register", json={"email": "first@example.com", "password": "password123"}

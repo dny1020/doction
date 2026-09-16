@@ -1,6 +1,6 @@
-"""Tests de GET /api/system: qué informa el despliegue sobre sí mismo.
+"""GET /api/system: what a deployment reports about itself.
 
-Solo lectura: las banderas vienen del entorno del proceso, no de preferencias.
+Read-only — the flags come from the process environment, not from preferences.
 """
 
 import pytest
@@ -39,7 +39,7 @@ def test_flags_follow_the_environment(client, monkeypatch):
 
 
 def test_index_counts_absent_when_semantic_is_off(client, monkeypatch):
-    """Un 0 con la función apagada no se distingue de un índice roto: mejor omitirlo."""
+    """A 0 with the feature off is indistinguishable from a broken index, so omit it."""
     _register(client)
     monkeypatch.delenv("SEMANTIC_SEARCH", raising=False)
     body = _report(client)
@@ -58,7 +58,7 @@ class _ExplodingEncoder:
 
 
 def test_reporting_does_not_load_the_model(client, monkeypatch):
-    """Informar es barato: lee el nombre del atributo de clase, no abre la sesión."""
+    """Reporting is cheap: it reads the class attribute and never opens the session."""
     from app import embeddings
 
     _register(client)
@@ -97,7 +97,7 @@ def test_report_is_read_only(client, method):
 
 
 def test_index_counts_helper(client):
-    """db.index_counts cuenta páginas, no chunks: una página con varios chunks es una."""
+    """db.index_counts counts pages, not chunks: a page with several chunks is one."""
     _register(client)
     with db.connect() as conn:
         row = conn.execute("SELECT id FROM workspaces ORDER BY id LIMIT 1").fetchone()
@@ -108,8 +108,8 @@ def test_index_counts_helper(client):
 
 
 def test_reports_license_and_source(client):
-    """AGPL-3.0 §13 obliga a la instancia, no al repositorio: quien la usa por red tiene
-    que poder llegar al fuente desde la propia aplicación, así que /api/system lo informa."""
+    """AGPL-3.0 §13 binds the instance, not the repository: a network user has to reach
+    the source from the application itself, so /api/system reports it."""
     _register(client)
     body = client.get("/api/system").json()
 
@@ -120,8 +120,8 @@ def test_reports_license_and_source(client):
 
 
 def test_source_url_is_operator_configurable(client, monkeypatch):
-    """Un fork modificado debe sus cambios a SUS usuarios, así que no puede quedar fijo
-    apuntando a upstream: eso sería una declaración de cumplimiento falsa."""
+    """A modified fork owes its changes to *its* users, so a URL fixed at upstream would
+    be a false declaration of compliance."""
     from app import main
 
     monkeypatch.setattr(main, "SOURCE_URL", "https://git.example.org/mi-fork")

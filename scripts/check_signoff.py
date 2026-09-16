@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
 """Fails when a commit does not certify the terms it was contributed under.
 
-doction is AGPL-3.0-only. `CONTRIBUTING.md` used to say that opening a pull request implies
-agreement, which asserts consent without evidencing it. A `Signed-off-by` trailer attaches
-the record to the commit, so it survives independently of whatever the policy document said
-at the time.
-
-Sign-off transfers no copyright. The consequence, documented in `CONTRIBUTING.md`: the
-project cannot be relicensed without the permission of everyone who has contributed.
-
     uv run python -m scripts.check_signoff origin/main..HEAD
     uv run python -m scripts.check_signoff            # defaults to the range CI provides
 
-This will not fire for a long time: every commit in this project's history is a direct push
-to `main`, and the check runs on pull requests. That is why it must be verified against a
-constructed commit rather than trusted because CI is green.
+A `Signed-off-by` trailer attaches the record to the commit, so it survives independently of
+whatever `CONTRIBUTING.md` said at the time. Sign-off transfers no copyright, so the project
+cannot be relicensed without the permission of everyone who has contributed.
+
+This runs on pull requests and every commit so far is a direct push to `main`, so it must be
+verified against a constructed commit rather than trusted because CI is green.
 """
 
 import argparse
@@ -87,7 +82,7 @@ def main() -> int:
         if not trailers:
             failures.append(f"{sha[:8]} {subject[:60]} — no Signed-off-by")
             continue
-        # La firma tiene que ser del autor: la de otra persona no certifica nada sobre él.
+        # The sign-off has to be the author's: someone else's certifies nothing about them.
         if not any(e.strip().lower() == email.strip().lower() for _, e in trailers):
             signed = ", ".join(e for _, e in trailers)
             failures.append(f"{sha[:8]} {subject[:50]} — signed by {signed}, authored by {email}")

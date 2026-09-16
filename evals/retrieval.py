@@ -1,12 +1,10 @@
-"""Compara configuraciones de recuperación sobre el corpus real y saca una tabla.
-
-Se ejecuta a mano, no en pytest: mide calidad, no comportamiento, y un número de
-calidad que puede tumbar un build es un build que se acaba ignorando.
+"""Compares retrieval configurations over the real corpus and prints one table.
 
     EVAL_CORPUS=data/eval-corpus uv run python -m evals.retrieval
 
-Las variantes de FTS se calculan en el SQL del propio harness, así que una
-ejecución nunca deja el esquema de la aplicación en estado experimental.
+Run by hand, not under pytest: it measures quality, not behaviour, and a quality number
+that can fail a build is a build that gets ignored. The FTS variants are computed in the
+harness's own SQL, so a run never leaves the application schema experimental.
 """
 
 import argparse
@@ -27,9 +25,8 @@ ADMIN_URL = os.environ.get(
 QUERIES = Path(__file__).parent / "queries.json"
 RESULTS_DIR = Path(__file__).parent / "results"
 
-# Las cuatro variantes de palabra clave. `english` es lo que corre hoy; las otras
-# tres son contrafactuales — el stemmer que va dentro de la configuración final se
-# decide con esta tabla, no antes (design.md, Open Questions).
+# The four keyword variants. `english` is what runs today; the other three are the
+# counterfactuals this table exists to decide between.
 FTS_CONFIGS = {
     "fts-english": "english",
     "fts-spanish": "spanish",
@@ -54,10 +51,10 @@ def _drop_database(url: str) -> None:
 
 
 def _install_unaccent_configs(conn) -> None:
-    """Configuraciones de búsqueda que pliegan acentos antes de aplicar el stemmer.
+    """Search configurations that fold accents before stemming.
 
-    `unaccent()` suelto no sirve aquí: es STABLE, no IMMUTABLE, así que Postgres lo
-    rechaza en una columna generada. Encadenado dentro de una configuración sí vale.
+    A bare `unaccent()` is STABLE, not IMMUTABLE, so Postgres rejects it in a generated
+    column; chained inside a configuration it works.
     """
     conn.execute("CREATE EXTENSION IF NOT EXISTS unaccent")
     for name, base, stemmer in (
@@ -101,7 +98,7 @@ def _fts_search(db, workspace_id: int, query: str, config: str, limit: int = 20)
 
 
 def _rank_of(slugs: list[str], expected: list[str]) -> int:
-    """Posición (1-based) del primer acierto, o 0 si no aparece."""
+    """The 1-based position of the first hit, or 0 when none appears."""
     for i, slug in enumerate(slugs, start=1):
         if slug in expected:
             return i
@@ -109,11 +106,10 @@ def _rank_of(slugs: list[str], expected: list[str]) -> int:
 
 
 def _section_recall(details: list[tuple[str | None, str | None]]) -> dict:
-    """Recall de sección, contado aparte del de página y solo sobre quien lo declara.
+    """Section recall, counted apart from page recall and only over queries declaring it.
 
-    Mezclarlo con el recall de página escondería el efecto: una consulta puede acertar
-    la página y traer la sección equivocada, que es justo el fallo que el troceado por
-    encabezados existe para arreglar y que hasta ahora no se medía.
+    Mixing the two would hide the effect: a query can find the right page and return the
+    wrong section, which is the failure heading-based chunking exists to fix.
     """
     scored = [(want, got) for want, got in details if want]
     if not scored:
@@ -123,7 +119,7 @@ def _section_recall(details: list[tuple[str | None, str | None]]) -> dict:
 
 
 def _score(runs: list[tuple[int, float, int]]) -> dict:
-    """runs = [(rank, elapsed_ms, n_results)] → métricas de la configuración."""
+    """runs = [(rank, elapsed_ms, n_results)] into the configuration's metrics."""
     ranks = [r for r, _, _ in runs]
     times = sorted(t for _, t, _ in runs)
     return {
@@ -137,10 +133,10 @@ def _score(runs: list[tuple[int, float, int]]) -> dict:
 
 
 def _sweep(embeddings, workspace_id: int, queries: list[dict]) -> None:
-    """Barre los umbrales: cada uno decide algo distinto, así que se mira su curva.
+    """Sweep the thresholds, each against the curve it actually decides.
 
-    `SEARCH_MIN_SCORE` no ordena, esconde — su métrica es cuánto recall cuesta el
-    piso, no el MRR global. `RRF_K` sí es de orden: aplana la curva de la fusión.
+    `SEARCH_MIN_SCORE` hides rather than orders, so its metric is how much recall the
+    floor costs. `RRF_K` is about order: it flattens the fusion's curve.
     """
     print("\n" + "─" * 45)
     print("SEARCH_MIN_SCORE (modo semantic)")
@@ -181,14 +177,10 @@ FILTER_QUERIES = Path(__file__).parent / "queries-filters.json"
 
 
 def _filter_cases(embeddings, workspace_id: int) -> dict:
-    """Puntúa el filtro por etiquetas de `search_knowledge`, aparte del conjunto principal.
+    """Score `search_knowledge`'s tag filter, apart from the main query set.
 
-    En su propio archivo y su propia fila a propósito: meter estas consultas en el
-    conjunto de siempre cambiaría las métricas principales y ninguna corrida anterior
-    volvería a ser comparable.
-
-    Las etiquetas las pone el cargador (`corpus._tag_by_origin`), porque el corpus real
-    no trae ninguna utilizable.
+    In its own file and its own row on purpose: folding these queries into the main set
+    would move the headline metrics and break comparability with every earlier run.
     """
     if not FILTER_QUERIES.is_file():
         return {}
@@ -202,8 +194,8 @@ def _filter_cases(embeddings, workspace_id: int) -> dict:
         if case["expect"]:
             rank = _rank_of(slugs, case["expect"])
         else:
-            # Un filtro que excluye la respuesta debe devolver vacío, no la lista sin
-            # filtrar. Acertar aquí es no devolver nada.
+            # A filter that excludes the answer must return nothing, not the unfiltered
+            # list. Getting it right here means returning nothing.
             rank = 1 if not slugs else 0
         runs.append((rank, elapsed, len(slugs)))
     return _score(runs)
@@ -242,11 +234,11 @@ def main() -> None:
             _install_unaccent_configs(conn)
         indexed = embeddings.drain_pending()
         model = embeddings.get_embedder().name
-        print(f"corpus: {pages} páginas, {indexed} indexadas, modelo {model}")
-        print(f"consultas: {len(queries)}\n")
+        print(f"corpus: {pages} pages, {indexed} indexed, model {model}")
+        print(f"queries: {len(queries)}\n")
 
-        # Comprueba que todas las etiquetas apuntan a páginas que existen: un slug
-        # mal escrito se convierte en un fallo permanente y silencioso.
+        # Every expectation must name a page that exists: a misspelled slug becomes a
+        # permanent, silent failure.
         known = {p.slug for p in db.workspace_pages(workspace_id)}
         unknown = sorted({s for q in queries for s in q["expect"] if s not in known})
         if unknown:
@@ -284,8 +276,8 @@ def main() -> None:
                 rank = _rank_of([h["slug"] for h in hits], q["expect"])
                 runs.append((rank, elapsed, len(hits)))
                 detail[q["query"]] = rank
-                # La sección del primer acierto que sí era la página buena: si la
-                # página falla, la sección no dice nada.
+                # The section of the first hit that was the right page: if the page is
+                # wrong, its section says nothing.
                 found = next((h for h in hits if h["slug"] in q["expect"]), None)
                 sections.append(
                     (q.get("expected_heading"), found.get("section") if found else None)
@@ -294,9 +286,9 @@ def main() -> None:
             per_query[label] = detail
         os.environ.pop("RERANK", None)
 
-        # `rag` mide el contexto ensamblado, que es lo que recibe un agente. Las filas
-        # `semantic` y `hybrid` miden `embeddings.search`, así que un cambio dentro de
-        # `rag_context` no las mueve: sin esta fila el efecto sería invisible.
+        # `rag` measures the assembled context, which is what an agent receives. The
+        # `semantic` and `hybrid` rows measure `embeddings.search`, so a change inside
+        # `rag_context` would otherwise be invisible.
         runs, sections = [], []
         for q in queries:
             start = time.perf_counter()
@@ -320,9 +312,8 @@ def main() -> None:
         print(header)
         print("─" * len(header))
         for label, m in table.items():
-            # El recall de sección va aparte del de página: una consulta puede acertar
-            # la página y traer la sección equivocada, que es el fallo que el troceado
-            # por encabezados existe para arreglar.
+            # Section recall is separate from page recall: a query can find the right
+            # page and return the wrong section.
             section = f"{m['section_recall']:>9.2f}" if "section_recall" in m else f"{'—':>9}"
             print(
                 f"{label:<18}{m['recall@1']:>10.2f}{m['mrr']:>8.2f}{section}"
@@ -332,15 +323,14 @@ def main() -> None:
             (m.get("section_queries") for m in table.values() if m.get("section_queries")), 0
         )
         if scored:
-            print(f"\nrecall de sección medido sobre {scored} consultas que la declaran")
+            print(f"\nsection recall measured over {scored} queries that declare one")
 
         print("\npor clase (MRR):")
         classes = sorted({q["class"] for q in queries})
         print(f"{'config':<18}" + "".join(f"{c:>8}" for c in classes))
-        # Solo las filas del conjunto principal: `hybrid+tags` puntúa otras consultas
-        # y no tiene detalle por clase. Sin este filtro reventaba con un KeyError
-        # después de imprimir la tabla y antes de escribir el JSON, así que la corrida
-        # se veía bien en pantalla y no dejaba resultado.
+        # Main-set rows only: `hybrid+tags` scores different queries and has no
+        # per-class detail, and without this filter it raised a KeyError after printing
+        # the table and before writing the JSON.
         for label in per_query:
             row = f"{label:<18}"
             for cls in classes:
@@ -363,13 +353,13 @@ def main() -> None:
                     "pages": pages,
                     "queries": len(queries),
                     "label": args.label,
-                    # `model` es el nombre que la app graba en page_chunks; el encoder
-                    # real lo fija MODEL_DIR, así que sin esa ruta dos runs con modelos
-                    # distintos se ven idénticos en el JSON.
+                    # `model` is the name the app records in page_chunks, but MODEL_DIR
+                    # picks the real encoder: without the path, two runs on different
+                    # models look identical in the JSON.
                     "model": model,
                     "model_dir": os.environ["MODEL_DIR"],
-                    # Sin esto, dos runs a los dos lados de un cambio de troceador
-                    # se ven idénticos en el JSON y la comparación queda sin etiqueta.
+                    # Without this, two runs either side of a chunker change look
+                    # identical in the JSON.
                     "chunker": meta.CHUNKER_ID,
                     "summary": table,
                     "per_query": per_query,
