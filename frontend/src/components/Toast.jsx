@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useRef, useState } from 'react'
 const ToastContext = createContext(() => {})
 
 const SHOW_MS = 4000 // visible
-const FADE_MS = 300 // transición de salida antes de quitarlo del DOM
+const FADE_MS = 300 // exit transition before it leaves the DOM
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])

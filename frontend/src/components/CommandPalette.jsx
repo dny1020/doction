@@ -9,9 +9,9 @@ export default function CommandPalette({ ws, pages }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [sel, setSel] = useState(0) // índice resaltado dentro de los resultados
+  const [sel, setSel] = useState(0) // the highlighted index within the results
   const inputRef = useRef(null)
-  const prevFocusRef = useRef(null) // a quién devolver el foco al cerrar
+  const prevFocusRef = useRef(null) // where to return focus on close
 
   // Pages whose title contains the query, up to 50; an empty query lists them all.
   const matches = useMemo(() => {

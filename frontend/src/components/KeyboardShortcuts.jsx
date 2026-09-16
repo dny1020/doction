@@ -12,7 +12,7 @@ export default function KeyboardShortcuts({ ws }) {
   const location = useLocation()
   const [helpOpen, setHelpOpen] = useState(false)
   const closeRef = useRef(null)
-  const prevFocusRef = useRef(null) // a quién devolver el foco al cerrar
+  const prevFocusRef = useRef(null) // where to return focus on close
 
   // Ruta actual en un ref para que el listener (montado una vez) la lea fresca.
   const locRef = useRef(location)

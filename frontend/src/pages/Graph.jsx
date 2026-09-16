@@ -17,7 +17,7 @@ import { useDocumentTitle } from '../useDocumentTitle.js'
 
 const NODE_R = 5
 const MAX_R = 14
-const LABEL_AT = 40 // por encima de esto solo se etiquetan los nodos con enlaces
+const LABEL_AT = 40 // above this, only nodes with links are labelled
 
 function reducedMotion() {
   try {

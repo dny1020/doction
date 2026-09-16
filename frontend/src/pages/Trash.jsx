@@ -15,7 +15,7 @@ export default function Trash() {
   const toast = useToast()
   const confirm = useConfirm()
   const [items, setItems] = useState(null) // null = cargando
-  const [busy, setBusy] = useState(null) // slug de la fila con una acción en vuelo
+  const [busy, setBusy] = useState(null) // slug of the row with an action in flight
   useDocumentTitle(t('trash'), null)
 
   function reload() {
