@@ -1,6 +1,5 @@
-// Tema claro/oscuro. El tema se aplica con el atributo data-theme en <html>
-// (el CSS usa [data-theme="dark"]) y se recuerda en localStorage. El valor
-// inicial lo fija un script en index.html antes de pintar, para evitar parpadeo.
+// Light and dark theme, applied as data-theme on <html> and remembered in localStorage.
+// The initial value is set by a script in index.html before the first paint.
 
 export function getTheme() {
   return document.documentElement.getAttribute('data-theme') || 'light'
@@ -12,7 +11,7 @@ export function toggleTheme() {
   try {
     localStorage.setItem('theme', next)
   } catch {
-    // localStorage puede fallar (modo privado); el tema igual cambia en esta sesión.
+    // localStorage can fail in private mode; the theme still changes for this session.
   }
   return next
 }

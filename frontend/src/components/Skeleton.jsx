@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react'
 
-// Marcador de carga con la forma de lo que va a llegar. Antes cada vista ponía la
-// palabra "Cargando…", que en la Pi sobre una VPN queda en pantalla el tiempo justo
-// para leerla y no dice nada de lo que viene ni de si algo va mal.
+// A loading placeholder shaped like what is coming.
 //
-// El retardo es la mitad del asunto: por debajo de él no se pinta nada, porque un
-// esqueleto que aparece y desaparece en 80 ms se ve como un parpadeo y se lee como
-// un fallo. Solo aparece cuando la espera ya se nota.
+// The delay is half the point: below it nothing paints, because a skeleton that appears
+// and vanishes in 80 ms reads as a glitch. It only shows once the wait is noticeable.
 const DELAY = 250
 
 function useVisibleAfterDelay(delay = DELAY) {
@@ -18,13 +15,12 @@ function useVisibleAfterDelay(delay = DELAY) {
   return visible
 }
 
-// Árbol lateral: filas a la altura y con el sangrado reales, para que al llegar el
-// árbol de verdad nada se mueva de sitio.
+// Sidebar tree: real row heights and indents, so nothing shifts when the tree arrives.
 export function TreeSkeleton({ rows = 7 }) {
   const visible = useVisibleAfterDelay()
   if (!visible) return null
-  // Sangrado fijo y no aleatorio: un árbol que baila en cada carga llama la
-  // atención justo cuando no hay nada que mirar.
+  // Fixed rather than random indents: a tree that dances on every load draws the eye
+  // exactly when there is nothing to look at.
   const levels = [0, 0, 1, 1, 2, 0, 1]
   return (
     <div className="skeleton-tree" aria-hidden="true">
@@ -37,8 +33,7 @@ export function TreeSkeleton({ rows = 7 }) {
   )
 }
 
-// Cuerpo del documento: un titular y unos párrafos al ancho de la columna de
-// lectura.
+// Document body: a headline and paragraphs at the reading column's width.
 export function DocumentSkeleton() {
   const visible = useVisibleAfterDelay()
   if (!visible) return null
@@ -54,7 +49,7 @@ export function DocumentSkeleton() {
   )
 }
 
-// Filas de una lista (papelera, bandeja, ajustes).
+// List rows, for the trash, the inbox and settings.
 export function ListSkeleton({ rows = 4 }) {
   const visible = useVisibleAfterDelay()
   if (!visible) return null

@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom'
 
-// Un estado vacío dice qué está vacío y, cuando hay una acción que lo llena,
-// ofrece esa y ninguna más. No se usa para lo que es opcional: una página sin
-// subpáginas no está vacía, simplemente no tiene subpáginas, y ahí lo correcto es
-// no pintar la sección.
+// An empty state says what is empty and, when one action fills it, offers that one and
+// no other. Not used for what is optional: a page without children is not empty, it just
+// has no children, and there the right move is to not render the section.
 export default function EmptyState({ title, hint, actionLabel, actionTo }) {
   return (
     <div className="placeholder">

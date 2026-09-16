@@ -4,18 +4,16 @@ import { Check, ChevronDown } from 'lucide-react'
 import { useI18n } from '../i18n.jsx'
 import { useDocumentTitle } from '../useDocumentTitle.js'
 
-// Ajustes por secciones: una ruta por sección, una sección en pantalla.
+// Settings by section: one route per section, one section on screen.
 //
-// El corte es 1120px, no los 820px del shell: entre 820 y 1120 la barra lateral
-// sigue siendo una columna fija, y una segunda columna de navegación dejaría el
-// contenido más estrecho que su propio cromo. 1120 ya es el ancho al que el lector
-// suelta su tabla de contenidos, así que la interfaz pierde su columna secundaria
-// a un solo ancho en vez de a dos.
+// The breakpoint is 1120px and not the shell's 820px: between the two the sidebar is still
+// a fixed column, and a second navigation column would leave the content narrower than its
+// own chrome. 1120 is where the reader drops its table of contents, so the interface loses
+// its secondary column at one width rather than two.
 //
-// Ese ancho vive solo en el CSS. Se pintan las dos navegaciones y el media query
-// esconde la que sobra: si el corte estuviera también aquí en JS, bastaría con que
-// los dos números se separaran para que la lista apareciera sin su rejilla de dos
-// columnas, apilada encima del contenido.
+// That width lives only in the CSS. Both navigations render and the media query hides the
+// spare one: a second copy of the number here in JS could drift and leave the list without
+// its two-column grid, stacked over the content.
 
 export const SECTIONS = [
   { path: 'account', key: 'sec_account' },
@@ -28,9 +26,9 @@ export const SECTIONS = [
 
 export default function Settings() {
   const { t } = useI18n()
-  // El shell reparte {pages, pagesError, reloadPages} por el contexto del Outlet, y
-  // useOutletContext resuelve al proveedor más cercano: sin reenviarlo, las
-  // secciones quedarían aisladas de él.
+  // The shell shares {pages, pagesError, reloadPages} through the Outlet context, and
+  // useOutletContext resolves to the nearest provider: without forwarding it, the sections
+  // would be cut off from it.
   const shellContext = useOutletContext()
   useDocumentTitle(t('settings'), null)
 
@@ -48,8 +46,8 @@ export default function Settings() {
   )
 }
 
-// Escritorio: la lista completa al lado del contenido. NavLink pone solo
-// aria-current="page" en el activo, y el estado no depende solo del color.
+// Desktop: the full list beside the content. NavLink sets aria-current="page" on the
+// active one, so the state does not rest on colour alone.
 function SectionList() {
   const { t } = useI18n()
   return (
@@ -69,9 +67,8 @@ function SectionList() {
   )
 }
 
-// Móvil y tablet: disparador con la sección actual + menú, el mismo patrón que el
-// selector de workspace de la barra lateral (no pestañas: empujan secciones fuera
-// de pantalla y doction no tiene ese idioma).
+// Mobile and tablet: a trigger showing the current section plus a menu, the same pattern
+// as the sidebar's workspace picker. Not tabs: they push sections off screen.
 function SectionSelect() {
   const { t } = useI18n()
   const location = useLocation()

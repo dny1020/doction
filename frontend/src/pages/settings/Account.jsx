@@ -5,8 +5,7 @@ import { useI18n } from '../../i18n.jsx'
 import { useToast } from '../../components/Toast.jsx'
 import { AVATAR_COLORS, autoColor, avatarLetter } from '../../avatar.js'
 
-// Mi cuenta: perfil (nombre + color de avatar) y contraseña. Los dos formularios
-// vienen tal cual de la antigua página única de ajustes.
+// Account: profile (display name and avatar colour) and password.
 export default function AccountSection() {
   return (
     <>
@@ -103,7 +102,7 @@ function ProfileSection() {
   )
 }
 
-// ── Contraseña ──────────────────────────────────────────────────────────────
+// ── Password ─────────────────────────────────────────────────────────────────
 function PasswordSection() {
   const { t } = useI18n()
   const toast = useToast()

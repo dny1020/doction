@@ -3,17 +3,16 @@ import { AlertTriangle, WifiOff } from 'lucide-react'
 import { MCP_PATH } from '../config.js'
 import { useI18n } from '../i18n.jsx'
 
-// Estado de las dos superficies de máquina de doction: la API REST y el servidor
-// MCP. Fallan por separado —el agente puede quedarse mudo con la API perfecta— así
-// que se comprueban y se informan por separado.
+// The state of doction's two machine surfaces, the REST API and the MCP server. They fail
+// separately — an agent can go silent with the API perfectly fine — so they are checked
+// and reported separately.
 //
-// Callado cuando todo va: una insignia verde permanente es ruido. Esto se gana el
-// sitio apareciendo solo cuando algo pasa.
+// Silent when all is well: a permanent green badge is noise.
 const INTERVAL = 30000
 
 async function probe() {
-  // /health es anónimo y ya dice si la base de datos responde; `initialize` de MCP
-  // es el único método abierto sin token, así que sondear no necesita credenciales.
+  // /health is anonymous and already reports the database; MCP's `initialize` is the one
+  // method open without a token, so probing needs no credentials.
   const [api, mcp] = await Promise.all([
     fetch('/health', { credentials: 'same-origin' })
       .then(async (r) => ((await r.json()).db === 'ok' ? 'ok' : 'degraded'))
@@ -38,17 +37,16 @@ export default function ConnectionStatus() {
   useEffect(() => {
     let cancelled = false
     let timer = null
-    // Volver a la pestaña relanza la comprobación, y puede haber una en vuelo de
-    // antes. Sin esta marca las dos seguirían programando la siguiente y a partir
-    // de ahí se sondearía el doble de veces, por cada ida y vuelta.
+    // Returning to the tab restarts the check while one may still be in flight; without
+    // this flag both would schedule the next and the polling rate would double.
     let generation = 0
 
     async function check(mine) {
       const next = await probe()
       if (cancelled || mine !== generation) return
       setState(next)
-      // El intervalo es fijo aunque algo falle: apretarlo cuando el servidor está
-      // caído es pegarle más fuerte justo cuando peor está.
+      // The interval is fixed even on failure: tightening it while the server is down is
+      // hitting it harder exactly when it is worst.
       timer = setTimeout(() => check(mine), INTERVAL)
     }
 

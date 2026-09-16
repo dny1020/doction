@@ -117,15 +117,13 @@ export default function WebhooksSection() {
   )
 }
 
-// Una fila de la lista: el estado a la vista y el historial al abrirla.
+// One row: state in view, history on open.
 //
-// doction entrega hacia fuera —firma el evento y lo manda, reintentando con
-// backoff—, así que lo que hace falta saber es si esas entregas están llegando.
-// `last_status` solo cuenta el último intento; una cola atascada detrás no se veía.
+// `last_status` covers only the last attempt, so a queue stuck behind it was invisible.
 function WebhookRow({ hook, onDelete, busy }) {
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
-  const [deliveries, setDeliveries] = useState(null) // null = sin cargar
+  const [deliveries, setDeliveries] = useState(null) // null means not loaded
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {

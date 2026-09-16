@@ -1,14 +1,13 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { api } from './api.js'
 
-// Internacionalización (EN/ES). El catálogo vive en el backend (app/i18n.py) y lo
-// servimos por /api/i18n, así que la SPA no duplica las traducciones: las pide una
-// vez según el idioma activo (cookie `lang`). t('clave') devuelve el texto, o la
-// propia clave si faltara, para que nunca se rompa la interfaz.
+// Internationalization (EN/ES). The catalogue lives in the backend (app/i18n.py) and is
+// served over /api/i18n, so the SPA does not duplicate the translations. `t(key)` returns
+// the text, or the key itself when it is missing, so the interface never breaks.
 
 const I18nContext = createContext(null)
 
-// Catálogo mínimo de arranque: solo necesitamos "loading" hasta que llega el real.
+// Boot catalogue: only "loading" is needed until the real one arrives.
 const BOOT = { lang: 'en', langs: ['en', 'es'], t: { loading: 'Loading…' } }
 
 export function I18nProvider({ children }) {
@@ -23,8 +22,8 @@ export function I18nProvider({ children }) {
       .finally(() => setReady(true))
   }, [])
 
-  // index.html trae lang="en" fijo; sin esto, un lector de pantalla leería la
-  // interfaz en español con voz/reglas de inglés.
+  // index.html hardcodes lang="en"; without this a screen reader would read the Spanish
+  // interface with English rules.
   useEffect(() => {
     document.documentElement.lang = data.lang
   }, [data.lang])
@@ -40,7 +39,7 @@ export function I18nProvider({ children }) {
     setData(fresh) // re-renderiza toda la app en el nuevo idioma, sin recargar
   }
 
-  // Esperamos al catálogo para no mostrar las claves en crudo un instante.
+  // Wait for the catalogue, so the raw keys never flash on screen.
   if (!ready) return <div className="placeholder">{BOOT.t.loading}</div>
 
   const value = { lang: data.lang, langs: data.langs, t, setLang }

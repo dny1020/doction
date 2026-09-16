@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { renderMarkdown } from './markdown.js'
 
-// El saneador es un límite de seguridad, así que se comprueba con tests y no
-// mirando una pantalla. Cubre las dos mitades del cambio a la vez: que el HTML
-// peligroso no sobreviva, y que habilitarlo no se haya llevado por delante nada
-// de lo que el markdown ya pintaba.
+// The sanitizer is a security boundary, so it is checked by tests and not by looking at a
+// screen. Both halves at once: that dangerous HTML does not survive, and that enabling it
+// took nothing away from what the markdown already rendered.
 
 describe('HTML embebido', () => {
   it('quita el script y su contenido', () => {
@@ -29,8 +28,7 @@ describe('HTML embebido', () => {
   it('desactiva las URL javascript:, escritas como enlace o como HTML', () => {
     // markdown-it ya rechaza el esquema y no llega a construir el enlace…
     expect(renderMarkdown('[pincha](javascript:alert(1))')).not.toContain('<a ')
-    // …y el saneador lo quita también cuando viene como HTML embebido, que es el
-    // camino que este cambio acaba de abrir.
+    // ...and the sanitizer strips it when it arrives as embedded HTML too.
     const html = renderMarkdown('<a href="javascript:alert(1)">pincha</a>')
     expect(html).toContain('pincha')
     expect(html).not.toContain('javascript:')
@@ -71,8 +69,8 @@ describe('GFM: nada de lo que ya se pintaba se ha perdido', () => {
   it('pinta tablas con su alineación', () => {
     const html = renderMarkdown('| a | b |\n|:--|--:|\n| 1 | 2 |')
     expect(html).toContain('<table>')
-    // La alineación llega como clase y no como `style`: el saneador quita los
-    // estilos en línea, así que markdown.js la traduce antes de que se pierda.
+    // Alignment arrives as a class and not as `style`: the sanitizer strips inline
+    // styles, so markdown.js translates it before it is lost.
     expect(html).toContain('class="align-left"')
     expect(html).toContain('class="align-right"')
     expect(html).not.toContain('style=')
@@ -184,7 +182,7 @@ describe('wikilinks', () => {
     expect(html).toContain('[[failover]]')
   })
 
-  // ── inyección ──────────────────────────────────────────────────────────────
+  // ── Injection ──────────────────────────────────────────────────────────────
 
   it('un destino con esquema ejecutable acaba como ruta relativa, no como esquema', () => {
     const html = renderMarkdown('[[javascript:alert(1)]]', env)
@@ -192,8 +190,8 @@ describe('wikilinks', () => {
     expect(html).toContain('/app/w/telco/new?title=javascript')
   })
 
-  // Aquí no vale buscar cadenas: `onclick=` aparece legítimamente como texto
-  // visible del enlace. Lo que importa es qué atributos acaba teniendo el ancla.
+  // String matching will not do here: `onclick=` legitimately appears as the link's
+  // visible text. What matters is which attributes the anchor ends up with.
   const anchorOf = (html) => {
     const host = document.createElement('div')
     host.innerHTML = html

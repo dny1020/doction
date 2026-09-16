@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n.jsx'
 import { pagePath } from '../routes.js'
 
-// Paleta de comandos (⌘K / Ctrl-K): un buscador rápido para saltar a cualquier
-// página por título, navegable con el teclado. Recibe el árbol de páginas del
-// Layout. Reusa las clases `.palette*` del design system.
+// Command palette (⌘K / Ctrl-K): jump to any page by title, keyboard-navigable.
 export default function CommandPalette({ ws, pages }) {
   const { t } = useI18n()
   const navigate = useNavigate()
@@ -15,19 +13,17 @@ export default function CommandPalette({ ws, pages }) {
   const inputRef = useRef(null)
   const prevFocusRef = useRef(null) // a quién devolver el foco al cerrar
 
-  // Resultados: páginas cuyo título contiene la búsqueda (máx. 50). Con la
-  // búsqueda vacía se listan todas.
+  // Pages whose title contains the query, up to 50; an empty query lists them all.
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
     return pages.filter((p) => p.title.toLowerCase().includes(q)).slice(0, 50)
   }, [pages, query])
 
-  // ⌘K / Ctrl-K abre o cierra la paleta desde cualquier parte de la app;
-  // Esc la cierra aunque el foco esté fuera de su input.
+  // ⌘K / Ctrl-K toggles from anywhere; Esc closes even with focus outside the input.
   useEffect(() => {
     function onKey(event) {
-      // Sin Shift: con él, ⌘⇧K es la captura rápida, y como `event.key` llega
-      // como 'K' mayúscula esto abría las dos cosas, una encima de la otra.
+      // Without Shift: ⌘⇧K is quick capture, and since `event.key` arrives as an
+      // uppercase 'K' this opened both, one on top of the other.
       if (
         (event.metaKey || event.ctrlKey) &&
         !event.shiftKey &&
@@ -43,8 +39,8 @@ export default function CommandPalette({ ws, pages }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  // Al abrir, limpia la búsqueda, resalta el primero y enfoca el input; al
-  // cerrar, devuelve el foco a donde estaba (a11y).
+  // On open: clear the query, highlight the first result, focus the input. On close:
+  // return focus to where it was.
   useEffect(() => {
     if (open) {
       prevFocusRef.current = document.activeElement
@@ -62,7 +58,7 @@ export default function CommandPalette({ ws, pages }) {
     navigate(pagePath(ws, page.slug))
   }
 
-  // Teclas dentro del input: flechas para moverse, Enter para abrir, Esc para cerrar.
+  // Keys inside the input: arrows to move, Enter to open, Esc to close.
   function onInputKey(event) {
     if (event.key === 'Escape') {
       setOpen(false)
@@ -82,8 +78,8 @@ export default function CommandPalette({ ws, pages }) {
     <div
       className={'palette' + (open ? ' open' : '')}
       aria-hidden={open ? 'false' : 'true'}
-      // Cerrada queda en el DOM (solo opacity:0), así que `inert` evita que su
-      // input siga siendo tabulable dentro de un subárbol aria-hidden.
+      // Closed it stays in the DOM at opacity:0, so `inert` keeps its input out of the
+      // tab order inside an aria-hidden subtree.
       {...(open ? {} : { inert: '' })}
       onClick={(event) => {
         if (event.target === event.currentTarget) setOpen(false) // clic en el fondo

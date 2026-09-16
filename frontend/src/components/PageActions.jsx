@@ -4,15 +4,11 @@ import { useI18n } from '../i18n.jsx'
 import { useToast } from './Toast.jsx'
 import { api } from '../api.js'
 
-// Menú "⋯" de cada página del árbol: mover y renombrar.
+// The "⋯" menu on each tree row: move and rename. Renaming leaves an alias so existing
+// [[wikilinks]] keep resolving, which is what the save message says.
 //
-// Mover es una sola llamada; el repo git es plano, así que reparentar no mueve
-// ningún fichero. Renombrar deja alias del slug anterior, de modo que los
-// [[wikilinks]] ya escritos siguen resolviendo — de ahí el mensaje al guardar.
-//
-// El menú es un <dialog> modal, no un desplegable absoluto: el árbol tiene su
-// propio scroll, y un desplegable colgado de la fila se recortaba contra el
-// borde de .page-list en cuanto la fila quedaba cerca del final visible.
+// A modal <dialog> rather than an absolute dropdown: the tree scrolls, and a dropdown
+// anchored to a row clipped against .page-list's edge near the bottom.
 export default function PageActions({ page, pages, onDone, tabIndex }) {
   const { t } = useI18n()
   const toast = useToast()
@@ -31,8 +27,8 @@ export default function PageActions({ page, pages, onDone, tabIndex }) {
     setDialog(kind)
   }
 
-  // Clic en el backdrop: el <dialog> ocupa toda la pantalla, así que un clic
-  // "fuera" llega al propio elemento y no a su contenido.
+  // The <dialog> fills the screen, so a click "outside" lands on the element itself
+  // rather than on its content.
   function onDialogClick(event) {
     if (event.target === dialogRef.current) setDialog(null)
   }
@@ -54,7 +50,7 @@ export default function PageActions({ page, pages, onDone, tabIndex }) {
     }
   }
 
-  // Un padre no puede ser la propia página; el backend además rechaza ciclos.
+  // A parent cannot be the page itself; the backend also rejects cycles.
   const targets = pages.filter((p) => p.slug !== page.slug)
 
   return (

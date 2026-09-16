@@ -2,11 +2,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { useI18n } from '../i18n.jsx'
 import { useDocumentTitle } from '../useDocumentTitle.js'
 
-// 404 con estilo: antes cualquier URL desconocida redirigía a la home en silencio.
-//
-// `standalone` es para las rutas que caen fuera del shell (una URL que no casa con
-// nada): ahí no hay barra lateral alrededor, así que se centra como página entera
-// en vez de quedarse pegada al borde del hueco de contenido.
+// `standalone` is for routes falling outside the shell, where there is no sidebar around
+// it: the page centres as a whole rather than sitting against the content area's edge.
 export default function NotFound({ standalone }) {
   const { t } = useI18n()
   const location = useLocation()

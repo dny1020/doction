@@ -7,8 +7,8 @@ import { useDocumentTitle } from '../useDocumentTitle.js'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 
-// Papelera: páginas borradas (soft-delete). Se pueden restaurar o borrar para
-// siempre. Al restaurar refrescamos el árbol de la barra lateral.
+// The trash: soft-deleted pages, which can be restored or purged. Restoring refreshes
+// the sidebar tree.
 export default function Trash() {
   const { reloadPages } = useOutletContext()
   const { t } = useI18n()
@@ -26,8 +26,8 @@ export default function Trash() {
   }
   useEffect(reload, [])
 
-  // Restaurar y borrar para siempre bloquean su propia fila mientras están en
-  // vuelo: dos clics seguidos mandaban dos peticiones, y purgar no se deshace.
+  // Restore and purge lock their own row while in flight: two quick clicks sent two
+  // requests, and a purge does not come back.
   async function onRestore(slug) {
     if (busy) return
     setBusy(slug)
