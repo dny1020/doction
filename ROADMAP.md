@@ -26,16 +26,6 @@ label-collision strategy.
 *Identified during the five-phase maturity review; the reason no graph screenshot is in the
 README.*
 
-### Search snippets leak raw markdown — **open**
-
-Results show table pipes, `##`, `[[…]]` and even mermaid syntax inside the excerpt, because
-snippets are extracted from the stored markdown without stripping syntax. Ranking is
-unaffected; it is presentation. Note that `meta.strip_code()` already exists for a related
-purpose and may be the wrong tool here, since the goal is readable prose rather than tag
-removal.
-
-*Identified during the five-phase maturity review.*
-
 ### `Delete` is the only page action outside the overflow menu — **open**
 
 Edit, New subpage and History live behind the `…` menu while the destructive action sits

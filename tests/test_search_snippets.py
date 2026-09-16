@@ -121,3 +121,111 @@ def test_snippet_does_not_lead_with_frontmatter(client):
     hit = next(h for h in hits if "dispatcher" in h["snippet"])
     assert "type: memo" not in hit["snippet"]
     assert "---" not in hit["snippet"]
+
+
+# ── Markdown syntax does not reach the snippet ───────────────────────────────
+
+MARKDOWN_PAGE = """---
+type: runbook
+tags: [tls]
+---
+
+# Renovación TLS
+
+See the [[deploy-runbook|deploy runbook]] and the [guide](https://example.com/very/long/url).
+
+## Steps
+
+| Step | Command |
+| --- | ------: |
+| 1 | `certbot renew` |
+| 2 | **restart** nginx |
+
+> Careful: the *dry-run* renews nothing.
+
+- first bullet
+- second bullet
+
+```mermaid
+graph TD;
+  A[Certbot]-->B[nginx];
+```
+
+Closing prose after the diagram.
+"""
+
+SYNTAX = ["##", "|", "[[", "]]", "```", "**", "`", "> ", "~~~"]
+
+
+def _hit(client, token, query, slug):
+    """The hit for `slug`: registration seeds pages that match some of these queries too."""
+    r = client.get("/api/search", params={"q": query}, headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200, r.text
+    hits = [hit for hit in r.json() if hit["slug"] == slug]
+    assert hits, f"no hit for {query!r} on {slug!r}"
+    return hits[0]
+
+
+def _runbook(client):
+    token = _token(client)
+    return token, _page(client, token, "TLS runbook", MARKDOWN_PAGE)
+
+
+def test_snippet_carries_no_markdown_syntax(client):
+    token, slug = _runbook(client)
+    for query in ("certbot", "nginx", "prose", "renovacion"):
+        snippet = _hit(client, token, query, slug)["snippet"]
+        for mark in SYNTAX:
+            assert mark not in snippet, f"{query!r} -> {snippet!r} still carries {mark!r}"
+
+
+def test_mermaid_source_never_becomes_a_snippet(client):
+    """A fenced block goes before the twelve words are chosen, not cleaned up after."""
+    token, slug = _runbook(client)
+    snippet = _hit(client, token, "graph", slug)["snippet"]
+    assert "graph TD" not in snippet
+    assert "-->" not in snippet
+
+
+def test_a_wikilink_shows_its_label(client):
+    """The reader sees what the writer wrote, not the slug behind it."""
+    token, slug = _runbook(client)
+    assert "deploy runbook" in _hit(client, token, "deploy", slug)["snippet"]
+
+
+def test_a_link_url_does_not_eat_the_window(client):
+    """Twelve words of URL are twelve words the reader cannot use."""
+    token, slug = _runbook(client)
+    snippet = _hit(client, token, "guide", slug)["snippet"]
+    assert "guide" in snippet
+    assert "example.com" not in snippet
+
+
+def test_stripping_did_not_cost_the_highlighting(client):
+    """The spans still come back, and still add up to the snippet."""
+    token, slug = _runbook(client)
+    hit = _hit(client, token, "certbot", slug)
+    matched = [part["text"] for part in hit["parts"] if part["match"]]
+    assert matched, hit["parts"]
+    assert any("certbot" in text.lower() for text in matched)
+    assert "".join(part["text"] for part in hit["parts"]) == hit["snippet"]
+
+
+def test_a_page_cannot_forge_a_highlight_through_the_stripping(client):
+    """The control characters are removed from what the stripping produced, not before it."""
+    token = _token(client)
+    slug = _page(client, token, "Forged", "\x01certbot\x02 renew and **\x01nginx\x02** restart")
+    hit = _hit(client, token, "renew", slug)
+    assert "\x01" not in hit["snippet"] and "\x02" not in hit["snippet"]
+    matched = [part["text"] for part in hit["parts"] if part["match"]]
+    assert all("certbot" not in text.lower() for text in matched), matched
+
+
+def test_ranking_is_unaffected_by_the_stripping(client):
+    """Syntax comes off the snippet, not off search_vector: a heading is still findable."""
+    token = _token(client)
+    slug = _page(client, token, "Headed", "## Kamailio dispatcher\n\nbody text")
+    r = client.get(
+        "/api/search", params={"q": "kamailio"}, headers={"Authorization": f"Bearer {token}"}
+    )
+    assert slug in [hit["slug"] for hit in r.json()]
