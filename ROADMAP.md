@@ -44,14 +44,6 @@ irreversible one is the easiest to hit.
 
 *Identified during the five-phase maturity review.*
 
-### The seeded pages describe retired infrastructure — **open**
-
-`app/seed.py` ships three pages to every new user. One is a runbook describing a Gitea
-runner and an SQLite database on a mounted volume; Gitea was retired and the database is
-PostgreSQL. It is the first thing a new user reads, and it is wrong.
-
-*Identified during the five-phase maturity review.*
-
 ---
 
 ## Security and supply chain
