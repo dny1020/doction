@@ -1,4 +1,4 @@
-"""Versionado de páginas con git — silencioso, nunca bloquea un guardado."""
+"""Page versioning with git: silent, and never blocks a save."""
 
 import logging
 import os
@@ -10,8 +10,8 @@ from app.models import HistoryEntry
 
 logger = logging.getLogger(__name__)
 
-# Los SHA vienen de la URL (input del usuario): solo hex, nunca algo que empiece por
-# `-` y que `git show` pudiera interpretar como opción.
+# SHAs come from the URL, so hex only — never something starting with `-` that
+# `git show` would read as an option.
 _SHA_RE = re.compile(r"[0-9a-fA-F]{4,64}")
 
 
@@ -60,7 +60,7 @@ def commit_page(
         logger.warning("git add failed: %s", result.stderr)
         return None
 
-    # Sin cambios staged → devuelve el último SHA conocido del archivo.
+    # Nothing staged: return the file's last known SHA.
     diff = subprocess.run(
         ["git", "-C", str(pages), "diff", "--cached", "--quiet"],
         capture_output=True,
@@ -96,10 +96,10 @@ def commit_page(
 
 
 def rename_page_file(ws_slug: str, old_slug: str, new_slug: str, author: str) -> str | None:
-    """Renombra el .md con `git mv` y commitea. None si algo falla.
+    """`git mv` the .md and commit; None if anything fails.
 
-    Como el resto del módulo, un fallo de git nunca rompe la operación: el
-    renombrado ya está hecho en Postgres, que es la fuente de verdad.
+    A git failure never breaks the operation: the rename already happened in Postgres,
+    which is the source of truth.
     """
     pages = _pages_dir()
     old_rel = f"{ws_slug}/{old_slug}.md"
@@ -154,10 +154,9 @@ def commit_and_record(
     content: str,
     author: str,
 ) -> None:
-    """Commit del guardado + persistir el SHA en la página.
+    """Commit the save and store the resulting SHA on the page.
 
-    Único punto compartido por REST (app.main) y MCP (app.mcp): antes cada uno
-    tenía su copia de esta rutina.
+    The one point REST and MCP share.
     """
     from app import db
 
@@ -219,7 +218,7 @@ def get_page_at_commit(ws_slug: str, page_slug: str, sha: str) -> str | None:
 
 
 def diff_page(ws_slug: str, page_slug: str, sha: str) -> str | None:
-    """Diff unificado que introdujo `sha` en la página. `git show` maneja el commit raíz."""
+    """The unified diff `sha` introduced; `git show` handles the root commit."""
     pages = _pages_dir()
     if not _SHA_RE.fullmatch(sha) or not (pages / ".git").exists():
         return None

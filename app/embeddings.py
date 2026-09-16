@@ -677,9 +677,8 @@ def rag_context(
     ws = db.get_workspace_by_id(workspace_id)
     workspace = ws.name if ws else ""
 
-    # Cuántos candidatos mirar antes de empaquetar. Con el techo del troceador en
-    # 1000 caracteres, el doble del presupuesto siempre trae de sobra para llenarlo
-    # aunque la mitad se caiga por duplicada.
+    # How many candidates to consider before packing. With a 1000-character chunk
+    # ceiling, twice the budget always brings enough to fill it.
     pool = max(1, (2 * budget) // 500)
 
     candidates: list[dict] = []

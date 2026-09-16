@@ -1,14 +1,12 @@
-"""Entrega de webhooks de salida: firma HMAC + reintentos con backoff.
+"""Outgoing webhook delivery: HMAC signature plus retries with backoff.
 
-Sin dependencias nuevas: `urllib.request` de la stdlib dentro de un hilo, igual
-que `mcp.py` no usa SDK y `graph.py` no usa NetworkX. Es la primera llamada HTTP
-saliente del proyecto, y por eso vive aislada aquí y nunca en el camino de la
-petición: `db.emit_event()` solo encola, y este worker entrega aparte.
+`urllib.request` in a thread, no new dependency. `db.emit_event()` only queues; this
+worker delivers separately, so no HTTP ever happens on the request path.
 
-Sobre SSRF: **no se filtran destinos a propósito**. El caso de uso es justamente
-publicar hacia servicios de la red interna (n8n en `http://n8n:5678`), así que
-bloquear direcciones privadas rompería la función. Solo un usuario autenticado
-puede registrar un webhook; ese es el límite de confianza.
+Destinations are deliberately unfiltered: the use case is publishing to internal
+services (n8n at `http://n8n:5678`), so blocking private addresses would break the
+feature. Only an authenticated user can register a webhook, and that is the trust
+boundary.
 """
 
 import asyncio
@@ -28,13 +26,13 @@ TIMEOUT = 10.0
 
 
 def sign(secret: str, body: bytes) -> str:
-    """Firma del cuerpo, para que el receptor pueda verificar el origen."""
+    """Sign the body so the receiver can verify where it came from."""
     digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
     return f"sha256={digest}"
 
 
 def deliver(item: PendingDelivery) -> tuple[bool, str]:
-    """Envía una entrega. Devuelve (ok, detalle). Nunca lanza."""
+    """Send one delivery, returning (ok, detail). Never raises."""
     body = item.payload_json.encode("utf-8")
     request = urllib.request.Request(
         item.url,
@@ -52,16 +50,15 @@ def deliver(item: PendingDelivery) -> tuple[bool, str]:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
             return True, f"HTTP {response.status}"
     except urllib.error.HTTPError as exc:
-        # El receptor respondió, pero con error: reintentable (puede estar caído
-        # temporalmente o desplegándose).
+        # The receiver answered with an error: retryable, it may be redeploying.
         return False, f"HTTP {exc.code}"
-    except Exception as exc:  # timeout, DNS, conexión rechazada…
+    except Exception as exc:  # timeout, DNS, connection refused...
         return False, f"{type(exc).__name__}: {exc}"
 
 
 async def delivery_worker(*, interval: float = 5.0, batch: int = 10) -> None:
-    """Drena la cola de entregas pendientes sin bloquear el loop."""
-    logger.info("webhook delivery worker iniciado")
+    """Drain the pending delivery queue without blocking the event loop."""
+    logger.info("webhook delivery worker started")
     while True:
         try:
             pending = await asyncio.to_thread(db.due_deliveries, batch)
@@ -69,8 +66,7 @@ async def delivery_worker(*, interval: float = 5.0, batch: int = 10) -> None:
                 await asyncio.sleep(interval)
                 continue
             for item in pending:
-                # try/except por entrega: un receptor roto no puede bloquear la
-                # cola del resto, que es lo que pasaría con un fallo al vuelo.
+                # Per delivery, so one broken receiver cannot block the queue.
                 try:
                     ok, detail = await asyncio.to_thread(deliver, item)
                     if ok:
@@ -80,7 +76,7 @@ async def delivery_worker(*, interval: float = 5.0, batch: int = 10) -> None:
                             db.mark_failed, item.id, item.webhook_id, detail, item.attempts
                         )
                         logger.warning(
-                            "webhook %s: entrega %s falló (%s), intento %s de %s",
+                            "webhook %s: delivery %s failed (%s), attempt %s of %s",
                             item.webhook_id,
                             item.id,
                             detail,
@@ -90,12 +86,12 @@ async def delivery_worker(*, interval: float = 5.0, batch: int = 10) -> None:
                 except asyncio.CancelledError:
                     raise
                 except Exception:
-                    logger.exception("error inesperado entregando %s", item.id)
+                    logger.exception("unexpected error delivering %s", item.id)
         except asyncio.CancelledError:
-            logger.info("webhook delivery worker detenido")
+            logger.info("webhook delivery worker stopped")
             raise
         except Exception:
-            logger.exception("webhook delivery worker error; reintentando")
+            logger.exception("webhook delivery worker error; retrying")
             await asyncio.sleep(interval)
 
 

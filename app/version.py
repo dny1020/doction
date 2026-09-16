@@ -1,8 +1,7 @@
-"""Versión y licencia del proyecto, leídas de pyproject.toml.
+"""Project version and licence, read from pyproject.toml.
 
-Antes la versión vivía en dos sitios (pyproject.toml y SERVER_INFO en mcp.py) y ya
-había driftado una vez. pyproject.toml viaja dentro de la imagen Docker (el COPY del
-stage base), así que se puede leer en runtime con tomllib (stdlib) sin duplicarla.
+pyproject.toml travels inside the Docker image, so both can be read at runtime rather
+than duplicated anywhere else.
 """
 
 import logging
@@ -19,13 +18,13 @@ def _read(key: str, fallback: str) -> str:
         with _PYPROJECT.open("rb") as f:
             return tomllib.load(f)["project"][key]
     except (OSError, KeyError, tomllib.TOMLDecodeError):
-        logger.warning("no se pudo leer '%s' desde %s", key, _PYPROJECT)
+        logger.warning("could not read '%s' from %s", key, _PYPROJECT)
         return fallback
 
 
 VERSION = _read("version", "0.0.0")
 
-# La instancia informa bajo qué licencia corre porque la obligación de la AGPL es suya, no
-# del repositorio. Sale del mismo sitio que la versión: pyproject.toml es la única
-# declaración escrita a mano, y scripts/check_license.py compara el resto contra ella.
+# The instance reports its licence because the AGPL obligation is its own, not the
+# repository's. pyproject.toml is the only hand-written declaration, and
+# scripts/check_license.py compares every other one against it.
 LICENSE_ID = _read("license", "AGPL-3.0-only")

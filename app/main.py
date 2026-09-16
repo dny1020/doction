@@ -44,25 +44,20 @@ BASE_DIR = Path(__file__).resolve().parent
 SESSION_MAX_AGE = 60 * 60 * 24 * 7
 WORKSPACE_MAX_AGE = 60 * 60 * 24 * 30
 LANG_MAX_AGE = 60 * 60 * 24 * 365
-# Activo solo detrás de TLS; por defecto apagado para que dev http no requiera configuración.
+# Only behind TLS; off by default so http dev needs no configuration.
 SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "yes"}
-# Cierra el registro web en instancias públicas. El primer usuario (bootstrap de primer
-# arranque) siempre puede crearse para no dejar la instancia inaccesible; los demás se
-# dan de alta con scripts/create_user.py.
+# Closes web registration on public instances. The first user can always be created, or
+# the instance would be unreachable; the rest go through scripts/create_user.py.
 DISABLE_REGISTRATION = os.environ.get("DISABLE_REGISTRATION", "").lower() in {"1", "true", "yes"}
 
-# AGPL-3.0 §13: quien usa la instancia por red tiene derecho al fuente correspondiente.
-# Configurable porque el operador que modifica doction debe sus cambios a SUS usuarios, no
-# los de este proyecto: una URL fija a upstream dejaría a un fork modificado creyéndose
-# cumplidor. Por defecto apunta aquí, así que un despliegue sin modificar ya cumple.
+# AGPL-3.0 §13: anyone using the instance over a network is owed the corresponding source.
+# Configurable because an operator who modifies doction owes their changes to *their* users;
+# a fixed upstream URL would leave a modified fork believing it complied.
 SOURCE_URL = os.environ.get("SOURCE_URL", "").strip() or "https://github.com/dny1020/doction"
 
-# Cabeceras de seguridad fijadas en cada respuesta (defensa en profundidad).
-# CSP pragmática: 'unsafe-inline' en script-src sigue siendo necesario por el script
-# inline de tema en frontend/index.html (aplica claro/oscuro antes de pintar). El XSS
-# real ya queda tapado al renderizar CommonMark plano en el cliente (markdown-it con
-# html:false); la CSP es capa extra. Lucide va empaquetado en el bundle (lucide-react),
-# así que no hace falta permitir ningún origen externo.
+# Security headers set on every response, as defence in depth. 'unsafe-inline' in
+# script-src is still needed by the inline theme script in frontend/index.html, which
+# applies light or dark before the first paint.
 _CSP = (
     "default-src 'self'; "
     "img-src 'self' data:; "
@@ -77,8 +72,7 @@ SECURITY_HEADERS = {
     "Content-Security-Policy": _CSP,
 }
 
-# Paleta de colores para el avatar (debe coincidir con frontend/src/avatar.js).
-# Imágenes embebibles en documentos. Validamos por content-type + magic bytes.
+# Images embeddable in documents, validated by content-type *and* magic bytes.
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 _IMAGE_SIGNATURES = {
     "image/png": (b"\x89PNG\r\n\x1a\n", ".png"),
@@ -88,7 +82,7 @@ _IMAGE_SIGNATURES = {
 
 
 def _image_extension(content_type: str | None, data: bytes) -> str | None:
-    """Devuelve la extensión si content-type y magic bytes concuerdan, si no None."""
+    """The extension when content-type and magic bytes agree, otherwise None."""
     sig = _IMAGE_SIGNATURES.get(content_type or "")
     if sig is not None and data.startswith(sig[0]):
         return sig[1]
@@ -99,8 +93,8 @@ def _image_extension(content_type: str | None, data: bytes) -> str | None:
 
 # ── REST API ─────────────────────────────────────────────────────────────────
 
-# Tope de longitud de contraseña: PBKDF2 procesa lo que le den, así que sin tope una
-# contraseña de megabytes sería CPU gratis para un atacante.
+# PBKDF2 processes whatever it is given, so without a cap a megabyte-long password
+# would be free CPU for an attacker.
 _MAX_PASSWORD_LEN = 256
 
 
@@ -110,8 +104,8 @@ class _TokenIn(BaseModel):
 
 
 class _PageIn(BaseModel):
-    # title es opcional: una captura de una línea no debería obligar a inventar
-    # un título. db.create_page lo deriva de la primera línea del contenido.
+    # Optional: a one-line capture should not force a title. db.create_page derives
+    # one from the first line of the content.
     title: str = ""
     content: str = ""
     parent_slug: str | None = None
@@ -120,7 +114,7 @@ class _PageIn(BaseModel):
 
 class _WebhookIn(BaseModel):
     url: str
-    # Vacío = todos los eventos. Si no, lista separada por comas:
+    # Empty means all events; otherwise a comma-separated list:
     # page.created, page.updated, page.deleted, page.moved, page.renamed
     events: str = ""
 
@@ -163,8 +157,8 @@ def _api_user(request: Request) -> int:
 
 def _api_workspace(request: Request, user_id: int) -> int:
     if getattr(request.state, "workspace_denied", False):
-        # Existir y no ser tuyo se responde igual que no existir: un 403 diría que
-        # el workspace está ahí.
+        # Existing but not yours answers the same as not existing: a 403 would say
+        # the workspace is there.
         raise HTTPException(status_code=404, detail="Workspace not found")
     ws = getattr(request.state, "workspace", None)
     if ws is None:
@@ -172,14 +166,16 @@ def _api_workspace(request: Request, user_id: int) -> int:
     return int(ws.id)
 
 
-# Hash dummy para igualar el tiempo de respuesta cuando el email no existe: sin esto,
-# la ausencia del PBKDF2 (~100ms) delata qué emails están registrados.
+# Levels the response time when the email does not exist: without it, the missing
+# ~100ms of PBKDF2 tells an attacker which emails are registered.
 _DUMMY_PASSWORD_HASH = _hash_password("doction-timing-dummy")
 
 
 def _authenticate(request: Request, email: str, password: str):
-    """Email+contraseña → User, con rate-limit por (ip, email). Lo comparten el login
-    de la SPA y POST /api/token (sin el guard aquí, /api/token era fuerza bruta libre)."""
+    """Email and password to User, rate-limited per (ip, email).
+
+    Shared by the SPA login and POST /api/token, which would otherwise be unguarded.
+    """
     email = email.strip().lower()
     ip = request.client.host if request.client else "?"
     key = f"{ip}:{email}"
@@ -209,7 +205,7 @@ def api_create_token(request: Request, body: _ApiTokenIn):
     uid = _api_user(request)
     token = generate_api_token()
     token_id = db.create_api_token(uid, body.name, hash_api_token(token))
-    # El plaintext se devuelve una sola vez; nunca se almacena.
+    # The plaintext is returned once and never stored.
     return {"id": token_id, "name": body.name.strip() or "token", "token": token}
 
 
@@ -223,9 +219,8 @@ def api_list_tokens(request: Request):
 def api_list_webhooks(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
-    # Pendientes y fallidas van en la lista para que un webhook que no entrega se
-    # reconozca sin abrirlo: `last_status` solo cuenta el último intento y no dice
-    # si hay una cola atascada detrás.
+    # Pending and failed counts ride along so a webhook that is not delivering shows
+    # up without opening it: `last_status` covers only the last attempt.
     counts = db.delivery_counts(wid)
     hooks = []
     for hook in db.list_webhooks(wid):
@@ -254,8 +249,8 @@ def api_create_webhook(request: Request, body: _WebhookIn):
         raise HTTPException(status_code=400, detail="URL must be http(s)")
     secret = secrets.token_hex(24)
     hook_id = db.create_webhook(wid, url, secret, body.events.strip())
-    # Como con los PAT: el secreto se enseña una vez y no se vuelve a devolver.
-    # El receptor lo necesita para verificar la cabecera X-Doction-Signature.
+    # Shown once and never returned again, like a PAT. The receiver needs it to verify
+    # the X-Doction-Signature header.
     return {"id": hook_id, "url": url, "events": body.events.strip(), "secret": secret}
 
 
@@ -277,7 +272,7 @@ def api_revoke_token(request: Request, token_id: int):
 @api_router.get("/workspaces", tags=["workspaces"])
 def api_list_workspaces(request: Request):
     uid = _api_user(request)
-    # Construimos el dict a mano para devolver solo estos campos (no user_id, etc.).
+    # Built by hand to return only these fields, not user_id and the rest.
     return [
         {"id": w.id, "slug": w.slug, "name": w.name, "role": w.role}
         for w in db.list_workspaces(uid)
@@ -292,7 +287,7 @@ def api_create_workspace(request: Request, body: _WorkspaceIn):
 
 
 def _api_owned_workspace(uid: int, slug: str) -> Workspace:
-    """Resuelve el workspace por slug exigiendo que el usuario sea owner."""
+    """Resolve a workspace by slug, requiring the user to be its owner."""
     ws = db.get_workspace_by_slug(uid, slug)
     if ws is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
@@ -313,11 +308,11 @@ def api_rename_workspace(request: Request, slug: str, body: _WorkspaceIn):
 @api_router.delete("/workspaces/{slug}", tags=["workspaces"])
 def api_delete_workspace(request: Request, slug: str) -> Response:
     uid = _api_user(request)
-    _api_owned_workspace(uid, slug)  # exige ser owner
+    _api_owned_workspace(uid, slug)  # owner only
     if not db.delete_workspace(uid, slug):
         raise HTTPException(status_code=400, detail="Cannot delete your only workspace")
     response = JSONResponse({"slug": slug, "ok": True})
-    # Si se borró el workspace activo, mover la cookie a uno que quede.
+    # If the active workspace was deleted, point the cookie at one that remains.
     if request.cookies.get("workspace") == slug:
         remaining = db.list_workspaces(uid)
         if remaining:
@@ -624,26 +619,23 @@ def api_system(request: Request):
     report = {
         "version": VERSION,
         "db": db_state,
-        # La licencia y el fuente van aquí porque la obligación de la AGPL es de la
-        # instancia, no del repositorio: quien la usa por red tiene que poder llegar al
-        # código desde la propia aplicación.
+        # The AGPL obligation is the instance's, not the repository's: a network user
+        # has to be able to reach the source from the application itself.
         "license": LICENSE_ID,
         "source_url": SOURCE_URL,
         "semantic_search": semantic,
         "rerank": embeddings.rerank_enabled(),
         "ocr_uploads": ocr.ocr_enabled(),
-        # Las constantes que deciden el orden de todo resultado híbrido. Van sin
-        # condición aunque la semántica esté apagada: son configuración del proceso,
-        # no un contador de índice. Dos despliegues de la misma versión pueden
-        # ordenar distinto, y sin esto ninguno de los dos podía decirlo.
+        # The constants that decide every hybrid result's order. Reported even with
+        # semantics off: they are process configuration, not an index counter.
         "rrf_k": embeddings.RRF_K,
         "rrf_vector_weight": embeddings.RRF_VECTOR_WEIGHT,
         "search_min_score": embeddings.SEARCH_MIN_SCORE,
     }
     if semantic and db_state == "ok":
-        # current_model_name() lee un atributo de clase: informar no debe cargar el
-        # modelo. Los contadores solo van con la semántica activa — un 0 con la
-        # función apagada no se distingue de un índice roto.
+        # current_model_name() reads a class attribute, so reporting never loads the
+        # model. The counters only appear with semantics on: a 0 with it off would be
+        # indistinguishable from a broken index.
         model = embeddings.current_model_name()
         total, indexed = db.index_counts(wid, model, meta.CHUNKER_ID)
         report["embedding_model"] = model
@@ -687,10 +679,9 @@ def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bo
     return results
 
 
-# ── SPA (React) — bootstrap + auth por JSON ──────────────────────────────────
-# Estos endpoints alimentan el frontend React (carpeta frontend/). Usan la misma
-# cookie de sesión httponly (compartida con REST/MCP); la SPA llama con
-# `fetch(..., {credentials: 'same-origin'})`, así que la cookie viaja sola.
+# ── SPA bootstrap and JSON auth ──────────────────────────────────────────────
+# Same httponly session cookie as REST and MCP; the SPA calls with
+# `fetch(..., {credentials: 'same-origin'})`, so the cookie travels on its own.
 
 
 def _workspace_brief(ws) -> dict:
@@ -698,7 +689,7 @@ def _workspace_brief(ws) -> dict:
 
 
 def _me_payload(user_id: int, active_slug: str | None) -> dict:
-    """Datos del usuario actual + sus workspaces para arrancar la SPA."""
+    """The current user and their workspaces, for the SPA to start from."""
     user = db.get_user_by_id(user_id)
     workspaces = db.list_workspaces(user_id)
     active = None
@@ -719,7 +710,7 @@ def _me_payload(user_id: int, active_slug: str | None) -> dict:
 
 @api_router.get("/me", tags=["account"])
 def api_me(request: Request):
-    user_id = _api_user(request)  # lanza 401 si no hay sesión
+    user_id = _api_user(request)
     active = getattr(request.state, "workspace", None)
     return _me_payload(user_id, active.slug if active else None)
 
@@ -802,7 +793,7 @@ def api_page_view(request: Request, slug: str):
     page = db.get_page(slug, wid)
     if page is None:
         raise HTTPException(status_code=404, detail="Page not found")
-    # `or 0`: get_page siempre rellena id, pero el dataclass lo declara opcional.
+    # `or 0`: get_page always fills id, but the dataclass declares it optional.
     breadcrumbs = db.get_ancestors(int(page.id or 0), wid)
     children = db.list_child_pages(wid, int(page.id or 0))
     related = db.related_pages(wid, slug) or []
@@ -818,8 +809,8 @@ def api_page_view(request: Request, slug: str):
         "children": [
             {"slug": c.slug, "title": c.title, "updated_at": c.updated_at} for c in children
         ],
-        # Cada mención lleva la frase donde está escrito el enlace, en tramos: el
-        # texto de una página nunca vuelve a entrar en el DOM de otra como markup.
+        # Each mention carries its sentence as spans, so one page's text never
+        # re-enters another's DOM as markup.
         "backlinks": [
             {
                 "slug": m.slug,
@@ -834,7 +825,7 @@ def api_page_view(request: Request, slug: str):
     }
 
 
-# ── SPA fase 2: settings (perfil/contraseña), papelera, restaurar versión ────
+# ── Settings, trash and version restore ──────────────────────────────────────
 
 
 class _ProfileIn(BaseModel):
@@ -869,8 +860,8 @@ def api_update_password(request: Request, body: _PasswordIn):
     if body.new_password != body.confirm_password:
         raise HTTPException(status_code=400, detail="New passwords do not match")
     new_version = db.update_user_password(uid, _hash_password(body.new_password))
-    # El bump de token_version invalida todas las sesiones JWT; reemitimos la de esta
-    # pestaña para que quien cambió la contraseña no quede deslogueado.
+    # The token_version bump invalidates every JWT, so this tab's session is reissued
+    # rather than logging out whoever just changed their password.
     response = JSONResponse({"ok": True})
     _issue_session(response, uid, token_version=new_version)
     return response
@@ -928,7 +919,7 @@ def api_restore_version(request: Request, slug: str, sha: str):
 
 
 def _workspace_slug(request: Request, wid: int) -> str:
-    """Slug del workspace activo (o por id) — es el nombre de su carpeta en git."""
+    """The active workspace's slug, which is also its directory name in git."""
     ws = getattr(request.state, "workspace", None)
     if ws is not None and int(ws.id) == wid:
         return ws.slug
@@ -944,11 +935,11 @@ def _commit_page(request: Request, wid: int, slug: str, title: str, content: str
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     secret_key = os.environ.get("SECRET_KEY")
-    # Placeholders conocidos cuentan como "sin configurar": un compose de ejemplo con
-    # `change-me` firmaría JWTs con una clave que conoce cualquiera.
+    # Known placeholders count as unset: an example compose with `change-me` would
+    # sign JWTs with a key everyone has.
     if not secret_key or secret_key in {"change-me", "changeme", "dev-secret-key"}:
         if SECURE_COOKIES:
-            # SECURE_COOKIES=1 es señal de producción (tras TLS): no arrancar con clave insegura.
+            # SECURE_COOKIES=1 means production behind TLS.
             raise RuntimeError(
                 "SECRET_KEY must be set to a real secret when SECURE_COOKIES is enabled — "
                 "refusing to start with an insecure default/placeholder in production"
@@ -965,9 +956,8 @@ async def lifespan(_: FastAPI):
         embed_task = asyncio.create_task(embeddings.enrichment_worker())
         logger.info("semantic search ON — embedding worker running")
 
-    # Sin condición: sin webhooks registrados la consulta no devuelve nada y el
-    # worker duerme. Un flag más sería una forma extra de que los eventos se
-    # pierdan en silencio.
+    # Unconditional: with no webhooks registered the query returns nothing and the
+    # worker sleeps. One more flag would be one more way to lose events silently.
     webhook_task = asyncio.create_task(webhooks.delivery_worker())
 
     yield
@@ -983,7 +973,7 @@ async def lifespan(_: FastAPI):
         try:
             await embed_task
         except asyncio.CancelledError:
-            # Cancelar la tarea lanza esta excepción a propósito; la ignoramos.
+            # Cancelling the task raises this on purpose.
             pass
     db.reset_pool()
 
@@ -994,9 +984,9 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="doction", version=VERSION, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-# Imágenes subidas (pegadas/arrastradas en el editor) viven junto a la BD, no en la imagen.
-# Se sirven con una ruta autenticada (no StaticFiles): sin sesión, una imagen pegada en
-# un workspace privado sería una URL pública para siempre.
+# Uploads live next to the database, not in the image, and are served through an
+# authenticated route rather than StaticFiles: an image pasted into a private workspace
+# would otherwise be a public URL forever.
 UPLOADS_DIR = db.data_dir() / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 _UPLOAD_NAME_RE = re.compile(r"[0-9a-f]{32}\.[a-z0-9]{2,5}")
@@ -1004,7 +994,7 @@ _UPLOAD_NAME_RE = re.compile(r"[0-9a-f]{32}\.[a-z0-9]{2,5}")
 
 @app.get("/uploads/{name}", tags=["uploads"])
 async def serve_upload(request: Request, name: str) -> Response:
-    _api_user(request)  # lanza 401 si no hay sesión ni bearer
+    _api_user(request)
     if not _UPLOAD_NAME_RE.fullmatch(name):
         raise HTTPException(status_code=404, detail="Not found")
     path = UPLOADS_DIR / name
@@ -1016,12 +1006,9 @@ async def serve_upload(request: Request, name: str) -> Response:
 app.include_router(api_router)
 app.include_router(mcp.router)
 
-# La SPA de React (carpeta frontend/) se construye en static/app/ y se sirve bajo
-# APP_PATH. Por defecto /app, como siempre; `/` la monta en la raíz y cualquier otra
-# cosa la monta en esa subruta. Tiene que coincidir con el `base` con el que se
-# construyó el bundle (DOCTION_APP_PATH en vite.config.js): el HTML pide sus assets
-# por ruta absoluta, así que un bundle construido para /app servido en /wiki no
-# encuentra su propio JavaScript.
+# Must match the `base` the bundle was built with (DOCTION_APP_PATH in vite.config.js):
+# the HTML requests its assets by absolute path, so a bundle built for /app and served
+# at /wiki cannot find its own JavaScript.
 APP_PATH = "/" + os.getenv("DOCTION_APP_PATH", "/app").strip("/")
 SPA_DIR = BASE_DIR / "static" / "app"
 
@@ -1035,7 +1022,7 @@ async def serve_spa(full_path: str = "") -> Response:
     """
     if full_path:
         candidate = (SPA_DIR / full_path).resolve()
-        # Evita salir de SPA_DIR (path traversal) y solo sirve archivos reales.
+        # Stay inside SPA_DIR and serve only real files.
         if SPA_DIR.resolve() in candidate.parents and candidate.is_file():
             return FileResponse(candidate)
     index = SPA_DIR / "index.html"
@@ -1049,7 +1036,7 @@ async def serve_spa(full_path: str = "") -> Response:
 
 @app.exception_handler(Exception)
 async def unhandled_error(request: Request, _exc: Exception) -> Response:
-    """Cualquier excepción no capturada → 500 JSON, sin filtrar el traceback."""
+    """Any uncaught exception becomes a JSON 500, without leaking the traceback."""
     logger.exception("unhandled error on %s %s", request.method, request.url.path)
     return JSONResponse({"detail": "Internal server error"}, status_code=500)
 
@@ -1064,11 +1051,10 @@ def _encode_token(user_id: int, token_version: int = 0) -> str:
 
 
 def _decode_token(token: str) -> tuple[int, int] | None:
-    """(user_id, token_version) del JWT, o None si es inválido/expirado.
+    """(user_id, token_version) from the JWT, or None if invalid or expired.
 
-    La versión se compara luego con users.token_version (middleware): si el usuario
-    cambió la contraseña después de emitirse este token, ya no coincide y se rechaza.
-    JWTs antiguos sin claim `ver` cuentan como versión 0.
+    The middleware compares the version against users.token_version, so a token issued
+    before a password change no longer matches. Old JWTs without a `ver` claim are 0.
     """
     try:
         payload = jwt.decode(token, app.state.secret_key, algorithms=["HS256"])
@@ -1090,8 +1076,7 @@ def _lang(request: Request) -> str:
 
 
 def _registration_open() -> bool:
-    """El registro web puede cerrarse con DISABLE_REGISTRATION; aun así el primer usuario
-    siempre puede crearse (bootstrap de primer arranque), o la instancia quedaría inaccesible."""
+    """DISABLE_REGISTRATION closes web registration, except for the very first user."""
     return not DISABLE_REGISTRATION or not db.has_users()
 
 
@@ -1109,10 +1094,7 @@ def _ws_cookie(response: Response, slug: str) -> None:
 def _issue_session(
     response: Response, user_id: int, ws_slug: str | None = None, token_version: int = 0
 ) -> None:
-    """Fija la cookie de sesión (httponly, JWT) y, si se da, la del workspace activo.
-
-    Lo comparten el login/registro web (form) y los endpoints JSON de la SPA.
-    """
+    """Set the httponly session cookie and, when given, the active workspace cookie."""
     response.set_cookie(
         "session",
         _encode_token(user_id, token_version),
@@ -1153,7 +1135,7 @@ async def health() -> Response:
 
 
 if APP_PATH != "/":
-    # Con la SPA en una subruta, la raíz y los atajos de siempre llevan a ella.
+    # With the SPA on a subpath, the root and the familiar shortcuts still reach it.
     @app.get("/", tags=["app"])
     async def home() -> Response:
         """The frontend is the React SPA, served at APP_PATH."""
@@ -1168,26 +1150,24 @@ if APP_PATH != "/":
         return RedirectResponse(APP_PATH + "/register", status_code=HTTP_303_SEE_OTHER)
 
 
-# Tareas de OCR en vuelo: referencia fuerte para que el GC no las cancele a medias.
+# In-flight OCR tasks, held strongly so the GC cannot cancel them halfway.
 _OCR_TASKS: set[asyncio.Task] = set()
 
 
 async def _ocr_index_upload(name: str, user_id: int, workspace_id: int, path: Path) -> None:
-    """OCR en threadpool tras responder la subida: la latencia del upload no lo espera."""
+    """OCR in a threadpool after the upload has answered, so it waits on nothing."""
     try:
         await asyncio.to_thread(ocr.index_upload, name, user_id, workspace_id, path)
     except Exception:
-        logger.exception("ocr: fallo indexando %s", name)
+        logger.exception("ocr: failed to index %s", name)
 
 
 @app.post("/api/uploads", tags=["uploads"])
 async def upload_image(request: Request, file: UploadFile = File(...)) -> Response:
     """Takes an image pasted or dragged into the editor, stores it under a name derived
     from its hash, and returns the URL to insert as markdown."""
-    uid = _api_user(request)  # lanza 401 si no hay sesión
+    uid = _api_user(request)
     data = await file.read()
-    # HTTPException para que el error salga como {"detail": ...}, igual que el
-    # resto de la API (antes este endpoint era el único que devolvía {"error": ...}).
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large (max 5 MB)")
     ext = _image_extension(file.content_type, data)
@@ -1205,8 +1185,8 @@ async def upload_image(request: Request, file: UploadFile = File(...)) -> Respon
     return JSONResponse({"url": f"/uploads/{name}"})
 
 
-# Rate-limit de login en memoria. Single-instance ⇒ basta; se resetea al reiniciar.
-# Clave por (ip, email) con ventana deslizante.
+# In-memory login rate limit, keyed by (ip, email) over a sliding window. Enough for a
+# single instance; it resets on restart.
 _LOGIN_MAX_ATTEMPTS = 5
 _LOGIN_WINDOW = timedelta(minutes=5)
 _login_attempts: dict[str, list[datetime]] = {}
@@ -1244,8 +1224,8 @@ async def attach_user(request: Request, call_next):
         request.cookies.get("lang"), request.headers.get("accept-language")
     )
 
-    # token_ver = versión del JWT a validar contra users.token_version.
-    # None = autenticado por PAT (los PAT se revocan uno a uno, no por versión).
+    # token_ver is validated against users.token_version; None means a PAT, which is
+    # revoked individually rather than by version.
     user_id: int | None = None
     token_ver: int | None = None
     session_claims = _decode_token(request.cookies.get("session") or "")
@@ -1265,7 +1245,7 @@ async def attach_user(request: Request, call_next):
     if user_id is not None:
         user = db.get_user_by_id(user_id)
         if user is not None and token_ver is not None and token_ver != user.token_version:
-            user = None  # JWT emitido antes de un cambio de contraseña → revocado
+            user = None  # JWT issued before a password change: revoked
         if user is not None:
             user_id = int(user.id)
             request.state.user_id = user_id
@@ -1273,20 +1253,18 @@ async def attach_user(request: Request, call_next):
             request.state.user_display_name = user.display_name
             request.state.user_avatar_color = user.avatar_color
 
-            # Solo crear el workspace por defecto si de verdad falta (usuario sin
-            # ninguno): antes se llamaba incondicionalmente y eso metía un UPDATE
-            # en cada request autenticada — puro desgaste de WAL en la Pi.
+            # Only when the user really has none: called unconditionally this put an
+            # UPDATE in every authenticated request, pure WAL churn on the Pi.
             workspaces = db.list_workspaces(user_id)
             if not workspaces:
                 db.ensure_default_workspace(user_id)
                 workspaces = db.list_workspaces(user_id)
             request.state.workspaces = workspaces
 
-            # ?ws= lo manda quien sabe qué workspace quiere —la SPA lo saca de la
-            # URL—; la cookie es solo memoria de la última visita. Por eso un ?ws=
-            # que no resuelve es un error y una cookie que no resuelve no lo es:
-            # caer en otro workspace haría que un enlace compartido enseñara la
-            # página equivocada, que es justo lo que este esquema viene a arreglar.
+            # ?ws= is sent by a caller that knows which workspace it wants; the cookie
+            # is only a memory of the last visit. So a ?ws= that does not resolve is an
+            # error and a cookie that does not resolve is not: silently falling into
+            # another workspace would show a shared link the wrong page.
             requested_slug = (request.query_params.get("ws") or "").strip()
             explicit = bool(requested_slug)
             if not requested_slug:
@@ -1311,7 +1289,7 @@ async def attach_user(request: Request, call_next):
 
     for header, value in SECURITY_HEADERS.items():
         response.headers.setdefault(header, value)
-    # HSTS solo tras TLS (señal de producción), nunca en dev http.
+    # HSTS only behind TLS, never on http dev.
     if SECURE_COOKIES:
         response.headers.setdefault(
             "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
@@ -1320,10 +1298,8 @@ async def attach_user(request: Request, call_next):
     return response
 
 
-# El catch-all de la SPA se registra el último a propósito. Starlette resuelve por
-# orden de registro, así que montada en la raíz (`DOCTION_APP_PATH=/`) su
-# `/{full_path:path}` se tragaría /api, /health, /uploads y /static si se hubiera
-# registrado donde está definida.
+# Registered last on purpose: Starlette resolves in registration order, so mounted at
+# the root its `/{full_path:path}` would swallow /api, /health, /uploads and /static.
 if APP_PATH == "/":
     app.get("/", tags=["app"])(serve_spa)
     app.get("/{full_path:path}", tags=["app"])(serve_spa)
