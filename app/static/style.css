@@ -3196,6 +3196,9 @@ html {
   fill: var(--ink-muted);
   pointer-events: none;
   user-select: none;
+  /* Centrada bajo el nodo: es lo que hace que la caja que ocupa una etiqueta sea
+     simétrica, que es la única forma que el colisionador del layout sabe medir. */
+  text-anchor: middle;
 }
 /* Huérfana: sin enlaces en ningún sentido. No es un error, es una página que
    nadie ha conectado todavía, así que se apaga en vez de alarmar. */

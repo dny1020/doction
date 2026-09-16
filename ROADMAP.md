@@ -16,16 +16,6 @@ change's notes. That is a requirement of the `contribution` capability, not a ha
 
 ## Product defects
 
-### The graph view is unreadable — **open**
-
-`/w/<ws>/graph` renders, but the force layout collapses every node into the centre with
-labels overlapping, leaving most of the canvas empty. On a 15-page workspace the labels are
-already illegible. Needs the repulsion strength and link distance tuned, and probably a
-label-collision strategy.
-
-*Identified during the five-phase maturity review; the reason no graph screenshot is in the
-README.*
-
 ### `Delete` is the only page action outside the overflow menu — **open**
 
 Edit, New subpage and History live behind the `…` menu while the destructive action sits
