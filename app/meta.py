@@ -1,7 +1,7 @@
-"""Parsing markdown-como-API: frontmatter, tags, wikilinks y chunking.
+"""Markdown as an API: frontmatter, tags, wikilinks and chunking.
 
-Sin dependencias: la "estructura" sale del propio markdown (filosofía Unix). Estas
-funciones son puras; el indexado en SQLite vive en app.db.
+Dependency-free and pure — the structure comes out of the markdown itself. Indexing
+lives in app.db.
 """
 
 import re
@@ -12,14 +12,10 @@ _FRONTMATTER_RE = re.compile(r"^---[ \t]*\n(.*?)\n---[ \t]*\n?", re.DOTALL)
 _FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 _INLINE_CODE_RE = re.compile(r"`[^`]*`")
 _TAG_RE = re.compile(r"(?:^|\s)#([A-Za-z][\w-]*)")
-# El `[` excluido de ambas clases no es cosmético: es lo que impide el escaneo
-# cuadrático. Con `[^\]|]+`, una entrada de la forma `[[`*n seguida de texto sin
-# cerrar hacía que cada posición `[[` recorriese toda la cola antes de fallar —
-# 24 KB costaban 7,9 s de CPU, y extract_links corre dentro del guardado. Al no
-# poder pasar del siguiente `[`, un intento mal empezado falla de inmediato.
-# El tope de longitud es defensa añadida y dice algo cierto: un destino de
-# wikilink es un título, no un documento. Medido: 1869 ms -> 0,10 ms a n=4000,
-# con resultados idénticos sobre wikilinks legítimos. Ver tests/test_meta_redos.py.
+# Excluding `[` from both classes is what keeps the scan linear: a bad start fails at
+# the next `[` instead of running to the end of the input. The length caps are extra
+# defence, and true — a wikilink target is a title, not a document.
+# See tests/test_meta_redos.py.
 _WIKILINK_RE = re.compile(r"\[\[([^\]|\[]{1,200})(?:\|[^\]\[]{0,200})?\]\]")
 
 
@@ -28,7 +24,7 @@ def normalize_tag(tag: str) -> str:
 
 
 def strip_code(text: str) -> str:
-    """Quita bloques ``` y spans `inline` para no confundir comentarios con #tags."""
+    """Strip fenced blocks and inline spans so code comments are not read as #tags."""
     text = _FENCE_RE.sub(" ", text)
     return _INLINE_CODE_RE.sub(" ", text)
 
@@ -42,10 +38,10 @@ def _parse_scalar_or_list(value: str):
 
 
 def parse_frontmatter(content: str) -> tuple[dict, str]:
-    """Extrae un bloque YAML-lite inicial (--- ... ---) y devuelve (meta, cuerpo).
+    """Split a leading YAML-lite block off the body, returning (meta, body).
 
-    Parser plano sin dependencia: soporta `clave: valor` escalar y listas inline
-    `tags: [a, b]`. Si no hay frontmatter devuelve ({}, content) sin tocar el cuerpo.
+    Scalars and inline lists (`tags: [a, b]`) only. With no frontmatter the body comes
+    back untouched.
     """
     if not content:
         return {}, content
@@ -65,7 +61,7 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
 
 
 def extract_tags(content: str) -> list[str]:
-    """Tags normalizados desde frontmatter `tags:` y `#tags` inline (ignora código)."""
+    """Normalized tags from frontmatter `tags:` and inline `#tags`, ignoring code."""
     meta, body = parse_frontmatter(content)
     found: list[str] = []
 
@@ -89,7 +85,7 @@ def extract_tags(content: str) -> list[str]:
 
 
 def extract_links(content: str) -> list[str]:
-    """Targets crudos de wikilinks `[[target]]` o `[[target|texto]]` (sin código)."""
+    """Raw `[[target]]` / `[[target|label]]` targets, ignoring code."""
     seen: set[str] = set()
     out: list[str] = []
     for m in _WIKILINK_RE.finditer(strip_code(content)):
@@ -104,10 +100,10 @@ _SENTENCE_END = ".!?\n"
 
 
 def mention_context(content: str, target: str, *, width: int = 160) -> tuple[str, str, str] | None:
-    """La frase donde `content` enlaza a `target`, partida en (antes, enlace, después).
+    """The sentence linking to `target`, split into (before, link, after).
 
-    Devuelve el texto de la etiqueta, no `[[destino]]`: es lo que el lector ve en la
-    página que enlaza. None si no hay ninguna mención.
+    The link part is the label text, which is what a reader sees, not `[[target]]`.
+    None when there is no mention.
     """
     text = strip_code(content)
     for m in _WIKILINK_RE.finditer(text):
@@ -125,9 +121,8 @@ def mention_context(content: str, target: str, *, width: int = 160) -> tuple[str
         ends = [i for i in (text.find(c, m.end(), hi) for c in _SENTENCE_END) if i != -1]
         end = min(ends) + 1 if ends else hi
 
-        # Se recortan solo los bordes exteriores. El espacio que hay entre la
-        # palabra y el enlace es del documento, y reponerlo a mano metía uno de
-        # más cuando la frase seguía con un punto.
+        # Only the outer edges are stripped: the space next to the link belongs to the
+        # document.
         return text[start : m.start()].lstrip(), label, text[m.end() : end].rstrip()
     return None
 
@@ -136,11 +131,7 @@ UNTITLED = "Untitled"
 
 
 def derive_title(content: str, *, max_len: int = 80) -> str:
-    """Título a partir de la primera línea con texto; UNTITLED si no hay ninguna.
-
-    Para la captura rápida: una nota de una línea no debería obligar a inventar
-    un título. Se ignora el frontmatter y se limpia el marcado de encabezado.
-    """
+    """Title from the first line with text, so a one-line note needs no title of its own."""
     _, body = parse_frontmatter(content)
     for line in body.splitlines():
         line = line.strip().lstrip("#").strip()
@@ -150,7 +141,7 @@ def derive_title(content: str, *, max_len: int = 80) -> str:
 
 
 def page_type(content: str) -> str | None:
-    """Valor de `type:` del frontmatter, o None."""
+    """The frontmatter `type:` value, or None."""
     meta, _ = parse_frontmatter(content)
     value = meta.get("type")
     if isinstance(value, list):
@@ -158,31 +149,28 @@ def page_type(content: str) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-# Identidad del troceador. Va grabada junto a los vectores igual que el modelo:
-# dos formas de partir una página producen fragmentos distintos, así que compararlos
-# por coseno significa tan poco como mezclar dos encoders. Cambiar el algoritmo
-# obliga a subir esto, y eso es lo que dispara el reindexado.
+# Stored alongside the vectors like the model name is: two ways of splitting a page
+# produce chunks that mean as little to compare as two encoders would. Bumping this is
+# what triggers a reindex.
 CHUNKER_ID = "section-heading-v1"
 
-# Vallas de código. Se cierran con la misma marca con la que abren.
 _FENCES = ("```", "~~~")
 
 
 def _heading_level(stripped: str) -> int:
-    """Nivel de un encabezado ATX (1-6), o 0 si la línea no lo es."""
+    """ATX heading level (1-6), or 0 when the line is not one."""
     level = len(stripped) - len(stripped.lstrip("#"))
     if not 1 <= level <= 6:
         return 0
     rest = stripped[level:]
-    # `#tag` al principio de línea es una etiqueta, no un encabezado de nivel 1.
+    # `#tag` at the start of a line is a tag, not a level-1 heading.
     return level if rest == "" or rest[0] == " " else 0
 
 
 def _sections(body: str) -> list[tuple[list[str], list[str]]]:
-    """Parte el cuerpo por encabezados: (cadena de encabezados, líneas) por sección.
+    """Split the body at headings into (heading chain, lines) per section.
 
-    Los encabezados dentro de una valla de código no cuentan — un comentario `# TODO`
-    en un bloque de Python abría una sección donde no la hay.
+    Headings inside a code fence do not count: a `# TODO` in a Python block is not one.
     """
     sections: list[tuple[list[str], list[str]]] = []
     stack: list[tuple[int, str]] = []
@@ -220,12 +208,10 @@ def _sections(body: str) -> list[tuple[list[str], list[str]]]:
 
 
 def _atomic_blocks(lines: list[str]) -> list[str]:
-    """Agrupa las líneas en bloques que no se pueden partir por dentro.
+    """Group lines into blocks that must not be split internally.
 
-    Un bloque es una valla de código entera o un párrafo. Las tablas GFM y los
-    diagramas Mermaid salen gratis de esa definición: la tabla no lleva líneas en
-    blanco, así que ya es un párrafo, y el diagrama vive dentro de una valla. Una
-    valla sin cerrar se queda entera igualmente — media valla es peor que una larga.
+    A block is a whole code fence or a paragraph. GFM tables and Mermaid diagrams come
+    free from that: a table has no blank lines, and a diagram lives inside a fence.
     """
     blocks: list[str] = []
     current: list[str] = []
@@ -261,7 +247,7 @@ def _atomic_blocks(lines: list[str]) -> list[str]:
 
 
 def _pack(blocks: list[str], max_chars: int) -> list[str]:
-    """Junta bloques hasta el techo. Un bloque que no cabe va solo y lo desborda."""
+    """Pack blocks up to the ceiling; a block that does not fit goes alone and overflows."""
     chunks: list[str] = []
     current = ""
     for block in blocks:
@@ -269,8 +255,7 @@ def _pack(blocks: list[str], max_chars: int) -> list[str]:
             if current:
                 chunks.append(current)
                 current = ""
-            # El techo cede: un fragmento largo es un embedding peor, media tabla
-            # es una respuesta equivocada.
+            # The ceiling gives: a long chunk embeds worse, half a table answers wrong.
             chunks.append(block)
             continue
         if current and len(current) + len(block) + 2 > max_chars:
@@ -284,20 +269,11 @@ def _pack(blocks: list[str], max_chars: int) -> list[str]:
 
 
 def chunk_markdown(text: str, *, max_chars: int = 1000) -> list[Chunk]:
-    """Parte una página en fragmentos indexables siguiendo sus encabezados.
+    """Split a page into indexable chunks along its headings.
 
-    Antes esto partía por líneas en blanco en ventanas de tamaño fijo, con solape.
-    Un encabezado y el párrafo que introducía caían en fragmentos distintos cada vez
-    que la ventana cortaba entre ellos, y una valla de código más larga que la
-    ventana se troceaba por posición de carácter. El fragmento recuperado decía
-    «corre `certbot renew`» sin decir de qué runbook.
-
-    Ahora cada sección es un fragmento y lleva encima la cadena de encabezados que la
-    sitúa. El solape desaparece: entre secciones duplicaría contenido, y dentro de
-    una sección los cortes ya caen en límites de párrafo.
-
-    El frontmatter sigue fuera del cuerpo — es metadato, no prosa — pero ya no se
-    pierde: `parse_frontmatter` lo devuelve aparte y quien indexa lo guarda.
+    One chunk per section, carrying the heading chain that places it. No overlap: between
+    sections it would duplicate content, and within one the cuts already fall on paragraph
+    boundaries. Frontmatter stays out of the body — it is metadata, not prose.
     """
     _, body = parse_frontmatter(text or "")
     chunks: list[Chunk] = []
@@ -307,18 +283,15 @@ def chunk_markdown(text: str, *, max_chars: int = 1000) -> list[Chunk]:
     return chunks
 
 
-# ── Escritura por secciones ──────────────────────────────────────────────────
-# Un agente que aprende un dato tenía que leer la página entera, empalmar el texto
-# él mismo y devolverla completa, pisando lo que hubiera cambiado otro por el
-# camino. Estas funciones acotan la escritura a una sección.
+# ── Section writes ───────────────────────────────────────────────────────────
 
 
 class AmbiguousSection(ValueError):
-    """La página tiene más de un encabezado que encaja: no se elige por el llamante."""
+    """More than one heading matches: which one was meant is not guessed for the caller."""
 
 
 def _headings(body: str) -> list[tuple[int, int, str]]:
-    """(índice de línea, nivel, texto) de cada encabezado, saltándose las vallas."""
+    """(line index, level, text) for each heading, skipping fenced blocks."""
     found: list[tuple[int, int, str]] = []
     fence: str | None = None
     for i, line in enumerate(body.split("\n")):
@@ -338,11 +311,10 @@ def _headings(body: str) -> list[tuple[int, int, str]]:
 
 
 def find_section(body: str, heading: str, *, level: int | None = None) -> tuple[int, int, int]:
-    """Localiza una sección por su encabezado: (línea inicial, línea final, nivel).
+    """Locate a section by heading: (start line, end line, level).
 
-    El final es exclusivo y cae en el siguiente encabezado de nivel igual o superior,
-    que es donde termina lo que cuelga de este. Lanza `AmbiguousSection` si encajan
-    varios y `LookupError` si no encaja ninguno.
+    The end is exclusive and falls at the next heading of equal or higher level, where
+    what hangs off this one stops. Raises `AmbiguousSection` or `LookupError`.
     """
     wanted = heading.strip().casefold()
     all_headings = _headings(body)
@@ -377,15 +349,11 @@ def upsert_section(
     level: int = 2,
     parent: str | None = None,
 ) -> str:
-    """Devuelve `content` con la sección `heading` puesta a `body`.
+    """Return `content` with section `heading` set to `body`.
 
-    Si la sección existe se reemplaza solo su cuerpo, hasta el siguiente encabezado
-    de nivel igual o superior, y el resto del documento queda byte a byte igual. Si
-    no existe se añade: bajo `parent` cuando se indica y se encuentra, y si no al
-    final del documento.
-
-    El frontmatter no se toca nunca: es metadato de la página entera, no de ninguna
-    sección.
+    An existing section has only its body replaced and the rest of the document stays
+    byte for byte identical; a missing one is appended, under `parent` when given.
+    Frontmatter is never touched.
     """
     front, page_body = _split_frontmatter(content or "")
     heading = heading.strip()
@@ -396,7 +364,7 @@ def upsert_section(
         lines = page_body.split("\n")
         block = [lines[start], "", body] if body else [lines[start]]
         rest = lines[end:]
-        # Una línea en blanco entre la sección y lo que venga detrás, salvo al final.
+        # A blank line between the section and whatever follows, except at the end.
         if rest:
             block.append("")
         new_body = "\n".join([*lines[:start], *block, *rest])
@@ -422,7 +390,7 @@ def upsert_section(
 
 
 def _split_frontmatter(content: str) -> tuple[str, str]:
-    """(bloque de frontmatter tal cual, resto). El bloque va vacío si no hay."""
+    """(frontmatter block verbatim, rest); the block is empty when there is none."""
     match = _FRONTMATTER_RE.match(content)
     if not match:
         return "", content
