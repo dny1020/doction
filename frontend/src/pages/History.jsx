@@ -7,8 +7,8 @@ import { useDocumentTitle } from '../useDocumentTitle.js'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 
-// Clase CSS para colorear una línea de diff unificado (misma lógica que el
-// frontend Jinja: añadidos, borrados, cabeceras de hunk y metadatos).
+// The CSS class colouring one line of a unified diff: additions, deletions, hunk headers
+// and metadata.
 function diffLineClass(line) {
   if (line.startsWith('+') && !line.startsWith('+++')) return 'diff-add'
   if (line.startsWith('-') && !line.startsWith('---')) return 'diff-del'
@@ -23,8 +23,8 @@ function diffLineClass(line) {
   return ''
 }
 
-// Historial de versiones de una página (commits de git). Cada versión puede
-// verse como diff en línea y restaurarse (crea una versión nueva con ese contenido).
+// A page's version history (git commits). Each version can be shown as an inline diff and
+// restored, which creates a new version with that content.
 export default function History() {
   const { slug } = useParams()
   const { ws, pages, reloadPages } = useOutletContext()
@@ -44,7 +44,7 @@ export default function History() {
       .catch((e) => setError(e.message))
   }, [slug, ws])
 
-  // El título lo sacamos del árbol que ya tiene el Layout; si no, usamos el slug.
+  // The title comes from the tree the Layout already has, falling back to the slug.
   const treePage = pages.find((p) => p.slug === slug)
   const title = treePage ? treePage.title : slug
   useDocumentTitle(t('history') + ': ' + title, ws)
@@ -108,7 +108,7 @@ export default function History() {
   )
 }
 
-// Una versión: metadatos + acciones. El diff se carga solo al pulsar "Diff".
+// One version: metadata and actions. The diff only loads when "Diff" is pressed.
 function HistoryItem({ slug, commit, canRestore, onRestore }) {
   const { t } = useI18n()
   const [diff, setDiff] = useState(null) // null = oculto; string = visible

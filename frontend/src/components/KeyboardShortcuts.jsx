@@ -3,10 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n.jsx'
 import { newPagePath, pagePath } from '../routes.js'
 
-// Atajos de teclado globales + modal de ayuda (?). Equivale a los atajos del
-// frontend Jinja, adaptados a las rutas de la SPA. (⌘K vive en CommandPalette.)
-//   /  enfocar la búsqueda · e  editar la página actual · n  nueva página
-//   ?  esta ayuda · Esc  cerrar la ayuda
+// Global keyboard shortcuts plus the help modal. (⌘K lives in CommandPalette.)
+//   /  focus search · e  edit the current page · n  new page
+//   ?  this help · Esc  close it
 export default function KeyboardShortcuts({ ws }) {
   const { t } = useI18n()
   const navigate = useNavigate()
@@ -21,7 +20,7 @@ export default function KeyboardShortcuts({ ws }) {
   const wsRef = useRef(ws)
   wsRef.current = ws
 
-  // Al abrir, foco al botón de cerrar; al cerrar, de vuelta a donde estaba (a11y).
+  // On open, focus the close button; on close, return focus to where it was.
   useEffect(() => {
     if (helpOpen) {
       prevFocusRef.current = document.activeElement
@@ -36,7 +35,7 @@ export default function KeyboardShortcuts({ ws }) {
     function onKey(event) {
       if (event.defaultPrevented) return
 
-      // Esc cierra la ayuda (funciona incluso si el foco está en un campo).
+      // Esc closes the help, even with focus in a field.
       if (event.key === 'Escape') {
         setHelpOpen(false)
         return
@@ -52,7 +51,7 @@ export default function KeyboardShortcuts({ ws }) {
         event.preventDefault()
         setHelpOpen((open) => !open)
       } else if (event.key === 'e') {
-        // Editar la página actual solo si estamos en su vista de lectura (/p/slug).
+        // Edit the current page only from its reading view.
         const match = locRef.current.pathname.match(/\/p\/([^/]+)$/)
         if (match) navigate(pagePath(wsRef.current, match[1], '/edit'))
       } else if (event.key === 'n') {
@@ -71,7 +70,7 @@ export default function KeyboardShortcuts({ ws }) {
     <div
       className={'shortcuts-overlay' + (helpOpen ? ' open' : '')}
       aria-hidden={helpOpen ? 'false' : 'true'}
-      // Cerrado sigue en el DOM (opacity:0): `inert` lo saca del orden de tabulación.
+      // Closed it stays in the DOM at opacity:0, so `inert` takes it out of the tab order.
       {...(helpOpen ? {} : { inert: '' })}
       onClick={(event) => {
         if (event.target === event.currentTarget) setHelpOpen(false)

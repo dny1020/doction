@@ -1,16 +1,10 @@
-// Envoltorio mínimo sobre fetch para hablar con la API de FastAPI.
-//
-// - Siempre manda la cookie de sesión (credentials: 'same-origin').
-// - Manda y recibe JSON.
-// - Si la respuesta no es OK, lanza un Error con el mensaje del backend
-//   (el campo `detail`) y el código en `error.status`.
+// Minimal fetch wrapper for the FastAPI backend: always sends the session cookie, speaks
+// JSON, and throws an Error carrying the backend's `detail` and `error.status`.
 
-// El workspace activo viaja en cada petición como ?ws=<slug>, no en el estado de
-// la sesión. Así dos pestañas abiertas en workspaces distintos no se pisan, y un
-// enlace a una página abre esa página y no la del workspace que hubiera activo.
-// Lo fija el shell desde la URL antes de que ningún hijo pida nada: aquí porque
-// olvidarlo en una sola llamada significa leer del workspace equivocado, y hay
-// una docena de llamadas.
+// The active workspace travels on every request as ?ws=<slug> rather than in session
+// state, so two tabs in different workspaces do not collide and a link to a page opens
+// that page. The shell sets it from the URL before any child asks for anything — here,
+// because forgetting it in one call out of a dozen means reading the wrong workspace.
 let workspace = null
 
 export function setWorkspace(slug) {
@@ -27,9 +21,8 @@ async function request(method, url, body, signal) {
     method: method,
     credentials: 'same-origin',
     headers: {},
-    // `signal` cancela la petición cuando quien la pidió ya no está: navegar a
-    // otra página mientras carga la anterior, o teclear otra búsqueda. Sin esto
-    // una respuesta lenta llegaba tarde y pintaba encima de la vista nueva.
+    // `signal` cancels when the caller is gone — navigating away mid-load, or typing a
+    // new search — so a slow response cannot paint over the newer view.
     signal: signal,
   }
   if (body !== undefined) {
@@ -41,12 +34,10 @@ async function request(method, url, body, signal) {
   try {
     response = await fetch(withWorkspace(url), options)
   } catch (cause) {
-    // Cancelar no es un fallo: es que a nadie le interesa ya la respuesta. Se
-    // propaga tal cual para que quien llama lo distinga y no pinte un error.
+    // Cancelling is not a failure; it propagates as-is so callers can tell it apart.
     if (cause && cause.name === 'AbortError') throw cause
-    // fetch solo rechaza cuando la petición no llegó a salir o no volvió: servidor
-    // caído, DNS, red. Un 500 sí resuelve. Se distinguen porque quien llama hace
-    // cosas distintas: un error del servidor se enseña, una caída se espera.
+    // fetch only rejects when the request never left or never came back; a 500 resolves.
+    // Callers treat them differently: a server error is shown, an outage is waited out.
     const offline = new Error('Network request failed')
     offline.offline = true
     throw offline
@@ -83,8 +74,7 @@ export const api = {
   del: (url) => request('DELETE', url),
 }
 
-// Una petición cancelada no es un error que enseñar. Los `.catch` que pintan algo
-// tienen que preguntar por esto antes.
+// A cancelled request is not an error to show; any `.catch` that paints must ask first.
 export function isAbort(error) {
   return Boolean(error) && error.name === 'AbortError'
 }

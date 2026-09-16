@@ -11,8 +11,8 @@ import EmptyState from '../components/EmptyState.jsx'
 import { DocumentSkeleton } from '../components/Skeleton.jsx'
 import { useDocumentTitle } from '../useDocumentTitle.js'
 
-// Vista de lectura de una página. Pide /api/pages/{slug}/view, que trae el
-// contenido + migas + subpáginas + backlinks + relacionadas en una sola llamada.
+// A page's reading view. /api/pages/{slug}/view brings content, breadcrumbs, children,
+// backlinks and related pages in one call.
 export default function Reader() {
   const { slug } = useParams()
   const { ws, pages, pagesReady, pagesError, reloadPages } = useOutletContext()
@@ -22,17 +22,17 @@ export default function Reader() {
   const confirm = useConfirm()
   const [view, setView] = useState(null)
   const [error, setError] = useState(null) // Error de api.js (trae .status)
-  // Borrar es irreversible desde la vista: mientras la petición está en vuelo el
-  // botón se deshabilita, para que dos clics no manden dos borrados.
+  // The button is disabled while the delete is in flight, so two clicks are not two
+  // deletes.
   const [deleting, setDeleting] = useState(false)
-  // Los wikilinks necesitan saber qué slugs existen para distinguir un enlace de
-  // uno que aún no lleva a ninguna parte. El árbol ya está cargado en el Layout.
+  // Wikilinks need the set of existing slugs to tell a link from one that leads nowhere
+  // yet. The Layout already has the tree.
   const slugSet = useMemo(() => new Set(pages.map((p) => p.slug)), [pages])
   const wrapRef = useRef(null)
   const proseRef = useRef(null)
 
-  // El AbortController vive en un ref para que `load` pueda reintentar (el botón
-  // de la vista de error) sin dejar colgando la petición anterior.
+  // The AbortController lives in a ref so `load` can retry without leaving the previous
+  // request hanging.
   const requestRef = useRef(null)
 
   const load = useCallback(() => {
@@ -46,22 +46,22 @@ export default function Reader() {
       .get('/api/pages/' + slug + '/view', controller.signal)
       .then(setView)
       .catch((e) => {
-        // Cancelada porque ya vamos a otra página: no hay nada que enseñar.
+        // Cancelled because we are already going elsewhere: nothing to show.
         if (!isAbort(e)) setError(e)
       })
     return () => controller.abort()
-    // `ws` cuenta: el mismo slug en otro workspace es otra página.
+    // `ws` matters: the same slug in another workspace is another page.
   }, [slug, ws])
 
   useEffect(load, [load])
 
   useDocumentTitle(view ? view.title : null, ws)
 
-  // Ruta home (/): si hay páginas, abre la primera; si no, estado vacío — salvo
-  // que el árbol no cargara (red caída ≠ workspace vacío).
+  // The home route opens the first page, or the empty state — unless the tree failed to
+  // load, since a dead network is not an empty workspace.
   if (!slug) {
-    // Sin el árbol de ESTE workspace no se decide nada: redirigir con el del
-    // anterior manda a una página que aquí no existe.
+    // Nothing is decided without *this* workspace's tree: redirecting with the previous
+    // one sends you to a page that does not exist here.
     if (!pagesReady && !pagesError) return <DocumentSkeleton />
     if (pages && pages.length > 0) return <Navigate to={pagePath(ws, pages[0].slug)} replace />
     if (pagesError) {
@@ -113,7 +113,7 @@ export default function Reader() {
   async function onDelete() {
     if (deleting) return
     let message = t('confirm_delete_page') + ' “' + view.title + '”?'
-    // Una página se lleva sus subpáginas por delante. Decirlo antes, no después.
+    // A page takes its children with it. Say so first, not after.
     if (view.children.length > 0) {
       message += ' ' + t('confirm_delete_children').replace('{n}', view.children.length)
     }

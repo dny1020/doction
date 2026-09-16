@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 
-// Índice "On this page" generado a partir de los h1/h2/h3 del prose ya pintado.
-// Equivalente al TOC del antiguo frontend Jinja (app/templates/page.html), con
-// una mejora: en vez de togglear cada heading por separado (lo que podía dejar
-// dos activos a la vez en secciones cortas), llevamos el set de headings
-// visibles en la franja superior y activamos solo el último de ellos en orden
-// de documento.
+// The "On this page" index, built from the h1/h2/h3 of the painted prose.
+//
+// Rather than toggling each heading separately, which could leave two active at once in
+// short sections, it tracks the set of headings visible in the top band and activates only
+// the last of them in document order.
 export default function Toc({ proseRef, wrapRef, content }) {
   const { t } = useI18n()
   const [items, setItems] = useState([])

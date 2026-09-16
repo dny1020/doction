@@ -4,15 +4,12 @@ import { renderMarkdown } from '../markdown.js'
 import { enhanceProse } from '../prose.js'
 import { APP_BASE } from '../config.js'
 
-// Renderiza markdown a HTML y lo pinta dentro de un contenedor .prose (los
-// estilos de lectura del design system). El HTML embebido se admite y lo limpia
-// el saneador de lista blanca de markdown.js; nada llega crudo al DOM.
-// Tras pintar, mejora el contenido (resaltado de código + diagramas Mermaid).
-// El ref se reenvía al div .prose para que el Reader pueda generar el TOC
-// a partir de los headings ya pintados en el DOM.
+// Renders markdown into a .prose container, through markdown.js's whitelist sanitizer, and
+// enhances it afterwards (highlighting, diagrams). The ref forwards to the .prose div so
+// the Reader can build its TOC from the painted headings.
 //
-// `ws` y `slugs` son lo que necesitan los wikilinks para saber a dónde apuntan y
-// si el destino existe.
+// `ws` and `slugs` are what wikilinks need to know where they point and whether the target
+// exists.
 const Markdown = forwardRef(function Markdown({ text, ws, slugs }, ref) {
   const navigate = useNavigate()
 
@@ -20,10 +17,9 @@ const Markdown = forwardRef(function Markdown({ text, ws, slugs }, ref) {
     enhanceProse(ref.current)
   }, [text, ref])
 
-  // Un wikilink es un <a href> dentro del HTML del documento, no un <Link>, así
-  // que por su cuenta recarga la aplicación entera. Se intercepta el clic normal
-  // y se enruta en el cliente; se dejan pasar los que el usuario pide abrir de
-  // otra forma —rueda, nueva pestaña, guardar— porque ahí el href es lo correcto.
+  // A wikilink is an <a href> inside the document's HTML, not a <Link>, so on its own it
+  // reloads the whole app. Plain clicks are intercepted and routed client-side; the ones
+  // asking to open another way (middle click, new tab, save) pass through.
   function onClick(event) {
     const link = event.target.closest?.('a.wikilink')
     if (!link) return

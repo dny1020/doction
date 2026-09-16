@@ -26,8 +26,8 @@ import LanguageToggle from './LanguageToggle.jsx'
 import PageTree from './PageTree.jsx'
 import { TreeSkeleton } from './Skeleton.jsx'
 
-// Barra lateral: marca, selector de workspace, búsqueda en vivo, árbol de páginas,
-// botón de nueva página y, abajo, el cambio de tema + el menú de usuario.
+// Brand, workspace picker, live search, page tree, new-page button, and at the bottom
+// the theme toggle and user menu.
 export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, onCollapse }) {
   const { user, logout } = useAuth()
   const { t } = useI18n()
@@ -43,10 +43,10 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
   const wsRef = useRef(null)
   const avatarRef = useRef(null)
 
-  // slug de la página activa, sacado de la ruta, para resaltarla en el árbol.
+  // The active page's slug, from the route, to highlight it in the tree.
   const activeSlug = params.slug || null
 
-  // Búsqueda en vivo con un pequeño retardo, para no pegar a la API en cada tecla.
+  // Live search, debounced so it does not hit the API on every keystroke.
   useEffect(() => {
     const q = query.trim()
     if (!q) {
@@ -59,8 +59,8 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
         .get('/api/search?mode=hybrid&q=' + encodeURIComponent(q), controller.signal)
         .then(setResults)
         .catch((e) => {
-          // Sin esto, la respuesta lenta de una búsqueda anterior podía llegar
-          // después de la siguiente y dejar en pantalla resultados de otra cosa.
+          // Without this an earlier slow response could land after the next one and
+          // leave results for something else on screen.
           if (!isAbort(e)) setResults([])
         })
     }, 200)
@@ -70,7 +70,7 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
     }
   }, [query])
 
-  // Cierra los menús desplegables al hacer clic fuera de ellos.
+  // Closes the dropdowns on a click outside them.
   useEffect(() => {
     function onDocClick(event) {
       if (wsRef.current && !wsRef.current.contains(event.target)) setWsOpen(false)
@@ -83,9 +83,8 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
   function switchWorkspace(slug) {
     setWsOpen(false)
     navigate(wsPath(slug))
-    // El servidor guarda cuál fue el último para que una visita a `/` a secas
-    // vuelva aquí. No se espera: quién manda es la URL, y si esto falla lo único
-    // que se pierde es esa memoria.
+    // The server remembers the last one so a bare `/` comes back here. Not awaited: the
+    // URL is what decides, and a failure loses only that memory.
     api.post('/api/workspaces/' + slug + '/switch').catch(() => {})
   }
 
@@ -278,11 +277,8 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
   )
 }
 
-// El fragmento de un resultado llega ya partido en tramos por el servidor: los
-// que coincidieron van en <mark> y el resto en texto. Antes esto era un
-// dangerouslySetInnerHTML sobre el <mark> que ponía ts_headline, así que el
-// cuerpo de la página entraba en el DOM como HTML — XSS almacenado con el
-// renderer de markdown intacto. Nada del servidor vuelve a pintarse como markup.
+// A result's snippet arrives already split into spans by the server: the matching ones
+// go in <mark> and the rest as text. Nothing from the server is painted as markup.
 function Snippet({ parts, text }) {
   if (!parts || parts.length === 0) return <p className="snippet">{text}</p>
   return (

@@ -5,15 +5,11 @@ import { useI18n } from '../i18n.jsx'
 import { pagePath } from '../routes.js'
 import PageActions from './PageActions.jsx'
 
-// Árbol de páginas de la barra lateral. Antes era una lista plana con `data-depth`:
-// la jerarquía se veía como sangrado y nada más, así que un workspace grande era un
-// scroll de cien filas sin forma de plegar nada ni de recorrerlo con el teclado.
+// The sidebar's page tree. The API returns a flat DFS list with `depth`, which is enough
+// to rebuild the tree here.
 //
-// La API sigue devolviendo la lista plana en orden DFS con `depth` — es suficiente
-// para reconstruir el árbol aquí y no hace falta tocar el backend.
-//
-// Se guarda lo plegado y no lo desplegado a propósito: así el estado inicial es el
-// árbol entero abierto, que es exactamente lo que se veía antes de este cambio.
+// What is stored is what is *collapsed*, not what is expanded, so the initial state is the
+// whole tree open.
 
 function buildTree(pages) {
   const roots = []
@@ -29,8 +25,8 @@ function buildTree(pages) {
   return roots
 }
 
-// Filas visibles, en orden de pantalla: lo que hay dentro de una rama plegada no
-// existe para el teclado, igual que no existe para el ratón.
+// Visible rows in screen order: what is inside a collapsed branch does not exist for the
+// keyboard any more than it does for the mouse.
 function flatten(nodes, collapsed, level, out) {
   for (const node of nodes) {
     out.push({ node, level })
@@ -41,7 +37,7 @@ function flatten(nodes, collapsed, level, out) {
   return out
 }
 
-// Los ancestros de una página, para poder revelarla al abrirla.
+// A page's ancestors, so opening it can reveal it.
 function pathTo(nodes, slug, trail = []) {
   for (const node of nodes) {
     if (node.slug === slug) return trail
@@ -60,8 +56,8 @@ export default function PageTree({ ws, pages, activeSlug, onReload }) {
   const roots = useMemo(() => buildTree(pages), [pages])
   const rows = useMemo(() => flatten(roots, collapsed, 1, []), [roots, collapsed])
 
-  // Abrir una página revela su rama. Se hace al cambiar de página y no en cada
-  // render para que plegar la rama en la que estás siga funcionando.
+  // Opening a page reveals its branch — on page change, not every render, so collapsing
+  // the branch you are in still works.
   useEffect(() => {
     if (!activeSlug) return
     const trail = pathTo(roots, activeSlug)
@@ -74,9 +70,8 @@ export default function PageTree({ ws, pages, activeSlug, onReload }) {
     })
   }, [activeSlug, roots])
 
-  // El foco se recuerda por slug y no por posición: si el árbol se recarga tras
-  // crear, mover, renombrar o borrar, la fila sigue siendo la misma y el foco no
-  // vuelve al principio de la lista.
+  // Focus is remembered by slug, not position, so a reload after create/move/rename/delete
+  // keeps it on the same row instead of sending it back to the top.
   const focusIndex = useMemo(() => {
     const wanted = focusSlug || activeSlug
     const found = rows.findIndex((row) => row.node.slug === wanted)
@@ -94,9 +89,8 @@ export default function PageTree({ ws, pages, activeSlug, onReload }) {
   )
 
   function toggle(slug, open) {
-    // El foco se queda en la rama que se acaba de plegar o desplegar. Sin esto,
-    // plegar una rama con el foco dentro dejaba el foco en una fila que ya no
-    // existe, y volvía al principio del árbol.
+    // Focus stays on the branch just toggled; otherwise collapsing a branch with focus
+    // inside it left focus on a row that no longer exists.
     setFocusSlug(slug)
     setCollapsed((prev) => {
       const next = new Set(prev)
@@ -106,9 +100,8 @@ export default function PageTree({ ws, pages, activeSlug, onReload }) {
     })
   }
 
-  // Un único punto de tabulación para todo el árbol (roving tabindex): dentro se
-  // mueve uno con las flechas, y Enter lo abre — el enlace ya lo hace solo, así
-  // que Enter no se intercepta.
+  // One tab stop for the whole tree (roving tabindex): arrows move inside it and Enter
+  // opens — the link already does that, so Enter is not intercepted.
   function onKeyDown(event) {
     const row = rows[focusIndex]
     if (!row) return
@@ -126,8 +119,7 @@ export default function PageTree({ ws, pages, activeSlug, onReload }) {
     } else if (event.key === 'ArrowLeft') {
       if (open) toggle(row.node.slug, false)
       else {
-        // Sin rama que plegar, izquierda sube al padre: la fila anterior con un
-        // nivel menos.
+        // With no branch to collapse, left goes up to the parent.
         for (let i = focusIndex - 1; i >= 0; i--) {
           if (rows[i].level < row.level) {
             focusRow(i)
@@ -157,9 +149,9 @@ export default function PageTree({ ws, pages, activeSlug, onReload }) {
             <button
               className={'page-row-twisty' + (open ? ' open' : '')}
               type="button"
-              // Fuera del orden de tabulación y del árbol de accesibilidad: el
-              // estado ya lo dice aria-expanded de la fila y las flechas ya lo
-              // cambian. Aquí es solo el afordance de ratón y de dedo.
+              // Out of the tab order and the accessibility tree: the row's aria-expanded
+              // already says the state and the arrows already change it. This is only the
+              // mouse and touch affordance.
               tabIndex={-1}
               aria-hidden="true"
               title={t('toggle_subpages')}

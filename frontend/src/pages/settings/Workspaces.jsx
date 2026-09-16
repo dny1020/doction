@@ -1,7 +1,6 @@
 import WorkspaceSettings from '../../components/WorkspaceSettings.jsx'
 
-// Workspaces: lista, renombrado, borrado, miembros y exportación. El componente
-// ya existía como bloque de la página única; aquí solo pasa a ser su sección.
+// Workspaces: list, rename, delete, members and export.
 export default function WorkspacesSection() {
   return <WorkspaceSettings />
 }

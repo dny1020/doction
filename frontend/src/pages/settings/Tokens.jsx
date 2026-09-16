@@ -67,8 +67,8 @@ export default function TokensSection() {
             <button
               className="btn btn-sm"
               type="button"
-              // El portapapeles rechaza en contextos no seguros; sin el catch, copiar
-              // fallaba en silencio y el token parecía copiado.
+              // The clipboard rejects in insecure contexts; without the catch, copying
+              // failed silently and the token looked copied.
               onClick={() =>
                 navigator.clipboard
                   .writeText(newToken)

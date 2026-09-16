@@ -6,8 +6,8 @@ import { useI18n } from '../i18n.jsx'
 import { useToast } from './Toast.jsx'
 import { useConfirm } from './ConfirmDialog.jsx'
 
-// Sección de ajustes para los workspaces: crear uno nuevo y, para cada workspace
-// propio, renombrarlo, exportarlo, borrarlo y gestionar sus miembros.
+// Workspace settings: create one, and for each owned workspace rename, export, delete
+// and manage its members.
 export default function WorkspaceSettings() {
   const { user, refresh } = useAuth()
   const { t } = useI18n()
@@ -67,8 +67,7 @@ export default function WorkspaceSettings() {
   )
 }
 
-// Una fila de workspace. Si el usuario es owner, despliega la gestión completa
-// (renombrar / exportar / borrar / miembros); si es member, solo exportar.
+// One workspace row: the full management for an owner, export only for a member.
 function WorkspaceRow({ ws, ownedCount, isActive }) {
   const { refresh } = useAuth()
   const { t } = useI18n()
@@ -76,8 +75,8 @@ function WorkspaceRow({ ws, ownedCount, isActive }) {
   const confirm = useConfirm()
   const isOwner = ws.role === 'owner'
   const [name, setName] = useState(ws.name)
-  // Borrar un workspace se lleva todas sus páginas: es lo más destructivo que hay
-  // aquí y era lo único sin guarda contra un segundo clic.
+  // Deleting a workspace takes all its pages, which is the most destructive thing here
+  // and was the only one with no guard against a second click.
   const [busy, setBusy] = useState(false)
 
   async function onRename(event) {
@@ -162,8 +161,8 @@ function WorkspaceRow({ ws, ownedCount, isActive }) {
   )
 }
 
-// Lista de miembros de un workspace (solo visible para el owner): añadir por email
-// y quitar miembros que no sean el owner.
+// A workspace's member list, visible to the owner only: add by email, remove anyone but
+// the owner.
 function MemberList({ slug }) {
   const { t } = useI18n()
   const toast = useToast()

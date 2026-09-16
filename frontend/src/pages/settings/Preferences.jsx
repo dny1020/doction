@@ -3,17 +3,15 @@ import { useI18n } from '../../i18n.jsx'
 import { useToast } from '../../components/Toast.jsx'
 import { getTheme, toggleTheme } from '../../theme.js'
 
-// Preferencias: tema e idioma. Los mismos controles siguen estando en el pie de la
-// barra lateral — se usan demasiado a menudo para vivir solo dos niveles adentro—,
-// así que ambos escriben sobre el mismo estado y se ven reflejados el uno al otro.
+// Theme and language. The same controls also live in the sidebar footer — they are used
+// too often to sit two levels in — so both write the same state.
 export default function PreferencesSection() {
   const { t, lang, langs, setLang } = useI18n()
   const toast = useToast()
   const [theme, setThemeState] = useState(getTheme)
 
-  // El tema también se cambia desde el pie de la barra lateral, y allí no pasa por
-  // este estado: se escribe directo en data-theme del <html>. Sin observar ese
-  // atributo, esta sección seguía anunciando el tema anterior hasta recargar.
+  // The sidebar footer writes data-theme on <html> directly, bypassing this state.
+  // Without observing that attribute, this section kept announcing the old theme.
   useEffect(() => {
     const observer = new MutationObserver(() => setThemeState(getTheme()))
     observer.observe(document.documentElement, {

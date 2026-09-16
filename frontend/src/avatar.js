@@ -1,10 +1,8 @@
-// Utilidades del avatar de usuario, compartidas por la barra lateral y los ajustes.
+// Avatar helpers, shared by the sidebar and settings.
 //
-// Cuando el usuario no elige un color, derivamos uno estable a partir de su email
-// (mismo hash que usa el frontend Jinja, para que el color no cambie entre vistas).
+// With no colour chosen, a stable one is derived from the email.
 
-// Misma paleta que AVATAR_COLORS en app/avatar.py, donde vive la razon de estos
-// ocho valores y el mapa de los antiguos.
+// The same palette as AVATAR_COLORS in app/avatar.py, where the reasoning lives.
 export const AVATAR_COLORS = [
   '#B8523B',
   '#3B73B8',
@@ -16,7 +14,7 @@ export const AVATAR_COLORS = [
   '#5E7A37',
 ]
 
-// Color automático y estable a partir del email.
+// A stable automatic colour from the email.
 export function autoColor(email) {
   const text = email || ''
   let hash = 0
@@ -26,13 +24,13 @@ export function autoColor(email) {
   return AVATAR_COLORS[hash % AVATAR_COLORS.length]
 }
 
-// Color a mostrar: el elegido por el usuario, o el automático si no hay ninguno.
+// The colour to show: the user's choice, or the automatic one.
 export function avatarColor(user) {
   if (!user) return AVATAR_COLORS[0]
   return user.avatar_color || autoColor(user.email)
 }
 
-// Primera letra para el avatar: del nombre si lo hay, si no del email.
+// The avatar's initial: from the display name if there is one, otherwise the email.
 export function avatarLetter(name, email) {
   const source = (name || email || '?').trim()
   return source ? source.charAt(0).toUpperCase() : '?'

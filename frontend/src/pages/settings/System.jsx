@@ -3,10 +3,8 @@ import { api } from '../../api.js'
 import { useI18n } from '../../i18n.jsx'
 import { ListSkeleton } from '../../components/Skeleton.jsx'
 
-// Sistema: qué está corriendo el despliegue. Todo es de solo lectura —las banderas
-// salen del entorno del servidor—, así que se pinta como filas de datos y no como
-// controles. Existe porque hasta ahora no había forma de saber en qué modo de
-// búsqueda estaba un servidor salvo mirando la forma de los resultados.
+// System: what the deployment is running. Read-only — the flags come from the server's
+// environment — so it renders as rows of data rather than controls.
 export default function SystemSection() {
   const { t } = useI18n()
   const [report, setReport] = useState(null)
