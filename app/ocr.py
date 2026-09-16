@@ -1,10 +1,8 @@
-"""OCR local de imágenes subidas (opt-in vía OCR_UPLOADS=1).
+"""Local OCR of uploaded images, opt-in via OCR_UPLOADS=1.
 
-Llama al binario `tesseract` con subprocess — cero dependencias Python, filosofía
-Unix — y guarda el texto en `upload_texts` para que capturas y diagramas subidos
-aparezcan en la búsqueda. Idiomas vía OCR_LANGS (por defecto `eng+spa`, los
-paquetes que instala el Dockerfile). Un OCR fallido nunca rompe la subida: el
-worker registra el error y sigue.
+Shells out to the `tesseract` binary and stores the text in `upload_texts` so
+screenshots and diagrams turn up in search. Languages come from OCR_LANGS. A failed
+OCR never breaks the upload.
 """
 
 import logging
@@ -17,11 +15,10 @@ from app import db
 
 logger = logging.getLogger(__name__)
 
-OCR_TIMEOUT_S = 120  # una captura normal tarda ~1-3 s incluso en el Pi; esto es el tope
+OCR_TIMEOUT_S = 120  # a normal screenshot takes 1-3s even on the Pi; this is the ceiling
 
 
 def ocr_enabled() -> bool:
-    """True si el OCR de uploads está activado por entorno."""
     return os.environ.get("OCR_UPLOADS", "").lower() in {"1", "true", "yes"}
 
 
@@ -30,9 +27,9 @@ def _langs() -> str:
 
 
 def extract_text(path: Path) -> str | None:
-    """Texto OCR de una imagen, o None si tesseract no está o falla."""
+    """OCR text from an image, or None if tesseract is missing or fails."""
     if shutil.which("tesseract") is None:
-        logger.warning("OCR_UPLOADS activo pero el binario `tesseract` no está instalado")
+        logger.warning("OCR_UPLOADS is on but the `tesseract` binary is not installed")
         return None
     try:
         proc = subprocess.run(
@@ -43,22 +40,22 @@ def extract_text(path: Path) -> str | None:
             check=False,
         )
     except subprocess.TimeoutExpired:
-        logger.warning("ocr: timeout (%ss) procesando %s", OCR_TIMEOUT_S, path.name)
+        logger.warning("ocr: timed out (%ss) on %s", OCR_TIMEOUT_S, path.name)
         return None
     except OSError:
-        logger.exception("ocr: no se pudo ejecutar tesseract para %s", path.name)
+        logger.exception("ocr: could not run tesseract for %s", path.name)
         return None
     if proc.returncode != 0:
-        logger.warning("ocr: tesseract falló para %s: %s", path.name, proc.stderr.strip()[:300])
+        logger.warning("ocr: tesseract failed for %s: %s", path.name, proc.stderr.strip()[:300])
         return None
     return proc.stdout
 
 
 def index_upload(name: str, user_id: int, workspace_id: int, path: Path) -> bool:
-    """OCR de un upload + indexado en `upload_texts`. True si quedó texto buscable."""
+    """OCR an upload and index it; True when searchable text was stored."""
     text = (extract_text(path) or "").strip()
     if not text:
         return False
     db.store_upload_text(name, user_id, workspace_id, text)
-    logger.info("ocr: indexado %s (%d caracteres)", name, len(text))
+    logger.info("ocr: indexed %s (%d characters)", name, len(text))
     return True

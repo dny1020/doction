@@ -55,7 +55,7 @@ def database_url() -> str:
 
 
 def masked_database_url() -> str:
-    """`database_url()` sin credenciales — seguro para logs."""
+    """`database_url()` with the credentials stripped, safe to log."""
     parts = urlsplit(database_url())
     if parts.password is None:
         return urlunsplit(parts)
@@ -67,7 +67,7 @@ def masked_database_url() -> str:
 
 
 def data_dir() -> Path:
-    """Directorio para el repo git de páginas y los uploads (independiente de la BD)."""
+    """Where the page git repo and the uploads live; unrelated to the database."""
     d = Path(os.environ.get("DATA_DIR", DEFAULT_DATA_DIR))
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -82,27 +82,25 @@ def _get_pool() -> ConnectionPool[Connection[DictRow]]:
                     database_url(),
                     min_size=1,
                     max_size=10,
-                    # `connection_class` duplica el row_factory de kwargs, pero es lo
-                    # que hace que las filas se tipen como dict y no como tupla: sin
-                    # él, cada row["campo"] de este módulo es un error de tipos.
+                    # `connection_class` repeats the kwargs row_factory, but it is what
+                    # types rows as dicts rather than tuples for the checker.
                     connection_class=Connection[DictRow],
                     kwargs={"row_factory": dict_row},
                     open=True,
-                    # Valida la conexión al sacarla del pool: si Postgres se
-                    # reinició (reboot de la Pi), se reconecta solo en vez de
-                    # fallar hasta que las conexiones muertas se reciclen.
+                    # Check the connection on checkout, so a Postgres restart
+                    # reconnects instead of failing until dead connections recycle.
                     check=ConnectionPool[Connection[DictRow]].check_connection,
                 )
     return _pool
 
 
 def connect():
-    """Conexión del pool como context manager: commit al salir, rollback si hay excepción."""
+    """A pooled connection: commits on exit, rolls back on exception."""
     return _get_pool().connection()
 
 
 def reset_pool() -> None:
-    """Cierra el pool actual; el próximo connect() crea uno nuevo. Solo para tests."""
+    """Close the current pool; the next connect() builds a new one. Tests only."""
     global _pool
     with _pool_lock:
         if _pool is not None:
@@ -114,10 +112,8 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
-# ── Conversión de filas a dataclasses ────────────────────────────────────────
-# Cada consulta devuelve un dict (row_factory=dict_row). Estas funciones lo pasan
-# a un dato con nombre (las clases de app/models.py), usando .get(...) para que si
-# una consulta no seleccionó cierta columna, ese campo quede en None.
+# ── Rows to dataclasses ──────────────────────────────────────────────────────
+# .get(...) throughout, so a column a query did not select comes back as None.
 
 
 def _to_user(row: dict) -> User:
@@ -165,12 +161,9 @@ def _to_page(row: dict) -> Page:
     )
 
 
-# ── Esquema ───────────────────────────────────────────────────────────────────
-# Esquema final directo (sin el historial de migraciones de la era SQLite: no hay
-# datos legacy que reconciliar porque una base Postgres nueva nace ya con esta forma
-# — ver scripts/migrate_sqlite_to_postgres.py para la migración única de datos
-# existentes). `search_vector` es una columna generada: Postgres la mantiene
-# sincronizada solo, sin triggers (a diferencia de los 3 triggers que requería FTS5).
+# ── Schema ───────────────────────────────────────────────────────────────────
+# The final shape, with no migration ladder. `search_vector` is a generated column,
+# so Postgres keeps it in sync without triggers.
 SCHEMA_STATEMENTS: list[LiteralString] = [
     """
     CREATE TABLE IF NOT EXISTS users (
@@ -183,7 +176,7 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         token_version INTEGER NOT NULL DEFAULT 0
     )
     """,
-    # Bases anteriores a token_version (idempotente).
+    # For databases predating token_version.
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0",
     """
     CREATE TABLE IF NOT EXISTS workspaces (
@@ -265,15 +258,14 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS page_links_dst_idx ON page_links(workspace_id, dst_slug)",
-    # El destino real de un wikilink es la página; dst_slug se conserva porque es
-    # la única representación que tiene un enlace roto, y los enlaces rotos son
-    # información (los reporta graph.link_insights).
+    # dst_slug is kept alongside the resolved page because it is the only
+    # representation a broken link has, and a broken link is information.
     (
         "ALTER TABLE page_links ADD COLUMN IF NOT EXISTS dst_page_id BIGINT "
         "REFERENCES pages(id) ON DELETE SET NULL"
     ),
     "CREATE INDEX IF NOT EXISTS page_links_dst_page_idx ON page_links(dst_page_id)",
-    # Backfill idempotente: resuelve los enlaces que ya existían.
+    # Idempotent backfill: resolve links that already existed.
     """
     UPDATE page_links l SET dst_page_id = p.id
     FROM pages p
@@ -282,9 +274,8 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
       AND p.slug = l.dst_slug
       AND p.deleted_at IS NULL
     """,
-    # Un slug anterior sigue resolviendo para siempre: renombrar no rompe los
-    # [[wikilinks]] escritos en el markdown de otras páginas, y evita tener que
-    # reescribir contenido que el usuario no editó.
+    # An old slug resolves forever, so renaming never breaks [[wikilinks]] already
+    # written in other pages' markdown.
     """
     CREATE TABLE IF NOT EXISTS page_aliases (
         workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -295,8 +286,8 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS page_aliases_page_idx ON page_aliases(page_id)",
-    # Webhooks de salida. La entrega va en cola en tabla, no en memoria: si el
-    # receptor está caído o doction reinicia, los eventos no se pierden.
+    # Outgoing webhooks. Deliveries queue in a table, not in memory, so a dead
+    # receiver or a restart loses no events.
     """
     CREATE TABLE IF NOT EXISTS webhooks (
         id              BIGSERIAL PRIMARY KEY,
@@ -323,7 +314,7 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         last_error      TEXT
     )
     """,
-    # El worker busca pendientes por (delivered_at IS NULL, next_attempt_at).
+    # The worker looks for pending rows by (delivered_at IS NULL, next_attempt_at).
     (
         "CREATE INDEX IF NOT EXISTS webhook_deliveries_due_idx "
         "ON webhook_deliveries(next_attempt_at) WHERE delivered_at IS NULL"
@@ -341,10 +332,8 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         created_at   TEXT NOT NULL
     )
     """,
-    # `path` es la cadena de encabezados dentro del documento; `chunker` identifica
-    # el algoritmo que produjo el fragmento. Van con ADD COLUMN IF NOT EXISTS porque
-    # page_chunks ya existe en cualquier despliegue vivo, y el CREATE de arriba no
-    # toca una tabla creada.
+    # ADD COLUMN IF NOT EXISTS because page_chunks already exists on any live
+    # deployment, and the CREATE above will not touch a table that is already there.
     "ALTER TABLE page_chunks ADD COLUMN IF NOT EXISTS path TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE page_chunks ADD COLUMN IF NOT EXISTS chunker TEXT NOT NULL DEFAULT ''",
     "CREATE INDEX IF NOT EXISTS page_chunks_ws_idx ON page_chunks(workspace_id)",
@@ -372,8 +361,7 @@ def _unique_workspace_slug(
     *,
     ignore_id: int | None = None,
 ) -> str:
-    """Slug único a nivel global (los workspaces se comparten entre usuarios, y el slug
-    es además el nombre de carpeta en el repo git, así que no puede colisionar)."""
+    """Globally unique slug: it is also the directory name in the git repo."""
     candidate = base
     suffix = 1
     while True:
@@ -405,7 +393,7 @@ def _ensure_default_workspaces(conn) -> None:
 
 
 def _ensure_member_owners(conn) -> None:
-    """Backfill: el creador de cada workspace es 'owner' en workspace_members. Idempotente."""
+    """Idempotent backfill: each workspace's creator becomes its 'owner' member."""
     conn.execute(
         """
         INSERT INTO workspace_members (workspace_id, user_id, role, created_at)
@@ -418,7 +406,7 @@ def _ensure_member_owners(conn) -> None:
 
 
 def _index_page_meta(conn, page_id: int, workspace_id: int, content: str) -> None:
-    """Reconstruye frontmatter/tags/enlaces de una página. Idempotente por page_id."""
+    """Rebuild a page's frontmatter, tags and links. Idempotent per page_id."""
     fm, _ = meta.parse_frontmatter(content)
     conn.execute("DELETE FROM page_meta WHERE page_id = %s", (page_id,))
     conn.execute(
@@ -438,12 +426,11 @@ def _index_page_meta(conn, page_id: int, workspace_id: int, content: str) -> Non
         dst = slugify(target)
         if dst not in seen:
             seen.add(dst)
-            # Los valores se repiten porque la subconsulta busca el destino
-            # primero entre las páginas y luego entre los alias.
+            # The values repeat because the subquery looks for the target among
+            # pages first and then among the aliases.
             edges.append((page_id, dst, workspace_id, workspace_id, dst, workspace_id, dst))
     if edges:
-        # dst_page_id se resuelve aquí; queda NULL si el destino aún no existe,
-        # y create_page lo rellena cuando esa página se crea.
+        # NULL when the target does not exist yet; create_page fills it in later.
         conn.cursor().executemany(
             """
             INSERT INTO page_links (src_page_id, dst_slug, workspace_id, dst_page_id)
@@ -460,29 +447,25 @@ def _index_page_meta(conn, page_id: int, workspace_id: int, content: str) -> Non
             edges,
         )
 
-    # El contenido cambió: marcar para reembedding (lo procesa el worker async).
+    # Content changed: mark for re-embedding by the async worker.
     conn.execute("UPDATE pages SET embed_dirty = 1 WHERE id = %s", (page_id,))
 
 
-# Configuración de búsqueda propia: pliega acentos antes de aplicar el stemmer.
-# `unaccent()` suelto no vale en una columna generada —es STABLE, no IMMUTABLE, y
-# Postgres la rechaza—; encadenado dentro de una configuración sí, porque
-# to_tsvector(regconfig, text) sí es IMMUTABLE.
-#
-# El stemmer es el inglés, medido: con `spanish_stem` las consultas en inglés
-# contra páginas en español caen a 0.00 de MRR (evals/results/2026-08-24-minilm-en.json).
-# El acento es el problema real; el stemmer inglés no lo era.
+# Our own search configuration: fold accents before stemming. A bare `unaccent()` is
+# STABLE, not IMMUTABLE, so Postgres rejects it in a generated column; chained inside a
+# named configuration it is fine, because to_tsvector(regconfig, text) is IMMUTABLE.
+# The stemmer is English by measurement: `spanish_stem` scores 0.00 MRR on English
+# queries. See evals/results/2026-08-24-minilm-en.json.
 TS_CONFIG = "doction"
 _TS_STEMMER = "english_stem"
 _TS_WORD_TOKENS = "asciiword, asciihword, hword_asciipart, word, hword, hword_part"
 
 
 def _ensure_text_search_config(conn) -> bool:
-    """Crea/actualiza la configuración `doction`. True si su mapeo cambió.
+    """Create or update the `doction` configuration; True when its mapping changed.
 
-    Sin la extensión `unaccent` (rol sin permiso para crearla) la configuración se
-    queda en el stemmer solo: la búsqueda pierde el plegado de acentos pero el
-    servidor arranca igual.
+    Without the `unaccent` extension the configuration falls back to the stemmer alone:
+    search loses accent folding but the server still boots.
     """
     unaccent = True
     try:
@@ -491,8 +474,8 @@ def _ensure_text_search_config(conn) -> bool:
         conn.rollback()
         unaccent = False
         logger.warning(
-            "no se pudo crear la extensión unaccent; %s se queda sin plegado de "
-            "acentos (las consultas en español sin tildes fallarán)",
+            "could not create the unaccent extension; %s has no accent folding "
+            "(unaccented queries against accented pages will miss)",
             TS_CONFIG,
         )
 
@@ -518,16 +501,14 @@ def _ensure_text_search_config(conn) -> bool:
         f"ALTER TEXT SEARCH CONFIGURATION {TS_CONFIG} "
         f"ALTER MAPPING FOR {_TS_WORD_TOKENS} WITH {dictionaries}"
     )
-    logger.info("configuración de búsqueda %s → %s", TS_CONFIG, dictionaries)
+    logger.info("search configuration %s -> %s", TS_CONFIG, dictionaries)
     return True
 
 
-# Las columnas generadas no se recalculan solas cuando cambia su definición ni
-# cuando cambia el mapeo de la configuración: Postgres las calcula al escribir.
-# `init_db` es CREATE TABLE IF NOT EXISTS a propósito (sin escalera de
-# migraciones), así que una base ya existente nunca vería el cambio. Esto no
-# añade una escalera: comprueba el estado real contra el que declara el código y
-# converge. Al ser convergente, volver a una imagen anterior también funciona.
+# Postgres computes generated columns on write, so neither a new definition nor a
+# changed configuration mapping reaches an existing database on its own. Rather than a
+# migration ladder, this compares the stored state against what the code declares and
+# converges — which also makes rolling back to an older image work.
 _SEARCH_VECTOR_COLUMNS = {
     "pages": (
         "setweight(to_tsvector('doction', coalesce(title, '')), 'A') || "
@@ -542,7 +523,7 @@ _SEARCH_VECTOR_COLUMNS = {
 
 
 def _converge_search_vectors(conn, *, force: bool) -> None:
-    """Reconstruye las columnas `search_vector` que no estén en la configuración."""
+    """Rebuild any `search_vector` column not built on the current configuration."""
     for table, (expression, index) in _SEARCH_VECTOR_COLUMNS.items():
         row = conn.execute(
             """
@@ -556,18 +537,18 @@ def _converge_search_vectors(conn, *, force: bool) -> None:
         current = (row["expr"] if row else None) or ""
         if not force and f"'{TS_CONFIG}'" in current:
             continue
-        # DROP COLUMN se lleva por delante el índice GIN, así que se recrea.
+        # DROP COLUMN takes the GIN index with it, so it is recreated below.
         conn.execute(f"ALTER TABLE {table} DROP COLUMN IF EXISTS search_vector")
         conn.execute(
             f"ALTER TABLE {table} ADD COLUMN search_vector tsvector "
             f"GENERATED ALWAYS AS ({expression}) STORED"
         )
         conn.execute(f"CREATE INDEX IF NOT EXISTS {index} ON {table} USING GIN(search_vector)")
-        logger.info("search_vector de %s reconstruido sobre %s", table, TS_CONFIG)
+        logger.info("rebuilt %s.search_vector on %s", table, TS_CONFIG)
 
 
 def init_db() -> None:
-    """Crea el esquema (idempotente) y corre los backfills defensivos."""
+    """Create the schema (idempotent) and run the defensive backfills."""
     with connect() as conn:
         mapping_changed = _ensure_text_search_config(conn)
         for stmt in SCHEMA_STATEMENTS:
@@ -577,15 +558,10 @@ def init_db() -> None:
         _ensure_member_owners(conn)
 
 
-# Una página es una nota, no un volcado. El mayor documento markdown de este propio
-# repositorio ronda los 18 KB, así que 1 MiB deja ~55x de margen sobre lo que alguien
-# escribe de verdad.
-#
-# Esto NO es el arreglo del ReDoS: ese vive en el patrón de meta.py, que ya es lineal.
-# Es el techo de lo que una sola petición puede costar cuando un parser resulte ser peor
-# de lo que se creía — que es exactamente lo que pasó. Va aquí y no en los modelos
-# Pydantic porque MCP llama a create_page/update_page directamente y se los salta, y la
-# superficie de agentes es justo donde es fácil generar una página enorme.
+# A ceiling on what one request can cost when a parser turns out worse than believed,
+# not the ReDoS fix (that is the linear pattern in meta.py). It lives here and not in
+# the Pydantic models because MCP calls create_page/update_page directly, and the agent
+# surface is where an enormous page is easiest to generate.
 MAX_CONTENT_BYTES = 1024 * 1024
 
 
@@ -611,12 +587,12 @@ def unique_slug(
     workspace_id: int,
     ignore_id: int | None = None,
 ) -> str:
-    """Slug único en el workspace; en colisión agrega -2, -3, …"""
+    """Unique slug within the workspace; collisions get -2, -3, ..."""
     candidate = base
     suffix = 1
     while True:
-        # Un alias ocupa el nombre igual que una página viva: si no, renombrar
-        # podría robarle el slug a un enlace antiguo que aún resuelve.
+        # An alias holds a name as firmly as a live page does; otherwise a rename
+        # could steal the slug from an old link that still resolves.
         row = conn.execute(
             """
             SELECT id FROM pages WHERE slug = %s AND workspace_id = %s
@@ -642,7 +618,7 @@ def create_user(email: str, password_hash: str) -> int:
 
 
 def has_users() -> bool:
-    """True si ya existe al menos un usuario (para el flujo de primer arranque)."""
+    """Whether any user exists yet, for the first-run flow."""
     with connect() as conn:
         return conn.execute("SELECT 1 FROM users LIMIT 1").fetchone() is not None
 
@@ -668,8 +644,10 @@ def update_user_profile(user_id: int, display_name: str | None, avatar_color: st
 
 
 def update_user_password(user_id: int, password_hash: str) -> int:
-    """Cambia la contraseña y sube token_version → invalida todas las sesiones JWT
-    emitidas antes del cambio. Devuelve la nueva versión (para reemitir la sesión actual)."""
+    """Change the password and bump token_version, invalidating every JWT issued before.
+
+    Returns the new version, so the current session can be reissued.
+    """
     with connect() as conn:
         row = conn.execute(
             "UPDATE users SET password_hash = %s, token_version = token_version + 1 "
@@ -680,7 +658,7 @@ def update_user_password(user_id: int, password_hash: str) -> int:
 
 
 def list_workspaces(user_id: int) -> list[Workspace]:
-    """Workspaces de los que el usuario es miembro (propios y compartidos), con su rol."""
+    """Workspaces the user is a member of, own and shared, each with their role."""
     with connect() as conn:
         rows = conn.execute(
             """
@@ -696,7 +674,7 @@ def list_workspaces(user_id: int) -> list[Workspace]:
 
 
 def get_workspace_by_slug(user_id: int, slug: str) -> Workspace | None:
-    """Resuelve un workspace por slug solo si el usuario es miembro."""
+    """Resolve a workspace by slug, only if the user is a member."""
     with connect() as conn:
         row = conn.execute(
             """
@@ -743,7 +721,7 @@ def rename_workspace(user_id: int, slug: str, name: str) -> bool:
 
 
 def delete_workspace(user_id: int, slug: str) -> bool:
-    """Borra el workspace y sus páginas. No borra el último que quede."""
+    """Delete the workspace and its pages; refuses to delete the last one."""
     with connect() as conn:
         total = conn.execute(
             "SELECT COUNT(*) AS n FROM workspaces WHERE user_id = %s", (user_id,)
@@ -763,7 +741,7 @@ def delete_workspace(user_id: int, slug: str) -> bool:
 
 
 def get_member_role(user_id: int, workspace_id: int) -> str | None:
-    """Rol del usuario en el workspace ('owner'|'member'), o None si no es miembro."""
+    """The user's role in the workspace ('owner' | 'member'), or None if not a member."""
     with connect() as conn:
         row = conn.execute(
             "SELECT role FROM workspace_members WHERE workspace_id = %s AND user_id = %s",
@@ -858,14 +836,12 @@ def claim_unowned_pages(user_id: int, workspace_id: int) -> int:
 
 
 def list_pages_tree(workspace_id: int) -> list[PageNode]:
-    """Lista plana en orden DFS con campo depth para renderizar el árbol en la sidebar."""
+    """Flat DFS list carrying `depth`, for rendering the sidebar tree."""
     with connect() as conn:
         rows = conn.execute(
-            # Las capturas SIN ARCHIVAR (type: memo, sin padre) viven en el feed
-            # paginado, no en el árbol: esta consulta no pagina y la sidebar las
-            # pinta todas. En cuanto una se mueve bajo un padre deja de ser
-            # bandeja y pasa a ser una página más del árbol; el triaje es
-            # move_page y no reescribe el frontmatter de nadie.
+            # Unfiled notes (type: memo, no parent) live in the paginated feed, not
+            # here: this query does not paginate and the sidebar draws all of it.
+            # Moving one under a parent is what files it into the tree.
             "SELECT p.id, p.slug, p.title, p.parent_id FROM pages p "
             "LEFT JOIN page_meta m ON m.page_id = p.id "
             "WHERE p.workspace_id = %s AND p.deleted_at IS NULL "
@@ -900,7 +876,7 @@ def list_pages_tree(workspace_id: int) -> list[PageNode]:
 
 
 def get_page(slug: str, workspace_id: int) -> Page | None:
-    # El acceso lo garantiza la membresía al resolver el workspace; aquí basta workspace_id.
+    # Membership was checked when the workspace was resolved; workspace_id is enough.
     with connect() as conn:
         row = conn.execute(
             """
@@ -914,8 +890,7 @@ def get_page(slug: str, workspace_id: int) -> Page | None:
             (slug, workspace_id),
         ).fetchone()
         if row is None:
-            # Slug anterior: un renombrado deja alias para que los [[wikilinks]]
-            # ya escritos sigan resolviendo sin tocar el markdown de nadie.
+            # A rename leaves an alias so [[wikilinks]] already written keep resolving.
             alias = conn.execute(
                 "SELECT page_id FROM page_aliases WHERE slug = %s AND workspace_id = %s",
                 (slug, workspace_id),
@@ -937,7 +912,7 @@ def get_page(slug: str, workspace_id: int) -> Page | None:
 
 
 def get_ancestors(page_id: int, workspace_id: int) -> list[PageRef]:
-    """Cadena de ancestros desde la raíz hasta el padre directo (sin incluir la página)."""
+    """The ancestor chain from the root down to the direct parent, page excluded."""
     chain: list[PageRef] = []
     with connect() as conn:
         row = conn.execute(
@@ -993,8 +968,8 @@ def create_page(
 ) -> str:
     _check_content_size(content)
     title = title.strip() or meta.derive_title(content)
-    # Sin requested_slug ni título propio, el slug sale de una marca temporal: si
-    # se derivara del título, cien capturas sin título darían untitled-2 … -101.
+    # With no requested slug and no title, the slug comes from a timestamp: derived
+    # from the title, a hundred untitled notes would be untitled-2 ... -101.
     if requested_slug:
         base_slug = slugify(requested_slug.strip())
     elif title == meta.UNTITLED:
@@ -1024,8 +999,8 @@ def create_page(
         assert row is not None
         page_id = int(row["id"])
         _index_page_meta(conn, page_id, workspace_id, content)
-        # Referencias hacia adelante: enlaces escritos antes de que existiera el
-        # destino. Sin esto quedarían rotos para siempre aunque el destino llegue.
+        # Forward references: links written before their target existed would stay
+        # broken forever otherwise.
         conn.execute(
             """
             UPDATE page_links SET dst_page_id = %s
@@ -1038,7 +1013,7 @@ def create_page(
 
 
 def update_page(user_id: int, workspace_id: int, slug: str, title: str, content: str) -> str | None:
-    """Actualiza una página manteniendo el slug estable; devuelve slug o None si no existe."""
+    """Update a page, keeping its slug stable; returns the slug, or None if missing."""
     _check_content_size(content)
     title = title.strip() or meta.derive_title(content)
     with connect() as conn:
@@ -1068,20 +1043,12 @@ def upsert_page_section(
     level: int = 2,
     parent: str | None = None,
 ) -> str | None:
-    """Escribe una sola sección de una página. Devuelve el slug, o None si no existe.
+    """Write a single section of a page. Returns the slug, or None if it does not exist.
 
-    Pasa por `update_page`, no por un UPDATE propio: así la versión queda en el
-    historial de git, la página se re-encola para indexar y el evento sale por los
-    webhooks exactamente igual que en cualquier otra escritura. Una escritura que se
-    saltara ese camino sería una página que cambia sin que nadie se entere.
-
-    Lee y escribe dentro de la misma llamada, de modo que dos agentes tocando
-    secciones distintas de una página no se pisan: cada uno reescribe solo su bloque
-    sobre el contenido más reciente, en vez de mandar el cuerpo entero que leyó hace
-    un minuto.
-
-    `AmbiguousSection` sube tal cual: elegir por el llamante cuál de dos encabezados
-    idénticos quería es peor que decirle que desambigüe.
+    Goes through `update_page` rather than its own UPDATE, so the version lands in git
+    history, the page is re-queued for indexing and the webhook event fires like any
+    other write. Reading and writing inside one call also means two agents editing
+    different sections do not overwrite each other. `AmbiguousSection` propagates.
     """
     page = get_page(slug, workspace_id)
     if page is None:
@@ -1092,17 +1059,15 @@ def upsert_page_section(
     return update_page(user_id, workspace_id, slug, page.title, content)
 
 
-# ── Webhooks de salida ───────────────────────────────────────────────────────
-# emit_event() se llama DENTRO de la transacción que ya hizo la escritura, así el
-# evento se encola en el mismo commit que el cambio: no hay ventana en la que la
-# página exista y su aviso se haya perdido. La entrega la hace el worker aparte;
-# aquí no se abre ni una conexión HTTP.
+# ── Outgoing webhooks ────────────────────────────────────────────────────────
+# emit_event() runs inside the transaction that made the write, so the event queues in
+# the same commit as the change. Delivery is the worker's job; no HTTP happens here.
 
 MAX_DELIVERY_ATTEMPTS = 6
 
 
 def emit_event(conn, workspace_id: int, event: str, payload: dict) -> None:
-    """Encola `event` para los webhooks activos del workspace que lo escuchen."""
+    """Queue `event` for the workspace's active webhooks that listen for it."""
     rows = conn.execute(
         "SELECT id, events FROM webhooks WHERE workspace_id = %s AND active",
         (workspace_id,),
@@ -1114,7 +1079,7 @@ def emit_event(conn, workspace_id: int, event: str, payload: dict) -> None:
     encolar = [
         (r["id"], event, body, now)
         for r in rows
-        # events vacío = todos; si no, lista separada por comas.
+        # Empty events means all; otherwise a comma-separated list.
         if not r["events"] or event in {e.strip() for e in r["events"].split(",")}
     ]
     if encolar:
@@ -1168,7 +1133,7 @@ def delete_webhook(workspace_id: int, webhook_id: int) -> bool:
 
 
 def due_deliveries(limit: int = 10) -> list[PendingDelivery]:
-    """Entregas pendientes cuyo momento de reintento ya pasó."""
+    """Pending deliveries whose retry time has come."""
     with connect() as conn:
         rows = conn.execute(
             """
@@ -1196,10 +1161,10 @@ def due_deliveries(limit: int = 10) -> list[PendingDelivery]:
 
 
 def _delivery_status(delivered_at: str | None, last_error: str | None) -> str:
-    """`delivered_at` marca "ya no se reintenta", no "salió bien".
+    """`delivered_at` means "no longer retried", not "succeeded".
 
-    El worker lo pone también al agotar los reintentos, y ahí deja `last_error`.
-    Sin mirar las dos columnas, una entrega abandonada se leería como entregada.
+    The worker also sets it when retries run out, leaving `last_error` behind, so both
+    columns have to be read together.
     """
     if delivered_at is None:
         return "pending"
@@ -1207,10 +1172,10 @@ def _delivery_status(delivered_at: str | None, last_error: str | None) -> str:
 
 
 def list_deliveries(webhook_id: int, limit: int = 20) -> list[Delivery]:
-    """Las entregas recientes de un webhook, la más nueva primero.
+    """A webhook's recent deliveries, newest first.
 
-    No devuelve `payload_json`: el cuerpo del evento lleva el contenido de la
-    página, y esto es una vista de operación — qué salió y qué no.
+    No `payload_json`: the event body carries page content and this is an operational
+    view of what went out and what did not.
     """
     with connect() as conn:
         rows = conn.execute(
@@ -1234,11 +1199,7 @@ def list_deliveries(webhook_id: int, limit: int = 20) -> list[Delivery]:
 
 
 def delivery_counts(workspace_id: int) -> dict[int, dict[str, int]]:
-    """Pendientes y fallidas por webhook del workspace, para marcar la lista.
-
-    Una sola consulta agregada y no una por webhook: la lista de ajustes los pinta
-    todos, y N+1 consultas para pintar dos números no se sostienen.
-    """
+    """Pending and failed counts per webhook, aggregated in one query rather than N+1."""
     with connect() as conn:
         rows = conn.execute(
             """
@@ -1272,20 +1233,20 @@ def mark_delivered(delivery_id: int, webhook_id: int, status: str) -> None:
 
 
 def mark_failed(delivery_id: int, webhook_id: int, error: str, attempts: int) -> None:
-    """Reprograma con backoff exponencial; al agotar intentos la deja marcada."""
+    """Reschedule with exponential backoff; marks the delivery once retries run out."""
     now = datetime.now(UTC)
-    # 1min, 2, 4, 8, 16… La entrega deja de reintentarse al llegar al máximo.
-    espera = timedelta(minutes=2 ** min(attempts, 5))
-    siguiente = (now + espera).isoformat(timespec="seconds")
-    agotada = attempts + 1 >= MAX_DELIVERY_ATTEMPTS
+    # 1min, 2, 4, 8, 16...
+    wait = timedelta(minutes=2 ** min(attempts, 5))
+    next_attempt = (now + wait).isoformat(timespec="seconds")
+    exhausted = attempts + 1 >= MAX_DELIVERY_ATTEMPTS
     with connect() as conn:
         conn.execute(
             "UPDATE webhook_deliveries SET attempts = attempts + 1, last_error = %s, "
             "next_attempt_at = %s, delivered_at = %s WHERE id = %s",
             (
                 error[:500],
-                siguiente,
-                now.isoformat(timespec="seconds") if agotada else None,
+                next_attempt,
+                now.isoformat(timespec="seconds") if exhausted else None,
                 delivery_id,
             ),
         )
@@ -1296,12 +1257,10 @@ def mark_failed(delivery_id: int, webhook_id: int, error: str, attempts: int) ->
 
 
 def move_page(workspace_id: int, slug: str, parent_slug: str | None) -> str | None:
-    """Reparenta una página; devuelve su slug o None si no existe.
+    """Reparent a page; returns its slug, or None if it does not exist.
 
-    Es la operación más barata del modelo: el repo git es plano
-    (`{workspace}/{slug}.md`), así que mover no toca ningún fichero.
-
-    Lanza ValueError si el destino no existe o crearía un ciclo.
+    The git repo is flat (`{workspace}/{slug}.md`), so a move touches no file.
+    Raises ValueError when the target is missing or the move would create a cycle.
     """
     with connect() as conn:
         row = conn.execute(
@@ -1322,8 +1281,8 @@ def move_page(workspace_id: int, slug: str, parent_slug: str | None) -> str | No
                 raise ValueError(f"parent not found: {parent_slug}")
             parent_id = int(parent["id"])
 
-        # pages.parent_id no tiene restricción contra bucles y el DFS de
-        # list_pages_tree se colgaría, así que hay que mirar los ancestros antes.
+        # pages.parent_id has no constraint against cycles and list_pages_tree's DFS
+        # would hang, so the ancestors are checked first.
         ancestor = parent_id
         seen: set[int] = set()
         while ancestor is not None and ancestor not in seen:
@@ -1347,11 +1306,10 @@ def move_page(workspace_id: int, slug: str, parent_slug: str | None) -> str | No
 
 
 def rename_page(workspace_id: int, slug: str, new_slug: str) -> str | None:
-    """Cambia el slug dejando alias del anterior; devuelve el nuevo o None.
+    """Change the slug, leaving an alias behind; returns the new one, or None.
 
-    No reescribe el markdown de las páginas que enlazan: hacerlo produciría
-    commits de git en páginas que el usuario no editó. El alias mantiene vivos
-    los [[wikilinks]] ya escritos.
+    The linking pages' markdown is not rewritten — that would produce git commits on
+    pages the user never edited. The alias keeps existing [[wikilinks]] alive.
     """
     base = slugify(new_slug)
     if not base:
@@ -1379,7 +1337,7 @@ def rename_page(workspace_id: int, slug: str, new_slug: str) -> str | None:
             "VALUES (%s, %s, %s, %s) ON CONFLICT (workspace_id, slug) DO NOTHING",
             (workspace_id, previous, page_id, now),
         )
-        # dst_page_id es la verdad y no cambia; dst_slug es caché para mostrar.
+        # dst_page_id is the truth and does not change; dst_slug is a display cache.
         conn.execute("UPDATE page_links SET dst_slug = %s WHERE dst_page_id = %s", (final, page_id))
         emit_event(
             conn,
@@ -1391,7 +1349,7 @@ def rename_page(workspace_id: int, slug: str, new_slug: str) -> str | None:
 
 
 def list_children(workspace_id: int, slug: str) -> list[PageRef] | None:
-    """Hijos directos de una página. None si la página no existe."""
+    """A page's direct children, or None if the page does not exist."""
     with connect() as conn:
         row = conn.execute(
             "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
@@ -1408,13 +1366,10 @@ def list_children(workspace_id: int, slug: str) -> list[PageRef] | None:
 
 
 def list_notes(workspace_id: int, *, limit: int = 50, before: str | None = None) -> list[NoteRef]:
-    """Feed cronológico de capturas sin archivar, paginado por cursor.
+    """Cursor-paginated feed of unfiled notes.
 
-    Existe porque list_pages_tree devuelve TODAS las páginas sin paginar: unos
-    miles de notas harían inusable la barra lateral.
-
-    La bandeja es `type: memo` Y sin padre: mover una nota bajo cualquier página
-    la saca de aquí y la mete en el árbol, que es en lo que consiste el triaje.
+    The inbox is `type: memo` *and* parentless, so moving a note under any page files it
+    into the tree. Separate from list_pages_tree, which paginates nothing.
     """
     limit = max(1, min(limit, 200))
     sql = """
@@ -1437,9 +1392,8 @@ def list_notes(workspace_id: int, *, limit: int = 50, before: str | None = None)
                 slug=r["slug"],
                 title=r["title"],
                 created_at=r["created_at"],
-                # El extracto se recorta después de quitar el frontmatter: cortarlo
-                # en SQL enseñaba `--- type: memo ---` como si fuera el texto de la
-                # nota, que es justo lo que la captura rápida evita escribir.
+                # Trimmed after the frontmatter is stripped: cut in SQL, the excerpt
+                # showed `--- type: memo ---` as if it were the note.
                 excerpt=meta.parse_frontmatter(r["content"] or "")[1].strip()[:200],
             )
             for r in rows
@@ -1447,10 +1401,11 @@ def list_notes(workspace_id: int, *, limit: int = 50, before: str | None = None)
 
 
 def delete_page(workspace_id: int, slug: str) -> bool:
-    """Soft-delete: mueve la página a la papelera (deleted_at = now). Recuperable.
+    """Soft delete: move the page to the trash, recoverably.
 
-    No se borra el archivo del repo git ni los datos derivados: solo se marca para que
-    deje de aparecer en listados, búsqueda y enlaces. El contenido sigue en la fila."""
+    Neither the git file nor the derived data is removed; the page just stops appearing
+    in listings, search and links.
+    """
     with connect() as conn:
         cur = conn.execute(
             "UPDATE pages SET deleted_at = %s WHERE slug = %s AND workspace_id = %s "
@@ -1463,7 +1418,7 @@ def delete_page(workspace_id: int, slug: str) -> bool:
 
 
 def list_deleted_pages(workspace_id: int) -> list[Page]:
-    """Páginas en la papelera del workspace, más recientes primero."""
+    """Pages in the workspace trash, most recent first."""
     with connect() as conn:
         rows = conn.execute(
             "SELECT slug, title, deleted_at FROM pages "
@@ -1475,7 +1430,7 @@ def list_deleted_pages(workspace_id: int) -> list[Page]:
 
 
 def restore_page(workspace_id: int, slug: str) -> bool:
-    """Saca una página de la papelera (deleted_at = NULL)."""
+    """Take a page back out of the trash."""
     with connect() as conn:
         cur = conn.execute(
             "UPDATE pages SET deleted_at = NULL WHERE slug = %s AND workspace_id = %s "
@@ -1486,9 +1441,7 @@ def restore_page(workspace_id: int, slug: str) -> bool:
 
 
 def purge_page(workspace_id: int, slug: str) -> bool:
-    """Borra definitivamente una página que ya está en la papelera (hard delete).
-
-    El CASCADE limpia meta/tags/links/chunks."""
+    """Permanently delete a page already in the trash; CASCADE clears its derived rows."""
     with connect() as conn:
         cur = conn.execute(
             "DELETE FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NOT NULL",
@@ -1498,7 +1451,7 @@ def purge_page(workspace_id: int, slug: str) -> bool:
 
 
 def pages_for_export(workspace_id: int) -> list[Page]:
-    """Páginas vivas de un workspace (slug, title, content) para exportar a markdown."""
+    """Live pages of a workspace, for the markdown export."""
     with connect() as conn:
         rows = conn.execute(
             "SELECT slug, title, content FROM pages "
@@ -1520,20 +1473,21 @@ def list_child_pages(workspace_id: int, parent_id: int) -> list[Page]:
 
 
 def _fts_query(raw: str) -> str:
-    """Convierte input de usuario en un tsquery de prefijos seguro (equivalente al MATCH
-    de prefijos de FTS5). Los términos ya vienen filtrados a \\w+, así que `term:*` es
-    siempre sintaxis válida de tsquery — no hay riesgo de inyección."""
+    """Turn user input into a safe prefix tsquery.
+
+    The terms are already filtered to \\w+, so `term:*` is always valid tsquery syntax
+    and there is nothing to inject.
+    """
     terms = re.findall(r"[\w]+", raw, flags=re.UNICODE)
     if not terms:
         return ""
     return " & ".join(f"{term}:*" for term in terms)
 
 
-# ts_headline marca las coincidencias con estos dos caracteres de control, no con
-# <mark>: el fragmento sale de aquí como texto y el resaltado como posiciones, así
-# que el contenido de la página no puede volver a entrar en el DOM como HTML. Son
-# de control porque `translate()` los borra del texto de entrada antes de resaltar
-# (ver _HEADLINE_OPTS): un tramo marcado solo puede venir del resaltador.
+# ts_headline marks matches with these control characters rather than <mark>, so the
+# snippet leaves here as text and the highlighting as positions: page content cannot
+# re-enter the DOM as HTML. Control characters because `translate()` strips them from
+# the input first, so a marked span can only have come from the highlighter.
 _MARK_OPEN = "\x01"
 _MARK_CLOSE = "\x02"
 _HEADLINE_OPTS = (
@@ -1542,7 +1496,7 @@ _HEADLINE_OPTS = (
 
 
 def _split_snippet(marked: str) -> tuple[str, list[SnippetPart]]:
-    """Parte un fragmento de ts_headline en (texto plano, tramos)."""
+    """Split a ts_headline snippet into (plain text, spans)."""
     parts: list[SnippetPart] = []
     rest = marked or ""
     while rest:
@@ -1563,18 +1517,16 @@ def search_pages(
     limit: int = 20,
     tags: list[str] | None = None,
 ) -> list[SearchHit]:
-    """Búsqueda léxica del workspace, opcionalmente acotada por etiquetas.
+    """Lexical workspace search, optionally narrowed by tags.
 
-    El filtro va dentro de la consulta y no sobre el resultado: filtrar después del
-    LIMIT devolvería menos páginas de las que hay, y una que hoy queda por debajo del
-    corte tiene que poder salir cuando el filtro quita a las de encima.
+    The filter is inside the query, not applied to its result: filtering after the LIMIT
+    would return fewer pages than exist.
     """
     match = _fts_query(query)
     if not match:
         return []
-    # Fragmentos LiteralString por el mismo motivo que en extract_pages: así el
-    # f-string sigue siéndolo y el checker prueba que no entra nada del usuario en el
-    # SQL — sus valores viajan por %s.
+    # LiteralString fragments keep the f-string below a LiteralString too, so the
+    # checker proves no user input reaches the SQL; its values travel through %s.
     tag_join: LiteralString = ""
     tag_params: list = []
     if tags:
@@ -1590,10 +1542,9 @@ def search_pages(
                        'doction',
                        translate(
                            p.title || ' ' ||
-                           -- El frontmatter se recorta solo para lo que se enseña,
-                           -- no para lo que se indexa: un fragmento que empieza por
-                           -- `--- type: memo ---` es metadato, no la nota. Buscar
-                           -- por `type:` sigue encontrando la página.
+                           -- Frontmatter is stripped from what is shown, not from
+                           -- what is indexed: a snippet opening with
+                           -- `--- type: memo ---` is metadata, not the note.
                            regexp_replace(p.content, '^---\n.*?\n---\n', ''),
                            %s, ''
                        ),
@@ -1624,10 +1575,10 @@ def search_pages(
 
 
 def slugs_with_tags(workspace_id: int, tags: list[str]) -> set[str]:
-    """Slugs del workspace que llevan alguna de las etiquetas dadas.
+    """Workspace slugs carrying any of the given tags.
 
-    La lista vectorial se filtra en memoria (ya trae el workspace entero), así que
-    necesita el conjunto permitido; la léxica lo filtra en su propio SQL.
+    The vector list is filtered in memory and needs this allowed set; the lexical one
+    filters in its own SQL.
     """
     wanted = [t.strip().lstrip("#").lower() for t in tags if t.strip()]
     if not wanted:
@@ -1650,7 +1601,7 @@ def _page_tags(conn, page_id: int) -> list[str]:
 
 
 def get_page_meta(workspace_id: int, slug: str) -> PageMeta | None:
-    """Frontmatter + tags de una página, o None si no existe."""
+    """A page's frontmatter and tags, or None if it does not exist."""
     with connect() as conn:
         row = conn.execute(
             "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
@@ -1677,10 +1628,9 @@ def extract_pages(
     tag: str | None = None,
     limit: int = 200,
 ) -> list[ExtractedPage]:
-    """Filtra páginas por `type` y/o `tag` del frontmatter; estructura sin LLM."""
-    # Los fragmentos van tipados como LiteralString a propósito: así el f-string de
-    # abajo sigue siéndolo y el checker prueba que no hay nada del usuario en el SQL
-    # (sus valores viajan por %s).
+    """Filter pages by frontmatter `type` and/or `tag`: structure without an LLM."""
+    # LiteralString fragments keep the f-string below a LiteralString too, so the
+    # checker proves no user input reaches the SQL; its values travel through %s.
     joins: LiteralString = ""
     params: list = []
     if tag:
@@ -1718,7 +1668,7 @@ def extract_pages(
 
 
 def backlinks(workspace_id: int, slug: str) -> list[PageRef]:
-    """Páginas que enlazan a `slug` vía wikilink [[slug]]."""
+    """Pages linking to `slug` through a [[slug]] wikilink."""
     with connect() as conn:
         rows = conn.execute(
             """
@@ -1736,11 +1686,9 @@ def backlinks(workspace_id: int, slug: str) -> list[PageRef]:
 
 
 def mentions(workspace_id: int, slug: str) -> list[Mention]:
-    """Los backlinks de `slug` con la frase en la que está escrito cada enlace.
+    """`backlinks` plus the sentence each link is written in.
 
-    Misma pregunta que `backlinks`, una respuesta más larga: el lector no debería
-    abrir tres páginas para saber si una referencia le sirve. La frase se corta en
-    Python y no en SQL porque el corte es por sintaxis de wikilink, no por texto.
+    Cut in Python rather than SQL because the cut follows wikilink syntax, not text.
     """
     with connect() as conn:
         rows = conn.execute(
@@ -1758,9 +1706,8 @@ def mentions(workspace_id: int, slug: str) -> list[Mention]:
 
     out: list[Mention] = []
     for row in rows:
-        # El enlace puede estar escrito contra el slug actual o contra uno anterior
-        # que un renombrado dejó atrás; si no se encuentra, la mención sigue siendo
-        # cierta y lo único que falta es la frase.
+        # The link may be written against the current slug or one a rename left behind;
+        # when neither matches, the mention is still true and only the sentence is lost.
         found = meta.mention_context(row["content"] or "", slug)
         context: list[SnippetPart] = []
         if found:
@@ -1775,7 +1722,7 @@ def mentions(workspace_id: int, slug: str) -> list[Mention]:
 
 
 def related_pages(workspace_id: int, slug: str, limit: int = 10) -> list[RelatedPage] | None:
-    """Vecinos por solape de tags (desc), o None si la página no existe."""
+    """Neighbours by shared-tag count, descending, or None if the page does not exist."""
     with connect() as conn:
         page = conn.execute(
             "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
@@ -1803,9 +1750,7 @@ def related_pages(workspace_id: int, slug: str, limit: int = 10) -> list[Related
 
 
 def workspace_pages(workspace_id: int) -> list[Page]:
-    """Páginas vivas (id, slug, title, content) para las funciones ML locales
-    (TF-IDF, sugerencias, insights). El acceso ya lo garantizó la membresía al
-    resolver el workspace."""
+    """Live pages for the local ML functions (TF-IDF, suggestions, insights)."""
     with connect() as conn:
         rows = conn.execute(
             "SELECT id, slug, title, content FROM pages "
@@ -1816,7 +1761,7 @@ def workspace_pages(workspace_id: int) -> list[Page]:
 
 
 def page_outgoing_links(page_id: int) -> list[str]:
-    """Slugs destino de los wikilinks salientes de una página."""
+    """Target slugs of a page's outgoing wikilinks."""
     with connect() as conn:
         rows = conn.execute(
             "SELECT dst_slug FROM page_links WHERE src_page_id = %s", (page_id,)
@@ -1825,8 +1770,7 @@ def page_outgoing_links(page_id: int) -> list[str]:
 
 
 def workspace_links(workspace_id: int) -> list[LinkEdge]:
-    """Todas las aristas de wikilinks del workspace (origen vivo; el destino puede
-    no existir — enlace roto, lo resuelve app.graph)."""
+    """Every wikilink edge in the workspace; the source is live, the target may not exist."""
     with connect() as conn:
         rows = conn.execute(
             """
@@ -1841,7 +1785,7 @@ def workspace_links(workspace_id: int) -> list[LinkEdge]:
 
 
 def workspace_tags(workspace_id: int) -> list[str]:
-    """Vocabulario de tags vivos del workspace (para alinear sugerencias TF-IDF)."""
+    """The workspace's live tag vocabulary, for aligning TF-IDF suggestions."""
     with connect() as conn:
         rows = conn.execute(
             """
@@ -1856,7 +1800,7 @@ def workspace_tags(workspace_id: int) -> list[str]:
 
 
 def pages_to_embed(limit: int = 10) -> list[EmbedTarget]:
-    """Páginas marcadas como sucias (embed_dirty=1) pendientes de embedding."""
+    """Pages marked embed_dirty and waiting to be embedded."""
     with connect() as conn:
         rows = conn.execute(
             "SELECT id, workspace_id, title, content FROM pages "
@@ -1876,10 +1820,10 @@ def pages_to_embed(limit: int = 10) -> list[EmbedTarget]:
 
 
 def index_counts(workspace_id: int, model: str, chunker: str) -> tuple[int, int]:
-    """(páginas vivas, páginas con chunks del pipeline actual) del workspace.
+    """(live pages, pages chunked by the current pipeline).
 
-    Cuenta, no trae contenido: `pages_to_embed` devuelve el markdown entero y sirve
-    para alimentar al worker, no para informar de cuánto queda por indexar.
+    Counts rather than content: `pages_to_embed` returns whole markdown to feed the
+    worker, not to report how much is left.
     """
     with connect() as conn:
         row = conn.execute(
@@ -1908,9 +1852,9 @@ def store_page_chunks(
     model: str,
     chunker: str,
 ) -> None:
-    """Reemplaza los chunks/vectores de una página y limpia embed_dirty (atómico).
+    """Atomically replace a page's chunks and vectors, clearing embed_dirty.
 
-    Cada fragmento entra como `(ord, texto, ruta, vector)`.
+    Each chunk arrives as `(ord, text, path, vector)`.
     """
     now = _now()
     with connect() as conn:
@@ -1929,12 +1873,10 @@ def store_page_chunks(
 
 
 def mark_stale_model_dirty(model: str, chunker: str) -> int:
-    """Re-encola las páginas cuyos chunks no vienen del pipeline actual.
+    """Re-queue pages whose chunks did not come from the current pipeline.
 
-    Dos vectores solo son comparables si los produjo el mismo encoder *y* el mismo
-    troceador: partir una página de otra forma cambia lo que se embebe tanto como
-    cambiar el modelo. Antes esto solo miraba el encoder, así que un cambio de
-    troceador dejaba fragmentos viejos sirviéndose para siempre.
+    Two vectors are comparable only if the same encoder *and* the same chunker produced
+    them: splitting a page differently changes what is embedded as much as the model does.
     """
     with connect() as conn:
         row = conn.execute(
@@ -1953,17 +1895,16 @@ def mark_stale_model_dirty(model: str, chunker: str) -> int:
 
 
 def clear_embed_dirty(page_id: int) -> None:
-    """Desmarca una página que no se pudo indexar, para que no bloquee la cola del
-    worker. La página vuelve a marcarse sucia en su próxima edición."""
+    """Unmark a page that failed to index so it cannot block the queue; editing re-dirties it."""
     with connect() as conn:
         conn.execute("UPDATE pages SET embed_dirty = 0 WHERE id = %s", (page_id,))
 
 
 def workspace_chunk_vectors(workspace_id: int, model: str, chunker: str) -> list[ChunkVector]:
-    """Chunks + vectores de un workspace para la búsqueda semántica (KNN en memoria).
+    """A workspace's chunks and vectors, for the in-memory KNN.
 
-    Filtra por `model` y por `chunker`: durante un reindexado conviven vectores de
-    dos pipelines distintos, y su coseno no significa nada.
+    Filtered by `model` and `chunker`: during a reindex two pipelines' vectors coexist,
+    and their cosine means nothing.
     """
     with connect() as conn:
         rows = conn.execute(
@@ -2000,9 +1941,11 @@ def workspace_chunk_vectors(workspace_id: int, model: str, chunker: str) -> list
 
 
 def store_upload_text(name: str, user_id: int, workspace_id: int, text: str) -> None:
-    """Guarda/actualiza el texto OCR de un upload. La clave es (name, workspace_id):
-    el nombre viene del hash del archivo, así que la misma imagen puede vivir en
-    varios workspaces sin que uno vea el texto del otro."""
+    """Store an upload's OCR text, keyed by (name, workspace_id).
+
+    The name is the file's hash, so the same image can live in several workspaces
+    without one seeing the other's text.
+    """
     with connect() as conn:
         conn.execute(
             """
@@ -2016,7 +1959,7 @@ def store_upload_text(name: str, user_id: int, workspace_id: int, text: str) -> 
 
 
 def search_uploads(workspace_id: int, query: str, limit: int = 5) -> list[UploadHit]:
-    """Búsqueda FTS sobre el texto OCR de los uploads del workspace."""
+    """Full-text search over the OCR text of the workspace's uploads."""
     match = _fts_query(query)
     if not match:
         return []
@@ -2106,10 +2049,10 @@ def revoke_api_token(user_id: int, token_id: int) -> bool:
 
 
 def resolve_api_token(token_hash: str) -> int | None:
-    """Devuelve el user_id propietario y actualiza last_used_at; None si no existe.
+    """Return the owning user_id and touch last_used_at; None if the token is unknown.
 
-    last_used_at se escribe como mucho una vez por hora: en la UI se muestra solo
-    el día, y un agente MCP encadenando llamadas escribía en cada request.
+    last_used_at is written at most hourly: the UI shows only the day, and an agent
+    chaining MCP calls would otherwise write on every request.
     """
     with connect() as conn:
         row = conn.execute(
@@ -2118,7 +2061,7 @@ def resolve_api_token(token_hash: str) -> int | None:
         ).fetchone()
         if row is None:
             return None
-        # Timestamps ISO-8601 UTC con formato fijo: comparar como texto es correcto.
+        # Fixed-format ISO-8601 UTC, so comparing as text is correct.
         hour_ago = (datetime.now(UTC) - timedelta(hours=1)).isoformat(timespec="seconds")
         if row["last_used_at"] is None or row["last_used_at"] < hour_ago:
             conn.execute(

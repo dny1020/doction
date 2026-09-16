@@ -1,15 +1,14 @@
-"""Catálogo de traducciones EN/ES, sin dependencias.
+"""EN/ES translation catalogue, dependency-free.
 
-El idioma se resuelve por cookie `lang`; si no hay, se intenta por Accept-Language.
-ES se construye como overrides sobre EN, así que cualquier clave faltante en ES
-cae de vuelta al inglés automáticamente.
+The language comes from the `lang` cookie, falling back to Accept-Language. ES is built
+as overrides on EN, so a key missing from ES falls back to English on its own.
 """
 
 DEFAULT_LANG = "en"
 LANGS = ("en", "es")
 
 _EN: dict[str, str] = {
-    # Sidebar / menús
+    # Sidebar and menus
     "new_workspace": "New workspace",
     "search_placeholder": "Search  (/)",
     "pages": "Pages",
@@ -32,7 +31,7 @@ _EN: dict[str, str] = {
     "sc_help": "This help",
     "sc_close": "Close / collapse",
     "close": "Close",
-    # Vista de página
+    # Page view
     "home": "Home",
     "edit": "Edit",
     "new_subpage": "New subpage",
@@ -69,7 +68,7 @@ _EN: dict[str, str] = {
     "preview_hint": "Start typing to see preview.",
     "unsaved_changes": "You have unsaved changes. Leave without saving?",
     "discard": "Discard",
-    # Estado vacío / 404
+    # Empty states and 404
     "empty_title": "Nothing here yet",
     "tree_error": "Couldn't load your pages.",
     "retry": "Retry",
@@ -104,7 +103,7 @@ _EN: dict[str, str] = {
     "revoke": "Revoke",
     "confirm_revoke_token": "Revoke this token? Apps using it will stop working.",
     "msg_token_revoked": "Token revoked.",
-    # Búsqueda
+    # Search
     "no_matches": "No matches for",
     # Login / registro
     "login_subtitle": "Log in to access your notes.",
@@ -132,7 +131,7 @@ _EN: dict[str, str] = {
     "cannot_delete_only_ws": "You can't delete your only workspace",
     "confirm_delete_ws_a": "Delete the workspace",
     "confirm_delete_ws_b": "and all its pages?",
-    # Miembros / colaboración
+    # Members and collaboration
     "add_member": "Add member",
     "member_email_ph": "Email of an existing user",
     "owner": "Owner",
@@ -147,7 +146,7 @@ _EN: dict[str, str] = {
     "msg_ws_deleted": "Workspace deleted.",
     "msg_member_added": "Member added.",
     "msg_member_removed": "Member removed.",
-    # Captura rápida, feed y operaciones sobre el árbol (modelo v2).
+    # Quick capture, feed and tree operations
     "capture": "Quick capture",
     "capture_placeholder": "Write it now, file it later…",
     "capture_hint": "⌘/Ctrl + Enter to save",
@@ -166,14 +165,14 @@ _EN: dict[str, str] = {
     "empty_workspace_hint": "This workspace has no pages yet.",
     "empty_page": "This page has no content yet.",
     "confirm_delete_children": "Its {n} subpage(s) go with it.",
-    # Resiliencia del cliente: borradores locales y caída del servidor.
+    # Client resilience: local drafts and server outages
     "draft_found": "Unsaved changes from an earlier session.",
     "draft_restore": "Restore",
     "draft_discard": "Discard",
     "offline_title": "Can't reach the server. Your text is safe on this device.",
     "offline_desc": "The server did not answer. Nothing was lost — try again when it is back.",
     "session_expired": "Your session expired. Log in again; your text stays here.",
-    # Estado de las superficies de máquina (API REST y servidor MCP).
+    # Status of the machine surfaces (REST API and MCP server)
     "conn_api": "API",
     "conn_mcp": "MCP",
     "conn_ok": "Reachable",
@@ -191,7 +190,7 @@ _EN: dict[str, str] = {
     "hook_pending": "queued",
     "hook_failing": "failing",
     "hook_delivering": "delivering",
-    # Editor en móvil: la vista previa se alterna, no se apila.
+    # Mobile editor: the preview toggles rather than stacking
     "preview": "Preview",
     "write": "Write",
     # Webhooks de salida.
@@ -205,7 +204,7 @@ _EN: dict[str, str] = {
     "webhook_events_ph": "Events (blank = all)",
     "all_events": "all events",
     "confirm_delete_webhook": "Delete this webhook? Events will stop being sent.",
-    # Ajustes por secciones: nombres de la navegación y sección de sistema.
+    # Settings navigation and the system section
     "settings_sections": "Settings sections",
     "sec_account": "My Account",
     "sec_preferences": "Preferences",
@@ -479,7 +478,7 @@ def get_catalog(lang: str) -> dict[str, str]:
 
 
 def resolve_lang(cookie_value: str | None, accept_language: str | None) -> str:
-    """Cookie manda; si no hay, intenta Accept-Language; por defecto inglés."""
+    """The cookie wins, then Accept-Language, then English."""
     if cookie_value in LANGS:
         return cookie_value
     if accept_language and accept_language.strip().lower().startswith("es"):

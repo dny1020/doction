@@ -1,6 +1,6 @@
-"""Servidor MCP nativo: JSON-RPC 2.0 en POST /api/mcp, sin SDK.
+"""Native MCP server: JSON-RPC 2.0 at POST /api/mcp, no SDK.
 
-Auth Bearer del middleware de app.main; modo stateless (JSON plano, sin SSE).
+Bearer auth comes from app.main's middleware; stateless, plain JSON, no SSE.
 """
 
 import dataclasses
@@ -89,7 +89,7 @@ def _tool_search_pages(user_id: int, args: dict) -> list[dict]:
     ws = _workspace(user_id, args)
     results = db.search_pages(int(ws.id), query)
     out: list[dict] = [{"slug": r.slug, "title": r.title, "snippet": r.snippet} for r in results]
-    # Uploads con texto OCR indexado (OCR_UPLOADS): items extra con type="upload".
+    # Uploads with indexed OCR text arrive as extra items with type="upload".
     out += [
         {"type": "upload", "name": h.name, "url": f"/uploads/{h.name}", "snippet": h.snippet}
         for h in db.search_uploads(int(ws.id), query)
@@ -98,7 +98,7 @@ def _tool_search_pages(user_id: int, args: dict) -> list[dict]:
 
 
 def _tool_create_page(user_id: int, args: dict) -> dict:
-    # title opcional: db.create_page lo deriva de la primera línea del contenido.
+    # Optional: db.create_page derives it from the first line of the content.
     title = str(args.get("title") or "")
     content = args.get("content") or ""
     ws = _workspace(user_id, args)
@@ -197,7 +197,7 @@ def _tool_list_backlinks(user_id: int, args: dict) -> list[dict]:
 
 
 def _tool_get_linked_knowledge(user_id: int, args: dict) -> dict:
-    """El vecindario de una página en el grafo de wikilinks, en una sola llamada."""
+    """A page's neighbourhood in the wikilink graph, in one call."""
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
     out = graph.linked_knowledge(
@@ -221,7 +221,7 @@ def _tool_related_pages(user_id: int, args: dict) -> list[dict]:
 
 
 def _tool_search_knowledge(user_id: int, args: dict) -> list[dict]:
-    """Búsqueda híbrida con filtros. El orden es el mismo que sirve la interfaz."""
+    """Hybrid search with filters, ordered exactly as the UI orders it."""
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     limit = int(args.get("limit") or 10)
@@ -229,14 +229,13 @@ def _tool_search_knowledge(user_id: int, args: dict) -> list[dict]:
     if isinstance(tags, str):
         tags = [tags]
     hits = embeddings.search(int(ws.id), query, mode="hybrid", tags=tags)[:limit]
-    # `parts` es el troceado del extracto para pintar el resaltado en la interfaz.
-    # Un agente lee texto, no <mark>, y además son dataclasses que json.dumps no
-    # serializa: fuera.
+    # `parts` exists to draw highlighting in the UI. An agent reads text, and they are
+    # dataclasses json.dumps cannot serialize anyway.
     return [{k: v for k, v in hit.items() if k != "parts"} for hit in hits]
 
 
 def _tool_get_workspace_tree(user_id: int, args: dict) -> dict:
-    """El árbol de verdad, anidado. `list_pages` devolvía la lista plana con `depth`."""
+    """The nested tree; `list_pages` returns the flat list with `depth` instead."""
     ws = _workspace(user_id, args)
     flat = db.list_pages_tree(int(ws.id))
 
@@ -254,11 +253,11 @@ def _tool_get_workspace_tree(user_id: int, args: dict) -> dict:
 
 
 def _tool_read_page_raw(user_id: int, args: dict) -> dict:
-    """El markdown tal cual está guardado, frontmatter incluido.
+    """The markdown exactly as stored, frontmatter included.
 
-    Sin renderizar, sin sanear y sin recortar: quien pide la página cruda va a
-    editarla, y necesita ver exactamente lo que tendrá que preservar. El frontmatter
-    va además parseado aparte, para no obligar a analizarlo dos veces.
+    Unrendered, unsanitized and untrimmed: whoever asks for the raw page is going to
+    edit it and needs to see what they have to preserve. The frontmatter also comes
+    parsed separately, so it need not be read twice.
     """
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)
@@ -278,7 +277,7 @@ def _tool_read_page_raw(user_id: int, args: dict) -> dict:
 
 
 def _tool_upsert_page_section(user_id: int, args: dict) -> dict:
-    """Escribe una sección sin reescribir la página."""
+    """Write one section without rewriting the page."""
     slug = _require(args, "slug")
     heading = _require(args, "heading")
     body = str(args.get("body") or "")
@@ -291,8 +290,8 @@ def _tool_upsert_page_section(user_id: int, args: dict) -> dict:
             user_id, int(ws.id), slug, heading, body, level=level, parent=parent
         )
     except meta.AmbiguousSection as exc:
-        # Se sube como error del tool, no se resuelve por el llamante: elegir cuál de
-        # dos encabezados idénticos quería es adivinar sobre su documentación.
+        # Raised as a tool error rather than guessed at: choosing between two
+        # identical headings for the caller is guessing about their document.
         raise ValueError(str(exc)) from exc
     if written is None:
         raise ValueError(f"Page not found: {slug}")
@@ -307,13 +306,11 @@ def _tool_sgrep(user_id: int, args: dict) -> list[dict]:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     limit = int(args.get("limit") or 10)
-    # La misma búsqueda que sirve la barra lateral y /api/search. Antes esto llamaba
-    # a la lista vectorial con su propio boost, así que un agente por MCP y una
-    # persona mirando la interfaz veían dos órdenes distintos para la misma consulta.
+    # The same search the sidebar and /api/search serve, so an agent over MCP and a
+    # person looking at the UI never see two orders for one query.
     hits = embeddings.search(int(ws.id), query, mode="hybrid")[:limit]
-    # `parts` es el troceado del extracto para pintar el resaltado en la interfaz.
-    # Un agente lee texto, no <mark>, y además son dataclasses que json.dumps no
-    # serializa: fuera.
+    # `parts` exists to draw highlighting in the UI. An agent reads text, and they are
+    # dataclasses json.dumps cannot serialize anyway.
     return [{k: v for k, v in hit.items() if k != "parts"} for hit in hits]
 
 
@@ -321,9 +318,8 @@ def _tool_rag(user_id: int, args: dict) -> dict:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     budget = int(args.get("budget") or embeddings.CONTEXT_BUDGET)
-    # `limit` sigue aceptándose —lo llevaba el `rag` de siempre y algún agente estará
-    # configurado con él— pero ya no es la cota: solo un tope de piezas para quien
-    # quiera menos de lo que cabe.
+    # `limit` is still accepted for agents configured against the old `rag`, but the
+    # budget is the bound; it is only a cap on pieces for callers who want fewer.
     limit = int(args["limit"]) if args.get("limit") else None
     return embeddings.rag_context(int(ws.id), query, budget=budget, limit=limit)
 
@@ -418,9 +414,8 @@ TOOLS: list[dict] = [
                 "slug": {"type": "string", "description": "Optional explicit slug."},
                 **_WORKSPACE_PROP,
             },
-            # Nada obligatorio: sin título se deriva del contenido, y sin
-            # contenido queda una página vacía que se rellena después. Mismo
-            # contrato que POST /api/pages, para que no diverjan.
+            # Nothing required, matching POST /api/pages: with no title one is derived
+            # from the content, and with no content the page is filled in later.
             "required": [],
         },
     },
@@ -763,15 +758,12 @@ TOOLS: list[dict] = [
     },
 ]
 
-# Nombre de la tool → función que la implementa. Cada función recibe
-# (user_id, args) y devuelve un dict o una lista de dicts listos para JSON.
-#
-# Los nombres viejos —`sgrep`, `rag`, `list_pages`, `get_page`— siguen aquí y siguen
-# funcionando. Un agente configurado contra ellos se rompería en mitad de una
-# conversación, con un error sobre el que no puede hacer nada. Se mantienen una
-# versión; `tools/list` ya solo anuncia los nuevos.
+# Tool name to the function implementing it; each takes (user_id, args) and returns
+# JSON-ready data. The old names — `sgrep`, `rag`, `list_pages`, `get_page` — still
+# work for one more version so an agent configured against them does not break
+# mid-conversation; `tools/list` announces only the new ones.
 TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
-    # Las cinco herramientas del contrato con los agentes.
+    # The five tools of the agent contract.
     "search_knowledge": _tool_search_knowledge,
     "get_rag_context": _tool_rag,
     "get_workspace_tree": _tool_get_workspace_tree,
@@ -840,7 +832,7 @@ def _call_tool(request: Request, msg_id: str | int | None, params: dict) -> dict
 
 
 def _handle_message(request: Request, msg) -> dict | None:
-    """Despacha un mensaje JSON-RPC; None si es notificación (sin id)."""
+    """Dispatch one JSON-RPC message; None for a notification, which has no id."""
     if not isinstance(msg, dict) or msg.get("jsonrpc") != "2.0" or "method" not in msg:
         return _error(msg.get("id") if isinstance(msg, dict) else None, -32600, "Invalid Request")
     method = msg["method"]
