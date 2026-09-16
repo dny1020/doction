@@ -12,8 +12,8 @@ dependencies = [
     "PyJWT>=2.8",
     "psycopg[binary]>=3.2",
     "psycopg-pool>=3.2",
-    # Búsqueda semántica local, opt-in con SEMANTIC_SEARCH: el modelo ONNX viaja en
-    # la imagen, sin servicios externos. numpy llega de la mano de onnxruntime.
+    # Local semantic search, opt-in via SEMANTIC_SEARCH; the ONNX model ships in the
+    # image. numpy arrives with onnxruntime.
     "onnxruntime>=1.20",
     "tokenizers>=0.21",
     "numpy>=2.1",
@@ -37,25 +37,24 @@ docs = [
 [tool.uv]
 package = false
 
-# ruff y pyright deducen la versión de Python desde requires-python.
+# ruff and pyright take the Python version from requires-python.
 [tool.ruff]
 line-length = 100
 
 [tool.ruff.lint]
-# ARG avisa de argumentos que se aceptan y se ignoran: así se habían colado 17
-# `user_id` que no filtraban nada pero hacían creer que controlaban el acceso.
-# Cuando el framework impone la firma (FastAPI, el dispatch del MCP), el argumento
-# va con guion bajo — ruff no marca los que empiezan así.
+# ARG flags arguments that are accepted and ignored: that is how 17 `user_id` parameters
+# that filtered nothing but looked like access control got in. Where the framework fixes
+# the signature, the argument gets a leading underscore, which ruff does not flag.
 select = ["E", "F", "I", "UP", "B", "ARG"]
 
 [tool.ruff.lint.per-file-ignores]
-# En los tests, ARG solo genera ruido: los dobles (lambdas y fakes de monkeypatch)
-# tienen que respetar una firma que no usan, y un fixture pedido por su efecto
-# secundario no se puede renombrar a _algo — pytest los resuelve por nombre.
+# In tests ARG is only noise: monkeypatch doubles have to match a signature they do not
+# use, and a fixture requested for its side effect cannot be renamed — pytest resolves
+# them by name.
 "tests/**" = ["ARG"]
 
 [tool.ruff.lint.flake8-bugbear]
-# FastAPI las usa como valores por defecto de parámetros; es su patrón normal.
+# FastAPI uses these as parameter defaults; it is its normal pattern.
 extend-immutable-calls = ["fastapi.File", "fastapi.Form"]
 
 [tool.pyright]
@@ -64,6 +63,6 @@ include = ["app", "tests"]
 [tool.pytest.ini_options]
 addopts = "-q"
 pythonpath = ["."]
-# Sin esto, `pytest` a secas intenta recorrer data/ (el datadir de Postgres, que no
-# es legible) y revienta al recolectar.
+# Without this, a bare `pytest` walks into data/ — the unreadable Postgres datadir —
+# and dies during collection.
 testpaths = ["tests"]

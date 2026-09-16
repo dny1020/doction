@@ -1,7 +1,6 @@
-# Compose de desarrollo local. El de producción vive en la Pi (/opt/doction), fuera
-# de este repo.
-# Antes de levantar: mkdir -p data/logs  (así los bind mounts quedan con tu uid,
-# que es el del usuario `doction` del contenedor — uid 1000, non-root).
+# Local development compose; production lives on the Pi at /opt/doction, outside this repo.
+# Before bringing it up: mkdir -p data/logs, so the bind mounts get your uid, which is the
+# container's `doction` user (uid 1000, non-root).
 services:
   postgres:
     image: postgres:16-alpine
@@ -12,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-doction}
       POSTGRES_DB: doction
     ports:
-      # Solo loopback: útil para psql local, sin exponer la BD a la red.
+      # Loopback only: handy for a local psql, without exposing the database.
       - "127.0.0.1:5432:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
@@ -35,12 +34,12 @@ services:
       - ./data/logs:/logs
     environment:
       DATABASE_URL: postgresql://doction:${POSTGRES_PASSWORD:-doction}@postgres:5432/doction
-      # Sin SECRET_KEY el server arranca con la clave de dev (y lo avisa en el log);
-      # exportarla o ponerla en .env si este compose se usa fuera de localhost.
+      # Without SECRET_KEY the server boots on the dev key and says so in the log; set it
+      # if this compose is used anywhere but localhost.
       SECRET_KEY: ${SECRET_KEY:-}
-      # El resto se reenvía con los mismos valores por defecto que usa la aplicación, para
-      # que lo que se documenta en .env.example llegue de verdad al contenedor: declararlo
-      # ahí y no pasarlo aquí es la forma silenciosa de que un flag no haga nada.
+      # The rest is forwarded with the application's own defaults, so what .env.example
+      # documents actually reaches the container: documenting a flag and not passing it
+      # here is the silent way to make it do nothing.
       SECURE_COOKIES: ${SECURE_COOKIES:-0}
       DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-0}
       SOURCE_URL: ${SOURCE_URL:-}

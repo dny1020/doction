@@ -1,32 +1,31 @@
-# Atajos del flujo de este repositorio. Cada objetivo es el comando que ya está
-# documentado en CLAUDE.md; el Makefile no inventa ninguno.
+# Shortcuts for this repository's workflow. Every target is a command already documented
+# elsewhere; the Makefile invents none.
 .PHONY: setup dev frontend build-web test test-clean lint format format-check \
         typecheck spec license changelog docs-reachable docs docs-serve check eval image image-test \
         up down logs restart \
         graph clean
 
-# ── Puesta a punto ───────────────────────────────────────────────────────────
+# ── Setup ────────────────────────────────────────────────────────────────────
 setup:
 	uv sync --dev
 	cd frontend && npm ci
 	$(MAKE) build-web
 
-# ── Desarrollo ───────────────────────────────────────────────────────────────
+# ── Development ──────────────────────────────────────────────────────────────
 dev:
 	uv run uvicorn app.main:app --reload
 
 frontend:
 	cd frontend && npm run dev
 
-# El bundle se construye dentro de app/static/app/, que está en .gitignore. Sin
-# esto, un cambio bajo frontend/ NO se ve en la aplicación servida por uvicorn:
-# la hoja de estilos se enlaza con un hash de contenido que solo cambia al
-# construir, así que el navegador sigue con la anterior.
+# The bundle is built into app/static/app/, which is gitignored. Without this, a change
+# under frontend/ does not reach the app uvicorn serves: the stylesheet is linked with a
+# content hash that only changes on build.
 build-web:
 	cd frontend && npm run build
 
-# ── Puerta de calidad ────────────────────────────────────────────────────────
-# El mismo orden que AGENTS.md y que la CI, para que no diverjan.
+# ── Quality gate ─────────────────────────────────────────────────────────────
+# The same order as AGENTS.md and CI, so they cannot diverge.
 lint:
 	uv run ruff check .
 
@@ -42,7 +41,7 @@ typecheck:
 test:
 	uv run pytest
 
-# Los tests levantan su propio Postgres efímero; esto lo retira si queda vivo.
+# The tests start their own ephemeral Postgres; this removes it if one is left behind.
 test-clean:
 	-docker rm -f doction-test-pg
 
@@ -50,26 +49,24 @@ spec:
 	openspec validate --all --strict
 	openspec list
 
-# La licencia se declara en siete sitios y uno vive fuera del árbol. Esto los compara
-# contra pyproject.toml, que es la única fuente escrita a mano.
+# The licence is declared in seven places, one of them outside the tree. This compares
+# them against pyproject.toml, the only hand-written source.
 license:
 	uv run python -m scripts.check_license
 
-# Las notas de una release salen del CHANGELOG, así que una versión sin entrada es una
-# release que nadie puede leer. Se comprueba aquí, contra la versión declarada, y no al
-# crear el tag: entonces ya sería tarde, el tag existiría y borrarlo está prohibido.
+# Release notes come from the CHANGELOG, so a version without an entry is a release nobody
+# can read. Checked here rather than at tag time, when it would already be too late.
 changelog:
 	uv run python -m scripts.changelog --check
 
-# La orientación que no viaja en el clon no orienta a nadie. CLAUDE.md y .claude/ están
-# ignorados a propósito, así que un documento versionado que los cite es un callejón sin
-# salida para todo el mundo salvo el mantenedor.
+# Orientation that does not travel in the clone orients nobody: CLAUDE.md and .claude/ are
+# gitignored, so a tracked document citing them dead-ends for everyone but the maintainer.
 docs-reachable:
 	uv run python -m scripts.check_docs_reachable
 
-# El sitio publicado se construye en estricto: un enlace interno que no resuelve es un
-# fallo, no una advertencia en el log. Cubre lo que docs-reachable no puede ver, que es
-# la navegación una vez la documentación es un sitio. `docs-serve` para previsualizar.
+# The published site builds strictly: an internal link that does not resolve is a failure,
+# not a log warning. Covers what docs-reachable cannot see, the navigation once the
+# documentation is a site.
 docs:
 	uv run --group docs python -m scripts.build_docs
 
@@ -88,21 +85,21 @@ check:
 	$(MAKE) docs
 	$(MAKE) spec
 
-# ── Recuperación ─────────────────────────────────────────────────────────────
-# Fuera de pytest a propósito: un número de calidad que puede tumbar una
-# construcción es una construcción que se acaba ignorando. SWEEP=1 para barrer.
+# ── Retrieval ────────────────────────────────────────────────────────────────
+# Outside pytest on purpose: a quality number that can fail a build is a build that gets
+# ignored. SWEEP=1 to sweep.
 eval:
-	@test -n "$(EVAL_CORPUS)" || (echo "EVAL_CORPUS es obligatorio"; exit 1)
+	@test -n "$(EVAL_CORPUS)" || (echo "EVAL_CORPUS is required"; exit 1)
 	EVAL_CORPUS="$(EVAL_CORPUS)" uv run python -m evals.retrieval $(if $(SWEEP),--sweep,)
 
-# ── Imagen y compose ─────────────────────────────────────────────────────────
-# La versión sale de pyproject.toml, que es donde se sube en cada publicación.
+# ── Image and compose ────────────────────────────────────────────────────────
+# The version comes from pyproject.toml, where it is bumped on every release.
 VERSION := $(shell grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
 
 image:
 	docker build -t ghcr.io/dny1020/doction:$(VERSION) -t ghcr.io/dny1020/doction:latest .
 
-# Lo mismo que corre la CI: esta etapa levanta su Postgres y pasa la puerta.
+# What CI runs: this stage starts its own Postgres and passes the gate.
 image-test:
 	docker build --target test .
 
@@ -118,7 +115,7 @@ logs:
 restart:
 	docker compose restart doction
 
-# ── Utilidades ───────────────────────────────────────────────────────────────
+# ── Utilities ────────────────────────────────────────────────────────────────
 graph:
 	graphify update .
 

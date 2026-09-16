@@ -13,12 +13,12 @@ logs/
 *.md
 CLAUDE.md
 
-# El bundle de la SPA lo genera el stage `web`, no el contexto local.
+# The `web` stage builds the SPA bundle, not the local context.
 frontend/node_modules/
 frontend/dist/
 app/static/app/
 
-# Datos locales y artefactos regenerables — fuera del contexto/imagen.
+# Local data and regenerable artifacts.
 pages/
 uploads/
 graphify-out/
