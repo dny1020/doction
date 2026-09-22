@@ -1,9 +1,7 @@
-"""Grafo de wikilinks: PageRank, k-means y análisis estructural en numpy puro.
+"""Wikilink graph: PageRank, k-means and structural analysis in plain numpy.
 
-Sin NetworkX a propósito: los workspaces son de escala wiki (decenas o cientos de
-páginas), así que una iteración de potencia y un k-means básico bastan y evitan
-una dependencia. Las funciones numéricas son puras; `link_insights` es la única
-que consulta la base de datos.
+No NetworkX on purpose — at wiki scale a power iteration and a basic k-means are
+enough, and they avoid a dependency.
 """
 
 import numpy as np
@@ -12,11 +10,11 @@ from app import db
 
 
 def pagerank(matrix: np.ndarray, *, damping: float = 0.85, iters: int = 50) -> np.ndarray:
-    """PageRank por iteración de potencia sobre una matriz de adyacencia n×n.
+    """PageRank by power iteration over an n x n adjacency matrix.
 
-    `matrix[i, j]` es el peso de la arista i→j (vale cualquier matriz no negativa,
-    p. ej. una de similitud para TextRank). Las filas sin salidas (dangling)
-    reparten su masa uniformemente. Devuelve un vector de scores que suma 1.
+    `matrix[i, j]` weights the edge i->j; any non-negative matrix works, such as a
+    similarity matrix for TextRank. Dangling rows spread their mass uniformly, and the
+    returned scores sum to 1.
     """
     n = matrix.shape[0]
     if n == 0:
@@ -33,11 +31,10 @@ def pagerank(matrix: np.ndarray, *, damping: float = 0.85, iters: int = 50) -> n
 
 
 def kmeans(mat: np.ndarray, k: int, *, iters: int = 15) -> np.ndarray:
-    """K-means básico: devuelve la etiqueta de cluster de cada fila.
+    """Basic k-means returning each row's cluster label.
 
-    Determinista: los centros iniciales se eligen por punto-más-lejano (estilo
-    k-means++), que evita arrancar con dos centros en el mismo grupo. Suficiente
-    para agrupar decenas de páginas; no pretende competir con scikit-learn.
+    Deterministic: initial centers are picked farthest-point first, so two never start
+    in the same group.
     """
     n = mat.shape[0]
     k = max(1, min(k, n))
@@ -65,11 +62,10 @@ def _ref(page) -> dict:
 
 
 def link_insights(workspace_id: int, *, top: int = 10) -> dict:
-    """Análisis estructural del grafo de wikilinks de un workspace.
+    """Structural analysis of a workspace's wikilink graph.
 
-    Devuelve páginas centrales (PageRank), huérfanas (sin enlaces en ningún
-    sentido), hubs (más salientes), autoridades (más entrantes) y wikilinks
-    rotos (destino inexistente), todo como slugs+títulos listos para JSON.
+    Central pages (PageRank), orphans, hubs, authorities and broken wikilinks, all as
+    JSON-ready slugs and titles.
     """
     pages = db.workspace_pages(workspace_id)
     links = db.workspace_links(workspace_id)
@@ -122,19 +118,16 @@ def link_insights(workspace_id: int, *, top: int = 10) -> dict:
     }
 
 
-# Por encima de esto el navegador deja de poder con la simulación y el dibujo deja
-# de decir nada: mil nodos son una mancha. Se recorta por PageRank, que es la
-# medida de "importa en este grafo" que ya se calcula aquí.
+# Past this the browser cannot run the simulation and the drawing says nothing anyway.
+# Trimmed by PageRank, the "matters in this graph" measure already computed here.
 GRAPH_NODE_LIMIT = 300
 
 
 def workspace_graph(workspace_id: int, *, limit: int = GRAPH_NODE_LIMIT) -> dict:
-    """Nodos y aristas del grafo de wikilinks, listos para dibujar.
+    """Nodes and edges of the wikilink graph, ready to draw.
 
-    Es la misma materia prima que `link_insights` mira en agregado; aquí sale
-    entera porque la vista dibuja el grafo, no su resumen. Un destino que no
-    existe se devuelve como arista rota con su slug, no se descarta: es la única
-    señal de que alguien contaba con esa página.
+    A target that does not exist comes back as a broken edge carrying its slug rather
+    than being dropped: it is the only sign someone expected that page to be there.
     """
     pages = db.workspace_pages(workspace_id)
     links = db.workspace_links(workspace_id)
@@ -170,9 +163,7 @@ def workspace_graph(workspace_id: int, *, limit: int = GRAPH_NODE_LIMIT) -> dict
             "title": pages[i].title,
             "incoming": int(in_deg[i]),
             "outgoing": int(out_deg[i]),
-            # Huérfana: sin enlace en ningún sentido. Un enlace a sí misma no
-            # cuenta, porque no la conecta con nada.
-            # bool() explícito: numpy devuelve np.bool_ y FastAPI no lo serializa.
+            # Explicit bool(): numpy returns np.bool_, which FastAPI will not serialize.
             "orphan": bool(in_deg[i] == 0 and out_deg[i] == 0),
         }
         for i in sorted(kept)
@@ -198,10 +189,8 @@ def workspace_graph(workspace_id: int, *, limit: int = GRAPH_NODE_LIMIT) -> dict
     }
 
 
-# Topes del recorrido. La profundidad se corta pronto porque a partir del tercer
-# salto un wiki bien enlazado devuelve medio workspace, y eso no es contexto: es
-# el corpus otra vez. El tope de nodos protege al agente de una respuesta que no
-# le cabe en la ventana.
+# Walk limits. Past the third hop a well-linked wiki returns half the workspace, which
+# is not context but the corpus again.
 MAX_LINK_DEPTH = 3
 LINKED_NODE_LIMIT = 100
 
@@ -213,15 +202,11 @@ def linked_knowledge(
     depth: int = 1,
     limit: int = LINKED_NODE_LIMIT,
 ) -> dict | None:
-    """El vecindario de `slug` en el grafo de wikilinks, hasta `depth` saltos.
+    """The neighbourhood of `slug` in the wikilink graph, up to `depth` hops.
 
-    Recorre en los dos sentidos: a quién enlaza esta página y quién la enlaza a
-    ella. Un agente que explora quiere las dos respuestas, y pedirlas por separado
-    cuesta una ida y vuelta por arista sin llegar a saber dónde acaba el vecindario.
-
-    Cada vecino trae la distancia, el sentido del salto que lo alcanzó y el camino
-    completo, para que el agente pueda justificar por qué está mirando algo.
-    Devuelve None si la página no existe.
+    Walked in both directions at once. Each neighbour carries its distance, the direction
+    that reached it and the full path, so an agent can justify why it is looking at
+    something. None when the page does not exist.
     """
     pages = {p.slug: p for p in db.workspace_pages(workspace_id)}
     if slug not in pages:
@@ -235,9 +220,9 @@ def linked_knowledge(
     for edge in db.workspace_links(workspace_id):
         src = by_id.get(edge.src_page_id)
         if src is None or edge.dst_slug == src:
-            continue  # un enlace a sí misma no la conecta con nadie
+            continue  # a self-link connects a page to nothing
         outgoing.setdefault(src, set()).add(edge.dst_slug)
-        # Un destino inexistente no tiene salientes, pero sí es alcanzable.
+        # A missing target has no outgoing edges but is still reachable.
         incoming.setdefault(edge.dst_slug, set()).add(src)
 
     seen = {slug}
@@ -252,14 +237,13 @@ def linked_knowledge(
             in_set = incoming.get(current, set())
             for other in sorted(out_set | in_set):
                 if other in seen:
-                    continue  # ya visto: así terminan los ciclos
+                    continue  # already seen; this is what ends cycles
                 seen.add(other)
                 if len(neighbors) >= limit:
                     truncated = True
                     continue
-                # Dos páginas que se citan la una a la otra son un caso corriente y
-                # distinto: contarlo solo como saliente lo borraba de los entrantes,
-                # que es justo lo que pregunta quien busca qué depende de esto.
+                # Mutual citation is its own case: calling it outgoing alone erases the
+                # page from the incoming side, which is what "what depends on this" asks.
                 if other in out_set and other in in_set:
                     via = "both"
                 else:
@@ -275,7 +259,7 @@ def linked_knowledge(
                         "exists": page is not None,
                     }
                 )
-                # Un destino roto es una hoja: no hay página desde la que seguir.
+                # A broken target is a leaf: there is no page to continue from.
                 if page is not None:
                     nxt.append((other, path + [other]))
         frontier = nxt

@@ -1,11 +1,10 @@
-"""Carga un volcado de markdown en una base de datos desechable.
+"""Loads a markdown dump into a throwaway database.
 
-El volcado tiene la forma de `{DATA}/pages/`: un directorio por workspace con un
-`<slug>.md` por página. Un `<slug>.title` opcional al lado conserva el título
-cuando no se puede derivar del cuerpo.
+The dump has the shape of `{DATA}/pages/`: one directory per workspace, one `<slug>.md`
+per page, with an optional `<slug>.title` beside it when the title cannot be derived.
 
-El corpus real no está en el repositorio —el wiki es privado y el repositorio es
-público—, así que la ruta llega por `EVAL_CORPUS`.
+The real corpus is not in the repository — the wiki is private and the repository is
+public — so its path arrives through `EVAL_CORPUS`.
 """
 
 import os
@@ -21,13 +20,11 @@ def corpus_dir() -> Path:
 
 
 def _sources(workspace: str) -> list[Path]:
-    """Los directorios a cargar. `all` los junta todos en un mismo workspace.
+    """The directories to load. `all` merges them into one workspace.
 
-    Juntarlos no es cosmético: la recuperación filtra por workspace, así que cargar
-    tres workspaces por separado mide lo mismo tres veces. En uno solo, las páginas
-    de los otros dos se convierten en distractores y la tarea se parece más a un
-    wiki de verdad. Los slugs no chocan entre volcados; si algún día chocan, el
-    segundo fallaría al crearse y se vería.
+    Merging is not cosmetic: retrieval filters by workspace, so loading three separately
+    measures the same thing three times. In one, the other two's pages become distractors
+    and the task looks more like a real wiki.
     """
     root = corpus_dir()
     if workspace == "all":
@@ -42,7 +39,7 @@ def _sources(workspace: str) -> list[Path]:
 
 
 def load(workspace: str) -> tuple[int, int]:
-    """Crea usuario + workspace y carga las páginas del volcado. Devuelve (id, páginas)."""
+    """Create a user and workspace, load the dump's pages, and return (id, page count)."""
     sources = _sources(workspace)
 
     db.init_db()
@@ -69,16 +66,11 @@ def load(workspace: str) -> tuple[int, int]:
 
 
 def _tag_by_origin(workspace_id: int, origins: dict[str, str]) -> None:
-    """Etiqueta cada página con el volcado del que salió, para poder medir el filtro.
+    """Tag each page with the dump it came from, so the tag filter can be scored.
 
-    El corpus real no trae etiquetas —una sola página tiene una, y es un color
-    hexadecimal que el parser confundió con un `#tag`—, así que sin esto el filtro de
-    `search_knowledge` no se puede puntuar contra nada.
-
-    Se escriben directamente en `page_tags` y no en el markdown a propósito: tocar el
-    cuerpo cambiaría el texto que se embebe, y con ello los vectores y toda la tabla.
-    Las corridas anteriores dejarían de ser comparables por añadir una etiqueta. La
-    procedencia es un hecho real de cada página; lo sintético es solo dónde se guarda.
+    The real corpus carries no usable tags. These are written straight into `page_tags`
+    and not into the markdown on purpose: touching the body would change the embedded
+    text, and with it the vectors and every earlier run's comparability.
     """
     with db.connect() as conn:
         rows = conn.execute(

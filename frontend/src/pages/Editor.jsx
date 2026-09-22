@@ -17,15 +17,14 @@ import { pagePath, wsPath } from '../routes.js'
 import { clearDraft, readDraft, writeDraft } from '../drafts.js'
 import { useDocumentTitle } from '../useDocumentTitle.js'
 
-// Editor dividido: fuente markdown a la izquierda, preview en vivo a la derecha.
-// `mode` es "new" (crear) o "edit" (editar una página existente).
+// Split editor: markdown source left, live preview right. `mode` is "new" or "edit".
 export default function Editor({ mode }) {
   const isEdit = mode === 'edit'
   const { t } = useI18n()
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
   const parentSlug = searchParams.get('parent') || ''
-  // Un wikilink a una página inexistente trae aquí el destino como título.
+  // A wikilink to a page that does not exist arrives with its target as the title.
   const seededTitle = searchParams.get('title') || ''
   const { ws, pages, reloadPages } = useOutletContext()
   const navigate = useNavigate()
@@ -42,24 +41,23 @@ export default function Editor({ mode }) {
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
-  // Un guardado fallido por red caída no es lo mismo que uno rechazado por el
-  // servidor: el primero se reintenta cuando vuelva, el segundo hay que leerlo.
+  // A save that failed on a dead network is not one the server rejected: the first is
+  // retried when it returns, the second has to be read.
   const [offline, setOffline] = useState(false)
-  // Borrador local de una sesión anterior, ofrecido para restaurar.
+  // A local draft from an earlier session, offered for restore.
   const [draft, setDraft] = useState(null)
-  // El markdown que se está pintando en la vista previa: va por detrás de lo que
-  // se teclea, con retardo, para no re-renderizar un documento largo en cada tecla.
+  // The markdown the preview is painting: debounced behind what is typed, so a long
+  // document is not re-rendered on every keystroke.
   const [preview, setPreview] = useState('')
-  // Solo cuenta en móvil, donde el panel partido se apila: el botón que la
-  // alterna está oculto por CSS a partir de 820px.
+  // Only matters on mobile, where the split stacks; the toggle is hidden above 820px.
   const [showPreview, setShowPreview] = useState(false)
 
-  // Guard de cambios sin guardar: comparamos contra lo cargado. Refs (no estado)
-  // porque el blocker y beforeunload se evalúan fuera del ciclo de render.
+  // Unsaved-changes guard, compared against what was loaded. Refs and not state, because
+  // the blocker and beforeunload are evaluated outside the render cycle.
   const initialRef = useRef({ title: '', content: '' })
   const currentRef = useRef({ title: '', content: '' })
   currentRef.current = { title, content }
-  const savedRef = useRef(false) // true tras guardar: la navegación ya no se bloquea
+  const savedRef = useRef(false) // true after a save, so navigation stops being blocked
 
   function isDirty() {
     if (savedRef.current) return false
@@ -69,7 +67,7 @@ export default function Editor({ mode }) {
     )
   }
 
-  // En modo edición, carga el título y el contenido actuales.
+  // In edit mode, load the current title and content.
   useEffect(() => {
     if (!isEdit) return
     api
@@ -91,19 +89,18 @@ export default function Editor({ mode }) {
       })
   }, [isEdit, slug, ws])
 
-  // Una página nueva a medio escribir también deja borrador.
+  // A half-written new page leaves a draft too.
   useEffect(() => {
     if (isEdit) return
     const saved = readDraft(ws, null)
     if (saved && (saved.title || saved.content)) setDraft(saved)
   }, [isEdit, ws])
 
-  // Llegar desde un wikilink roto precarga el título. No pisa un borrador ni lo
-  // que ya se esté escribiendo: solo rellena el campo vacío al abrir.
+  // Arriving from a broken wikilink prefills the title, without overwriting a draft or
+  // anything already typed.
   //
-  // También mueve la línea base de «sin guardar». El título lo puso el enlace, no
-  // quien escribe, así que salir sin tocar nada no debería preguntar si se
-  // descartan cambios; a partir de aquí sí, en cuanto se escriba algo.
+  // It also moves the unsaved baseline: the link set that title, not the writer, so
+  // leaving without touching anything should not ask about discarding changes.
   useEffect(() => {
     if (isEdit || !seededTitle) return
     setTitle((current) => {
@@ -113,7 +110,7 @@ export default function Editor({ mode }) {
     })
   }, [isEdit, seededTitle])
 
-  // Escribir el borrador con retardo: a ritmo acotado y no en cada tecla.
+  // Write the draft on a debounce, not on every keystroke.
   useEffect(() => {
     if (!loaded || savedRef.current || draft) return
     if (title === initialRef.current.title && content === initialRef.current.content) return
@@ -121,8 +118,8 @@ export default function Editor({ mode }) {
     return () => clearTimeout(timer)
   }, [ws, slug, title, content, loaded, draft])
 
-  // La vista previa también va con retardo. Sin esto, teclear en un documento
-  // largo re-renderiza todo el markdown en cada pulsación y se nota.
+  // The preview is debounced too: without it, typing in a long document re-renders all
+  // of the markdown on every keypress and it shows.
   useEffect(() => {
     const timer = setTimeout(() => setPreview(content), 150)
     return () => clearTimeout(timer)
@@ -133,18 +130,17 @@ export default function Editor({ mode }) {
     [preview, ws, slugSet],
   )
 
-  // Editando, el título sigue al campo: renombrar una página se ve en la pestaña
-  // antes de guardar.
+  // While editing, the document title follows the field, so a rename shows in the tab
+  // before it is saved.
   useDocumentTitle(title ? t('edit') + ': ' + title : t('new_page'), ws)
 
-  // La vista previa pasa por las mismas mejoras que la de lectura: resaltado,
-  // diagramas y fórmulas. Sin esto el editor y el lector enseñaban cosas distintas
-  // para el mismo markdown, que es justo lo que una vista previa no debe hacer.
+  // The preview runs the same enhancements as the reading view, so the editor and the
+  // reader never show two different things for one document.
   useEffect(() => {
     enhanceProse(previewRef.current)
   }, [previewHtml])
 
-  // Navegación interna con cambios sin guardar → diálogo de confirmación.
+  // In-app navigation with unsaved changes asks for confirmation.
   const blocker = useBlocker(() => isDirty())
   useEffect(() => {
     if (blocker.state !== 'blocked') return
@@ -154,7 +150,7 @@ export default function Editor({ mode }) {
     })
   }, [blocker, confirm, t])
 
-  // Cerrar/recargar la pestaña con cambios sin guardar → aviso nativo del navegador.
+  // Closing or reloading the tab with unsaved changes gets the browser's own prompt.
   useEffect(() => {
     function onBeforeUnload(event) {
       if (!isDirty()) return
@@ -165,9 +161,8 @@ export default function Editor({ mode }) {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [])
 
-  // ⌘S / Ctrl-S guarda (el listener global de atajos ignora los campos de texto
-  // a propósito, así que este vive aquí). requestSubmit pasa por la validación
-  // del formulario (título requerido).
+  // ⌘S / Ctrl-S saves. The global shortcut listener ignores text fields on purpose, so
+  // this one lives here; requestSubmit goes through the form's validation.
   useEffect(() => {
     function onKey(event) {
       if ((event.metaKey || event.ctrlKey) && (event.key === 's' || event.key === 'S')) {
@@ -200,7 +195,7 @@ export default function Editor({ mode }) {
       reloadPages()
       navigate(pagePath(ws, targetSlug))
     } catch (e) {
-      // El borrador se queda: es justo cuando hace falta.
+      // The draft stays: this is exactly when it is needed.
       setOffline(Boolean(e.offline))
       setError(e.status === 401 ? t('session_expired') : e.offline ? t('offline_desc') : e.message)
       setBusy(false)
@@ -228,7 +223,7 @@ export default function Editor({ mode }) {
     setContent(next)
   }
 
-  // Pegar una imagen en el editor: la sube a /api/uploads e inserta ![](url).
+  // Pasting an image uploads it to /api/uploads and inserts ![](url).
   async function onPaste(event) {
     const items = event.clipboardData ? Array.from(event.clipboardData.items) : []
     for (const item of items) {
@@ -240,7 +235,7 @@ export default function Editor({ mode }) {
         form.append('file', file, file.name || 'pasted.png')
         setUploading(true)
         try {
-          // fetch a pelo (FormData), así que el workspace hay que ponerlo a mano.
+          // A bare fetch with FormData, so the workspace has to be added by hand.
           const res = await fetch(withWorkspace('/api/uploads'), {
             method: 'POST',
             body: form,

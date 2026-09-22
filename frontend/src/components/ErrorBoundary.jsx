@@ -1,8 +1,8 @@
 import React from 'react'
 
-// Barrera de errores de render: sin ella, cualquier excepción al pintar deja la
-// pantalla en blanco. Va por fuera de los providers, así que el texto es fijo
-// (inglés, el idioma por defecto) — aquí no hay i18n del que depender.
+// Render error boundary: without it any exception while painting leaves a blank screen.
+// It sits outside the providers, so its text is fixed English — there is no i18n here to
+// depend on.
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)

@@ -1,8 +1,6 @@
-"""Las cinco herramientas del contrato con los agentes.
+"""The five tools of the agent contract: four reads and one write.
 
-Cuatro de lectura y una de escritura. Las de lectura son capacidad que ya existía,
-renombrada y con filtros; `upsert_page_section` es nueva y es la que se lleva la
-mayor parte de este archivo, porque escribe.
+`upsert_page_section` takes most of this file, because it is the one that writes.
 """
 
 import json
@@ -80,7 +78,7 @@ def test_search_knowledge_returns_hybrid_order_with_provenance(client):
     hits = _data(_call(client, token, "search_knowledge", {"query": "certbot"}))
     assert hits
     assert hits[0]["slug"] == "renovacion-tls"
-    # La procedencia viaja con el resultado: qué canal lo encontró y en qué puesto.
+    # Provenance travels with the result: which channel found it, and at what rank.
     assert hits[0]["via"] in ("fts", "semantic", "both")
     assert "lexical_rank" in hits[0] and "vector_rank" in hits[0]
     assert "parts" not in hits[0], "el troceado del resaltado es de la interfaz"
@@ -115,7 +113,7 @@ def test_search_knowledge_with_a_tag_that_matches_nothing_returns_empty(client):
 
 @pytest.fixture()
 def semantic_client(main_module, monkeypatch):
-    """Cliente con la semántica encendida y el embedder determinista."""
+    """A client with semantic search on and the deterministic embedder."""
     monkeypatch.setenv("SEMANTIC_SEARCH", "1")
     monkeypatch.setenv("EMBED_STUB", "1")
     import app.embeddings as emb
@@ -143,18 +141,14 @@ def test_get_rag_context_carries_the_hierarchy(semantic_client):
     assert out["chunks"], out
     chunk = out["chunks"][0]
     assert {"slug", "title", "path", "section", "score", "text"} <= set(chunk)
-    # `Workspace > Página > Sección`, que es lo que sitúa un fragmento leído solo.
+    # `Workspace > Page > Section`, which is what places a chunk read on its own.
     assert chunk["path"].startswith("Personal > Renovación TLS")
     assert chunk["section"], "el fragmento viene de una sección con encabezado"
     assert chunk["path"].endswith(chunk["section"])
 
 
 def test_get_rag_context_without_vectors_returns_sections_not_extracts(client):
-    """El canal degradado devuelve la sección entera, no el recorte de doce palabras.
-
-    `ts_headline` elige palabras para enseñarle a una persona por qué coincidió un
-    resultado. Un agente que recibía eso recibía trozos de frase.
-    """
+    """The degraded channel returns the whole section, not ts_headline's twelve words."""
     token = _token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
@@ -162,7 +156,7 @@ def test_get_rag_context_without_vectors_returns_sections_not_extracts(client):
     assert out["mode"] == "fts"
     assert out["chunks"], out
     chunk = out["chunks"][0]
-    # La sección de Certbot, entera y literal.
+    # The Certbot section, whole and verbatim.
     assert chunk["text"] == "Corre `certbot renew --dry-run` y luego recarga nginx."
     assert chunk["section"] == "Renovación TLS > Certbot"
     assert chunk["path"] == "Personal > Renovación TLS > Renovación TLS > Certbot"
@@ -170,7 +164,7 @@ def test_get_rag_context_without_vectors_returns_sections_not_extracts(client):
 
 
 def test_get_rag_context_quotes_and_never_composes(client):
-    """Todo fragmento aparece literalmente en una página guardada."""
+    """Every chunk appears verbatim in a stored page."""
     token = _token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
     page = client.get(
@@ -183,7 +177,7 @@ def test_get_rag_context_quotes_and_never_composes(client):
 
 
 def test_get_rag_context_rejects_an_empty_query(client):
-    """Pedir contexto sin consulta es un error del llamante, no una respuesta vacía."""
+    """Asking for context with no query is a caller error, not an empty answer."""
     token = _token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
     assert "query" in _error(_call(client, token, "get_rag_context", {"query": "   "}))
@@ -226,7 +220,7 @@ def test_read_page_raw_returns_the_bytes_a_write_must_preserve(client):
     out = _data(_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))
     assert out["content"] == RUNBOOK
     assert out["content"].startswith("---\n"), "el frontmatter va en su sitio, sin parsear"
-    # Y también parseado, para no obligar a analizarlo dos veces.
+    # And parsed as well, so it need not be read twice.
     assert out["frontmatter"] == {"type": "runbook", "owner": "sre"}
     assert "tls" in out["tags"]
 
@@ -259,7 +253,7 @@ def test_upsert_replaces_only_its_own_section(client):
 
     assert "Nuevo procedimiento." in content
     assert "certbot renew --dry-run" not in content
-    # Lo que no se tocó sigue exactamente donde estaba.
+    # What was not touched is exactly where it was.
     assert "## Rollback\n\nRestaura el certificado anterior desde el backup." in content
     assert content.startswith("---\ntype: runbook\nowner: sre\n---")
     assert "Intro del runbook. #tls" in content
@@ -306,7 +300,7 @@ def test_upsert_can_place_a_new_section_under_a_parent(client):
 
 
 def test_upsert_refuses_when_two_headings_collide(client):
-    """Elegir por el llamante cuál de dos encabezados iguales quería es adivinar."""
+    """Choosing between two identical headings for the caller would be guessing."""
     token = _token(client)
     _page(client, token, "Ambigua", "## Setup\n\nuno\n\n## Otra\n\nx\n\n## Setup\n\ndos")
 
@@ -320,13 +314,13 @@ def test_upsert_refuses_when_two_headings_collide(client):
     )
     assert "2 headings match" in message
     assert "disambiguate" in message
-    # Y la página no cambió.
+    # And the page did not change.
     content = _data(_call(client, token, "read_page_raw", {"slug": "ambigua"}))["content"]
     assert content.count("## Setup") == 2 and "tres" not in content
 
 
 def test_upsert_disambiguates_by_level(client):
-    """Mismo texto en dos niveles: `level` decide y la operación sale adelante."""
+    """Same text at two levels: `level` decides and the write goes through."""
     token = _token(client)
     _page(client, token, "Niveles", "## Setup\n\nsección\n\n### Setup\n\nsubsección")
 
@@ -385,12 +379,12 @@ def test_upsert_records_a_version_and_requeues_for_indexing(client):
         )
     )
 
-    # Historial: una versión más.
+    # History: one more version.
     versions_after = len(
         _data(_call(client, token, "get_page_history", {"slug": "renovacion-tls"}))
     )
     assert versions_after == versions_before + 1
-    # Índice: la página vuelve a la cola, sus fragmentos ya no valen.
+    # Index: the page is re-queued, its chunks are stale.
     assert [t.id for t in db.pages_to_embed(10)], "la escritura no invalidó el índice"
 
 
@@ -419,7 +413,7 @@ def test_upsert_fires_the_same_webhook_event_as_any_write(client):
 
 
 def test_two_agents_editing_different_sections_both_survive(client):
-    """El caso que motiva la herramienta: nadie manda el cuerpo entero que leyó."""
+    """The case the tool exists for: nobody sends back the whole body they read."""
     token = _token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
@@ -461,7 +455,7 @@ def test_another_workspace_cannot_write_a_section(client):
     assert "not found" in _error(result).lower()
 
 
-# ── La cirugía, aislada del transporte ───────────────────────────────────────
+# ── The surgery, isolated from the transport ─────────────────────────────────
 
 
 def test_upsert_section_leaves_the_frontmatter_alone():
@@ -474,7 +468,7 @@ def test_upsert_section_leaves_the_frontmatter_alone():
 def test_upsert_section_stops_at_the_next_heading_of_the_same_level():
     doc = "## A\n\nuno\n\n### A1\n\nanidado\n\n## B\n\ndos"
     out = meta.upsert_section(doc, "A", "reemplazo")
-    # La subsección cuelga de A: se va con ella.
+    # The subsection hangs off A, so it goes with it.
     assert "anidado" not in out
     # B es hermana: se queda.
     assert "## B\n\ndos" in out
@@ -487,12 +481,11 @@ def test_find_section_ignores_headings_inside_a_fence():
     assert meta.find_section(doc, "Real")[0] == 0
 
 
-# ── Navegación del grafo de conocimiento ─────────────────────────────────────
+# ── Knowledge graph navigation ───────────────────────────────────────────────
 #
-# Lo que se prueba aquí es la pregunta que hace un agente que explora: partiendo
-# de esta página, qué hay cerca, en qué dirección y por qué camino. Un salto lo
-# responde `list_backlinks`; más de uno solo lo responde el recorrido, y sin él
-# el agente paga una ida y vuelta por arista sin saber dónde acaba el vecindario.
+# The question an exploring agent asks: starting here, what is nearby, in which
+# direction and by what path. `list_backlinks` answers one hop; more than one is only
+# answered by the walk, and without it an agent pays a round trip per edge.
 
 
 def _graph_fixture(client, token):
@@ -549,7 +542,7 @@ def test_agent_walks_two_hops_and_gets_the_path(client):
     reached = {n["slug"]: n for n in out["neighbors"]}
     assert "dialplan" in reached
     assert reached["dialplan"]["distance"] == 2
-    # El camino es lo que deja al agente justificar por qué mira esta página.
+    # The path is what lets an agent justify why it is looking at this page.
     assert reached["dialplan"]["path"] == ["kamailio", "asterisk", "dialplan"]
 
 
@@ -560,8 +553,8 @@ def test_agent_sees_whether_a_target_exists(client):
     out = _data(_call(client, token, "get_linked_knowledge", {"slug": "rtpengine"}))
     reached = {n["slug"]: n for n in out["neighbors"]}
     assert reached["kamailio"]["exists"] is True
-    # El destino roto se devuelve, no se calla: es la señal de que alguien contaba
-    # con una página que no está.
+    # The broken target is returned rather than swallowed: it is the sign someone
+    # expected a page that is not there.
     assert reached["nunca"]["exists"] is False
 
 
@@ -631,6 +624,6 @@ def test_backlinks_and_traversal_agree_at_one_hop(client):
 
     back = {p["slug"] for p in _data(_call(client, token, "list_backlinks", {"slug": "kamailio"}))}
     out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
-    # `both` cuenta como entrante: las dos se citan, así que sigue siendo backlink.
+    # `both` counts as incoming: they cite each other, so it is still a backlink.
     incoming = {n["slug"] for n in out["neighbors"] if n["via"] in ("incoming", "both")}
     assert back == incoming

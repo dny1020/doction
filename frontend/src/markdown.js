@@ -4,22 +4,16 @@ import DOMPurify from 'dompurify'
 import { APP_BASE } from './config.js'
 import { newPageWithTitlePath, pagePath } from './routes.js'
 
-// El render de markdown vive solo en el cliente: el backend guarda markdown crudo y
-// no renderiza nada, así que cada decisión de aquí es un límite de seguridad.
-//
-// Antes esto corría con `html: false`, que cerraba el XSS a base de no renderizar
-// HTML en absoluto. Era seguro y también la razón de que una lista de tareas
-// saliera como `- [ ]` literal y de que un `<details>` pegado de otro sitio
-// desapareciera sin decir nada. Ahora el HTML entra y sale por un saneador con
-// lista blanca: las dos mitades del cambio van juntas, porque habilitar una sin la
-// otra es exactamente cómo se publica un XSS almacenado.
+// Markdown rendering lives only in the client — the backend stores raw markdown and
+// renders nothing — so every decision here is a security boundary. Embedded HTML is
+// enabled and passes through a whitelist sanitizer: the two halves go together, because
+// enabling one without the other is exactly how stored XSS ships.
 
-// ── Lista blanca ─────────────────────────────────────────────────────────────
-// Es de doction y no la de la librería a propósito: lo que se renderiza es una
-// decisión del producto, y heredarla en silencio significa que la próxima versión
-// de la dependencia la cambie por nosotros.
+// ── Whitelist ────────────────────────────────────────────────────────────────
+// doction's own and not the library's on purpose: what gets rendered is a product
+// decision, and inheriting it silently lets the next release of a dependency change it.
 const ALLOWED_TAGS = [
-  // Estructura de un documento markdown.
+  // Document structure.
   'p',
   'br',
   'hr',
@@ -49,7 +43,7 @@ const ALLOWED_TAGS = [
   'img',
   'figure',
   'figcaption',
-  // Inline con significado, que es para lo que se abre el HTML embebido.
+  // Inline elements that carry meaning, which is what embedded HTML is opened for.
   'strong',
   'em',
   'del',
@@ -70,7 +64,7 @@ const ALLOWED_TAGS = [
   'div',
   'details',
   'summary',
-  // Solo por las casillas de las listas de tareas; ver el hook de abajo.
+  // Only for task-list checkboxes; see the hook below.
   'input',
 ]
 
@@ -93,13 +87,11 @@ const ALLOWED_ATTR = [
   'disabled',
 ]
 
-// Esquemas de URL admitidos: http(s), mailto, tel y cualquier cosa sin esquema
-// (relativa, ancla). Deja fuera `javascript:` y `data:` — la primera ejecuta y la
-// segunda es un documento entero metido en un atributo.
+// Allowed URL schemes: http(s), mailto, tel and anything schemeless. `javascript:` and
+// `data:` are out — one executes, the other is a whole document inside an attribute.
 const ALLOWED_URI = /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i
 
-// `input` está en la lista solo por `- [x]`. Cualquier otro se va: una página no
-// tiene por qué poder pintar un campo de texto dentro de un documento.
+// `input` is whitelisted only for `- [x]`; any other one is removed.
 DOMPurify.addHook('uponSanitizeElement', (node, data) => {
   if (data.tagName !== 'input') return
   const checkbox = node.getAttribute('type') === 'checkbox' && node.hasAttribute('disabled')
@@ -112,15 +104,14 @@ const md = new MarkdownIt('commonmark', {
   typographer: true,
 })
 md.enable(['table', 'strikethrough'])
-// Las casillas se pintan deshabilitadas: la vista de lectura lee, no edita. El
-// estado de una tarea se cambia editando el markdown, que es donde vive.
+// Checkboxes render disabled: the reading view reads. A task's state changes by editing
+// the markdown, which is where it lives.
 md.use(taskLists, { enabled: false, label: false })
 
-// ── Matemáticas ──────────────────────────────────────────────────────────────
-// `$…$` y `$$…$$` se marcan aquí y los pinta KaTeX más tarde (prose.js), igual que
-// los diagramas de Mermaid: así los 600 KB de KaTeX solo se descargan en las
-// páginas que llevan fórmulas. Se emite el origen como texto dentro de un nodo
-// marcado, de modo que lo que pasa por el saneador es texto y nunca markup.
+// ── Math ─────────────────────────────────────────────────────────────────────
+// `$…$` and `$$…$$` are marked here and painted later by KaTeX (prose.js), so its 600 KB
+// only downloads on pages that carry formulas. The source is emitted as text inside a
+// marked node, so what reaches the sanitizer is text and never markup.
 function mathPlugin(instance) {
   instance.inline.ruler.before('escape', 'doction_math', (state, silent) => {
     const start = state.pos
@@ -131,8 +122,7 @@ function mathPlugin(instance) {
     const end = state.src.indexOf(fence, from)
     if (end === -1) return false
     const body = state.src.slice(from, end)
-    // `$10 y $20` no son matemáticas: sin contenido, o abriendo con un espacio, se
-    // deja pasar como texto normal.
+    // `$10 and $20` is not math: empty, or opening with a space, passes through as text.
     if (!body.trim() || (!block && /^\s|\s$/.test(body))) return false
     if (!silent) {
       const token = state.push('doction_math', 'span', 0)
@@ -154,19 +144,15 @@ function mathPlugin(instance) {
 md.use(mathPlugin)
 
 // ── Wikilinks ────────────────────────────────────────────────────────────────
-// `[[destino]]` y `[[destino|texto]]` se convierten en anclas a la página. El
-// servidor lleva desde siempre estas aristas en `page_links`; lo que faltaba era
-// que el lector pudiera seguirlas.
+// `[[target]]` and `[[target|label]]` become anchors to the page.
 //
-// La regla emite tokens (`link_open` / `text` / `link_close`) y no una cadena de
-// HTML. La diferencia no es de estilo: pegar un destino sacado del documento
-// dentro de `<a href="...">` es exactamente la forma del XSS almacenado que cerró
-// el change 001. Como token, el destino es un valor de atributo que markdown-it
-// escapa y el saneador ve un ancla normal.
+// The rule emits tokens (`link_open` / `text` / `link_close`) rather than an HTML string.
+// That is not style: splicing a document-derived target into `<a href="...">` is the shape
+// of the stored XSS closed in change 001. As a token the target is an attribute value
+// markdown-it escapes, and the sanitizer sees an ordinary anchor.
 //
-// El href se construye siempre como prefijo de ruta más un segmento codificado,
-// así que un destino como `javascript:alert(1)` acaba siendo la ruta relativa
-// `/w/<ws>/p/javascript%3Aalert(1)` y no un esquema ejecutable.
+// The href is always a route prefix plus one encoded segment, so a target such as
+// `javascript:alert(1)` ends up as the relative path `/w/<ws>/p/javascript%3Aalert(1)`.
 function wikilinkPlugin(instance) {
   instance.inline.ruler.before('link', 'doction_wikilink', (state, silent) => {
     const start = state.pos
@@ -177,8 +163,8 @@ function wikilinkPlugin(instance) {
     if (end === -1) return false
 
     const inner = state.src.slice(start + 2, end)
-    // Un wikilink no cruza líneas ni anida corchetes: sin esto, un `[` suelto
-    // dentro se comería el resto del párrafo.
+    // A wikilink crosses no lines and nests no brackets: without this, a stray `[`
+    // would swallow the rest of the paragraph.
     if (inner.includes('\n') || inner.includes('[')) return false
 
     const bar = inner.indexOf('|')
@@ -186,20 +172,18 @@ function wikilinkPlugin(instance) {
     const label = (bar === -1 ? '' : inner.slice(bar + 1).trim()) || target
     if (!target) return false
 
-    // Sin workspace no hay ruta que construir. Se deja pasar como texto, que es
-    // lo que se veía antes de existir esta regla.
+    // With no workspace there is no route to build, so it passes through as text.
     const ws = state.env && state.env.ws
     if (!ws) return false
 
     if (!silent) {
-      // `slugs` puede no estar (el árbol aún cargando): entonces no se afirma que
-      // falte nada. Marcar de rojo una página que sí existe es peor que no marcar.
+      // `slugs` may be absent while the tree loads; claiming a page is missing when it
+      // exists is worse than not marking it at all.
       const slugs = state.env.slugs
       const missing = slugs ? !slugs.has(target) : false
-      // Con APP_BASE por delante: los ayudantes de routes.js devuelven la ruta
-      // que espera <Link>, a la que el router le pone el basename. Aquí sale un
-      // <a href> de verdad dentro del HTML del documento, y sin el prefijo el
-      // navegador lo pide al backend, que no sirve la SPA en esa ruta.
+      // APP_BASE goes in front: routes.js returns the path <Link> expects, and the
+      // router adds the basename to that. This is a real <a href> inside the document,
+      // so without the prefix the browser asks the backend, which does not serve it.
       const href = missing
         ? newPageWithTitlePath(ws, target)
         : pagePath(ws, encodeURIComponent(target))
@@ -218,11 +202,10 @@ function wikilinkPlugin(instance) {
 }
 md.use(wikilinkPlugin)
 
-// ── Alineación de tablas ─────────────────────────────────────────────────────
-// markdown-it escribe la alineación de cada columna como `style` en línea, y el
-// saneador quita `style` — con razón: es la vía por la que una página se pinta
-// encima del resto de la interfaz. Se traduce a una clase, que sí sobrevive, y la
-// alineación pasa a vivir en el CSS, que es donde debería haber estado siempre.
+// ── Table alignment ──────────────────────────────────────────────────────────
+// markdown-it writes column alignment as an inline `style`, and the sanitizer strips
+// `style` — rightly, since that is how a page paints over the rest of the UI. It is
+// translated to a class instead, which survives, and the alignment lives in the CSS.
 function tableAlignPlugin(instance) {
   for (const rule of ['th_open', 'td_open']) {
     instance.renderer.rules[rule] = (tokens, idx, options, env, self) => {
@@ -238,29 +221,26 @@ function tableAlignPlugin(instance) {
 }
 md.use(tableAlignPlugin)
 
-// Un bloque de frontmatter al principio del documento no es prosa: es metadato de
-// la página. Y markdown-it no lo sabe — para él `type: runbook` seguido de `---` es
-// un encabezado setext, así que la vista de lectura enseñaba «type: runbook owner:
-// sre» como si fuera un título de sección.
+// A leading frontmatter block is page metadata, not prose, and markdown-it does not know
+// that — to it, `type: runbook` followed by `---` is a setext heading.
 //
-// Se recorta antes de renderizar y no en el servidor: la API devuelve el markdown
-// tal cual está guardado, que es lo que el editor edita y lo que `read_page_raw`
-// promete a un agente. El frontmatter sigue ahí; lo que cambia es que no se pinta.
+// Stripped before rendering rather than on the server: the API returns the markdown as
+// stored, which is what the editor edits and what `read_page_raw` promises an agent.
 const FRONTMATTER = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/
 
 function stripFrontmatter(text) {
   return text.replace(FRONTMATTER, '')
 }
 
-// `env` lleva el contexto que una regla necesita y el markdown no tiene: el
-// workspace al que pertenece el documento y los slugs que existen en él.
+// `env` carries what a rule needs and the markdown does not have: the document's
+// workspace and the slugs that exist in it.
 export function renderMarkdown(text, env = {}) {
   return DOMPurify.sanitize(md.render(stripFrontmatter(text || ''), env), {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
     ALLOWED_URI_REGEXP: ALLOWED_URI,
-    // El contenido de un <script> o un <style> se va con la etiqueta: dejarlo
-    // convertiría el código en un párrafo de texto suelto en mitad del documento.
+    // A <script> or <style> body goes with its tag: keeping it would turn the code into
+    // a loose paragraph in the middle of the document.
     FORBID_CONTENTS: ['script', 'style', 'template'],
   })
 }

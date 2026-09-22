@@ -1,13 +1,9 @@
-"""Colores de identidad del avatar.
+"""Avatar identity colours.
 
-Son ocho porque tienen que distinguirse entre si, no porque sean marca: el
-acento del producto es uno solo. Lo que si comparten con el resto del lenguaje
-visual es el suelo — todos se miden contra el papel calido — y una unica tinta
-encima (`--fg-on-identity`), que no gira con el tema porque el fondo tampoco.
-
-La paleta anterior estaba pensada para otro lienzo y la letra no se leia: siete
-de los ocho colores quedaban por debajo de 4.5:1 en claro y cuatro en oscuro.
-Estos ocho conservan el matiz y bajan la luminosidad hasta pasar el umbral.
+Eight because they have to be told apart, not because they are brand: the product has
+one accent. They share the rest of the visual language's ground — all measured against
+the warm paper — and one ink on top (`--fg-on-identity`), which does not follow the
+theme because the background does not either. Each passes 4.5:1 in both themes.
 """
 
 AVATAR_COLORS = [
@@ -21,9 +17,9 @@ AVATAR_COLORS = [
     "#5E7A37",
 ]
 
-# El color elegido se guarda como texto en `users.avatar_color`, asi que quien
-# ya habia escogido uno seguiria viendo el ilegible para siempre. El mapa lo
-# traduce al leer: misma posicion, mismo matiz, contraste que si cumple.
+# The chosen colour is stored as text in `users.avatar_color`, so anyone who picked one
+# from the old palette would keep the unreadable value forever. Translated on read:
+# same position, same hue, contrast that passes.
 _LEGACY = {
     "#c0604a": "#B8523B",
     "#4a7fc0": "#3B73B8",
@@ -37,7 +33,7 @@ _LEGACY = {
 
 
 def normalize_color(color: str | None) -> str | None:
-    """Traduce un color heredado al actual; descarta cualquier otro valor."""
+    """Translate a legacy colour to its current value; discard anything else."""
     if not color:
         return None
     current = _LEGACY.get(color.lower(), color)

@@ -1,8 +1,6 @@
-"""Tests de la visibilidad de entregas de webhooks.
+"""Visibility into webhook deliveries.
 
-doction entrega hacia fuera: firma el evento y lo manda, reintentando con backoff.
-Lo que faltaba era poder ver si esas entregas están llegando — `last_status` solo
-cuenta el último intento y una cola atascada detrás no se veía.
+`last_status` covers only the last attempt, so a queue stuck behind it was invisible.
 """
 
 from app import db
@@ -45,7 +43,7 @@ def test_queued_delivery_reads_as_pending(client):
 
 
 def test_exhausted_delivery_reads_as_failed_not_delivered(client):
-    """`delivered_at` marca "ya no se reintenta", no "salió bien"."""
+    """`delivered_at` means "no longer retried", not "succeeded"."""
     token = _token(client)
     hook = _hook(client, token)
     client.post("/api/pages", json={"title": "Fires an event", "content": "x"}, headers=_h(token))
@@ -54,7 +52,7 @@ def test_exhausted_delivery_reads_as_failed_not_delivered(client):
     db.mark_failed(pending["id"], hook, "connection refused", db.MAX_DELIVERY_ATTEMPTS - 1)
 
     delivery = client.get(f"/api/webhooks/{hook}/deliveries", headers=_h(token)).json()[0]
-    assert delivery["delivered_at"] is not None  # el worker no lo reintenta más
+    assert delivery["delivered_at"] is not None  # the worker retries it no further
     assert delivery["status"] == "failed"
     assert delivery["last_error"] == "connection refused"
 
@@ -94,7 +92,7 @@ def test_history_never_carries_the_signing_secret(client):
 
     body = client.get(f"/api/webhooks/{hook}/deliveries", headers=_h(token)).text
     assert "secret" not in body and "signature" not in body.lower()
-    # Tampoco el cuerpo del evento: esto es una vista de operación, no un volcado.
+    # Nor the event body: this is an operational view, not a dump.
     assert "payload" not in body
 
 
@@ -106,7 +104,7 @@ def test_another_workspace_cannot_read_deliveries(client):
     r = client.get(f"/api/webhooks/{hook}/deliveries", headers=_h(token_b))
     assert r.status_code == 404
 
-    # Sin sesión ni bearer: 401 como cualquier otra ruta autenticada. Hay que
-    # limpiar la cookie que dejó el registro, o la petición va firmada como B.
+    # No session and no bearer is a 401 like any other authenticated route. The cookie
+    # registration left has to be cleared, or the request goes out signed as B.
     client.cookies.clear()
     assert client.get(f"/api/webhooks/{hook}/deliveries").status_code == 401

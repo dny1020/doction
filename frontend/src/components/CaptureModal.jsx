@@ -3,9 +3,9 @@ import { useI18n } from '../i18n.jsx'
 import { useToast } from './Toast.jsx'
 import { api } from '../api.js'
 
-// Captura rápida (⌘/Ctrl + Shift + K): escribir una nota sin salir de donde estés
-// ni inventarle un título. Guarda con `type: memo` en el frontmatter, así que la
-// nota va al feed de la bandeja y no ensucia el árbol de la barra lateral.
+// Quick capture (⌘/Ctrl + Shift + K): write a note without leaving where you are or
+// inventing a title. Saved with `type: memo`, so it lands in the inbox feed rather than
+// cluttering the sidebar tree.
 //
 // Reusa las clases `.palette*` del design system, igual que CommandPalette.
 export default function CaptureModal({ onCaptured }) {
@@ -17,7 +17,7 @@ export default function CaptureModal({ onCaptured }) {
   const inputRef = useRef(null)
   const prevFocusRef = useRef(null)
 
-  // ⌘K ya es la paleta de comandos, así que la captura usa ⌘⇧K.
+  // ⌘K is already the command palette, so capture uses ⌘⇧K.
   useEffect(() => {
     function onKey(event) {
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'k') {
@@ -47,8 +47,8 @@ export default function CaptureModal({ onCaptured }) {
     if (!body || saving) return
     setSaving(true)
     try {
-      // Sin title: el backend lo deriva de la primera línea y le da un slug con
-      // marca temporal, para que cien capturas no colisionen entre sí.
+      // No title: the backend derives one from the first line and gives it a
+      // timestamped slug, so a hundred captures do not collide.
       await api.post('/api/pages', { content: '---\ntype: memo\n---\n\n' + body })
       setOpen(false)
       toast(t('capture_saved'))

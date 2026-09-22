@@ -1,19 +1,11 @@
-"""Fixtures compartidas para toda la suite.
+"""Fixtures shared by the whole suite.
 
-Antes cada archivo de test definía su propio `client()` casi idéntico (un archivo
-SQLite temporal + reload de módulos). Con Postgres esa duplicación ya no tiene
-sentido: aquí una sola base de datos aislada por test (CREATE DATABASE / DROP
-DATABASE), igual de descartable que el archivo temporal de antes pero contra el
-motor real. `DATA_DIR` usa `tmp_path` para que el repo git de páginas y los
-uploads sigan aislados por test, independientes de la base de datos.
+One isolated database per test (CREATE DATABASE / DROP DATABASE), and `DATA_DIR` on
+`tmp_path` so the page git repo and the uploads are isolated too.
 
-El servidor Postgres de los tests es **propio y efímero**: si `TEST_DATABASE_URL`
-no está definida (CI sí la define — Postgres embebido en el stage `test` del
-Dockerfile), conftest levanta un contenedor `doction-test-pg` con el datadir en
-tmpfs (RAM), en el puerto 55432 solo-loopback. Nada que ver con el Postgres de
-dev del compose: la suite ya no depende de que ese contenedor exista, esté
-corriendo o tenga los permisos bien. Limpieza: `docker rm -f doction-test-pg`
-(o nada — pesa ~40 MB de RAM y arranca solo la próxima vez).
+The tests bring their own Postgres: with `TEST_DATABASE_URL` unset, conftest starts a
+`doction-test-pg` container with its datadir in tmpfs on loopback port 55432, so the
+suite does not depend on the dev compose. Cleanup: `docker rm -f doction-test-pg`.
 """
 
 import importlib
@@ -41,9 +33,9 @@ def _reachable(url: str) -> bool:
 
 @pytest.fixture(scope="session")
 def admin_database_url() -> str:
-    """URL admin del servidor Postgres de tests (solo para CREATE/DROP DATABASE).
+    """Admin URL of the test Postgres, for CREATE/DROP DATABASE only.
 
-    Prioridad: TEST_DATABASE_URL (CI/config manual) → contenedor efímero local.
+    TEST_DATABASE_URL first, then the ephemeral local container.
     """
     url = os.environ.get("TEST_DATABASE_URL")
     if url:
@@ -53,9 +45,8 @@ def admin_database_url() -> str:
     if _reachable(url):
         return url
 
-    # Arranca (o re-arranca) el Postgres efímero. Con tmpfs el datadir vive en
-    # RAM: cada arranque parte de cero (initdb re-corre con estas credenciales)
-    # y no existe ningún archivo en disco cuyos permisos puedan romperse.
+    # Start (or restart) the ephemeral Postgres. With the datadir in tmpfs every start
+    # is from scratch, and no file on disk can have its permissions break.
     started = subprocess.run(["docker", "start", TEST_PG_CONTAINER], capture_output=True, text=True)
     if started.returncode != 0:
         created = subprocess.run(

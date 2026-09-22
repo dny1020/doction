@@ -1,10 +1,8 @@
-"""Sugerencias locales sin LLM: wikilinks, tags (TF-IDF), duplicados y resumen TextRank.
+"""Local suggestions without an LLM: wikilinks, tags, duplicates and TextRank summaries.
 
-Todo corre sobre lo que ya existe: los vectores MiniLM de `page_chunks` (cuando
-`SEMANTIC_SEARCH=1`) y el propio markdown. Cero dependencias nuevas — numpy ya
-está. Cada función degrada con gracia cuando la búsqueda semántica está apagada
-(heurística de texto o lista vacía) y lo dice en su campo `mode`, siguiendo el
-principio de "explainability over magic" de sgrep.
+Everything runs on what already exists: the MiniLM vectors in `page_chunks` and the
+markdown itself. Each function degrades to a text heuristic with semantic search off,
+and says which it used in its `mode` field.
 """
 
 import logging
@@ -19,19 +17,20 @@ from app.models import ChunkVector
 
 logger = logging.getLogger(__name__)
 
-LINK_THRESHOLD = 0.40  # similitud mínima para sugerir un wikilink (top-5 y con score
-# visible, así que mejor pecar de generoso que parecer una función muerta)
-DUP_THRESHOLD = 0.90  # similitud mínima para considerar dos páginas casi duplicadas
-TAG_VOCAB_BOOST = 1.5  # premia términos que ya son tag en el workspace (vocabulario común)
-MAX_SUMMARY_SENTENCES = 120  # tope de frases a embeber por página (coste en el Pi)
+# Generous on purpose: suggestions are top-5 and carry a visible score, so erring
+# wide beats looking like a dead feature.
+LINK_THRESHOLD = 0.40
+DUP_THRESHOLD = 0.90
+TAG_VOCAB_BOOST = 1.5  # favours terms already used as tags elsewhere in the workspace
+MAX_SUMMARY_SENTENCES = 120  # per page, to bound the cost on a Pi
 MIN_SENTENCE_CHARS = 25
 MIN_CLUSTER_PAGES = 6
 
 _WORD_RE = re.compile(r"[a-záéíóúüñ][a-z0-9áéíóúüñ_-]{2,}")
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
-# Stopwords EN+ES mínimas: suficiente para TF-IDF de una wiki técnica, sin
-# arrastrar una lista de NLTK como dependencia.
+# Minimal EN+ES stopwords: enough for TF-IDF over a technical wiki without pulling in
+# a dependency for the list.
 STOPWORDS = frozenset(
     """
     the a an and or but if then else for while of to in on at by with from as is are was
@@ -52,14 +51,14 @@ STOPWORDS = frozenset(
 
 
 def tokenize(content: str) -> list[str]:
-    """Tokens en minúsculas del cuerpo: sin frontmatter, sin código, sin stopwords."""
+    """Lowercased body tokens, with frontmatter, code and stopwords removed."""
     _, body = meta.parse_frontmatter(content or "")
     text = meta.strip_code(body).lower()
     return [t for t in _WORD_RE.findall(text) if t not in STOPWORDS]
 
 
 def _idf(docs: list[set[str]]) -> dict[str, float]:
-    """IDF suavizado por término sobre el corpus del workspace."""
+    """Smoothed per-term IDF over the workspace corpus."""
     n = len(docs)
     df: Counter[str] = Counter()
     for tokens in docs:
@@ -68,9 +67,9 @@ def _idf(docs: list[set[str]]) -> dict[str, float]:
 
 
 def _page_vectors(rows: list[ChunkVector]) -> tuple[list[tuple[int, str, str]], np.ndarray]:
-    """Vector por página = media L2-normalizada de sus vectores de chunk.
+    """One L2-normalized vector per page, the mean of its chunk vectors.
 
-    Devuelve [(page_id, slug, title), …] y la matriz alineada por filas.
+    Returns [(page_id, slug, title), ...] and the matrix aligned by row.
     """
     groups: dict[int, list[np.ndarray]] = {}
     info: dict[int, tuple[str, str]] = {}
@@ -86,15 +85,14 @@ def _page_vectors(rows: list[ChunkVector]) -> tuple[list[tuple[int, str, str]], 
     return entries, (mat / norms).astype(np.float32)
 
 
-# ── Wikilinks y duplicados ───────────────────────────────────────────────────
+# ── Wikilinks and duplicates ─────────────────────────────────────────────────
 
 
 def suggest_links(workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
-    """Páginas del workspace que esta página debería enlazar y aún no enlaza.
+    """Pages this one should link to and does not yet.
 
-    Con semántica activa: similitud coseno entre vectores de página. Apagada o
-    sin vectores todavía: menciones literales de títulos ajenos en el cuerpo.
-    None si la página no existe.
+    Cosine similarity between page vectors, or literal title mentions in the body when
+    semantic search is off. None if the page does not exist.
     """
     page = db.get_page(slug, workspace_id)
     if page is None:
@@ -122,7 +120,7 @@ def suggest_links(workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
                     break
             return {"slug": slug, "mode": "semantic", "suggestions": suggestions}
 
-    # Fallback sin vectores: títulos de otras páginas mencionados y sin enlazar.
+    # Without vectors: other pages' titles mentioned in the body but not linked.
     body = meta.strip_code(meta.parse_frontmatter(page.content)[1]).lower()
     suggestions = []
     for other in db.workspace_pages(workspace_id):
@@ -137,7 +135,7 @@ def suggest_links(workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
 
 
 def find_duplicates(workspace_id: int, *, threshold: float = DUP_THRESHOLD, k: int = 20) -> dict:
-    """Pares de páginas casi duplicadas por similitud coseno (solo con semántica)."""
+    """Near-duplicate page pairs by cosine similarity; needs semantic search."""
     if not embeddings.semantic_enabled():
         return {"mode": "off", "pairs": []}
     entries, mat = _page_vectors(
@@ -166,9 +164,11 @@ def find_duplicates(workspace_id: int, *, threshold: float = DUP_THRESHOLD, k: i
 
 
 def suggest_tags(workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
-    """Tags candidatos para una página: términos TF-IDF característicos frente al
-    resto del workspace, con premio a los que ya existen como tag en otras
-    páginas. No necesita vectores. None si la página no existe."""
+    """Candidate tags: the page's characteristic TF-IDF terms against the workspace.
+
+    Terms already used as tags elsewhere score higher. Needs no vectors; None if the
+    page does not exist.
+    """
     pages = db.workspace_pages(workspace_id)
     target_idx = next((i for i, p in enumerate(pages) if p.slug == slug), None)
     if target_idx is None:
@@ -202,11 +202,11 @@ def suggest_tags(workspace_id: int, slug: str, *, k: int = 5) -> dict | None:
     }
 
 
-# ── Resumen extractivo (TextRank) ────────────────────────────────────────────
+# ── Extractive summary (TextRank) ────────────────────────────────────────────
 
 
 def _sentences(body: str) -> list[str]:
-    """Frases de prosa del cuerpo: fuera código, encabezados, tablas, listas e imágenes."""
+    """Prose sentences from the body, dropping code, headings, tables, lists and images."""
     text = meta.strip_code(body)
     kept: list[str] = []
     for para in re.split(r"\n\s*\n", text):
@@ -224,10 +224,10 @@ def _sentences(body: str) -> list[str]:
 
 
 def summarize(content: str, *, k: int = 3) -> dict:
-    """Resumen extractivo: TextRank sobre similitud de embeddings de frases.
+    """TextRank over sentence-embedding similarity: the k most central sentences.
 
-    Sin LLM: elige las k frases más centrales y las devuelve en su orden
-    original. Con la semántica apagada degrada a las primeras k frases (`lead`).
+    Returned in their original order. Degrades to the first k sentences (`lead`) with
+    semantic search off.
     """
     _, body = meta.parse_frontmatter(content or "")
     sentences = _sentences(body)
@@ -246,12 +246,11 @@ def summarize(content: str, *, k: int = 3) -> dict:
     return {"mode": "textrank", "summary": [sentences[i] for i in top]}
 
 
-# ── Insights del workspace ───────────────────────────────────────────────────
+# ── Workspace insights ───────────────────────────────────────────────────────
 
 
 def _topic_clusters(workspace_id: int, *, max_clusters: int = 5) -> dict:
-    """Agrupa las páginas por tema (k-means sobre vectores) y etiqueta cada grupo
-    con sus términos TF-IDF más característicos."""
+    """Group pages by topic (k-means over vectors), labelled by their top TF-IDF terms."""
     entries, mat = _page_vectors(
         db.workspace_chunk_vectors(workspace_id, embeddings.current_model_name(), meta.CHUNKER_ID)
     )
@@ -283,8 +282,7 @@ def _topic_clusters(workspace_id: int, *, max_clusters: int = 5) -> dict:
 
 
 def workspace_insights(workspace_id: int) -> dict:
-    """Panel de salud del workspace: estructura del grafo de wikilinks más las
-    señales semánticas (duplicados y clusters de temas) cuando hay vectores."""
+    """Workspace health: wikilink graph structure, plus duplicates and topic clusters."""
     insights = graph.link_insights(workspace_id)
     insights["duplicates"] = find_duplicates(workspace_id)
     if embeddings.semantic_enabled():

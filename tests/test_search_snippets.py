@@ -1,14 +1,11 @@
-"""Tests del fragmento de búsqueda: el servidor no devuelve markup, en ningún modo.
+"""Search snippets: the server returns no markup, in any mode.
 
-Cubren el defecto que originó el cambio: `ts_headline` envolvía la coincidencia en
-<mark> y dejaba el resto del texto de la página tal cual, y la sidebar lo pintaba
-con dangerouslySetInnerHTML. Una página con un atributo de evento en el cuerpo y
-un término que casara era XSS almacenado, con el renderer de markdown intacto.
+Covers the defect behind it: `ts_headline` wrapped the match in <mark> and left the rest of
+the page text alone, and the sidebar painted it with dangerouslySetInnerHTML — stored XSS
+with the markdown renderer entirely intact.
 
-El reparto es: aquí se comprueba que el servidor no añade markup propio y que el
-resaltado viaja como tramos; que el cliente pinte esos tramos como texto y no como
-HTML se comprueba leyendo el cliente — el contenido de la página se conserva tal
-cual, porque es texto y recortarlo sería mentir sobre lo que dice la página.
+Checked here: the server adds no markup of its own and highlighting travels as spans. That
+the client paints those spans as text is checked by reading the client.
 """
 
 import pytest
@@ -43,7 +40,7 @@ def _search(client, token: str, query: str, mode: str) -> list[dict]:
 
 @pytest.fixture()
 def semantic_client(main_module, monkeypatch):
-    """Cliente con búsqueda semántica encendida y el embedder determinista."""
+    """A client with semantic search on and the deterministic embedder."""
     monkeypatch.setenv("SEMANTIC_SEARCH", "1")
     monkeypatch.setenv("EMBED_STUB", "1")
 
@@ -115,8 +112,8 @@ def test_semantic_and_hybrid_snippets_carry_no_markup(semantic_client):
 
 
 def test_snippet_does_not_lead_with_frontmatter(client):
-    """Una captura rápida empieza por `--- type: memo ---`; enseñar eso como el
-    texto de la página convierte el metadato en el resultado."""
+    """A quick capture opens with `--- type: memo ---`; showing that as the page text
+    turns the metadata into the result."""
     token = _token(client)
     _page(client, token, "Captura", "---\ntype: memo\n---\n\nrevisar el dispatcher del SBC")
 

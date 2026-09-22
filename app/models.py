@@ -1,15 +1,8 @@
-"""Tipos de datos del backend (dataclasses).
+"""Backend data types.
 
-Antes, cada fila de la base de datos viajaba como un diccionario `sqlite3.Row`, así
-que la *forma* de un usuario, una página o un workspace no estaba escrita en ningún
-sitio y había que adivinarla. Aquí queda definida una sola vez.
-
-Reglas para leer este archivo:
-- Cada clase es un `@dataclass` simple: solo campos con su tipo, sin métodos.
-- Algunas consultas SQL solo seleccionan unas pocas columnas. Por eso varios campos
-  son opcionales (`= None`): una misma clase (p. ej. `Page`) puede venir "completa"
-  o "a medias" según la función de `db.py` que la haya creado. El docstring de cada
-  función de `db.py` dice qué campos rellena.
+Optional fields (`= None`) are the norm rather than the exception: a class such as
+`Page` comes back complete from `get_page` and only half-filled from the short
+listings. Each `db.py` function's docstring says which fields it populates.
 """
 
 from dataclasses import dataclass
@@ -17,27 +10,19 @@ from dataclasses import dataclass
 
 @dataclass
 class User:
-    """Un usuario (tabla `users`)."""
-
     id: int
     email: str
     password_hash: str
     created_at: str
     display_name: str | None = None
     avatar_color: str | None = None
-    # Versión de sesión: va como claim `ver` en el JWT; al cambiar la contraseña se
-    # incrementa y todos los JWT anteriores (cookies o bearer) dejan de valer.
+    # Travels as the JWT `ver` claim; bumping it on a password change invalidates
+    # every token issued before.
     token_version: int = 0
 
 
 @dataclass
 class Workspace:
-    """Un espacio de trabajo (tabla `workspaces`).
-
-    `role` solo viene cuando se lista para un usuario concreto (su rol en él);
-    `user_id` y `created_at` solo en algunas consultas.
-    """
-
     id: int
     slug: str
     name: str
@@ -48,8 +33,6 @@ class Workspace:
 
 @dataclass
 class Member:
-    """Un miembro de un workspace (usuario + su rol)."""
-
     user_id: int
     email: str
     display_name: str | None
@@ -59,8 +42,6 @@ class Member:
 
 @dataclass
 class ApiToken:
-    """Un token de API (se muestra el hash una sola vez al crearlo)."""
-
     id: int
     name: str
     created_at: str
@@ -69,14 +50,6 @@ class ApiToken:
 
 @dataclass
 class Page:
-    """Una página de la wiki (tabla `pages`).
-
-    La función `get_page` la devuelve completa, incluidos los
-    campos extra de los JOIN (`parent_slug`, `updated_by_email`, …). Las listas
-    cortas (papelera, exportación, subpáginas) rellenan solo unas columnas y dejan
-    el resto en `None`.
-    """
-
     id: int | None = None
     slug: str = ""
     title: str = ""
@@ -90,7 +63,7 @@ class Page:
     embed_dirty: int | None = None
     updated_by: int | None = None
     deleted_at: str | None = None
-    # Columnas extra que añaden los JOIN de get_page:
+    # Extra columns the get_page JOINs add.
     parent_slug: str | None = None
     parent_title: str | None = None
     updated_by_email: str | None = None
@@ -99,10 +72,7 @@ class Page:
 
 @dataclass
 class PageNode:
-    """Una página dentro del árbol de la barra lateral (`list_pages_tree`).
-
-    `depth` es la profundidad para la indentación; no es una columna de la tabla.
-    """
+    """A page in the sidebar tree; `depth` is for indentation, not a column."""
 
     slug: str
     title: str
@@ -111,11 +81,7 @@ class PageNode:
 
 @dataclass
 class Webhook:
-    """Un receptor de eventos de salida (`POST /api/webhooks`).
-
-    `secret` no se devuelve nunca por la API: solo se muestra al crearlo, igual
-    que un PAT. `events` vacío significa "todos".
-    """
+    """`secret` is shown once at creation and never returned again; empty `events` means all."""
 
     id: int
     workspace_id: int
@@ -129,14 +95,7 @@ class Webhook:
 
 @dataclass
 class Delivery:
-    """El resultado de intentar entregar un evento a un webhook.
-
-    Una fila por evento, no por intento: el worker reintenta sobre la misma fila
-    con backoff, así que `attempts` es cuántas veces se ha probado. El estado sale
-    de las dos columnas juntas — `delivered_at` sin `last_error` es entregado, con
-    `last_error` es que se agotaron los reintentos, y sin `delivered_at` sigue en
-    cola.
-    """
+    """One row per event, not per attempt: the worker retries in place with backoff."""
 
     id: int
     webhook_id: int
@@ -150,8 +109,6 @@ class Delivery:
 
 @dataclass
 class PendingDelivery:
-    """Una entrega pendiente que el worker debe intentar."""
-
     id: int
     webhook_id: int
     url: str
@@ -163,11 +120,7 @@ class PendingDelivery:
 
 @dataclass
 class NoteRef:
-    """Una nota en el feed cronológico (`list_notes`).
-
-    Lleva `created_at` porque es el cursor de la paginación: el árbol de la
-    barra lateral no sirve para captura rápida, que crece sin límite.
-    """
+    """`created_at` is the pagination cursor for the note feed."""
 
     slug: str
     title: str
@@ -177,23 +130,13 @@ class NoteRef:
 
 @dataclass
 class PageRef:
-    """Una referencia ligera a una página (solo slug + título).
-
-    Se usa para las migas de pan (ancestros) y para los backlinks.
-    """
-
     slug: str
     title: str
 
 
 @dataclass
 class Mention:
-    """Un backlink con la frase donde está escrito el enlace.
-
-    Una lista de títulos dice quién apunta aquí; no dice si la referencia importa.
-    El contexto viaja como tramos, igual que los fragmentos de búsqueda, para que
-    el texto de una página no pueda meter markup en el renderizado de otra.
-    """
+    """A backlink plus the sentence the link sits in."""
 
     slug: str
     title: str
@@ -202,8 +145,6 @@ class Mention:
 
 @dataclass
 class RelatedPage:
-    """Una página relacionada por etiquetas en común (`related_pages`)."""
-
     slug: str
     title: str
     shared_tags: int
@@ -211,11 +152,10 @@ class RelatedPage:
 
 @dataclass
 class SnippetPart:
-    """Un tramo de un fragmento de búsqueda; `match` marca lo que coincidió.
+    """A span of a search snippet; `match` marks what matched.
 
-    El resaltado viaja como tramos y no como HTML: el cliente decide cómo pintar
-    una coincidencia y el texto de la página nunca vuelve a entrar en el DOM como
-    markup. Ver `db._split_snippet`.
+    Highlighting travels as spans rather than HTML so page text never re-enters the
+    DOM as markup. See `db._split_snippet`.
     """
 
     text: str
@@ -224,13 +164,7 @@ class SnippetPart:
 
 @dataclass
 class SearchHit:
-    """Un resultado de la búsqueda de texto (`search_pages`).
-
-    `snippet` es el fragmento en texto plano —sin ningún markup— y `parts` es el
-    mismo fragmento partido en tramos para poder resaltar las coincidencias. Se
-    mandan los dos porque quien solo quiere leer el fragmento (un agente por MCP,
-    un `jq` sobre /api/search) sigue leyendo una cadena.
-    """
+    """`snippet` is the plain text and `parts` the same text split for highlighting."""
 
     slug: str
     title: str
@@ -240,8 +174,6 @@ class SearchHit:
 
 @dataclass
 class PageMeta:
-    """Metadatos de una página: tipo, etiquetas y frontmatter (`get_page_meta`)."""
-
     slug: str
     type: str | None
     tags: list[str]
@@ -250,8 +182,6 @@ class PageMeta:
 
 @dataclass
 class ExtractedPage:
-    """Página filtrada por tipo/etiqueta del frontmatter (`extract_pages`)."""
-
     slug: str
     title: str
     type: str | None
@@ -262,8 +192,6 @@ class ExtractedPage:
 
 @dataclass
 class HistoryEntry:
-    """Una versión (commit de git) de una página (`git_repo.get_page_history`)."""
-
     sha: str
     timestamp: str
     author: str
@@ -272,12 +200,7 @@ class HistoryEntry:
 
 @dataclass
 class Chunk:
-    """Un fragmento indexable y la cadena de encabezados que lo sitúa.
-
-    `headings` va de fuera hacia dentro (`["Operaciones", "Renovación TLS"]`) y puede
-    estar vacía: el preámbulo de una página, lo que va antes del primer encabezado,
-    no cuelga de ninguno.
-    """
+    """`headings` runs outermost first, and is empty for a page's preamble."""
 
     text: str
     headings: list[str]
@@ -285,8 +208,6 @@ class Chunk:
 
 @dataclass
 class EmbedTarget:
-    """Página pendiente de indexar para búsqueda semántica (`pages_to_embed`)."""
-
     id: int
     workspace_id: int
     title: str
@@ -295,12 +216,7 @@ class EmbedTarget:
 
 @dataclass
 class ChunkVector:
-    """Un trozo de página con su vector, para la búsqueda semántica.
-
-    `path` es la cadena de encabezados dentro del documento, ya unida (`"Operaciones
-    > Renovación TLS"`). Vacía para el preámbulo. La ruta completa que ve un agente
-    —workspace, página, sección— se compone al leer, donde el workspace ya se conoce.
-    """
+    """`path` is the joined heading chain (`"Operations > TLS renewal"`), empty for the preamble."""
 
     page_id: int
     ord: int
@@ -309,18 +225,14 @@ class ChunkVector:
     vector: bytes
     slug: str
     title: str
-    # Tipo y etiquetas de la página, para que un agente sepa si el pasaje viene de un
-    # runbook o de un acta sin una segunda llamada. Se leen de page_meta/page_tags al
-    # consultar, no se copian aquí: si alguien reetiqueta la página, el fragmento lo
-    # refleja al instante en vez de esperar a un reindexado.
+    # Read from page_meta/page_tags at query time, not copied here: retagging a page
+    # shows up immediately instead of waiting for a reindex.
     page_type: str | None
     tags: list[str]
 
 
 @dataclass
 class UploadHit:
-    """Un upload cuyo texto OCR coincide con la búsqueda (`search_uploads`)."""
-
     name: str
     snippet: str
     parts: list[SnippetPart]
@@ -328,11 +240,7 @@ class UploadHit:
 
 @dataclass
 class LinkEdge:
-    """Una arista del grafo de wikilinks (`workspace_links`).
-
-    `dst_slug` es el destino tal como se guardó (slugificado); puede no resolver
-    a ninguna página existente (enlace roto).
-    """
+    """`dst_slug` is stored as written and may resolve to nothing (a broken link)."""
 
     src_page_id: int
     dst_slug: str

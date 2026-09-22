@@ -1,12 +1,11 @@
 import { useRouteError } from 'react-router-dom'
 
-// Fallo de la propia navegación: una ruta que revienta al pintarse, o un error que
-// el router atrapa antes de que llegue a ninguna barrera nuestra. Sin esto se veía
-// la pantalla de error por defecto de React Router, que enseña el stack.
+// A failure of the navigation itself: a route that throws while painting, or an error the
+// router catches before it reaches any boundary of ours. Without this, React Router shows
+// its default screen with the stack.
 //
-// Sin i18n a propósito, igual que ErrorBoundary: esto puede dispararse antes o por
-// debajo de los providers, y depender de uno de ellos aquí sería depender justo de
-// lo que puede estar roto.
+// No i18n on purpose, like ErrorBoundary: this can fire before or below the providers, and
+// depending on one here is depending on exactly what may be broken.
 export default function ErrorPage() {
   const error = useRouteError()
   console.error('route error:', error)

@@ -1,13 +1,8 @@
-"""Búsqueda semántica local: embeddings ONNX (MiniLM), sin servicios en la nube.
+"""Local semantic search: ONNX MiniLM embeddings, no cloud services.
 
-Opt-in vía `SEMANTIC_SEARCH=1`. Si está apagado (o no hay vectores aún), todo
-degrada con gracia a la búsqueda de texto completo de Postgres. doction hace
-*retrieval*; la generación (RAG, resúmenes) la hace el agente conectado por
-MCP — aquí no vive ningún LLM.
-
-El modelo se carga perezosamente y solo cuando se usa, para no gastar RAM en un
-Pi cuando la función está apagada. Para tests, `EMBED_STUB=1` usa un encoder
-determinista (bag-of-words) y evita depender del modelo real.
+Opt-in via `SEMANTIC_SEARCH=1`; with it off, or with nothing indexed yet, everything
+degrades to Postgres full-text search. The model loads lazily so a Pi with the feature
+off pays no RAM. `EMBED_STUB=1` swaps in a deterministic bag-of-words encoder for tests.
 """
 
 import hashlib
@@ -28,57 +23,25 @@ logger = logging.getLogger(__name__)
 
 EMBED_DIM = 384
 MAX_TOKENS = 256
-# Impulso por coincidencia con el encabezado, para elegir *qué sección* de una página
-# se devuelve. Dos consultas del conjunto fallaban con cualquier empaquetado —«where
-# are the secrets stored» y «how do I update a docker image»— y las dos tienen la misma
-# forma: el encabezado que responde solapa con la consulta y su cuerpo no.
-#
-# Solo desempata dentro de una página. El orden de las páginas se calcula aparte, con
-# el coseno a secas, así que este término no entra nunca en la fusión ni compara dos
-# escalas distintas: cambia qué sección sale, no qué página gana.
+# Tie-breaks *which section* of a page is returned, never which page wins: page order is
+# plain cosine, computed separately. Some queries are answered by the heading and not by
+# the body beneath it.
 HEADING_MATCH_BOOST = 0.15
 
-# Constante de la fusión de rangos recíprocos. 60 es el valor del artículo original
-# (Cormack et al., 2009) y el que usa prácticamente todo el mundo. Lo que hace es
-# aplanar la curva: sin ella el primero valdría el doble que el segundo, y con ella
-# la diferencia entre los primeros puestos es pequeña y la cola sigue contando algo.
+# Reciprocal rank fusion constant, from the original paper (Cormack et al., 2009).
 RRF_K = 60
-# Peso de la lista vectorial dentro de la fusión. La RRF clásica no lleva pesos y sin
-# ellos la fusión sale peor que la semántica sola: las dos listas no valen lo mismo
-# sobre este corpus —FTS marca 0.46 de MRR y los vectores 0.77—, así que darles el
-# mismo voto arrastra a la buena.
-#
-# Barrido del arnés (43 páginas, 28 consultas, 2026-09-03-rrf-weight-sweep.json):
-#
-#   peso       1.0   1.5   2.0   3.0   5.0  10.0
-#   MRR       0.74  0.75  0.75  0.76  0.76  0.76
-#   recall@1  0.64  0.68  0.68  0.68  0.68  0.68
-#
-# La meseta empieza en 1.5 y de ahí en adelante todo es ruido. Se coge 2.0, el
-# extremo bajo: subirlo más no mide mejor y convertiría la híbrida en una semántica
-# con adorno léxico, que sería mentir sobre lo que hace. 2.0 además coincide con la
-# proporción entre los MRR medidos de las dos listas (0.77 frente a 0.46).
+# Weight of the vector list in the fusion. Unweighted RRF scores worse than semantic
+# alone: over this corpus the lists are not worth the same (FTS 0.46 MRR, vectors 0.77).
+# The sweep plateaus at 1.5; 2.0 is the low end of that plateau.
+# See evals/results/2026-09-03-rrf-weight-sweep.json.
 RRF_VECTOR_WEIGHT = 2.0
-# Cuántos resultados del bi-encoder repuntúa el cross-encoder. Sin barrer a
-# propósito: el reranker completo no mejora nada medible (MRR 0.73 frente a 0.72
-# sin él, y recall@1 0.57 frente a 0.61) mientras multiplica por 29 la latencia
-# mediana. Afinar su ventana sería optimizar algo que conviene tener apagado.
-# Ojo con la interacción: bajar SEARCH_MIN_SCORE deja pasar más candidatos al
-# cross-encoder, así que el reranker se encareció al bajar el piso (54 → 350 ms).
+# Cross-encoder rescoring window. Deliberately unswept — the reranker buys nothing
+# measurable and costs 29x median latency, so it stays off. See evals/results/.
 RERANK_CANDIDATES = 20
-# Corte del buscador de la UI: decide qué se esconde, no cómo se ordena, así que se
-# mide por lo que cuesta esconder. Barrido sobre el wiki real (28 consultas,
-# evals/results/2026-08-24-minilm-en.json):
-#
-#   piso   0.25   0.30   0.35   0.40   0.45   0.50
-#   MRR    0.72   0.68   0.67   0.67   0.53   0.38
-#   vacías 0.07   0.11   0.14   0.21   0.36   0.54
-#   fallos    4      7      8      8     12     17
-#
-# recall@1 es 0.64 de 0.25 a 0.40: el piso no cambia el primer resultado, solo corta
-# la cola. El 0.35 anterior escondía 4 aciertos y doblaba las listas vacías a cambio
-# de nada medible. Lo que no mide este barrido es cuánto relleno entra por debajo;
-# el precio de 0.25 es una lista más larga.
+# Floor for the UI search box: it decides what is hidden, not how results are ordered.
+# recall@1 is flat from 0.25 to 0.40, so a higher floor only truncates the tail — 0.35
+# hid 4 correct hits and doubled empty result lists.
+# See evals/results/2026-08-24-minilm-en.json.
 SEARCH_MIN_SCORE = 0.25
 
 _DEFAULT_MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
@@ -94,12 +57,10 @@ def _flag(name: str) -> bool:
 
 
 def semantic_enabled() -> bool:
-    """True si la búsqueda semántica está activada por entorno."""
     return _flag("SEMANTIC_SEARCH")
 
 
 def rerank_enabled() -> bool:
-    """True si el reranker cross-encoder está activado (requiere semántica activa)."""
     return _flag("RERANK") and semantic_enabled()
 
 
@@ -112,7 +73,7 @@ def _l2_normalize(mat: np.ndarray) -> np.ndarray:
 
 
 class _OnnxEmbedder:
-    """MiniLM int8 vía onnxruntime + tokenizer HF. Mean-pooling + L2 normalize."""
+    """MiniLM int8 over onnxruntime: mean-pooling then L2 normalize."""
 
     name = "all-MiniLM-L6-v2-int8"
 
@@ -137,8 +98,8 @@ class _OnnxEmbedder:
         feeds: dict[str, np.ndarray] = {"input_ids": input_ids, "attention_mask": attention}
         if "token_type_ids" in self._inputs:
             feeds["token_type_ids"] = np.array([e.type_ids for e in encs], dtype=np.int64)
-        # run() promete Sequence[ndarray | SparseTensor | list | dict]; este modelo
-        # siempre devuelve un único tensor denso.
+        # run() is typed Sequence[ndarray | SparseTensor | list | dict]; this model
+        # always returns one dense tensor.
         (last_hidden,) = cast(list[np.ndarray], self._sess.run(None, feeds))  # (B, S, 384)
         mask = attention[:, :, None].astype(np.float32)
         summed = (last_hidden * mask).sum(axis=1)
@@ -147,7 +108,7 @@ class _OnnxEmbedder:
 
 
 class _StubEmbedder:
-    """Encoder determinista bag-of-words para tests (sin modelo)."""
+    """Deterministic bag-of-words encoder for tests; no model file needed."""
 
     name = "stub"
 
@@ -161,11 +122,7 @@ class _StubEmbedder:
 
 
 class _OnnxReranker:
-    """Cross-encoder ms-marco MiniLM int8: puntúa pares (query, texto).
-
-    A diferencia del bi-encoder, ve query y texto juntos, así que ordena mejor;
-    solo se usa para repuntuar los primeros RERANK_CANDIDATES (opt-in RERANK=1).
-    """
+    """Cross-encoder scoring (query, text) pairs; sees both together, so it orders better."""
 
     name = "ms-marco-MiniLM-L-6-v2-int8"
 
@@ -194,7 +151,7 @@ class _OnnxReranker:
 
 
 class _StubReranker:
-    """Reranker determinista para tests: solape de tokens query∩texto."""
+    """Deterministic reranker for tests: query/text token overlap."""
 
     name = "stub"
 
@@ -213,7 +170,6 @@ _embedder_lock = threading.Lock()
 
 
 def get_embedder() -> _OnnxEmbedder | _StubEmbedder:
-    """Singleton perezoso del encoder (carga el modelo solo al primer uso)."""
     global _embedder
     if _embedder is None:
         with _embedder_lock:
@@ -223,7 +179,6 @@ def get_embedder() -> _OnnxEmbedder | _StubEmbedder:
 
 
 def get_reranker() -> _OnnxReranker | _StubReranker:
-    """Singleton perezoso del cross-encoder (mismo patrón que get_embedder)."""
     global _reranker
     if _reranker is None:
         with _embedder_lock:
@@ -233,12 +188,7 @@ def get_reranker() -> _OnnxReranker | _StubReranker:
 
 
 def current_model_name() -> str:
-    """Nombre del encoder configurado, sin cargar el modelo.
-
-    `name` es atributo de clase en ambos encoders, así que se puede saber con qué
-    modelo se escribieron los vectores sin abrir la sesión ONNX — importa porque
-    esto se consulta también con la semántica apagada.
-    """
+    """The configured encoder's name, read off the class so no ONNX session is opened."""
     return _StubEmbedder.name if _flag("EMBED_STUB") else _OnnxEmbedder.name
 
 
@@ -260,38 +210,20 @@ def _from_blob(blob: bytes) -> np.ndarray:
 
 
 def _embed_text(title: str, chunk) -> str:
-    """Lo que se embebe: el encabezado inmediato de la sección y luego su cuerpo.
+    """The section's own heading, then its body.
 
-    Antes iba delante la ruta entera —título de la página más toda la cadena de
-    ancestros— y eso resultó ser el motivo de que el recall de sección fuera 0.38.
-    Ese prefijo lo comparten todas las secciones de una página, así que no dice nada
-    sobre cuál de ellas responde: medido sobre el corpus real, dejaba a dos hermanas a
-    0.685 de coseno de media y a un par en 0.943. Dos secciones que contestan preguntas
-    distintas eran casi el mismo vector.
-
-    Quitarlo entero tampoco vale, y eso lo dijo el control del experimento: sin
-    encabezado la similitud entre hermanas baja más todavía y el recall no mejora,
-    porque se va la señal con el ruido. Lo que se quita es lo que las hermanas
-    comparten; lo que se queda es lo único que las distingue.
-
-    El título de la página se cae del embedding y sigue guardado en `path`. Dos secciones
-    redactadas igual en páginas distintas producen aquí el mismo vector, y eso es
-    correcto: con el mismo texto no hay nada en la sección que las distinga. Lo que las
-    separa es el ranking de páginas, donde el canal léxico sí ve el título — que es
-    justo la propiedad que la spec pide y la que se comprueba en
-    `test_chunking_properties`.
-
-    Se probó meter un identificador corto de la página en el prefijo para romper esa
-    igualdad de vectores. Medido, cuesta 0.07 de recall@1 de página en hybrid y en el
-    contexto ensamblado, y no mueve el recall de sección: el identificador es ruido
-    aleatorio que ensucia la comparación con la consulta. Descartado con el número.
+    The page title and ancestor chain are deliberately left out: every section of a page
+    shares that prefix, so it says nothing about which one answers, and including it held
+    sibling sections at 0.685 mean cosine. Dropping the heading too measures worse still.
+    Identical sections in different pages therefore embed identically, which is correct —
+    the page ranking separates them through the lexical channel, which does see the title.
     """
     heading = chunk.headings[-1] if chunk.headings else title
     return f"# {heading}\n\n{chunk.text}" if heading else chunk.text
 
 
 def reindex_page(page_id: int, workspace_id: int, title: str, content: str) -> int:
-    """Chunkea, embebe y persiste los vectores de una página. Limpia embed_dirty."""
+    """Chunk, embed and store a page's vectors, clearing embed_dirty."""
     embedder = get_embedder()
     chunks = meta.chunk_markdown(content)
     if not chunks:
@@ -307,7 +239,7 @@ def reindex_page(page_id: int, workspace_id: int, title: str, content: str) -> i
 
 
 def drain_pending(limit: int = 1000) -> int:
-    """Procesa síncronamente todas las páginas sucias (útil en tests/CLI)."""
+    """Embed every dirty page synchronously; for tests and the CLI."""
     done = 0
     while done < limit:
         pending = db.pages_to_embed(min(20, limit - done))
@@ -328,11 +260,7 @@ def _snippet(text: str, length: int = 240) -> str:
 
 
 def _one_part(text: str) -> list[SnippetPart]:
-    """Un fragmento semántico entero, sin resaltar: la semántica no casa términos.
-
-    Existe para que /api/search devuelva `parts` con la misma forma en los tres
-    modos — el cliente pinta tramos y no tiene que saber de dónde vino el hit.
-    """
+    """A whole semantic chunk, unhighlighted, so `parts` has one shape across all modes."""
     return [SnippetPart(text=text, match=False)]
 
 
@@ -361,19 +289,12 @@ def semantic_search(
     min_score: float | None = None,
     tags: list[str] | None = None,
 ) -> list[dict]:
-    """La lista vectorial: similitud de embeddings, ordenada. Degrada a FTS si aplica.
+    """The vector list: cosine similarity, ranked. Falls back to FTS when unavailable.
 
-    Solo el coseno. La mezcla con la búsqueda léxica vive en `search(mode="hybrid")`
-    y se hace por rango, no sumando una constante a esta puntuación.
-
-    Devuelve resultados explicables: slug, title, score y el mejor chunk (plan:
-    "explainability over magic").
-
-    `min_score` descarta los resultados por debajo del coseno dado. Sin él la lista
-    trae siempre el workspace entero ordenado, que es lo que quiere un agente por
-    MCP pero no un buscador. No aplica al fallback FTS (ahí el score es None).
-    Con RERANK=1 el corte va antes del cross-encoder: este solo reordena lo que ya
-    pasó el piso de coseno, no lo rescata.
+    Cosine only — the lexical mix lives in `search(mode="hybrid")` and fuses by rank.
+    Without `min_score` the list is the whole workspace in order, which is what an agent
+    over MCP wants and a search box does not. The floor applies before the cross-encoder,
+    so reranking reorders what passed it and never rescues what did not.
     """
     query = (query or "").strip()
     if not query:
@@ -383,9 +304,8 @@ def semantic_search(
 
     rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
     if tags:
-        # Se acota antes de puntuar, no después. Filtrar la lista ya ordenada deja a
-        # las páginas excluidas ocupando puestos, y la fusión combina por posición: un
-        # hueco en el ranking vectorial vale tanto como un resultado.
+        # Narrowed before scoring, not after: the fusion combines by position, so an
+        # excluded page left holding a rank counts as much as a result.
         allowed = db.slugs_with_tags(workspace_id, tags)
         rows = [row for row in rows if row.slug in allowed]
     if not rows:
@@ -393,7 +313,7 @@ def semantic_search(
 
     qvec = get_embedder().encode([query])[0]
     mat = np.stack([_from_blob(r.vector) for r in rows])
-    scores = mat @ qvec  # coseno (todo normalizado)
+    scores = mat @ qvec  # cosine; everything is normalized
 
     terms = {word for word in _words(query) if len(word) > 2}
 
@@ -401,10 +321,8 @@ def semantic_search(
     for idx, row in enumerate(rows):
         pid = int(row.page_id)
         score = float(scores[idx])
-        # Dos criterios a propósito. `score` es el coseno puro y es lo que ordena las
-        # páginas: meter aquí el impulso movería el ranking de páginas, que no es lo
-        # que falla. `pick` solo decide cuál de las secciones de esta página la
-        # representa, y ahí el encabezado sí cuenta.
+        # Two criteria on purpose: `score` is plain cosine and ranks pages, `pick` only
+        # chooses which section represents this one.
         pick = score + HEADING_MATCH_BOOST * _heading_match(terms, row.path)
         previous = best.get(pid)
         top = max(score, previous["score"]) if previous else score
@@ -415,15 +333,12 @@ def semantic_search(
                 "score": score,
                 "chunk": row.text,
                 "ord": int(row.ord),
-                # De dónde salió dentro de la página, y de qué clase de página.
                 "section": row.path,
                 "page_type": row.page_type,
                 "tags": row.tags,
                 "_pick": pick,
             }
-        # La página puntúa siempre con su mejor coseno, mire a qué sección mire. Se
-        # arrastra aparte porque al cambiar de sección representativa se reconstruye el
-        # diccionario, y con él se perdía el máximo anterior.
+        # Carried separately because switching representative section rebuilds the dict.
         best[pid]["score"] = top
 
     results = list(best.values())
@@ -431,16 +346,13 @@ def semantic_search(
         r.pop("_pick", None)
         r["via"] = "semantic"
 
-    # Desempate por slug: dos coseno idénticos ordenados por el orden de llegada de
-    # la consulta harían que la misma búsqueda diera dos órdenes distintos.
+    # Slug tie-break, so the same query always returns the same order.
     results.sort(key=lambda r: (-r["score"], r["slug"]))
     if min_score is not None:
         results = [r for r in results if r["score"] >= min_score]
 
     if rerank_enabled() and results:
-        # Repuntúa los primeros candidatos con el cross-encoder y reordena por su
-        # score; se conserva `score` (bi-encoder) para que el resultado siga
-        # siendo explicable.
+        # `score` stays the bi-encoder's, so the result is still explainable.
         pool = results[:RERANK_CANDIDATES]
         rerank_scores = get_reranker().score(query, [r["chunk"] for r in pool])
         for r, rerank_score in zip(pool, rerank_scores, strict=True):
@@ -458,16 +370,11 @@ def semantic_search(
 
 
 def _rrf(rankings: list[tuple[float, list[str]]]) -> dict[str, float]:
-    """Puntuación RRF por slug: suma de 1/(k + posición) en cada lista donde aparece.
+    """RRF score per slug: the sum of 1/(k + position) over every list it appears in.
 
-    Se combina por posición y no por puntuación a propósito. Un coseno y un ts_rank
-    no comparten unidad, así que cualquier constante que sume el uno al otro es
-    arbitraria en algún punto de la lista: la vieja KEYWORD_BOOST de 0.1 era enorme
-    al lado del hueco entre los puestos 3 y 4, y despreciable al lado del que hay
-    entre el 1 y el 10.
-
-    Una lista vacía no aporta nada y no rompe nada: si un canal no devuelve, la
-    fusión es el orden del otro.
+    By position and not by score, because a cosine and a ts_rank share no unit: any
+    constant added from one to the other is arbitrary somewhere down the list. An empty
+    list contributes nothing, so one dead channel leaves the other's order intact.
     """
     scores: dict[str, float] = {}
     for weight, ranking in rankings:
@@ -477,26 +384,17 @@ def _rrf(rankings: list[tuple[float, list[str]]]) -> dict[str, float]:
 
 
 def _hybrid(workspace_id: int, query: str, *, tags: list[str] | None = None) -> list[dict]:
-    """Búsqueda híbrida: la lista léxica y la vectorial, fusionadas por rango.
+    """The lexical and vector lists, fused by rank.
 
-    Antes esto concatenaba —los aciertos de FTS delante, los semánticos detrás— y
-    eso ponía a FTS primero por posición y no por mérito: un acierto léxico mediocre
-    tapaba uno semántico bueno. Se notaba en el arnés, donde `hybrid` perdía contra
-    `semantic` sola en las consultas conceptuales.
-
-    El fragmento que se enseña no cambia de fuente: si la página salió por FTS se
-    sigue enseñando su extracto resaltado, que es lo que la barra lateral pinta en
-    <mark>; si solo salió por la semántica, su chunk. Lo que cambia es el orden.
+    Only the order is fused. A page found by FTS still shows its highlighted extract —
+    what the sidebar renders in <mark> — and one found only by vectors shows its chunk.
     """
-    # Las dos listas se acotan dentro de su propia extracción, cada una en su motor:
-    # la léxica en su SQL, la vectorial antes de puntuar. Fusionar posiciones exige que
-    # las posiciones se cuenten ya sobre el conjunto filtrado.
+    # Each list is narrowed inside its own engine: fusing positions requires the
+    # positions to already be counted over the filtered set.
     lexical = db.search_pages(workspace_id, query, tags=tags)
     vector = semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE, tags=tags)
-    # Con la semántica apagada, o el workspace todavía sin indexar, `semantic_search`
-    # ya devuelve aciertos de FTS. Fusionar FTS consigo misma no reordena nada y
-    # además etiquetaría la procedencia como si hubieran votado dos canales: cuando
-    # solo hay uno, la híbrida ES la léxica.
+    # With semantics off, or nothing indexed, `semantic_search` already returned FTS
+    # hits. Fusing FTS with itself reorders nothing and would claim two channels voted.
     if vector and vector[0]["via"] == "fts":
         vector = []
 
@@ -513,8 +411,8 @@ def _hybrid(workspace_id: int, query: str, *, tags: list[str] | None = None) -> 
     for hit in vector:
         by_slug[hit["slug"]] = {**hit, "snippet": hit["chunk"], "parts": _one_part(hit["chunk"])}
     for hit in lexical:
-        # El extracto de FTS gana porque trae el resaltado; el resto de campos del
-        # acierto vectorial (score, chunk, ord) se conservan si también salió por ahí.
+        # The FTS extract wins because it carries the highlighting; the vector hit's
+        # other fields survive if the page came through both.
         existing = by_slug.get(hit.slug, {"slug": hit.slug, "title": hit.title, "score": None})
         by_slug[hit.slug] = {**existing, "snippet": hit.snippet, "parts": hit.parts}
 
@@ -527,9 +425,6 @@ def _hybrid(workspace_id: int, query: str, *, tags: list[str] | None = None) -> 
                 **row,
                 "rrf": round(scores[slug], 6),
                 "keyword_match": in_lexical,
-                # La procedencia es parte del resultado: quien elige entre dos
-                # fragmentos necesita distinguir un acierto exacto de un vecino
-                # semántico, y quien depura un orden malo necesita poder revisarlo.
                 "via": "both"
                 if in_lexical and in_vector
                 else ("fts" if in_lexical else "semantic"),
@@ -537,7 +432,7 @@ def _hybrid(workspace_id: int, query: str, *, tags: list[str] | None = None) -> 
                 "vector_rank": vector_rank.get(slug),
             }
         )
-    # Desempate por slug para que la misma consulta dé siempre el mismo orden.
+    # Slug tie-break, so the same query always returns the same order.
     results.sort(key=lambda r: (-r["rrf"], r["slug"]))
     return results
 
@@ -549,12 +444,10 @@ def search(
     mode: str = "keyword",
     tags: list[str] | None = None,
 ) -> list[dict]:
-    """Los tres modos del buscador: `keyword` (FTS), `semantic` y `hybrid`.
+    """The three search modes: `keyword` (FTS), `semantic` and `hybrid`.
 
-    Vive aquí y no en la ruta porque el harness de evaluación mide exactamente lo
-    que recibe el usuario; si la mezcla de `hybrid` se quedara inline en el
-    endpoint habría que reimplementarla para medirla, y entonces lo medido sería
-    la copia y no el código que se despliega.
+    Here rather than in the route so the evaluation harness measures what users get
+    instead of a reimplementation of it.
     """
     if not query.strip():
         return []
@@ -575,43 +468,33 @@ def search(
     ]
 
 
-# Presupuesto del contexto ensamblado, en caracteres. Antes eran seis fragmentos
-# fijos, que no es una cota de nada: seis secciones cortas caben en cualquier sitio y
-# seis largas se comen la ventana del modelo que las va a leer. 6000 caracteres son
-# ~1500 tokens, que dejan sitio de sobra para la pregunta y la respuesta, y coinciden
-# más o menos con seis fragmentos del techo del troceador — así el comportamiento por
-# defecto se parece al de antes sin ser una cuenta.
+# Assembled context budget, in characters (~1500 tokens), bounding the chunks rather
+# than counting them: six long sections eat the window of the model that reads them.
 CONTEXT_BUDGET = 6000
 
-# Por encima de esta proporción de palabras en común, dos fragmentos dicen lo mismo.
-# Alto a propósito: el error caro es descartar una sección que respondía.
+# Above this share of shared words, two chunks say the same thing. High on purpose:
+# the expensive mistake is dropping a section that answered.
 DUPLICATE_OVERLAP = 0.8
-# Por debajo de estas palabras el solape no significa nada —dos frases cortas del
-# mismo tema comparten casi todo—, así que ahí solo cuenta la contención literal.
+# Below this many words overlap means nothing, so only literal containment counts.
 _MIN_WORDS_FOR_OVERLAP = 20
 
 
 def _fold(text: str) -> str:
-    """Minúsculas y sin tildes, para comparar como compara la búsqueda."""
+    """Lowercased and unaccented, matching how search compares."""
     normalized = unicodedata.normalize("NFKD", text.casefold())
     return "".join(c for c in normalized if not unicodedata.combining(c))
 
 
 def _words(text: str) -> set[str]:
-    """Palabras del texto, plegadas y sin puntuación pegada.
-
-    Mismo criterio que `db._fts_query`: sin esto `` `certbot `` con la comilla pegada
-    no casaba con `certbot`, y la sección que respondía perdía contra la primera.
-    """
+    """Words, folded and stripped of attached punctuation, as `db._fts_query` splits them."""
     return set(re.findall(r"[\w]+", _fold(text), flags=re.UNICODE))
 
 
 def _heading_match(terms: set[str], path: str) -> float:
-    """Qué proporción de los términos de la consulta aparece en el encabezado.
+    """What share of the query's terms appear in the heading path.
 
-    Suave y no binaria: media consulta en el encabezado vale la mitad. Sobre la ruta
-    entera de encabezados, porque un ancestro también sitúa —«Copiar la llave pública»
-    encima de «Método A» es parte de lo que hace a esa sección la que responde.
+    Graded rather than binary, and over the whole path: an ancestor heading also places
+    a section.
     """
     if not terms or not path:
         return 0.0
@@ -619,14 +502,10 @@ def _heading_match(terms: set[str], path: str) -> float:
 
 
 def _says_the_same(first: dict, second: dict) -> bool:
-    """¿Estos dos fragmentos repiten el mismo pasaje?
+    """Whether two chunks repeat the same passage.
 
-    Tres formas de que lo hagan: venir de la misma sección de la misma página —son
-    trozos de un mismo bloque partido por el techo—, que uno esté contenido en el
-    otro, o que compartan casi todas sus palabras.
-
-    Dos secciones *distintas* de una misma página no son duplicados: responden a
-    partes distintas de la pregunta, y colapsarlas sería el error contrario.
+    Three ways to: same section of the same page, one contained in the other, or nearly
+    all words shared. Two *different* sections of one page are not duplicates.
     """
     if first["slug"] == second["slug"] and first["section"] == second["section"]:
         return True
@@ -645,11 +524,10 @@ def _says_the_same(first: dict, second: dict) -> bool:
 def _pack_context(
     candidates: list[dict], budget: int, limit: int | None
 ) -> tuple[list[dict], bool]:
-    """Escoge fragmentos en orden hasta agotar el presupuesto. (elegidos, se recortó).
+    """Take chunks in order until the budget runs out; returns (kept, truncated).
 
-    Un fragmento que no cabe se deja fuera entero y se sigue con el siguiente: cortarlo
-    por la mitad devolvería un texto que la página no dice, y pararse en seco dejaría
-    el presupuesto sin usar porque justo el segundo era enorme.
+    A chunk that does not fit is skipped whole rather than cut: half a chunk is text the
+    page does not say, and stopping at the first overflow wastes the rest of the budget.
     """
     kept: list[dict] = []
     used = 0
@@ -670,25 +548,16 @@ def _pack_context(
 
 
 def _context_path(workspace: str, title: str, section: str) -> str:
-    """`Workspace > Página > Sección`, saltándose los tramos vacíos.
-
-    Es lo que sitúa un fragmento leído por su cuenta. Sin él, el agente recibía
-    «corre certbot renew» sin saber de qué runbook ni de qué máquina hablaba.
-    """
+    """`Workspace > Page > Section`, skipping empty parts, so a chunk read alone is placed."""
     return " > ".join(part for part in [workspace, title, section] if part)
 
 
 def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> list[dict]:
-    """Candidatos del canal léxico: secciones enteras, no extractos de ranking.
+    """Lexical-channel candidates: whole sections, not ranking extracts.
 
-    `ts_headline` devuelve doce palabras elegidas para enseñarle a una persona por qué
-    coincidió un resultado. Sirve para ordenar y no para responder: un agente que
-    recibía eso recibía trozos de frase. Aquí se trocea la página igual que la trocea
-    el indexador y se elige la sección que más términos de la consulta contiene, de
-    modo que el fragmento sea el mismo que devolvería el canal vectorial.
-
-    Se trocea al vuelo porque con la semántica apagada no corre el worker y no hay
-    fragmentos guardados. Es el camino degradado y solo paga quien está en él.
+    `ts_headline` returns twelve words chosen to show a person why a result matched —
+    good for ordering, useless as an answer. The page is chunked the same way the indexer
+    chunks it, on the fly, since with semantics off no worker has stored anything.
     """
     terms = {word for word in _words(query) if len(word) > 2}
     candidates: list[dict] = []
@@ -696,9 +565,8 @@ def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> l
         page = db.get_page(hit.slug, workspace_id)
         if page is None:
             continue
-        # Empate a cero —la coincidencia de FTS venía de un stem que la comparación
-        # literal no ve— se resuelve con la primera sección, que es la apertura de la
-        # página y lo más parecido a un resumen que hay sin inventar nada.
+        # An all-zero tie (FTS matched on a stem literal comparison cannot see) resolves
+        # to the first section, the page's opening.
         best = None
         best_score = -1.0
         for chunk in meta.chunk_markdown(page.content):
@@ -714,8 +582,7 @@ def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> l
                 "slug": hit.slug,
                 "title": hit.title,
                 "ord": None,
-                # Sin vectores no hay coseno que informar. None y no un número
-                # inventado: un score falso se compararía con los de verdad.
+                # No vectors, no cosine to report: None rather than an invented number.
                 "score": None,
                 "path": _context_path(workspace, hit.title, section),
                 "section": section,
@@ -728,27 +595,18 @@ def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> l
 
 
 def _section_candidates(workspace_id: int, query: str, workspace: str, pool: int) -> list[dict]:
-    """Fragmentos candidatos: las páginas las elige la fusión, la sección el coseno.
+    """Candidate chunks: the fusion picks the pages, cosine picks the section.
 
-    Antes esto ordenaba fragmentos por coseno a secas, así que el contexto que recibía
-    un agente heredaba el ranking de páginas del canal vectorial puro — el más débil
-    desde que el título de la página salió del embedding. La fusión sí tiene la señal
-    léxica de los títulos, y es la misma que ya sirve la barra lateral y MCP.
-
-    Dentro de cada página manda el coseno con el desempate por encabezado, que es donde
-    ese criterio es bueno: elegir *qué sección* responde.
-
-    Se recorre por rondas —la mejor sección de cada página, luego la segunda de cada
-    una— para que el presupuesto se reparta primero a lo ancho. Un agente que junta
-    contexto quiere una sección de cada página relevante antes que cinco de la primera.
+    Walked in rounds — the best section of every page, then each page's second — so the
+    budget spreads sideways first. An agent assembling context wants one section from
+    every relevant page before five from the first.
     """
     rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
     if not rows:
         return []
 
-    # El trabajo vectorial se hace una vez y se reutiliza para las dos decisiones.
-    # Llamar a `_hybrid` aquí habría cargado los vectores y codificado la consulta por
-    # segunda vez: medido, 187 ms de mediana contra los 12 del canal vectorial solo.
+    # The vector work is done once and reused for both decisions. Calling `_hybrid` here
+    # would load the vectors and encode the query a second time: 187 ms median, not 12.
     qvec = get_embedder().encode([query])[0]
     mat = np.stack([_from_blob(r.vector) for r in rows])
     scores = mat @ qvec
@@ -764,9 +622,8 @@ def _section_candidates(workspace_id: int, query: str, workspace: str, pool: int
     for chunks in by_page.values():
         chunks.sort(key=lambda item: -item[0])
 
-    # Las páginas se ordenan por la misma fusión que sirve la interfaz y MCP: la mitad
-    # léxica trae la señal de los títulos, que es justo la que el canal vectorial perdió
-    # al salir el título del embedding.
+    # Same fusion the UI and MCP serve: its lexical half carries the title signal the
+    # vector channel gave up when the title left the embedding.
     vector_order = sorted(top, key=lambda slug: (-top[slug], slug))
     lexical_order = [hit.slug for hit in db.search_pages(workspace_id, query)]
     fused = _rrf([(1.0, lexical_order), (RRF_VECTOR_WEIGHT, vector_order)])
@@ -774,10 +631,8 @@ def _section_candidates(workspace_id: int, query: str, workspace: str, pool: int
         return []
     order = {slug: i for i, slug in enumerate(sorted(fused, key=lambda s: (-fused[s], s)))}
 
-    # `pool` acota los candidatos, no las páginas: la deduplicación compara cada
-    # candidato con los ya elegidos, así que una lista larga se paga al cuadrado.
-    # Con el recorrido por rondas, los primeros `pool` son la mejor sección de las
-    # `pool` páginas mejor colocadas, que es justo lo que se quiere.
+    # `pool` bounds the candidates, not the pages: deduplication compares each candidate
+    # against every kept one, so a long list costs quadratically.
     pages = sorted((s for s in by_page if s in order), key=lambda slug: order[slug])
     candidates: list[dict] = []
     for round_ in range(max(len(by_page[slug]) for slug in pages)):
@@ -810,15 +665,10 @@ def rag_context(
     budget: int = CONTEXT_BUDGET,
     limit: int | None = None,
 ) -> dict:
-    """rag como tubería de retrieval: fragmentos + procedencia, SIN generar texto.
+    """Retrieval only: chunks plus provenance, no generated text.
 
-    El agente sintetiza la respuesta a partir de estos fragmentos. Todo lo que sale de
-    aquí está literalmente en una página guardada.
-
-    Acotado por presupuesto de caracteres y no por número de fragmentos, y sin repetir
-    un pasaje dos veces: el contexto de un agente es un recurso escaso y gastarlo dos
-    veces en la misma frase es gastarlo mal. `limit` sigue aceptándose como tope de
-    piezas para quien quiera menos, pero la cota es el presupuesto.
+    Everything returned is literally in a stored page; the agent synthesises the answer.
+    Bounded by character budget rather than chunk count, and never repeating a passage.
     """
     query = (query or "").strip()
     if not query:
@@ -827,9 +677,8 @@ def rag_context(
     ws = db.get_workspace_by_id(workspace_id)
     workspace = ws.name if ws else ""
 
-    # Cuántos candidatos mirar antes de empaquetar. Con el techo del troceador en
-    # 1000 caracteres, el doble del presupuesto siempre trae de sobra para llenarlo
-    # aunque la mitad se caiga por duplicada.
+    # How many candidates to consider before packing. With a 1000-character chunk
+    # ceiling, twice the budget always brings enough to fill it.
     pool = max(1, (2 * budget) // 500)
 
     candidates: list[dict] = []
@@ -846,21 +695,21 @@ def rag_context(
     return {"query": query, "mode": mode, "chunks": chunks, "truncated": truncated}
 
 
-# ── Background enrichment (sin broker; plan §5 "queue job, enrich later") ──────
+# ── Background enrichment (no broker) ────────────────────────────────────────
 
 
 async def enrichment_worker(*, interval: float = 2.0, batch: int = 5) -> None:
-    """Loop async que embebe páginas sucias en un threadpool (no bloquea el loop)."""
+    """Embeds dirty pages in a threadpool so the event loop stays free."""
     import asyncio
 
-    logger.info("embedding worker iniciado (model dir=%s)", _MODELS_DIR)
-    # Un cambio de encoder deja vectores de otro espacio en la tabla; compararlos
-    # por coseno no significa nada. Se re-encolan antes de servir nada nuevo.
+    logger.info("embedding worker started (model dir=%s)", _MODELS_DIR)
+    # A changed encoder leaves vectors from another space in the table; comparing them
+    # by cosine means nothing, so they are re-queued before anything new is served.
     stale = await asyncio.to_thread(
         db.mark_stale_model_dirty, current_model_name(), meta.CHUNKER_ID
     )
     if stale:
-        logger.info("reindexando %d páginas: cambió el modelo o el troceador", stale)
+        logger.info("reindexing %d pages: model or chunker changed", stale)
     while True:
         try:
             pending = await asyncio.to_thread(db.pages_to_embed, batch)
@@ -868,8 +717,7 @@ async def enrichment_worker(*, interval: float = 2.0, batch: int = 5) -> None:
                 await asyncio.sleep(interval)
                 continue
             for row in pending:
-                # try/except por página: sin esto, una página que siempre falla
-                # encabezaba cada batch y bloqueaba la cola para siempre.
+                # Per page, so one page that always fails cannot head every batch.
                 try:
                     await asyncio.to_thread(
                         reindex_page,
@@ -881,14 +729,11 @@ async def enrichment_worker(*, interval: float = 2.0, batch: int = 5) -> None:
                 except asyncio.CancelledError:
                     raise
                 except Exception:
-                    logger.exception(
-                        "no se pudo indexar la página %s; se salta hasta su próxima edición",
-                        row.id,
-                    )
+                    logger.exception("could not index page %s; skipping until edited", row.id)
                     await asyncio.to_thread(db.clear_embed_dirty, int(row.id))
         except asyncio.CancelledError:
-            logger.info("embedding worker detenido")
+            logger.info("embedding worker stopped")
             raise
         except Exception:
-            logger.exception("embedding worker error; reintentando")
+            logger.exception("embedding worker error; retrying")
             await asyncio.sleep(interval)

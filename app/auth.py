@@ -22,7 +22,7 @@ def generate_api_token() -> str:
 
 
 def hash_api_token(token: str) -> str:
-    # El token es aleatorio de alta entropía: SHA-256 sin sal es suficiente.
+    # The token is high-entropy random, so unsalted SHA-256 is enough.
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 

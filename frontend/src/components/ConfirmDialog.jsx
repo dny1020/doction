@@ -1,9 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 
-// Diálogo de confirmación propio (reemplaza a window.confirm). Usa <dialog> nativo
-// (showModal ya atrapa el foco y lo devuelve al cerrar) con las clases
-// `.confirm-dialog` del design system. Uso:
+// Our own confirmation dialog, replacing window.confirm. A native <dialog>, whose
+// showModal already traps focus and returns it on close. Usage:
 //   const confirm = useConfirm()
 //   if (await confirm(t('confirm_purge'), { confirmLabel: t('delete'), danger: true })) …
 

@@ -1,9 +1,6 @@
-// Mejora client-side de la vista de lectura (.prose): diagramas Mermaid, resaltado
-// de sintaxis y fórmulas. Las tres librerías están vendorizadas (se sirven desde
-// /static/vendor) y se cargan de forma perezosa solo si la página las necesita, así
-// que una página sin diagramas, sin código ni fórmulas no descarga nada de esto —
-// KaTeX solo pesa 600 KB en las páginas que llevan matemáticas. El CSS de
-// highlight.js ya vive en static/style.css; el de KaTeX se inyecta con la librería.
+// Client-side enhancement of the reading view (.prose): Mermaid diagrams, syntax
+// highlighting and formulas. All three libraries are vendored under /static/vendor and
+// load lazily, so a page with no diagrams, code or math downloads none of them.
 
 const loaded = {} // cache de promesas por src, para no cargar dos veces
 
@@ -33,15 +30,12 @@ function loadScript(src) {
   return loaded[src]
 }
 
-// Mermaid trae su propio parser de color y no entiende `oklch()`, que es como
-// están declarados todos los tokens desde que el design system se pasó a ese
-// espacio. Pasárselo tal cual no da error: mermaid se queda callado y el bloque
-// no se dibuja, así que el diagrama desaparece sin que nada lo diga.
+// Mermaid has its own colour parser and does not understand `oklch()`, which is how every
+// design token is declared. Handed one it fails silently and the diagram just disappears.
 //
-// El navegador tampoco lo convierte: ni `getComputedStyle().color` ni
-// `ctx.fillStyle` normalizan a rgb, los dos devuelven el `oklch()` de vuelta. Lo
-// que sí lo resuelve es pintarlo y leer el píxel, que es exactamente el color
-// que se vería en pantalla.
+// The browser will not convert it either: neither `getComputedStyle().color` nor
+// `ctx.fillStyle` normalize to rgb. Painting it and reading the pixel does, and gives
+// exactly the colour that would appear on screen.
 let probe = null
 function toRgbHex(value) {
   if (!value || value.startsWith('#')) return value
@@ -57,9 +51,8 @@ function toRgbHex(value) {
     const [r, g, b] = probe.getImageData(0, 0, 1, 1).data
     return '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')
   } catch {
-    // Si el canvas falla, devolver el valor original es mejor que devolver nada:
-    // mermaid usará su propio color para ese slot y el resto seguirá siendo el
-    // de la aplicación.
+    // If the canvas fails, the original value beats nothing: mermaid falls back to its
+    // own colour for that slot and the rest stays the application's.
     return value
   }
 }
@@ -69,9 +62,8 @@ function token(name) {
   return toRgbHex(raw)
 }
 
-// Las variables de Mermaid, sacadas de los tokens del design system. Solo se
-// nombran las que el motor usa para nodos, aristas y etiquetas; el resto las deriva
-// él a partir de estas.
+// Mermaid's variables, taken from the design tokens. Only the ones the engine uses for
+// nodes, edges and labels are named; it derives the rest from these.
 function mermaidPalette() {
   const ink = token('--ink')
   const line = token('--border-default')
@@ -98,7 +90,7 @@ function mermaidPalette() {
   }
 }
 
-// Convierte los bloques ```mermaid en <div class="mermaid"> y los renderiza.
+// Turns ```mermaid blocks into <div class="mermaid"> and renders them.
 function renderMermaid(root) {
   const blocks = root.querySelectorAll('pre > code.language-mermaid')
   if (!blocks.length) return
@@ -113,11 +105,10 @@ function renderMermaid(root) {
       if (typeof mermaid === 'undefined') return
       mermaid.initialize({
         startOnLoad: false,
-        // `base` más variables propias en lugar de `default`/`dark`: los temas de
-        // Mermaid traen su lavanda y su gris azulado, que sobre papel cálido se ven
-        // como una captura pegada de otra aplicación. Los valores salen de los
-        // mismos tokens que pinta el resto de la interfaz, así que el diagrama
-        // cambia con el tema sin que aquí haya un solo color escrito.
+        // `base` plus our own variables rather than `default`/`dark`: Mermaid's themes
+        // bring a lavender and a blue-grey that read as a screenshot from another
+        // application on warm paper. These values come from the same tokens the rest of
+        // the UI paints with, so the diagram follows the theme.
         theme: 'base',
         themeVariables: mermaidPalette(),
         fontFamily: token('--font-ui'),
@@ -128,7 +119,7 @@ function renderMermaid(root) {
     .catch(() => {})
 }
 
-// Resalta los bloques de código con clase de lenguaje (menos mermaid).
+// Highlights code blocks that carry a language class, except mermaid.
 function highlightCode(root) {
   const blocks = root.querySelectorAll('pre > code[class*="language-"]:not(.language-mermaid)')
   if (!blocks.length) return
@@ -140,10 +131,9 @@ function highlightCode(root) {
     .catch(() => {})
 }
 
-// Pinta las formulas marcadas por el plugin de markdown.js. El markdown deja el
-// origen como texto dentro de .math; KaTeX lo convierte aqui, en el cliente, asi
-// que su salida no pasa por el saneador — y no hace falta que pase, porque lo que
-// entra a KaTeX es texto y lo que sale lo genera KaTeX, no la pagina.
+// Paints the formulas markdown.js marked. The markdown leaves the source as text inside
+// .math and KaTeX converts it here, so its output never passes through the sanitizer —
+// and need not: what goes into KaTeX is text, and what comes out KaTeX generated.
 function renderMath(root) {
   const nodes = root.querySelectorAll('.math')
   if (!nodes.length) return
@@ -157,21 +147,20 @@ function renderMath(root) {
         try {
           katex.render(node.textContent, node, {
             displayMode: node.classList.contains('math--block'),
-            // trust:false deja fuera \\href y \\includegraphics, que son las dos
-            // macros con las que una formula puede salir de ser una formula.
+            // trust:false excludes \\href and \\includegraphics, the two macros that
+            // let a formula stop being a formula.
             trust: false,
             throwOnError: false,
           })
         } catch {
-          // Formula invalida: se queda el origen a la vista, que es mas util que
-          // un hueco vacio y no rompe el resto del documento.
+          // An invalid formula leaves its source visible, which beats an empty gap.
         }
       })
     })
     .catch(() => {})
 }
 
-// Mejora un contenedor .prose ya pintado (llamar tras inyectar el HTML).
+// Enhances an already-painted .prose container; call after injecting the HTML.
 export function enhanceProse(root) {
   if (!root) return
   renderMermaid(root)

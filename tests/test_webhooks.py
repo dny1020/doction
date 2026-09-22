@@ -1,8 +1,7 @@
-"""Tests de los webhooks de salida.
+"""Outgoing webhooks, with no real HTTP.
 
-No se hace ninguna llamada HTTP real: se comprueba que los eventos se encolen en
-la misma transacción que la escritura, que la firma sea verificable, y que un
-receptor caído reintente con backoff en vez de perder el evento.
+Checks that events queue in the same transaction as the write, that the signature verifies,
+and that a dead receiver retries with backoff instead of losing the event.
 """
 
 import hashlib
@@ -23,7 +22,7 @@ def _h(token: str) -> dict:
 
 
 def _pendientes() -> list:
-    """Entregas encoladas, leídas por la misma vía que usa el worker."""
+    """Queued deliveries, read the same way the worker reads them."""
     return db.due_deliveries(50)
 
 
@@ -48,7 +47,7 @@ def test_url_must_be_http(client):
     assert r.status_code == 400
 
 
-# ── emisión ──────────────────────────────────────────────────────────────────
+# ── Emission ─────────────────────────────────────────────────────────────────
 
 
 def test_page_write_enqueues_a_delivery(client):

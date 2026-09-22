@@ -10,9 +10,9 @@ import { useToast } from '../components/Toast.jsx'
 
 const PAGE_SIZE = 25
 
-// Bandeja: feed cronológico de las capturas (`type: memo`). Va aparte del árbol
-// a propósito — el árbol no pagina y la captura rápida crece sin límite — y se
-// pagina por cursor sobre created_at.
+// The inbox: a chronological feed of captures (`type: memo`), cursor-paginated on
+// created_at. Separate from the tree on purpose, since the tree does not paginate and
+// quick capture grows without bound.
 export default function Notes() {
   const { ws } = useOutletContext()
   const { t } = useI18n()

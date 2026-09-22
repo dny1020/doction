@@ -8,13 +8,12 @@ import { ToastProvider } from './components/Toast.jsx'
 import { ConfirmProvider } from './components/ConfirmDialog.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
-// El basename sale del `base` con el que se construyó el bundle (config.js), no
-// de un literal: así montar doction en otra subruta o en la raíz es configurar y
-// no editar código.
-// Usamos el "data router" (createBrowserRouter) en vez de <BrowserRouter> porque
-// useBlocker —el guard de cambios sin guardar del editor— solo funciona con él.
-// I18nProvider va por fuera para que toda la app (incluida la pantalla de carga)
-// tenga acceso a las traducciones; toasts y confirm son globales (login incluido).
+// The basename comes from the `base` the bundle was built with (config.js) rather than a
+// literal, so mounting doction elsewhere is configuration and not a code edit.
+//
+// The data router (createBrowserRouter) rather than <BrowserRouter>, because the editor's
+// useBlocker guard only works with it. I18nProvider sits outside so the whole app, loading
+// screen included, has translations; toasts and confirm are global.
 const router = createBrowserRouter(routes, { basename: APP_BASE })
 
 createRoot(document.getElementById('root')).render(

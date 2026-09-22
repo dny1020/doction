@@ -1,7 +1,7 @@
-"""Tests de la configuración de búsqueda `doction` y de su convergencia.
+"""The `doction` text-search configuration and how it converges.
 
-Cubren el defecto que originó el cambio: una consulta en español sin tildes no
-encontraba la página acentuada, en los dos caminos de recuperación a la vez.
+Covers the defect behind it: an unaccented query missed the accented page, on both
+retrieval paths at once.
 """
 
 import psycopg
@@ -54,7 +54,7 @@ def test_accented_query_finds_unaccented_content(client):
 
 
 def test_english_terms_still_match(client):
-    """La clase de control: el vocabulario técnico inglés no se toca."""
+    """The control: English technical vocabulary is untouched."""
     token = _token(client)
     slug = _page(client, token, "Renovación TLS con Certbot", "Usa certbot renew y recarga.")
     _page(client, token, "Almacenamiento", "Montajes y particiones.")
@@ -109,7 +109,7 @@ def _downgrade_to_legacy(conn) -> None:
 
 
 def test_populated_legacy_database_converges(client):
-    """Una base con el esquema viejo se actualiza al arrancar, sin perder páginas."""
+    """A database on the old schema converges at startup without losing pages."""
     token = _token(client)
     slug = _page(client, token, "Renovación TLS con Certbot", "Renovar el certificado.")
 
@@ -134,7 +134,7 @@ def test_convergence_is_idempotent(client):
 
 
 def test_convergence_runs_in_both_directions(client, monkeypatch):
-    """Volver a una imagen anterior también converge: el mecanismo no tiene sentido único."""
+    """Rolling back to an older image converges too: the mechanism runs both ways."""
     monkeypatch.setitem(
         db._SEARCH_VECTOR_COLUMNS, "pages", (_LEGACY_PAGES_EXPR, "pages_search_idx")
     )
@@ -152,11 +152,11 @@ def test_fresh_database_needs_no_rebuild(client):
         assert _attnum(conn, "pages") == before
 
 
-# ── Degradación sin la extensión ─────────────────────────────────────────────
+# ── Degrading without the extension ──────────────────────────────────────────
 
 
 class _NoExtensionConn:
-    """Conexión que rechaza CREATE EXTENSION, como un rol sin permiso para crearla."""
+    """A connection that refuses CREATE EXTENSION, like a role without the privilege."""
 
     def __init__(self, conn):
         self._conn = conn
@@ -173,7 +173,7 @@ class _NoExtensionConn:
 
 
 def test_missing_unaccent_extension_does_not_break_startup(client):
-    """Sin permiso para crear la extensión el servidor arranca igual, sin plegado."""
+    """Without permission to create the extension the server still boots, unfolded."""
     with db.connect() as conn:
         changed = db._ensure_text_search_config(_NoExtensionConn(conn))
         assert changed is True
@@ -201,7 +201,7 @@ def test_both_spellings_return_the_same_page(client, query):
 
 
 def test_chunks_from_another_model_are_not_scored(client, monkeypatch):
-    """Media reindexación no debe mezclar dos espacios de embeddings en un coseno."""
+    """A half-finished reindex must not mix two embedding spaces in one cosine."""
     monkeypatch.setenv("SEMANTIC_SEARCH", "1")
     monkeypatch.setenv("EMBED_STUB", "1")
     from app import embeddings
@@ -217,15 +217,11 @@ def test_chunks_from_another_model_are_not_scored(client, monkeypatch):
     with db.connect() as conn:
         conn.execute("UPDATE page_chunks SET model = 'otro-modelo'")
     assert db.workspace_chunk_vectors(1, current, meta.CHUNKER_ID) == []
-    assert slug  # la página sigue existiendo; solo sus vectores quedan fuera
+    assert slug  # the page still exists; only its vectors are excluded
 
 
 def test_stale_chunker_pages_are_requeued(client, monkeypatch):
-    """Partir la página de otra forma invalida los vectores igual que cambiar de encoder.
-
-    Antes la obsolescencia solo miraba el modelo, así que un cambio de troceador
-    dejaba fragmentos viejos sirviéndose para siempre.
-    """
+    """Splitting a page differently invalidates its vectors as much as a new encoder does."""
     monkeypatch.setenv("SEMANTIC_SEARCH", "1")
     monkeypatch.setenv("EMBED_STUB", "1")
     from app import embeddings
@@ -242,7 +238,7 @@ def test_stale_chunker_pages_are_requeued(client, monkeypatch):
     model = embeddings.current_model_name()
     assert db.mark_stale_model_dirty(model, meta.CHUNKER_ID) >= 1
     assert db.pages_to_embed(10), "la página debería volver a la cola"
-    # Y sus vectores no se puntúan mientras tanto.
+    # And its vectors are not scored in the meantime.
     assert db.workspace_chunk_vectors(1, model, meta.CHUNKER_ID) == []
 
 
@@ -272,7 +268,7 @@ def test_stale_model_pages_are_requeued(client, monkeypatch):
 
 
 def test_current_model_name_does_not_load_the_model(monkeypatch):
-    """Se consulta también con la semántica apagada: no puede abrir la sesión ONNX."""
+    """Queried with semantics off too, so it must not open the ONNX session."""
     from app import embeddings
 
     embeddings.reset_embedder()

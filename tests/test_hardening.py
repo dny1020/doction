@@ -9,7 +9,7 @@ def test_security_headers_present(client):
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["x-frame-options"] == "DENY"
     assert "content-security-policy" in r.headers
-    # HSTS solo cuando SECURE_COOKIES está activo (no en este test).
+    # HSTS only when SECURE_COOKIES is on, which it is not here.
     assert "strict-transport-security" not in r.headers
 
 
@@ -21,7 +21,7 @@ def test_login_rate_limited(client):
         assert r.status_code == 401
     blocked = client.post("/api/auth/login", json={"email": "rl@example.com", "password": "wrong"})
     assert blocked.status_code == 429
-    # Incluso con la contraseña correcta sigue bloqueado durante la ventana.
+    # Still blocked for the rest of the window, even with the right password.
     correct = client.post(
         "/api/auth/login", json={"email": "rl@example.com", "password": "password123"}
     )

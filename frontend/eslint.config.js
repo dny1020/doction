@@ -3,8 +3,8 @@ import globals from 'globals'
 import react from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 
-// Config plana (eslint 9). El formato lo maneja prettier, así que aquí solo van
-// reglas que detectan errores, no estilo.
+// Flat config (eslint 9). Prettier handles formatting, so only error-detecting rules
+// live here.
 export default [
   { ignores: ['node_modules/**'] },
   js.configs.recommended,
@@ -15,13 +15,13 @@ export default [
       sourceType: 'module',
       globals: {
         ...globals.browser,
-        // Los cargan los scripts de static/vendor/, no un import.
+        // Loaded by the static/vendor/ scripts, not by an import.
         mermaid: 'readonly',
         hljs: 'readonly',
         katex: 'readonly',
-        // Lo sustituye vite (define) con la ruta configurada del servidor MCP.
+        // Substituted by vite with the configured MCP server path.
         __DOCTION_MCP_PATH__: 'readonly',
-        // Ídem, con el basename de la SPA.
+        // The same, with the SPA basename.
         __DOCTION_APP_BASE__: 'readonly',
       },
       parserOptions: { ecmaFeatures: { jsx: true } },
@@ -30,24 +30,22 @@ export default [
     settings: { react: { version: 'detect' } },
     rules: {
       ...react.configs.flat.recommended.rules,
-      ...react.configs.flat['jsx-runtime'].rules, // el runtime automático: no hace falta importar React
-      // Las dos reglas clásicas de hooks. El preset `recommended` de react-hooks 7
-      // añade además las del React Compiler, que esta app (React 18) no usa: marcan
-      // patrones deliberados y documentados, como escribir un ref en el render.
+      ...react.configs.flat['jsx-runtime'].rules, // automatic runtime: no React import needed
+      // The two classic hooks rules. react-hooks 7's `recommended` preset also adds the
+      // React Compiler ones, which this React 18 app does not use: they flag deliberate,
+      // documented patterns such as writing a ref during render.
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      // Sin PropTypes a propósito: son una dependencia más y un validador en runtime
-      // para un proyecto que ya decidió no tipar (JSX plano, sin TypeScript).
+      // No PropTypes on purpose: one more dependency and a runtime validator for a
+      // project that already decided not to type.
       'react/prop-types': 'off',
-      // Usar una variable antes de declararla es un ReferenceError en cuanto se
-      // ejecuta, no un aviso de estilo: la bandeja llamaba a `t` una línea antes
-      // de `useI18n()` y la pantalla entera caía en el error boundary. Las
-      // funciones quedan fuera porque se elevan y llamarlas antes es normal.
+      // Using a variable before declaring it is a ReferenceError as soon as it runs, not
+      // a style note. Functions are exempt because they hoist.
       'no-use-before-define': ['error', { functions: false }],
     },
   },
   {
-    // vite.config.js y los scripts de build corren en node, no en el navegador.
+    // vite.config.js and the build scripts run in node, not in the browser.
     files: ['vite.config.js', 'scripts/**/*.js'],
     languageOptions: { globals: globals.node },
   },

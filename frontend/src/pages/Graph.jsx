@@ -8,17 +8,16 @@ import EmptyState from '../components/EmptyState.jsx'
 import { ListSkeleton } from '../components/Skeleton.jsx'
 import { useDocumentTitle } from '../useDocumentTitle.js'
 
-// La vista de pájaro: el workspace como grafo de wikilinks.
+// The bird's-eye view: the workspace as its wikilink graph.
 //
-// Se dibuja en SVG que escribe la propia aplicación en vez de dejar el render a
-// la librería. d3-force aquí solo resuelve posiciones —es un solucionador
-// numérico, no un renderizador—, así que cada color y cada tipo salen de las
-// variables del tema por CSS normal y el modo oscuro no necesita puente alguno.
-// Es la lección de mermaid, que sí tuvo que llevar su paleta a mano.
+// Drawn as SVG the application writes itself rather than letting a library render. d3-force
+// only solves positions here — it is a numerical solver, not a renderer — so every colour
+// and face comes from the theme variables through ordinary CSS and dark mode needs no
+// bridge. That is the lesson from mermaid, which did need its palette carried by hand.
 
 const NODE_R = 5
 const MAX_R = 14
-const LABEL_AT = 40 // por encima de esto solo se etiquetan los nodos con enlaces
+const LABEL_AT = 40 // above this, only nodes with links are labelled
 
 function reducedMotion() {
   try {
@@ -34,13 +33,13 @@ export default function Graph() {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [error, setError] = useState(false)
-  // El contador no se lee: existe para que la simulación pueda pedir un repintado
-  // sin meter las posiciones en el estado, que es lo que haría lento el dibujo.
+  // The counter is never read: it exists so the simulation can request a repaint without
+  // putting positions into state.
   const [, setTick] = useState(0)
   const [hover, setHover] = useState(null)
   const [view, setView] = useState({ x: 0, y: 0, k: 1 })
-  // El origen del mundo es (0,0) porque ahí tira `forceCenter`, pero en un SVG
-  // (0,0) es la esquina. Sin medir el lienzo el grafo se dibuja pegado al borde.
+  // World origin is (0,0) because that is where `forceCenter` pulls, but in an SVG (0,0)
+  // is the corner: without measuring the canvas the graph draws against the edge.
   const [size, setSize] = useState({ w: 0, h: 0 })
 
   const svgRef = useRef(null)
@@ -53,12 +52,12 @@ export default function Graph() {
 
   useDocumentTitle(t('graph'), ws)
 
-  // Se mide con ResizeObserver y no con window.resize: la barra lateral se pliega
-  // y el lienzo cambia de ancho sin que la ventana se entere.
+  // ResizeObserver rather than window.resize: the sidebar collapses and the canvas
+  // changes width without the window noticing.
   //
-  // Depende de `data` porque el <svg> no existe hasta que hay grafo que dibujar, y
-  // solo escribe el estado cuando la medida cambia de verdad: un objeto nuevo en
-  // cada notificación provocaría un render, y ese render, otra notificación.
+  // It depends on `data` because the <svg> does not exist until there is a graph, and it
+  // only writes state when the measurement actually changed: a new object per notification
+  // would cause a render, and that render another notification.
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) return undefined
@@ -83,16 +82,16 @@ export default function Graph() {
     return () => controller.abort()
   }, [ws])
 
-  // La simulación vive fuera de React: mutar posiciones en el estado en cada
-  // fotograma repintaría el árbol entero sesenta veces por segundo. Aquí solo se
-  // avisa de que hay que redibujar, y el SVG lee las posiciones por referencia.
+  // The simulation lives outside React: mutating positions in state every frame would
+  // repaint the whole tree sixty times a second. This only signals a redraw, and the SVG
+  // reads the positions by reference.
   useEffect(() => {
     if (!data || data.nodes.length === 0) return undefined
 
     const nodes = data.nodes.map((n) => ({ ...n }))
     const byId = new Map(nodes.map((n) => [n.slug, n]))
-    // Un destino roto no es una página: se le da un nodo fantasma para que la
-    // arista tenga dónde terminar y se vea que termina en nada.
+    // A broken target is not a page, so it gets a ghost node: the edge has somewhere to
+    // end, and it is visible that it ends in nothing.
     for (const e of data.edges) {
       if (e.broken && !byId.has(e.target)) {
         const ghost = { slug: e.target, title: e.target, broken: true, incoming: 0, outgoing: 0 }
@@ -117,19 +116,17 @@ export default function Graph() {
       )
       .force('charge', forceManyBody().strength(-180))
       .force('collide', forceCollide(MAX_R + 6))
-      // forceX/forceY en vez de forceCenter: el centrado solo desplaza el conjunto
-      // y no sujeta a nadie, así que una página huérfana —sin aristas que tiren de
-      // ella— salía disparada por la repulsión y acababa fuera del lienzo. Esto la
-      // ata al centro con una fuerza floja, suficiente para que se quede a la vista
-      // sin apelotonar el grupo conectado.
+      // forceX/forceY rather than forceCenter: centering translates the whole set and
+      // holds nobody, so an orphan page with no edges pulling on it was flung off the
+      // canvas by the repulsion. This ties it weakly to the centre instead.
       .force('x', forceX(0).strength(0.06))
       .force('y', forceY(0).strength(0.06))
       .stop()
 
     simRef.current = sim
 
-    // Con movimiento reducido no se anima la entrada: se resuelve el layout
-    // entero antes del primer pintado y se dibuja ya quieto.
+    // With reduced motion the entrance is not animated: the layout is solved in full
+    // before the first paint and drawn already still.
     if (reducedMotion()) {
       sim.tick(300)
       setTick((n) => n + 1)
@@ -143,7 +140,7 @@ export default function Graph() {
     }
   }, [data])
 
-  // ── arrastre y desplazamiento ──────────────────────────────────────────────
+  // ── Drag and pan ───────────────────────────────────────────────────────────
 
   const toWorld = useCallback(
     (event) => {
@@ -156,15 +153,15 @@ export default function Graph() {
     [view],
   )
 
-  // pantalla = centro + k · (mundo + desplazamiento). El inverso es `toWorld`.
+  // screen = centre + k * (world + pan). `toWorld` is the inverse.
   const worldTransform = `translate(${size.w / 2}, ${size.h / 2}) scale(${view.k}) translate(${view.x}, ${view.y})`
 
   const onPointerDown = (event, node) => {
     event.currentTarget.setPointerCapture(event.pointerId)
     if (node) {
       dragRef.current = node
-      // Un arrastre termina en el mismo `click` que un toque, así que sin esto
-      // mover un nodo abría su página. Se anota dónde empezó y cuánto se movió.
+      // A drag ends in the same `click` a tap does, so without this moving a node opened
+      // its page. Record where it started and how far it moved.
       movedRef.current = { x: event.clientX, y: event.clientY, moved: false }
       simRef.current?.alphaTarget(0.2).restart()
     } else {
@@ -192,8 +189,8 @@ export default function Graph() {
 
   const onPointerUp = () => {
     if (dragRef.current) {
-      // Se suelta el anclaje: el nodo vuelve a obedecer a las fuerzas, que es lo
-      // que hace que el grafo se reacomode en vez de quedar deformado.
+      // Release the pin, so the node obeys the forces again and the graph settles back
+      // instead of staying deformed.
       dragRef.current.fx = null
       dragRef.current.fy = null
       dragRef.current = null

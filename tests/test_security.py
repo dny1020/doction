@@ -1,7 +1,7 @@
-"""Tests de los endurecimientos v0.15: rate-limit en /api/token, /uploads
-autenticado, revocación de sesiones al cambiar la contraseña (token_version),
-JWT expirado, validación del SHA de git, límite de tamaño de subida y el
-worker de embeddings saltándose páginas envenenadas."""
+"""Hardening: login rate limit, authenticated /uploads, session revocation on password
+change, expired JWTs, git SHA validation, the upload size cap, and the embedding worker
+skipping a page it cannot index.
+"""
 
 import base64
 from datetime import UTC, datetime, timedelta
@@ -35,7 +35,7 @@ def test_api_token_rate_limited(client):
         assert r.status_code == 401
     blocked = client.post("/api/token", json={"email": EMAIL, "password": "wrong"})
     assert blocked.status_code == 429
-    # Incluso con la contraseña correcta sigue bloqueado durante la ventana.
+    # Still blocked for the rest of the window, even with the right password.
     correct = client.post("/api/token", json={"email": EMAIL, "password": PASSWORD})
     assert correct.status_code == 429
 
@@ -43,10 +43,10 @@ def test_api_token_rate_limited(client):
 def test_password_length_capped(client):
     _register(client)
     r = client.post("/api/token", json={"email": EMAIL, "password": "x" * 10_000})
-    assert r.status_code == 422  # validación de Pydantic, sin llegar al KDF
+    assert r.status_code == 422  # Pydantic validation, never reaching the KDF
 
 
-# ── /uploads autenticado (antes era un StaticFiles público) ───────────────────
+# ── Authenticated /uploads ───────────────────────────────────────────────────
 
 
 def test_uploads_require_auth(client):
@@ -54,14 +54,14 @@ def test_uploads_require_auth(client):
     url = client.post("/api/uploads", files={"file": ("shot.png", _TINY_PNG, "image/png")}).json()[
         "url"
     ]
-    assert client.get(url).status_code == 200  # con sesión
+    assert client.get(url).status_code == 200  # with a session
     client.cookies.clear()
-    assert client.get(url).status_code == 401  # sin sesión
+    assert client.get(url).status_code == 401  # without one
 
 
 def test_uploads_reject_bad_names(client):
     _register(client)
-    # Nombres que no cumplan el patrón hash.ext → 404, nunca tocan el filesystem.
+    # A name that does not match hash.ext is a 404 and never touches the filesystem.
     assert client.get("/uploads/..%2f..%2fetc%2fpasswd").status_code == 404
     assert client.get("/uploads/notahash.png").status_code == 404
 
@@ -74,12 +74,12 @@ def test_upload_too_large_413(client):
     assert "detail" in r.json()  # mismo shape de error que el resto de la API
 
 
-# ── Sesiones: JWT expirado y revocación por cambio de contraseña ──────────────
+# ── Sessions: expired JWTs and revocation on password change ─────────────────
 
 
 def test_expired_jwt_rejected(client, main_module):
     _register(client)
-    client.cookies.clear()  # la cookie de sesión tiene prioridad sobre el Bearer
+    client.cookies.clear()  # the session cookie takes priority over the Bearer
     expired = pyjwt.encode(
         {"sub": "1", "ver": 0, "exp": datetime.now(UTC) - timedelta(minutes=1)},
         main_module.app.state.secret_key,
@@ -101,11 +101,11 @@ def test_password_change_revokes_old_jwts(client):
         },
     )
     assert r.status_code == 200
-    # La sesión de quien cambió la contraseña se reemite en la respuesta y sigue viva.
+    # The session of whoever changed the password is reissued and stays alive.
     assert client.get("/api/me").status_code == 200
 
-    # El JWT emitido antes del cambio queda revocado (token_version ya no coincide).
-    # Cookies fuera: la cookie de sesión tiene prioridad sobre el Bearer.
+    # A JWT issued before the change is revoked: token_version no longer matches.
+    # Cookies cleared, since the session cookie takes priority over the Bearer.
     client.cookies.clear()
     assert _get_pages(client, old_jwt).status_code == 401
 
@@ -116,14 +116,14 @@ def test_password_change_revokes_old_jwts(client):
 def test_invalid_git_sha_rejected(client):
     _register(client)
     slug = client.post("/api/pages", json={"title": "Doc", "content": "hola"}).json()["slug"]
-    for bad_sha in ("--help", "zzzz", "abc"):  # opción, no-hex, demasiado corto
+    for bad_sha in ("--help", "zzzz", "abc"):  # an option, non-hex, too short
         r = client.get(f"/api/pages/{slug}/history/{bad_sha}/diff")
         assert r.status_code == 404
         r = client.get(f"/api/pages/{slug}/history/{bad_sha}")
         assert r.status_code == 404
 
 
-# ── Worker de embeddings: una página que falla no bloquea la cola ─────────────
+# ── Embedding worker: a failing page does not block the queue ────────────────
 
 
 def test_enrichment_worker_skips_poison_page(client, main_module, monkeypatch):

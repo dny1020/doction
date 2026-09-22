@@ -1,14 +1,8 @@
 """Holds `docs/api.md` to the surface the application actually serves.
 
-A hand-kept endpoint list drifts, and it drifts invisibly: the reader who most needs the list to
-be complete is the one who cannot tell that it is not. The project README had drifted to 25 of
-59 operations before this test existed.
-
-The comparison is a set in both directions, so an endpoint added without documentation fails,
-and so does an entry left behind after a route is removed.
-
-Skipped where the tree is stripped: the Docker `test` stage copies only `app/`, `tests/`,
-`scripts/` and `pyproject.toml`, so `docs/` is not there to read.
+The comparison is a set in both directions, so an undocumented endpoint fails and so does
+an entry left behind after a route is removed. Skipped where the tree is stripped: the
+Docker `test` stage has no `docs/` to read.
 """
 
 import os
@@ -37,10 +31,8 @@ MIN_ENTRIES = 50
 def _documented() -> set[tuple[str, str]]:
     """Entries from the fenced blocks that carry no language.
 
-    Scanned line by line rather than with one expression over the whole text: an expression
-    pairing a fence with a fence can start at the *closing* fence of an earlier block and
-    capture the prose in between, which is exactly what happened while writing this. Fence
-    state is tracked, not guessed.
+    Scanned line by line: one expression over the whole text can pair a block's *closing*
+    fence with the next block's opening one and capture the prose in between.
     """
     entries: set[tuple[str, str]] = set()
     in_block = False

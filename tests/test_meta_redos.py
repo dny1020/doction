@@ -1,15 +1,11 @@
 """Guards the metadata parsers against super-linear cost on attacker-controlled content.
 
-`extract_links` runs inside the page save, synchronously, in the request path. A parser whose
-cost grows faster than the input lets any member who can save a page consume the server's CPU:
-before the fix, 24 KB shaped as `[[` repeated plus unterminated text cost 7.9 seconds, while
-80 KB of real wikilinks cost 3.6 ms.
+`extract_links` runs synchronously inside the page save, so a parser whose cost grows
+faster than its input hands any member the server's CPU: 24 KB shaped as repeated `[[`
+once cost 7.9 seconds against 3.6 ms for 80 KB of real wikilinks.
 
-These assert a **ratio** between an adversarial input and a benign one of the same length,
-never a duration. A loaded machine slows both equally, so the ratio holds where a threshold
-would produce flaky failures. A reviewer cannot see quadratic backtracking by reading a
-regular expression, which is why the defect survived review; this is the thing that would
-notice it coming back.
+These assert a *ratio* between an adversarial input and a benign one of the same length,
+never a duration: a loaded machine slows both equally, where a threshold would flake.
 """
 
 import time
@@ -18,14 +14,14 @@ import pytest
 
 from app import meta
 
-# Un patrón lineal mantiene la proporción estable al crecer la entrada. Uno cuadrático la
-# dispara. El margen es amplio a propósito: distingue lineal de cuadrático, no mide
-# rendimiento, y no debe fallar porque la máquina esté ocupada.
+# A linear pattern keeps the ratio stable as the input grows; a quadratic one blows it up.
+# The margin is wide on purpose: it tells linear from quadratic, it does not measure
+# performance, and it must not fail because the machine is busy.
 MAX_RATIO = 8.0
 
 
 def _time(fn, text: str) -> float:
-    """El mejor de tres: la mediana de una máquina con ruido engaña más que el mínimo."""
+    """Best of three: on a noisy machine the median misleads more than the minimum."""
     best = float("inf")
     for _ in range(3):
         t0 = time.perf_counter()
@@ -35,7 +31,7 @@ def _time(fn, text: str) -> float:
 
 
 def _adversarial(n: int) -> str:
-    """`[[` repetido y una cola que nunca cierra: cada posición inicia un escaneo."""
+    """Repeated `[[` and a tail that never closes, so every position starts a scan."""
     return "[[" * n + "a" * n
 
 
@@ -83,12 +79,12 @@ def test_cost_does_not_grow_with_size():
     ],
 )
 def test_the_fix_did_not_change_what_a_wikilink_is(content, expected):
-    """El arreglo es de coste, no de semántica: lo que se reconocía se sigue reconociendo."""
+    """The fix is about cost, not meaning: what was recognised still is."""
     assert meta.extract_links(content) == expected
 
 
 def test_a_target_longer_than_the_bound_is_not_a_target():
-    """Un destino de wikilink es un título, no un documento."""
+    """A wikilink target is a title, not a document."""
     assert meta.extract_links("[[" + "a" * 201 + "]]") == []
     assert meta.extract_links("[[" + "a" * 200 + "]]") == ["a" * 200]
 
