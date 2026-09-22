@@ -53,12 +53,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Procedencia de licencia: cada commit de un PR certifica bajo qué términos se aporta.
-  # Solo en pull_request, y por eso no se disparará en mucho tiempo: todo el historial de
-  # este repositorio son pushes directos a main. Se hace antes de que haga falta porque
-  # pedirle la firma al contribuidor 1 es trivial y reconstruirla desde el 20 es imposible.
+  # Procedencia de licencia: cada commit de un PR humano certifica bajo qué términos se aporta.
+  # Los PR generados por Dependabot quedan fuera de esta comprobación.
   signoff:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'app/dependabot'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
