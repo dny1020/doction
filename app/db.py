@@ -1484,6 +1484,39 @@ def _fts_query(raw: str) -> str:
     return " & ".join(f"{term}:*" for term in terms)
 
 
+# The text ts_headline reads, with the markdown syntax taken off.
+#
+# The stored page keeps its syntax — that is what is indexed and what `read_page_raw` hands
+# an agent — but a snippet is prose for a person to read, so `##`, table pipes, `[[...]]`
+# and mermaid blocks come off here and nowhere else. Ranking is untouched: `search_vector`
+# is built from the stored content, so what a query matches does not change.
+#
+# Stripped before ts_headline rather than after, because this also decides which twelve
+# words get picked. A fragment chosen out of a mermaid block is noise however it is cleaned
+# up afterwards, and the marks are applied to the result, so a page still cannot forge one.
+#
+# Ordered, because the steps interfere: fenced blocks go before anything looks inside them,
+# wikilinks are unwrapped before `|` becomes a space, and whitespace collapses last, once
+# every removal has left its gap behind.
+_SNIP_FRONT: LiteralString = r"regexp_replace(p.content, '^---\n.*?\n---\n', '')"
+_SNIP_FENCE: LiteralString = f"regexp_replace({_SNIP_FRONT}, '```.*?```|~~~.*?~~~', ' ', 'g')"
+_SNIP_IMG: LiteralString = f"regexp_replace({_SNIP_FENCE}, '!\\[[^]]*\\]\\([^)]*\\)', ' ', 'g')"
+_SNIP_LINK: LiteralString = f"regexp_replace({_SNIP_IMG}, '\\[([^]]*)\\]\\([^)]*\\)', '\\1', 'g')"
+_SNIP_WIKI_LABEL: LiteralString = (
+    f"regexp_replace({_SNIP_LINK}, '\\[\\[[^]|]*\\|([^]]*)\\]\\]', '\\1', 'g')"
+)
+_SNIP_WIKI: LiteralString = f"regexp_replace({_SNIP_WIKI_LABEL}, '\\[\\[([^]]*)\\]\\]', '\\1', 'g')"
+# Headings, blockquote markers and list bullets, each only where it leads a line.
+_SNIP_LINE: LiteralString = (
+    f"regexp_replace({_SNIP_WIKI}, '^[ \\t]*(#{{1,6}}[ \\t]*|>[ \\t]?|[-*+][ \\t]+)', '', 'gn')"
+)
+_SNIP_TABLE_RULE: LiteralString = (
+    f"regexp_replace({_SNIP_LINE}, '^[ \\t]*\\|?[ \\t]*:?-{{2,}}[-: \\t|]*$', ' ', 'gn')"
+)
+_SNIP_PIPES: LiteralString = f"regexp_replace({_SNIP_TABLE_RULE}, '\\|', ' ', 'g')"
+_SNIP_INLINE: LiteralString = f"regexp_replace({_SNIP_PIPES}, '[*_`~]', '', 'g')"
+_SNIPPET_SOURCE: LiteralString = f"regexp_replace({_SNIP_INLINE}, '[[:space:]]+', ' ', 'g')"
+
 # ts_headline marks matches with these control characters rather than <mark>, so the
 # snippet leaves here as text and the highlighting as positions: page content cannot
 # re-enter the DOM as HTML. Control characters because `translate()` strips them from
@@ -1540,14 +1573,7 @@ def search_pages(
             SELECT p.slug, p.title,
                    ts_headline(
                        'doction',
-                       translate(
-                           p.title || ' ' ||
-                           -- Frontmatter is stripped from what is shown, not from
-                           -- what is indexed: a snippet opening with
-                           -- `--- type: memo ---` is metadata, not the note.
-                           regexp_replace(p.content, '^---\n.*?\n---\n', ''),
-                           %s, ''
-                       ),
+                       translate(p.title || ' ' || {_SNIPPET_SOURCE}, %s, ''),
                        to_tsquery('doction', %s), %s
                    ) AS snippet
             FROM pages p

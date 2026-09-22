@@ -1,7 +1,15 @@
 # knowledge-graph Specification
 
 ## Purpose
-TBD - created by archiving change 006-knowledge-graph. Update Purpose after archive.
+
+Defines how the links between pages become structure a reader can use: a `[[target]]` written
+in a page is a link that can be followed, the pages pointing at a page are visible from it with
+enough of their sentence to judge whether the reference matters, and the workspace as a whole
+can be seen as a graph and told what is central, isolated or broken within it.
+
+A wiki's value is in its connections, so an edge that exists only in the database connects
+nothing, and an unresolved target reported to nobody is a workspace that decays while appearing
+healthy.
 
 ## Requirements
 

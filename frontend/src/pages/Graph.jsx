@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
-import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from 'd3-force'
+import {
+  LABEL_AT,
+  LABEL_BASELINE,
+  NODE_R,
+  buildSimulation,
+  labelOf,
+  radius,
+} from '../graphLayout.js'
 import { api, isAbort } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { pagePath } from '../routes.js'
@@ -14,10 +21,6 @@ import { useDocumentTitle } from '../useDocumentTitle.js'
 // only solves positions here — it is a numerical solver, not a renderer — so every colour
 // and face comes from the theme variables through ordinary CSS and dark mode needs no
 // bridge. That is the lesson from mermaid, which did need its palette carried by hand.
-
-const NODE_R = 5
-const MAX_R = 14
-const LABEL_AT = 40 // above this, only nodes with links are labelled
 
 function reducedMotion() {
   try {
@@ -106,22 +109,7 @@ export default function Graph() {
     nodesRef.current = nodes
     linksRef.current = links
 
-    const sim = forceSimulation(nodes)
-      .force(
-        'link',
-        forceLink(links)
-          .id((d) => d.slug)
-          .distance(70)
-          .strength(0.35),
-      )
-      .force('charge', forceManyBody().strength(-180))
-      .force('collide', forceCollide(MAX_R + 6))
-      // forceX/forceY rather than forceCenter: centering translates the whole set and
-      // holds nobody, so an orphan page with no edges pulling on it was flung off the
-      // canvas by the repulsion. This ties it weakly to the centre instead.
-      .force('x', forceX(0).strength(0.06))
-      .force('y', forceY(0).strength(0.06))
-      .stop()
+    const sim = buildSimulation(nodes, links)
 
     simRef.current = sim
 
@@ -235,7 +223,6 @@ export default function Graph() {
   const nodes = nodesRef.current
   const links = linksRef.current
   const labelAll = nodes.length <= LABEL_AT
-  const radius = (n) => Math.min(MAX_R, NODE_R + Math.sqrt(n.incoming || 0) * 2.5)
 
   return (
     <div className="graph-page">
@@ -300,9 +287,7 @@ export default function Graph() {
             >
               <circle r={n.broken ? NODE_R : radius(n)} />
               {(labelAll || n.incoming > 0 || hover === n.slug) && (
-                <text x={radius(n) + 5} y="4">
-                  {n.title}
-                </text>
+                <text y={radius(n) + LABEL_BASELINE}>{labelOf(n.title)}</text>
               )}
             </g>
           ))}

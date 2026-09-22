@@ -16,26 +16,6 @@ change's notes. That is a requirement of the `contribution` capability, not a ha
 
 ## Product defects
 
-### The graph view is unreadable — **open**
-
-`/w/<ws>/graph` renders, but the force layout collapses every node into the centre with
-labels overlapping, leaving most of the canvas empty. On a 15-page workspace the labels are
-already illegible. Needs the repulsion strength and link distance tuned, and probably a
-label-collision strategy.
-
-*Identified during the five-phase maturity review; the reason no graph screenshot is in the
-README.*
-
-### Search snippets leak raw markdown — **open**
-
-Results show table pipes, `##`, `[[…]]` and even mermaid syntax inside the excerpt, because
-snippets are extracted from the stored markdown without stripping syntax. Ranking is
-unaffected; it is presentation. Note that `meta.strip_code()` already exists for a related
-purpose and may be the wrong tool here, since the goal is readable prose rather than tag
-removal.
-
-*Identified during the five-phase maturity review.*
-
 ### `Delete` is the only page action outside the overflow menu — **open**
 
 Edit, New subpage and History live behind the `…` menu while the destructive action sits
@@ -43,26 +23,6 @@ alone and prominent in red. The hierarchy is inverted: the primary action is hid
 irreversible one is the easiest to hit.
 
 *Identified during the five-phase maturity review.*
-
-### The seeded pages describe retired infrastructure — **open**
-
-`app/seed.py` ships three pages to every new user. One is a runbook describing a Gitea
-runner and an SQLite database on a mounted volume; Gitea was retired and the database is
-PostgreSQL. It is the first thing a new user reads, and it is wrong.
-
-*Identified during the five-phase maturity review.*
-
----
-
-## Consistency
-
-### The `knowledge-graph` capability has a `TBD` Purpose — **open**
-
-`openspec/specs/knowledge-graph/spec.md` opens with the placeholder the archive process
-leaves when a delta carried no Purpose. Every other capability describes what it is for. A
-good first task: read the capability's requirements and write the two sentences.
-
-*Identified while syncing the `licensing` capability.*
 
 ---
 

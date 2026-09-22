@@ -19,7 +19,7 @@ def _page_of(size: int) -> str:
 def test_an_ordinary_page_is_accepted(client):
     """A limit that rejects real documents is a defect of its own."""
     _register(client)
-    # Longer than any seeded page (542 B) and than this repo's README (~18 KB).
+    # Longer than any seeded page and than this repo's README (~18 KB).
     r = client.post("/api/pages", json={"title": "Larga", "content": _page_of(64 * 1024)})
     assert r.status_code == 201, r.text
 
