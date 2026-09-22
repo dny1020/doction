@@ -58,7 +58,7 @@ jobs:
   # este repositorio son pushes directos a main. Se hace antes de que haga falta porque
   # pedirle la firma al contribuidor 1 es trivial y reconstruirla desde el 20 es imposible.
   signoff:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
