@@ -1,8 +1,6 @@
 site_name: doction
-site_description: Minimalist, markdown-first DevOps knowledge system
-site_url: https://dny1020.github.io/doction/
-repo_url: https://github.com/dny1020/doction
-repo_name: dny1020/doction
+site_description: A self-hosted, markdown-first knowledge base for humans and coding agents
+site_url: https://doction.site/
 copyright: AGPL-3.0-only
 
 # Not `docs/`: the site is built from a staged tree that also holds the root documents `docs/`
@@ -12,14 +10,24 @@ site_dir: site
 
 theme:
   name: material
+  # No Google Fonts: the application's vendored faces are staged by scripts/build_docs.py and
+  # declared in docs/assets/doction.css, so the site works with no route to the internet.
+  font: false
+  logo: docs/assets/logo.svg
+  favicon: docs/assets/favicon.svg
+  # `custom` makes Material emit no colours of its own; doction.css maps them to the app's tokens.
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
@@ -29,8 +37,26 @@ theme:
     - content.code.copy
     - search.highlight
 
+# A plain link, not `repo_url`: Material fetches stars and forks for `repo_url` from
+# api.github.com on every page load, and the site must request nothing off-site.
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dny1020/doction
+      name: dny1020/doction on GitHub
+  generator: false
+
+extra_css:
+  - docs/assets/doction.css
+
+# Serves docs/index.md at the site root and the README at /introduction/.
+hooks:
+  - scripts/docs_hooks.py
+
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - tables
   - toc:
       permalink: true
@@ -46,23 +72,25 @@ validation:
     unrecognized_links: warn
 
 nav:
-  - Home: README.md
+  - Home: docs/index.md
+  - Getting started:
+      - Introduction: README.md
+      - docs/install.md
+      - docs/configuration.md
   - Using doction:
       - docs/writing-pages.md
       - docs/linking.md
       - docs/tags-and-metadata.md
       - docs/search.md
       - docs/graph.md
+  - Developer:
       - docs/api.md
       - docs/mcp.md
-  - Running doction:
-      - docs/install.md
-      - docs/configuration.md
       - docs/architecture.md
+  - Operations:
       - docs/operations.md
       - docs/troubleshooting.md
   - Project:
-      - docs/README.md
       - CONTRIBUTING.md
       - SECURITY.md
       - DESIGN.md

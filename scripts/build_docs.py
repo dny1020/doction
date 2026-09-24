@@ -20,6 +20,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STAGE = ROOT / "build" / "docs"
 SITE = ROOT / "site"
+# The site uses the application's own vendored fonts, copied at build time so the binaries have
+# one source and the site makes no request to a font CDN.
+FONTS = ROOT / "app" / "static" / "vendor" / "fonts"
 
 # Documents outside `docs/` that the site needs, each because something in the site links to it.
 # Paths are repository-relative and keep their shape in the staged tree, so `openspec/README.md`
@@ -44,6 +47,7 @@ def stage() -> None:
         shutil.rmtree(STAGE)
     STAGE.mkdir(parents=True)
     shutil.copytree(ROOT / "docs", STAGE / "docs")
+    shutil.copytree(FONTS, STAGE / "docs" / "assets" / "fonts")
     for name in ROOT_DOCS:
         source = ROOT / name
         if not source.exists():

@@ -24,7 +24,7 @@ Every save is a git commit, so any page's history is a real diff:
 
 ## Documentation
 
-The rest of this README is the tour. The reference lives in [`docs/`](docs/README.md):
+The rest of this README is the tour. The reference lives in [`docs/`](docs/index.md):
 
 | Page | What it answers |
 | --- | --- |

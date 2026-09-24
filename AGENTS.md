@@ -37,7 +37,7 @@ disabled, why a wikilink target excludes `[`.
 | Setup, the quality gate, commit style, releasing | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | What is identified and not yet done | [`ROADMAP.md`](ROADMAP.md) |
 | The visual system, as implemented | [`DESIGN.md`](DESIGN.md) |
-| Installing, configuring and operating a deployment | [`docs/`](docs/README.md) |
+| Installing, configuring and operating a deployment | [`docs/`](docs/index.md) |
 | The security model and how to report a problem | [`SECURITY.md`](SECURITY.md) |
 | What changed in each release | [`CHANGELOG.md`](CHANGELOG.md) |
 

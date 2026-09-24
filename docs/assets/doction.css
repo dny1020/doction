@@ -1,0 +1,303 @@
+/* doction's visual language on MkDocs Material.
+   Every value here comes from DESIGN.md / app/static/style.css; this file only maps
+   Material's variables onto them. When a value disagrees with DESIGN.md, this file is
+   the defect. Material's root font size is 20px, so sizes are in px to match §3 exactly. */
+
+/* ── Fonts: the application's vendored faces, staged into assets/fonts/ by
+   scripts/build_docs.py. Latin + Latin-ext, the subsets the app ships. ─────────── */
+@font-face { font-family: 'Manrope'; font-weight: 400; font-display: swap; src: url('fonts/manrope-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Manrope'; font-weight: 400; font-display: swap; src: url('fonts/manrope-latin-ext-400-normal.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Manrope'; font-weight: 500; font-display: swap; src: url('fonts/manrope-latin-500-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Manrope'; font-weight: 500; font-display: swap; src: url('fonts/manrope-latin-ext-500-normal.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Manrope'; font-weight: 600; font-display: swap; src: url('fonts/manrope-latin-600-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Manrope'; font-weight: 600; font-display: swap; src: url('fonts/manrope-latin-ext-600-normal.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Instrument Serif'; font-weight: 400; font-display: swap; src: url('fonts/instrument-serif-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Instrument Serif'; font-weight: 400; font-display: swap; src: url('fonts/instrument-serif-latin-ext-400-normal.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 400; font-display: swap; src: url('fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 400; font-display: swap; src: url('fonts/jetbrains-mono-latin-ext-400-normal.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 500; font-display: swap; src: url('fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 500; font-display: swap; src: url('fonts/jetbrains-mono-latin-ext-500-normal.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+/* ── Tokens (DESIGN.md §2, §8) ─────────────────────────────────────────────────── */
+:root {
+  --md-text-font: 'Manrope', system-ui, -apple-system, sans-serif;
+  --md-code-font: 'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+
+  /* The chrome is dark green ink in both themes. */
+  --nav-bg:       oklch(0.145 0.028 151);
+  --nav-bg-end:   oklch(0.115 0.022 151);
+  --nav-hover:    oklch(0.185 0.030 151);
+  --nav-edge:     oklch(0.330 0.030 151);
+  --nav-ink:      oklch(0.928 0.014 93);
+  --nav-ink-muted: oklch(0.720 0.018 100);
+  --nav-green:    oklch(0.745 0.090 145);
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+}
+
+[data-md-color-scheme="default"] {
+  --background:     oklch(0.965 0.012 94);
+  --surface:        oklch(0.982 0.008 92);
+  --surface-muted:  oklch(0.936 0.016 91);
+  --surface-inset:  oklch(0.908 0.020 91);
+  --ink:            oklch(0.245 0.030 151);
+  --ink-strong:     oklch(0.185 0.026 150);
+  --ink-muted:      oklch(0.445 0.025 151);
+  --ink-subtle:     oklch(0.501 0.020 151);
+  --ink-on-green:   oklch(0.982 0.008 92);
+  --green:          oklch(0.365 0.055 151);
+  --green-hover:    oklch(0.315 0.052 151);
+  --green-soft:     oklch(0.915 0.030 151);
+  --green-ring:     oklch(0.365 0.055 151 / 0.60);
+  --orange:         oklch(0.635 0.155 52);
+  --border-subtle:  oklch(0.875 0.018 90);
+  --border-default: oklch(0.600 0.024 90);
+  --danger:         oklch(0.525 0.185 28);
+  --callout-bg:     oklch(0.960 0.022 63.2);
+  --code-inline-bg:     oklch(0.915 0.030 151);
+  --code-inline-border: oklch(0.870 0.035 151);
+  --code-bg:        oklch(0.205 0.024 151);
+  --code-text:      oklch(0.930 0.018 96);
+  --code-muted:     oklch(0.690 0.025 120);
+  --code-green:     oklch(0.760 0.110 142);
+  --code-orange:    oklch(0.780 0.130 61);
+}
+
+[data-md-color-scheme="slate"] {
+  --background:     oklch(0.170 0.006 150);
+  --surface:        oklch(0.205 0.007 150);
+  --surface-muted:  oklch(0.238 0.008 150);
+  --surface-inset:  oklch(0.265 0.008 150);
+  --ink:            oklch(0.925 0.016 93);
+  --ink-strong:     oklch(0.975 0.007 93);
+  --ink-muted:      oklch(0.720 0.018 100);
+  --ink-subtle:     oklch(0.639 0.018 110);
+  --ink-on-green:   oklch(0.170 0.018 150);
+  --green:          oklch(0.745 0.090 145);
+  --green-hover:    oklch(0.805 0.090 145);
+  --green-soft:     oklch(0.290 0.050 149);
+  --green-ring:     oklch(0.745 0.090 145 / 0.53);
+  --orange:         oklch(0.735 0.135 57);
+  --border-subtle:  oklch(0.285 0.020 150);
+  --border-default: oklch(0.538 0.025 150);
+  --danger:         oklch(0.700 0.150 28);
+  --callout-bg:     oklch(0.248 0.030 72.5);
+  --code-inline-bg:     oklch(0.290 0.050 149);
+  --code-inline-border: oklch(0.345 0.045 149);
+  --code-bg:        oklch(0.115 0.014 150);
+  --code-text:      oklch(0.925 0.016 93);
+  --code-muted:     oklch(0.620 0.025 113);
+  --code-green:     oklch(0.760 0.110 142);
+  --code-orange:    oklch(0.790 0.130 61);
+}
+
+/* ── Material, mapped onto the tokens ──────────────────────────────────────────── */
+[data-md-color-scheme="default"],
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color:           var(--background);
+  --md-default-fg-color:           var(--ink);
+  --md-default-fg-color--light:    var(--ink-muted);
+  --md-default-fg-color--lighter:  var(--ink-subtle);
+  --md-default-fg-color--lightest: var(--border-subtle);
+
+  --md-primary-fg-color:        var(--nav-bg);
+  --md-primary-fg-color--light: var(--nav-hover);
+  --md-primary-fg-color--dark:  var(--nav-bg-end);
+  --md-primary-bg-color:        var(--nav-ink);
+  --md-primary-bg-color--light: var(--nav-ink-muted);
+
+  --md-accent-fg-color:              var(--green-hover);
+  --md-accent-fg-color--transparent: var(--green-soft);
+  --md-accent-bg-color:              var(--ink-on-green);
+
+  --md-typeset-color:   var(--ink);
+  --md-typeset-a-color: var(--green);
+  --md-typeset-mark-color: var(--green-soft);
+  --md-typeset-table-color: var(--border-subtle);
+  --md-typeset-table-color--light: var(--surface-muted);
+
+  --md-code-bg-color: var(--code-bg);
+  --md-code-fg-color: var(--code-text);
+  /* The app's highlight.js roles: strings green, numbers orange, comments muted, the rest ink. */
+  --md-code-hl-string-color:      var(--code-green);
+  --md-code-hl-number-color:      var(--code-orange);
+  --md-code-hl-comment-color:     var(--code-muted);
+  --md-code-hl-keyword-color:     var(--code-text);
+  --md-code-hl-function-color:    var(--code-text);
+  --md-code-hl-constant-color:    var(--code-text);
+  --md-code-hl-special-color:     var(--code-text);
+  --md-code-hl-name-color:        var(--code-text);
+  --md-code-hl-operator-color:    var(--code-text);
+  --md-code-hl-punctuation-color: var(--code-text);
+  --md-code-hl-variable-color:    var(--code-text);
+  --md-code-hl-generic-color:     var(--code-text);
+
+  --md-admonition-bg-color: var(--surface);
+  --md-admonition-fg-color: var(--ink);
+
+  --md-footer-bg-color:       var(--nav-bg);
+  --md-footer-bg-color--dark: var(--nav-bg-end);
+  --md-footer-fg-color:       var(--nav-ink);
+  --md-footer-fg-color--light:   var(--nav-ink-muted);
+  --md-footer-fg-color--lighter: var(--nav-ink-muted);
+
+  --md-shadow-z1: none;
+}
+
+/* ── Chrome ────────────────────────────────────────────────────────────────────── */
+.md-header {
+  background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-end));
+  border-bottom: 1px solid var(--nav-edge);
+  box-shadow: none;
+}
+.md-header--shadow { box-shadow: none; }
+.md-header__topic:first-child { font-weight: 600; }
+.md-search__input { background: var(--nav-hover); color: var(--nav-ink); }
+.md-search__input::placeholder { color: var(--nav-ink-muted); }
+
+.md-nav { font-size: 13px; }
+.md-nav__link--active { font-weight: 500; }
+
+/* ── Document (DESIGN.md §3, §5) ───────────────────────────────────────────────── */
+.md-typeset { font-size: 16px; line-height: 1.78; }
+.md-typeset h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 36px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.md-typeset h2 {
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  margin-top: 56px;
+}
+.md-typeset h3 {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.45;
+  margin-top: 36px;
+}
+.md-typeset a { text-underline-offset: 2px; }
+.md-typeset a:hover { color: var(--green-hover); text-decoration: underline; }
+.md-typeset a:focus-visible { outline: 2px solid var(--green-ring); outline-offset: 2px; }
+
+.md-typeset :not(pre) > code {
+  font-size: 0.85em;
+  background: var(--code-inline-bg);
+  border: 1px solid var(--code-inline-border);
+  border-radius: var(--radius-xs);
+  color: var(--ink);
+  padding: 0.1em 0.35em;
+}
+.md-typeset pre > code {
+  border: 1px solid var(--nav-edge);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.md-typeset table:not([class]) {
+  font-size: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+.md-typeset table:not([class]) th { background: var(--surface-muted); font-weight: 600; }
+
+.md-typeset blockquote {
+  border-left: 2px solid var(--orange);
+  background: var(--callout-bg);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--ink);
+  padding: 16px 20px;
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  border: 1px solid var(--border-subtle);
+  border-left: 2px solid var(--orange);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  font-size: 16px;
+}
+
+/* ── Buttons: the app's .btn / .btn-primary ────────────────────────────────────── */
+.md-typeset .md-button {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 12px;
+  line-height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+.md-typeset .md-button:hover,
+.md-typeset .md-button:focus {
+  background: var(--surface-inset);
+  border-color: var(--border-default);
+  color: var(--ink);
+  text-decoration: none;
+}
+.md-typeset .md-button--primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--ink-on-green);
+}
+.md-typeset .md-button--primary:hover,
+.md-typeset .md-button--primary:focus {
+  background: var(--green-hover);
+  border-color: var(--green-hover);
+  color: var(--ink-on-green);
+}
+
+/* ── Grid cards: a line, not a shadow (DESIGN.md §6) ───────────────────────────── */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid > .card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: none;
+}
+.md-typeset .grid.cards > ul > li:hover,
+.md-typeset .grid > .card:hover {
+  border-color: var(--border-default);
+  box-shadow: none;
+}
+.md-typeset .grid.cards > ul > li > hr { border-color: var(--border-subtle); margin: 8px 0; }
+.md-typeset .grid.cards strong { font-weight: 600; }
+
+/* ── Landing ───────────────────────────────────────────────────────────────────── */
+.md-typeset .dx-hero { margin: 24px 0 48px; }
+.md-typeset .dx-hero h1 {
+  font-size: 52px;
+  line-height: 1.03;
+  margin: 0 0 16px;
+}
+.md-typeset .dx-lead {
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  max-width: 36em;
+}
+.md-typeset .dx-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.md-typeset .dx-actions .md-button { margin: 0; }
+.md-typeset .dx-eyebrow {
+  font-family: var(--md-code-font);
+  font-size: 12px;
+  color: var(--ink-subtle);
+  letter-spacing: 0.02em;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .dx-hero h1 { font-size: 36px; line-height: 1.15; }
+  .md-typeset .dx-lead { font-size: 16px; }
+}
