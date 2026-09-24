@@ -53,9 +53,11 @@ Spanish pages in this project's retrieval harness. The numbers are in `evals/res
 
 ## What comes back
 
-Each hit carries the page's slug and title and a snippet with the matched spans marked. The
-snippet is extracted from the stored markdown, so it can contain table pipes, heading marks and
-other syntax. That is a known presentation defect; it does not affect ranking.
+Each hit carries the page's slug and title and a snippet of up to twelve words with the matched
+spans marked. The snippet is prose: frontmatter, fenced code and mermaid blocks, images, heading
+marks, list bullets, table pipes and emphasis are taken off first, and links and wikilinks keep
+only their text. That happens before the words are chosen, so a snippet is never picked out of a
+code block. Ranking is untouched — it runs on the stored markdown, syntax included.
 
 Add `uploads=1` to also match text recognised in uploaded images. That needs `OCR_UPLOADS=1` on
 the instance, since the text is extracted when the image is uploaded and not at query time.

@@ -37,10 +37,10 @@ The interface draws this at `/w/<workspace>/graph`, as SVG the application write
 than through a charting library. Every colour is a design token, which is what makes both themes
 work without a second palette.
 
-**The layout is currently poor.** The force simulation collapses nodes toward the centre with
-labels overlapping, and on a small workspace the labels are already hard to read. It is a known
-defect with an open issue, and it is the reason
-there is no graph screenshot in the project README. The data is correct; the drawing is not.
+Each label sits centred under its node, and a title longer than 24 characters is elided. Up to
+40 nodes every page is labelled; above that, only pages with links are. The layout sizes itself
+to the titles it has to place, so labels do not overlap — `frontend/src/graphLayout.test.js`
+settles the simulation and fails if any two label boxes intersect.
 
 ## Reading the graph without drawing it
 

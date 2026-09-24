@@ -67,7 +67,7 @@ reading.
 
 Response bodies are not described in the schema: the handlers return JSON directly rather than
 through declared models, so `/docs` shows request shapes and status codes but not response
-shapes. That is a known gap.
+shapes. That is tracked in [#65](https://github.com/dny1020/doction/issues/65).
 
 ## Every endpoint
 
