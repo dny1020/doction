@@ -13,30 +13,69 @@ summarised per release rather than exhaustive.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.31.11 — 2026-09-24
+
+Documentation, CI and repository hygiene, plus the fixes for issues #42, #44 and #45. No API
+or MCP contract changed.
+
+### Added
+
+- **Public documentation site at https://doction.site.** `docs/index.md` is a landing page
+  (what doction is, how it works, the REST and MCP entry points, self-hosting, a map of every
+  page), served at the root by a small MkDocs hook with the README at `/introduction/`. The
+  site uses the application's own visual language — its tokens, the vendored Manrope,
+  Instrument Serif and JetBrains Mono, the terminal mark — and loads nothing from a
+  third-party host: no Google Fonts, no GitHub API call, no remote badge images.
+  `pages.yaml` redeploys it on every push to `main` that touches the documentation.
+
 ### Changed
 
-- `openspec/` and `AGENTS.md` are no longer versioned. Both are maintainer-local planning and
-  agent orientation, gitignored like `CLAUDE.md`; `CONTRIBUTING.md`, the README and the
-  documentation site no longer point at them. `make spec` skips when `openspec/` is absent.
-- The README is a short tour: features, a quick start and a map of `docs/`. Its copies of
-  the configuration table, endpoint list (24 of 59), MCP tool table, architecture diagram,
-  development and deployment steps are gone — `docs/` holds each of them, and `docs/api.md`
-  is the one checked against the served schema.
-- CI on `main` no longer rebuilds the image from scratch on every push. The `test`, `web`
-  and `publish` jobs shared one build-cache scope and overwrote each other, so only 3 of 59
-  steps were ever cached; each now has its own. The SPA stage is built once on the build
-  host instead of again under QEMU for arm64, and `publish` reuses the `web` job's layers.
-  The runtime's `apt-get upgrade` layer is refreshed weekly (`APT_REFRESH`, the ISO week)
-  so a working cache does not freeze Debian's security fixes.
+- CI on `main` takes about 4 minutes instead of 10. The `test`, `web` and `publish` jobs
+  shared one build-cache scope and overwrote each other, so only 3 of 59 steps were ever
+  cached; each now has its own, and `publish` reuses the `web` job's layers (6:48 → 0:49).
+  The SPA stage is built once on the build host instead of again under QEMU for arm64. The
+  runtime's `apt-get upgrade` layer is refreshed weekly (`APT_REFRESH`, the ISO week) so a
+  working cache does not freeze Debian's security fixes.
+- `openspec/` and `AGENTS.md` are no longer versioned: both are maintainer-local, gitignored
+  like `CLAUDE.md`, and no tracked document points at them. `make spec` skips when
+  `openspec/` is absent.
+- Pending work is tracked in GitHub issues (#60–#65) rather than a roadmap file.
+- The README is a short tour — screenshots, a quick start, the licence. Documentation that
+  said the same thing in two places now says it once and links: features and the page map
+  on `docs/index.md`, licence obligations and the production checklist in
+  `docs/configuration.md` and `docs/operations.md`, the code-scanning policy in
+  `SECURITY.md`, the relicensing history in the README.
+- `DESIGN.md` is in English, and comments, docstrings and log messages across `app/`,
+  `tests/`, `scripts/` and `evals/` were trimmed and translated to English. No behaviour
+  change.
+- The sign-off check skips Dependabot pull requests.
+
+### Fixed
+
+- Search snippets no longer show markdown syntax — table pipes, heading marks, wikilink
+  brackets or mermaid source. The syntax is stripped before the words are chosen, so ranking
+  is unchanged (#44).
+- The graph view's force layout is readable: labels are centred under their node and sized
+  into the simulation, so they no longer overlap (#45).
+- The seeded deploy runbook described a retired Gitea runner and SQLite; it now describes the
+  deployment that exists (#42).
+- `scripts/changelog.py` refuses `Unreleased` as a version instead of printing that section
+  as release notes.
 
 ### Removed
 
-- `.graphifyignore`.
-- `ROADMAP.md`. Pending work is tracked in issues.
-- Documentation that said the same thing in two places now says it once and links: features
-  and the page map live on `docs/index.md`, licence obligations in `docs/configuration.md`,
-  the production checklist in `docs/configuration.md` and `docs/operations.md`, the
-  code-scanning policy in `SECURITY.md`, and the relicensing history in the README.
+- `ROADMAP.md` and `.graphifyignore`.
+
+### Dependencies
+
+- **`react` and `react-dom` 18.3.1 → 19.3.0** (major).
+- `lucide-react` 1.43.0 → 1.47.0, `prettier` 3.9.6 → 3.9.8.
+- `pyjwt` 2.13.0 → 2.14.0, `onnxruntime` 1.29.0 → 1.30.0, `ruff` 0.16.6 → 0.16.8,
+  `pyright` 1.1.411 → 1.1.414.
+- GitHub Actions: `docker/setup-buildx-action` 4.4.1, `docker/build-push-action` 7.4.0,
+  `docker/setup-qemu-action` 4.4.0, `astral-sh/setup-uv` 10.1.0.
 
 ## 0.31.10 — 2026-09-14
 
