@@ -1,26 +1,24 @@
 name: Docs site
 
-# Manual only, for now. The site is served at https://doction.site (`site_url` in mkdocs.yml),
-# and Pages is enabled with that custom domain once its DNS resolves. Until then an automatic
-# run has nothing to publish to. The push trigger below stays commented rather than deleted
-# because the path list is the part worth keeping — uncomment it once the domain is live.
-#
-# El sitio se publica desde main y solo cuando cambia la documentación o cómo se construye.
-# Un cambio de código que no toca nada de esto no tiene por qué republicar el sitio.
+# Publishes https://doction.site (`site_url` in mkdocs.yml) from main, and only when the
+# documentation or how it is built changes: a code change that touches none of this has no
+# reason to republish the site. `workflow_dispatch` stays for a manual republish.
 on:
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - "docs/**"
-  #     - "mkdocs.yml"
-  #     - "scripts/build_docs.py"
-  #     - "README.md"
-  #     - "CONTRIBUTING.md"
-  #     - "SECURITY.md"
-  #     - "DESIGN.md"
-  #     - "CHANGELOG.md"
-  #     - "CODE_OF_CONDUCT.md"
-  #     - ".github/workflows/pages.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "scripts/build_docs.py"
+      - "scripts/docs_hooks.py"
+      - "app/static/vendor/fonts/**"
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "SECURITY.md"
+      - "DESIGN.md"
+      - "CHANGELOG.md"
+      - "CODE_OF_CONDUCT.md"
+      - ".github/workflows/pages.yaml"
   workflow_dispatch:
 
 # Lo mínimo para publicar en Pages y nada más: `contents: read` para el checkout,
