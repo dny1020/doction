@@ -57,7 +57,9 @@ RUN service postgresql start \
 # Node 22 and not 20: jsdom and undici, which arrive through vitest, declare `engines`
 # node >=22.19.0, so on node:20 the gate fails loading the test environment — and only
 # there. When bumping the base image, check the lockfile's `engines`.
-FROM node:22-slim AS web
+# The bundle is plain JS and CSS, the same on every architecture, so it is built once on the
+# build host rather than once per platform — under QEMU the arm64 copy took four minutes.
+FROM --platform=$BUILDPLATFORM node:22-slim AS web
 
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -79,6 +81,11 @@ FROM base AS runtime
 # rejustified every time.
 RUN uv sync --frozen --no-dev && uv cache clean \
     && pip uninstall -y uv pip 2>/dev/null || true
+
+# With the build cache working, the upgrade below would be reused until an earlier layer
+# changed, freezing Debian's security fixes. CI passes the ISO week, so it is redone at most
+# weekly while the `uv sync` layer above stays cached.
+ARG APT_REFRESH=
 
 # Opt-in local OCR (OCR_UPLOADS=1). Runtime only — the test stage does not need it.
 #

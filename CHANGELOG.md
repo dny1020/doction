@@ -22,6 +22,12 @@ summarised per release rather than exhaustive.
   the configuration table, endpoint list (24 of 59), MCP tool table, architecture diagram,
   development and deployment steps are gone — `docs/` holds each of them, and `docs/api.md`
   is the one checked against the served schema.
+- CI on `main` no longer rebuilds the image from scratch on every push. The `test`, `web`
+  and `publish` jobs shared one build-cache scope and overwrote each other, so only 3 of 59
+  steps were ever cached; each now has its own. The SPA stage is built once on the build
+  host instead of again under QEMU for arm64, and `publish` reuses the `web` job's layers.
+  The runtime's `apt-get upgrade` layer is refreshed weekly (`APT_REFRESH`, the ISO week)
+  so a working cache does not freeze Debian's security fixes.
 
 ### Removed
 

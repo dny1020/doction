@@ -50,8 +50,10 @@ jobs:
           context: .
           target: test
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # One scope per job: sharing the default one, each job overwrote the others' cache
+          # index and `publish` rebuilt everything on every push.
+          cache-from: type=gha,scope=test
+          cache-to: type=gha,scope=test,mode=max
 
   # Procedencia de licencia: cada commit de un PR humano certifica bajo qué términos se aporta.
   # Los PR generados por Dependabot quedan fuera de esta comprobación.
@@ -80,8 +82,8 @@ jobs:
           context: .
           target: web
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
 
   # El sitio de documentación se construye en estricto: un enlace interno que no resuelve
   # aborta el build. Cubre lo que check_docs_reachable no puede ver, que es la navegación
@@ -116,6 +118,10 @@ jobs:
         id: version
         run: echo "value=$(awk -F'"' '/^version/{print $2}' pyproject.toml)" >> "$GITHUB_OUTPUT"
 
+      - name: Semana ISO, para refrescar la capa de apt una vez por semana
+        id: week
+        run: echo "value=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
@@ -144,5 +150,10 @@ jobs:
           # repositorio, y la credencial del registro va a login-action y no al build.
           sbom: true
           provenance: mode=max
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: APT_REFRESH=${{ steps.week.outputs.value }}
+          # `web` is built natively in its own job with the same inputs, so its layers are
+          # reused here instead of running lint, tests and the bundle a second time.
+          cache-from: |
+            type=gha,scope=web
+            type=gha,scope=publish
+          cache-to: type=gha,scope=publish,mode=max

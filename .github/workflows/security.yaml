@@ -86,6 +86,11 @@ jobs:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
+      # The same week `publish` uses, so Trivy scans the apt layer that is being shipped.
+      - name: ISO week
+        id: week
+        run: echo "value=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
@@ -93,7 +98,10 @@ jobs:
           push: false
           load: true
           tags: doction:scan
-          cache-from: type=gha
+          build-args: APT_REFRESH=${{ steps.week.outputs.value }}
+          cache-from: |
+            type=gha,scope=web
+            type=gha,scope=publish
 
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
