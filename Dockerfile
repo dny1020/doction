@@ -69,6 +69,9 @@ COPY frontend/ ./
 # `npm run check` has to read it: the @font-face rules live there, and so would a font
 # requested from a CDN.
 COPY app/static/style.css /build/app/static/style.css
+# Hashed into index.html's URLs by vite.config.js, so a changed icon reaches the browser.
+COPY app/static/favicon.svg app/static/manifest.webmanifest app/static/apple-touch-icon.png \
+     /build/app/static/
 # `check` is the same gate that runs locally, so the bundle is only produced if lint,
 # formatting, tests and the air-gap check pass.
 RUN npm run check

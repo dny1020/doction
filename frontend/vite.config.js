@@ -21,19 +21,22 @@ const appPath = path('DOCTION_APP_PATH', '/app')
 const staticPath = path('DOCTION_STATIC_PATH', '/static')
 const mcpPath = path('DOCTION_MCP_PATH', '/api/mcp')
 
-// The backend serves the CSS from a fixed path, so it cannot carry the hash in its name
-// like Vite's assets do; it carries the same content hash in the query instead. A browser
+// The backend serves these from fixed paths, so they cannot carry a hash in their names
+// like Vite's assets do; each carries its content hash in the query instead. A browser
 // with the old sheet cached and the new bundle paints new markup with old rules, which is
-// a broken screen and not a stale style.
-function styleHash() {
+// a broken screen and not a stale style — and a favicon without a version outlives any
+// brand change, because browsers keep favicons in a cache of their own.
+const HASHED_STATIC = ['style.css', 'favicon.svg', 'manifest.webmanifest', 'apple-touch-icon.png']
+
+function fileHash(name) {
   try {
     return createHash('sha256')
-      .update(readFileSync(new URL('../app/static/style.css', import.meta.url)))
+      .update(readFileSync(new URL('../app/static/' + name, import.meta.url)))
       .digest('hex')
       .slice(0, 8)
   } catch {
-    // The Dockerfile's `web` stage copies the CSS before building, so this only fires in
-    // an incomplete tree: without a hash it is still served.
+    // The Dockerfile's `web` stage copies these before building, so this only fires in
+    // an incomplete tree: without a hash the file is still served.
     return ''
   }
 }
@@ -47,10 +50,14 @@ const staticUrls = {
   transformIndexHtml: {
     order: 'pre',
     handler: (html) => {
-      const hash = styleHash()
-      return html
-        .replaceAll('__STATIC__/style.css', staticPath + '/style.css' + (hash ? '?v=' + hash : ''))
-        .replaceAll('__STATIC__', staticPath)
+      for (const name of HASHED_STATIC) {
+        const hash = fileHash(name)
+        html = html.replaceAll(
+          '__STATIC__/' + name,
+          staticPath + '/' + name + (hash ? '?v=' + hash : ''),
+        )
+      }
+      return html.replaceAll('__STATIC__', staticPath)
     },
   },
 }

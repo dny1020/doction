@@ -196,7 +196,7 @@ _EN: dict[str, str] = {
     # Webhooks de salida.
     "webhooks": "Webhooks",
     "webhooks_desc": (
-        "Doction posts page events to these URLs. Signed with HMAC-SHA256 in "
+        "doction posts page events to these URLs. Signed with HMAC-SHA256 in "
         "X-Doction-Signature; failed deliveries retry with backoff."
     ),
     "secret_shown_once": "Copy this secret now — it won't be shown again.",
@@ -417,7 +417,7 @@ _ES: dict[str, str] = {
     "write": "Escribir",
     "webhooks": "Webhooks",
     "webhooks_desc": (
-        "Doction publica los eventos de página en estas URLs. Van firmados con "
+        "doction publica los eventos de página en estas URLs. Van firmados con "
         "HMAC-SHA256 en X-Doction-Signature; si fallan se reintentan con espera "
         "creciente."
     ),

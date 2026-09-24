@@ -1130,14 +1130,14 @@ a { color: inherit; }
   transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 .page-list a:hover { background: var(--surface-inset); color: var(--ink); }
-/* §8: superficie verde muy tenue y un filete izquierdo de 2px en naranja, no un
-   relleno. El naranja señala el borde del elemento activo; el peso y la tinta
-   hacen el resto, así que el color nunca va solo. */
+/* §8: a faint green surface and a 2px green left rule, not a fill — the same "you are
+   here" mark as the documentation site. Weight and ink do the rest, so colour never
+   travels alone. Inside .sidebar, --green resolves to the chrome's green. */
 .page-list a.active {
   background: var(--nav-active-bg);
   color: var(--ink-strong);
   font-weight: 500;
-  box-shadow: inset 2px 0 0 var(--orange);
+  box-shadow: inset 2px 0 0 var(--green);
 }
 /* El sangrado por nivel lo pone el arbol (aria-level), no data-depth: la lista
    plana con sangrado paso a ser jerarquia plegable. Misma escala de 14px por
@@ -1471,7 +1471,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
    el filete a la vez, que es decirlo dos veces y subir el volumen del índice
    entero. El texto solo sube a tinta principal, que ya es contraste suficiente
    para no depender del color. */
-.toc-item.active { color: var(--ink); border-left-color: var(--orange-ink); border-left-width: 2px; }
+.toc-item.active { color: var(--ink); border-left-color: var(--green); border-left-width: 2px; }
 .toc-h1 { font-weight: 500; }
 .toc-h2 { padding-left: var(--space-4); }
 .toc-h3 { padding-left: var(--space-6); font-size: var(--text-sm); }
@@ -1517,7 +1517,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .breadcrumbs a:hover { color: var(--green); }
 /* El separador es `aria-hidden`: no dice nada que no diga la propia ruta, así
    que puede llevar el naranja decorativo sin deberle contraste a nadie. */
-.breadcrumbs .crumb-sep { color: var(--orange); }
+.breadcrumbs .crumb-sep { color: var(--ink-subtle); }
 .breadcrumbs .crumb-current { color: var(--ink-subtle); font-weight: 500; }
 .page-header h1 {
   font-family: var(--font-display);
@@ -2652,10 +2652,10 @@ html {
   text-decoration: none;
 }
 .settings-nav-item:hover { background: var(--surface-inset); color: var(--ink); }
-/* El estado activo no depende solo del color: tambien lleva el filete y el peso. */
+/* The active state does not rest on colour alone: it also carries the rule and the weight. */
 .settings-nav-item--active {
   background: var(--surface-inset);
-  border-left-color: var(--orange-ink);
+  border-left-color: var(--green);
   color: var(--green-press);
   font-weight: 500;
 }
@@ -3210,13 +3210,12 @@ html {
   stroke-dasharray: 2 2;
 }
 .graph-node--broken text { fill: var(--danger); }
-/* El nodo activo: relleno verde y una señal naranja mínima en el contorno. El
-   contorno mide 2.87:1 contra su propio relleno, por debajo del 3:1 de una marca
-   que informa — y puede, porque no informa solo: el estado lo llevan el relleno
-   (superficie -> verde) y la tinta del rótulo. Es naranja decorativo, no marca. */
+/* The hovered node: green fill with a darker green edge. The state is carried by the fill
+   (surface -> green) and the label's ink; the edge is decorative. Orange marks notes only
+   (DESIGN.md §2). */
 .graph-node.is-hover circle {
   fill: var(--green);
-  stroke: var(--orange);
+  stroke: var(--green-hover);
   stroke-width: 1.5;
 }
 .graph-node.is-hover text { fill: var(--ink); }

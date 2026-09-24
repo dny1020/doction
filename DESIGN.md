@@ -120,9 +120,14 @@ The selector is `[data-theme="dark"]` on `<html>`, **not** `.dark`: the theme to
 combined with the chrome, the whole app ends up tinted. Green is reserved for where it
 says something: accent, active element, and code.
 
-### Orange splits by consequence
+### Orange marks a note
 
-On paper the identity orange measures 2.48:1, below the 3:1 an informative mark needs.
+Green is the interactive and identity hue: links, the brand mark, and "you are here" — the
+active page, table-of-contents entry and settings section all carry a 2px green rule. Orange
+has one job left: the rule beside a quotation or an admonition, which says "this is set
+apart from the text". The application and the documentation site assign the two the same way.
+
+On paper the orange measures 2.48:1, below the 3:1 an informative mark needs.
 That's why there are two:
 
 - `--orange` **decorates** and can go unseen: a rule, a mark next to a word that is
@@ -322,8 +327,9 @@ Its four real floors are the gradient's two ends plus the active element's backg
 composited over each. Everything on top of it is measured against the worst of the
 four.
 
-The active element carries a faint green surface and a 2px orange left rule, **not** a
-fill: orange marks the edge, and weight plus ink do the rest, so color never travels
+The active element carries a faint green surface and a 2px green left rule, **not** a
+fill: the rule marks the edge (6.92:1 against the active surface), and weight plus ink do
+the rest, so color never travels
 alone.
 
 ### The brand mark

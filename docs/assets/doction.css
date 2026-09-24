@@ -159,7 +159,14 @@
 .md-search__input::placeholder { color: var(--nav-ink-muted); }
 
 .md-nav { font-size: 13px; }
-.md-nav__link--active { font-weight: 500; }
+/* "You are here" is the app's mark: a 2px green rule, weight and ink — colour never travels
+   alone. Every link gets the rule's room so the active one does not shift. */
+.md-sidebar .md-nav__link { padding-left: 8px; }
+.md-sidebar .md-nav__link--active {
+  box-shadow: inset 2px 0 0 var(--green);
+  color: var(--ink-strong);
+  font-weight: 500;
+}
 
 /* ── Document (DESIGN.md §3, §5) ───────────────────────────────────────────────── */
 .md-typeset { font-size: 16px; line-height: 1.78; }

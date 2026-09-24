@@ -105,7 +105,7 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
       <div className="sidebar-head">
         <Link className="brand" to="/">
           <Terminal className="brand-icon lucide" size={20} />
-          Doction
+          doction
         </Link>
         <button
           className="sidebar-toggle"
