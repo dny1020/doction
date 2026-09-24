@@ -844,9 +844,9 @@ a { color: inherit; }
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  /* Naranja decorativo: la palabra «Doction» está al lado, así que quien no vea
-     el glifo no pierde nada. Por eso --orange y no --orange-ink. */
-  color: var(--orange);
+  /* The brand mark is green on every surface — sidebar, favicon, installable-app icons
+     and the documentation site (DESIGN.md §8). On the chrome it measures 6.42:1. */
+  color: var(--nav-green);
 }
 
 /* === Workspaces (dropdown) ================================================ */

@@ -185,6 +185,12 @@
   margin-top: 36px;
 }
 .md-typeset a { text-underline-offset: 2px; }
+/* A link in running text is underlined, as the app's `.prose a` is: colour alone does not
+   distinguish it from the words around it (WCAG 1.4.1). Buttons are not running text. */
+.md-typeset :is(p, li, td, dd) > a:not(.md-button) {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+}
 .md-typeset a:hover { color: var(--green-hover); text-decoration: underline; }
 .md-typeset a:focus-visible { outline: 2px solid var(--green-ring); outline-offset: 2px; }
 

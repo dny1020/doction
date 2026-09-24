@@ -13,7 +13,35 @@ summarised per release rather than exhaustive.
 
 ## Unreleased
 
-Nothing yet.
+Finishing details found by a product audit of the application and https://doction.site.
+
+### Added
+
+- **The documentation site presents itself when shared or indexed**: a `robots.txt` naming the
+  sitemap, a title and description of its own on every page (derived from the page when it
+  declares none), a descriptive home title, and Open Graph / Twitter card tags with a social
+  image built from the design tokens.
+- **A 404 in doction's voice** on the site, linking Installation, REST API, MCP and Home,
+  instead of the framework's generic page.
+- **The site build checks what it built**: it fails, naming the page, when a page lacks its
+  title, description or social tags, when `robots.txt` is missing, or when anything would load
+  from another host — the offline guarantee was previously verified by hand.
+
+### Changed
+
+- **One brand mark, in green.** The terminal glyph is `--nav-green` in the app's sidebar (it
+  was orange), and the app's favicon and installable-app icons, still in the retired blue
+  palette, now match the documentation site. `icon-512.png` is full-bleed, as its `maskable`
+  entry requires. `theme-color` and the manifest use the current canvas and chrome tokens.
+  `DESIGN.md` records the brand mark.
+- A browser address outside the application that matches nothing — `/settings`,
+  `/w/x/graph` — redirects to the same path under `/app` instead of answering with raw JSON.
+  API clients and requests that do not ask for HTML keep the JSON 404.
+
+### Fixed
+
+- Links in running text on the documentation site are underlined, as they are in the app:
+  they were distinguished by colour alone (WCAG 1.4.1, reported by axe-core in both themes).
 
 ## 0.31.11 — 2026-09-24
 

@@ -1,0 +1,16 @@
+{#- GitHub Pages serves this for any missing path, at any depth, so every link goes through
+    the `url` filter, which makes it absolute to the site root. -#}
+{% extends "main.html" %}
+
+{% block content %}
+  <p class="dx-eyebrow">404 · not found</p>
+  <h1>This page does not exist</h1>
+  <p>The address may be mistyped, or the page moved when the documentation was reorganised.
+    These are the places most people are looking for:</p>
+  <div class="dx-actions">
+    <a class="md-button md-button--primary" href="{{ 'docs/install/' | url }}">Installation</a>
+    <a class="md-button" href="{{ 'docs/api/' | url }}">REST API</a>
+    <a class="md-button" href="{{ 'docs/mcp/' | url }}">MCP</a>
+    <a class="md-button" href="{{ '/' | url }}">Home</a>
+  </div>
+{% endblock %}

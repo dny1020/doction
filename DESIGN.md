@@ -125,7 +125,7 @@ says something: accent, active element, and code.
 On paper the identity orange measures 2.48:1, below the 3:1 an informative mark needs.
 That's why there are two:
 
-- `--orange` **decorates** and can go unseen: a rule, a glyph next to a word that is
+- `--orange` **decorates** and can go unseen: a rule, a mark next to a word that is
   already written. If no one loses anything by not seeing it, this is the one.
 - `--orange-ink` **informs**, and that's why it measures 4.50:1.
 
@@ -325,6 +325,19 @@ four.
 The active element carries a faint green surface and a 2px orange left rule, **not** a
 fill: orange marks the edge, and weight plus ink do the rest, so color never travels
 alone.
+
+### The brand mark
+
+The terminal glyph (`>_`, lucide `terminal`) is **green on every surface**: `--nav-green` in the
+sidebar and the documentation site's header, where it sits on the chrome at 6.42:1; the same
+colour on `--nav-bg` in the installable-app icons; and in a browser tab, which is not the
+chrome, `--green` on a light tab and `--nav-green` on a dark one. SVGs used as images and PNGs
+cannot read custom properties, so those files carry the tokens' sRGB values (`#27472f`,
+`#88bc89`, `#030d05`), read from the browser rather than converted by hand.
+
+It used to be orange in the sidebar and blue in the favicon, a leftover of an earlier palette.
+One colour means the tab, the home screen, the application and its documentation are
+recognisably the same product.
 
 ### How it's implemented
 

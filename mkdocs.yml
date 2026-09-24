@@ -7,9 +7,14 @@ copyright: AGPL-3.0-only
 # links to. scripts/build_docs.py stages it and is the only supported way to build.
 docs_dir: build/docs
 site_dir: site
+exclude_docs: |
+  docs/overrides/
 
 theme:
   name: material
+  # Template overrides (social metadata, home title, 404). Not documentation pages, so they
+  # are excluded from the build below.
+  custom_dir: docs/overrides
   # No Google Fonts: the application's vendored faces are staged by scripts/build_docs.py and
   # declared in docs/assets/doction.css, so the site works with no route to the internet.
   font: false

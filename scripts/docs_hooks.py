@@ -1,4 +1,4 @@
-"""MkDocs hooks: serve the landing page at the site root, and keep the site offline.
+"""MkDocs hooks: where pages are written, what a shared link shows, and keeping the site offline.
 
 The staged tree keeps `README.md` at the top and `docs/` underneath so every relative link
 resolves (see scripts/build_docs.py). That makes the README the root page and puts
@@ -12,14 +12,25 @@ trip it.
 The README's badges are remote images (shields.io, GitHub). They belong to the repository
 page, not to a site that must load nothing from a third-party host, so they are dropped from
 the site's copy only.
+
+A page that declares no `description` gets one from its first paragraph of prose, so no two
+pages share the site-wide description in search results or link previews.
 """
 
+import re
+
 from mkdocs.structure.files import File
+
+DESCRIPTION_MAX = 160
+# Blocks that are not a paragraph of prose: headings, HTML, fences, tables, lists, quotes,
+# admonitions and images.
+NOT_PROSE = ("#", "<", "```", "~~~", "|", "- ", "* ", "+ ", ">", "!!!", "???", "![", "[![", "---")
 
 # source path -> output path
 DESTINATIONS = {
     "docs/index.md": "index.html",
     "README.md": "introduction/index.html",
+    "docs/robots.txt": "robots.txt",
 }
 
 
@@ -41,7 +52,34 @@ def on_files(files, config):
     return files
 
 
+def first_paragraph(markdown):
+    for block in markdown.split("\n\n"):
+        block = block.strip()
+        if not block or block.startswith(NOT_PROSE) or block[0].isdigit():
+            continue
+        text = " ".join(block.split())
+        text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", text)  # [label](target) -> label
+        return text.replace("`", "").replace("**", "").replace("*", "")
+    return ""
+
+
+def describe(text):
+    # A paragraph ending in a colon introduces a list; describe with what comes before it.
+    if text.endswith(":"):
+        if ". " in text:
+            text = text[: text.rindex(". ") + 1]
+        elif ", " in text:
+            text = text[: text.rindex(", ")] + "."
+    if len(text) <= DESCRIPTION_MAX:
+        return text
+    return text[: DESCRIPTION_MAX - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+
+
 def on_page_markdown(markdown, page, **_):
+    if not page.meta.get("description"):
+        text = first_paragraph(markdown)
+        if text:
+            page.meta["description"] = describe(text)
     if page.file.src_uri != "README.md":
         return markdown
     kept = []

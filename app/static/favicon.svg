@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-  <!-- El prompt sigue siendo la marca: esto es una herramienta de terminal para
-       agentes. Lo que cambia es el color, que era naranja de otra paleta y sobre
-       papel claro medía 3.06:1. Los dos valores son --accent de cada tema. -->
+  <!-- The brand mark, green on every surface (DESIGN.md §8). A tab is not the chrome, so it
+       follows the system theme: --green on light, --nav-green on dark, as sRGB because an SVG
+       used as an image cannot read custom properties. Same file as docs/assets/favicon.svg. -->
   <style>
-    polyline, line { stroke: #1B4FA0; }
-    @media (prefers-color-scheme: dark) { polyline, line { stroke: #8AB0E8; } }
+    polyline, line { stroke: #27472f; }
+    @media (prefers-color-scheme: dark) { polyline, line { stroke: #88bc89; } }
   </style>
   <polyline points="4 17 10 11 4 5"/>
   <line x1="12" y1="19" x2="20" y2="19"/>

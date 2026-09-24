@@ -13,6 +13,7 @@ from pathlib import Path
 
 import jwt
 from fastapi import APIRouter, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import (
     FileResponse,
     JSONResponse,
@@ -22,6 +23,7 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import HTTP_303_SEE_OTHER
 
 from app import db, embeddings, git_repo, graph, i18n, mcp, meta, ocr, seed, suggest, webhooks
@@ -1148,6 +1150,32 @@ if APP_PATH != "/":
     @app.get("/register", tags=["app"])
     async def register_redirect() -> Response:
         return RedirectResponse(APP_PATH + "/register", status_code=HTTP_303_SEE_OTHER)
+
+    # A browser address outside the application that matches nothing, such as /settings,
+    # is routed into it, where the SPA shows the page or its own 404. API clients, and
+    # anything that does not ask for HTML, keep the JSON 404.
+    RESERVED_PREFIXES = (
+        "/api",
+        "/static",
+        "/uploads",
+        "/health",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        APP_PATH,
+    )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def not_found_into_app(request: Request, exc: StarletteHTTPException) -> Response:
+        path = request.url.path
+        wants_html = "text/html" in request.headers.get("accept", "")
+        reserved = any(path == p or path.startswith(p + "/") for p in RESERVED_PREFIXES)
+        if exc.status_code == 404 and request.method == "GET" and wants_html and not reserved:
+            target = APP_PATH + path
+            if request.url.query:
+                target += "?" + request.url.query
+            return RedirectResponse(target, status_code=HTTP_303_SEE_OTHER)
+        return await http_exception_handler(request, exc)
 
 
 # In-flight OCR tasks, held strongly so the GC cannot cancel them halfway.

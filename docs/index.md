@@ -1,4 +1,5 @@
 ---
+description: A self-hosted, markdown-first knowledge base for humans and coding agents. Plain markdown in git, local search, a REST API and a native MCP server.
 hide:
   - toc
 ---
