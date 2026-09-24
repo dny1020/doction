@@ -13,7 +13,13 @@ summarised per release rather than exhaustive.
 
 ## Unreleased
 
-Finishing details found by a product audit of the application and https://doction.site.
+Nothing yet.
+
+## 0.32.0 — 2026-09-24
+
+A finished-product pass over the application and https://doction.site, and one visual language
+across both: green for the brand and "you are here", orange only for notes. No API or MCP
+contract changed.
 
 ### Added
 
@@ -34,6 +40,14 @@ Finishing details found by a product audit of the application and https://doctio
   palette, now match the documentation site. `icon-512.png` is full-bleed, as its `maskable`
   entry requires. `theme-color` and the manifest use the current canvas and chrome tokens.
   `DESIGN.md` records the brand mark.
+- **The app and doction.site assign colour the same way.** Green marks the brand and "you
+  are here": the active page, table-of-contents entry and settings section carry a 2px green
+  rule in the app (it was orange; the green measures 6.92:1 against the active surface), and
+  the site's active navigation entry carries the same rule. Orange is left for one job, the
+  rule beside quotations and admonitions. Breadcrumb separators are subtle ink.
+- The wordmark is "doction" in the sidebar and the webhook help text, as everywhere else.
+- The favicon, manifest and touch icon are linked with a content hash, like the stylesheet,
+  so a changed icon reaches the browser instead of waiting out its favicon cache.
 - A browser address outside the application that matches nothing — `/settings`,
   `/w/x/graph` — redirects to the same path under `/app` instead of answering with raw JSON.
   API clients and requests that do not ask for HTML keep the JSON 404.
