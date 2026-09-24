@@ -25,7 +25,7 @@ build-web:
 	cd frontend && npm run build
 
 # ── Quality gate ─────────────────────────────────────────────────────────────
-# The same order as AGENTS.md and CI, so they cannot diverge.
+# The same order as CI, so they cannot diverge.
 lint:
 	uv run ruff check .
 
@@ -45,9 +45,10 @@ test:
 test-clean:
 	-docker rm -f doction-test-pg
 
+# openspec/ is maintainer-local and not versioned, so a clone skips this step.
 spec:
-	openspec validate --all --strict
-	openspec list
+	@if [ -d openspec ]; then openspec validate --all --strict && openspec list; \
+	else echo "spec: SKIPPED — openspec/ is not in this checkout"; fi
 
 # The licence is declared in seven places, one of them outside the tree. This compares
 # them against pyproject.toml, the only hand-written source.

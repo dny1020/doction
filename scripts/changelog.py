@@ -77,6 +77,10 @@ def main() -> int:
         print("error: give a version or --check", file=sys.stderr)
         return 2
 
+    if version.lower() == "unreleased":
+        print("changelog: Unreleased is not a version; it has no release notes", file=sys.stderr)
+        return 1
+
     body = section(version)
     if body is None:
         print(

@@ -21,9 +21,7 @@ on:
   #     - "DESIGN.md"
   #     - "CHANGELOG.md"
   #     - "ROADMAP.md"
-  #     - "AGENTS.md"
   #     - "CODE_OF_CONDUCT.md"
-  #     - "openspec/README.md"
   #     - ".github/workflows/pages.yaml"
   workflow_dispatch:
 

@@ -47,7 +47,7 @@ def test_it_actually_examined_something():
 @needs_checkout
 def test_catches_a_reference_to_a_gitignored_file(tmp_path):
     """El caso que motiva el check: citar CLAUDE.md, que existe pero no viaja."""
-    doc = ROOT / "AGENTS.md"
+    doc = ROOT / "CONTRIBUTING.md"
     original = doc.read_text(encoding="utf-8")
     try:
         doc.write_text(original + "\nSee [the notes](CLAUDE.md).\n", encoding="utf-8")
@@ -61,7 +61,7 @@ def test_catches_a_reference_to_a_gitignored_file(tmp_path):
 
 @needs_checkout
 def test_catches_a_reference_to_a_file_that_does_not_exist():
-    doc = ROOT / "AGENTS.md"
+    doc = ROOT / "CONTRIBUTING.md"
     original = doc.read_text(encoding="utf-8")
     try:
         doc.write_text(original + "\nSee [nothing](docs/does-not-exist.md).\n", encoding="utf-8")
@@ -75,7 +75,7 @@ def test_catches_a_reference_to_a_file_that_does_not_exist():
 @needs_checkout
 def test_external_links_and_anchors_are_not_checked():
     """The gate has to pass with no route out, so URLs are not validated."""
-    doc = ROOT / "AGENTS.md"
+    doc = ROOT / "CONTRIBUTING.md"
     original = doc.read_text(encoding="utf-8")
     try:
         doc.write_text(

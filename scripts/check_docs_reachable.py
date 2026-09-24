@@ -33,11 +33,7 @@ def tracked_files() -> set[str]:
 
 
 def tracked_markdown(tracked: set[str]) -> list[str]:
-    # openspec/changes/archive is excluded: they are historical records, and a reference
-    # that was valid when written should not fail the gate because the file later moved.
-    return sorted(
-        p for p in tracked if p.endswith(".md") and not p.startswith("openspec/changes/archive/")
-    )
+    return sorted(p for p in tracked if p.endswith(".md"))
 
 
 def main() -> int:

@@ -13,7 +13,19 @@ summarised per release rather than exhaustive.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+
+- `openspec/` and `AGENTS.md` are no longer versioned. Both are maintainer-local planning and
+  agent orientation, gitignored like `CLAUDE.md`; `CONTRIBUTING.md`, the README and the
+  documentation site no longer point at them. `make spec` skips when `openspec/` is absent.
+- The README is a short tour: features, a quick start and a map of `docs/`. Its copies of
+  the configuration table, endpoint list (24 of 59), MCP tool table, architecture diagram,
+  development and deployment steps are gone — `docs/` holds each of them, and `docs/api.md`
+  is the one checked against the served schema.
+
+### Removed
+
+- `.graphifyignore`.
 
 ## 0.31.10 — 2026-09-14
 

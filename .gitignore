@@ -13,6 +13,9 @@ jobs_output.log
 .env
 CLAUDE.md
 .claude/
+# Maintainer-local planning and agent orientation, not part of the distributed source.
+openspec/
+AGENTS.md
 models/
 important.md
 # A blanket `*.txt` silently hid any future text file, so only the disposable ones
@@ -49,8 +52,6 @@ evals/corpus*/
 .env.*
 !.env.example
 
-# The graph output is regenerable; `.graphifyignore` is not — it is project
-# configuration and travels with the repo, so a clone reproduces the same graph.
 graphify-out/
 .claudeignore
 .agents/

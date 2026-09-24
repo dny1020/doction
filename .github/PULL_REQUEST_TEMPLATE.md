@@ -20,7 +20,7 @@ Keep it short. One concern per pull request; a refactor bundled with a fix is tw
 
 ## Checklist
 
-- [ ] `make check` passes locally (ruff, ruff format, pyright, pytest, `npm run check`, openspec)
+- [ ] `make check` passes locally (ruff, ruff format, pyright, pytest, `npm run check`)
 - [ ] `cd frontend && npm run test` passes, if this touches `frontend/src/`
 - [ ] Tests cover the changed behaviour, happy path and the failure mode that matters
 - [ ] Docs move with the code: README, `docs/`, or `DESIGN.md` updated if behaviour changed

@@ -25,8 +25,8 @@ SITE = ROOT / "site"
 FONTS = ROOT / "app" / "static" / "vendor" / "fonts"
 
 # Documents outside `docs/` that the site needs, each because something in the site links to it.
-# Paths are repository-relative and keep their shape in the staged tree, so `openspec/README.md`
-# is staged at `openspec/README.md` and the links to it resolve unchanged.
+# Paths are repository-relative and keep their shape in the staged tree, so the relative links
+# from `docs/` resolve unchanged.
 ROOT_DOCS = [
     "README.md",
     "CONTRIBUTING.md",
@@ -34,9 +34,7 @@ ROOT_DOCS = [
     "DESIGN.md",
     "CHANGELOG.md",
     "ROADMAP.md",
-    "AGENTS.md",
     "CODE_OF_CONDUCT.md",
-    "openspec/README.md",
     # No extension, so MkDocs treats it as a static file and the link still resolves.
     "LICENSE",
 ]

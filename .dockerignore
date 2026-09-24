@@ -22,4 +22,4 @@ app/static/app/
 pages/
 uploads/
 graphify-out/
-.graphifyignore
+openspec/

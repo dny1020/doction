@@ -6,16 +6,6 @@ change merged is to keep it in that shape.
 
 ## Before you write code
 
-**Behaviour is specified before it is written.** doction uses OpenSpec: a non-trivial change
-starts as a proposal, grows a spec delta and a design, and only then a task list. A pull
-request with code and no proposal is the wrong shape for this repository.
-[`openspec/README.md`](openspec/README.md) explains the two directories and how to read them;
-[`AGENTS.md`](AGENTS.md) is the short orientation.
-
-Read the archive for the area you are touching before proposing. The notes at the end of an
-archived `tasks.md` record what diverged from the plan and why, which is the part no commit
-message carries.
-
 - **Open an issue first for anything non-trivial.** A bug fix or a typo needs no
   ceremony. A new endpoint, a new dependency, or a new page in the UI does — it is
   cheaper to disagree about scope in an issue than in a diff. What is already identified and
@@ -62,7 +52,6 @@ make license                     # the licence agrees everywhere it is declared
 make changelog                   # the declared version has a CHANGELOG entry
 make docs-reachable              # no tracked document points at an untracked file
 make docs                        # the documentation site builds with no broken link
-openspec validate --all --strict # the spec suite in openspec/
 ```
 
 `make docs` needs the documentation toolchain, which is not installed by default because the
