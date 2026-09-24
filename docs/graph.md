@@ -39,7 +39,7 @@ work without a second palette.
 
 **The layout is currently poor.** The force simulation collapses nodes toward the centre with
 labels overlapping, and on a small workspace the labels are already hard to read. It is a known
-defect with an entry on the [roadmap](../ROADMAP.md) and an open issue, and it is the reason
+defect with an open issue, and it is the reason
 there is no graph screenshot in the project README. The data is correct; the drawing is not.
 
 ## Reading the graph without drawing it

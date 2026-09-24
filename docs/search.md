@@ -55,8 +55,7 @@ Spanish pages in this project's retrieval harness. The numbers are in `evals/res
 
 Each hit carries the page's slug and title and a snippet with the matched spans marked. The
 snippet is extracted from the stored markdown, so it can contain table pipes, heading marks and
-other syntax. That is a known presentation defect and it is on the [roadmap](../ROADMAP.md); it
-does not affect ranking.
+other syntax. That is a known presentation defect; it does not affect ranking.
 
 Add `uploads=1` to also match text recognised in uploaded images. That needs `OCR_UPLOADS=1` on
 the instance, since the text is extracted when the image is uploaded and not at query time.

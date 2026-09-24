@@ -108,7 +108,8 @@ on changes.
 
 **A finding is fixed or dismissed with a written reason — never left undecided.** Dismissals
 record what specifically makes the finding inapplicable, so a later reader can judge whether
-the argument still holds.
+the argument still holds. If no specific reason can be stated, the finding is not a false
+positive and stays open.
 
 **An additional scanner is enabled only when that queue is at zero.** OpenSSF Scorecard is
 the pending case: it publishes its results as SARIF into this same queue, so turning it on
@@ -122,12 +123,8 @@ is not shipped cannot be found again.
 
 ## Hardening checklist for operators
 
-- Set `SECRET_KEY` to a real random value (`openssl rand -hex 32`).
-- Set `SECURE_COOKIES=1` and put a TLS-terminating proxy in front.
-- Give Postgres a generated password and keep it off any shared network.
-- Back up both `DATA_DIR` (git repo + uploads) and the Postgres volume. One without the
-  other does not restore.
-- **Set `DISABLE_REGISTRATION=1`.** Registration is *open by default*: on a
-  publicly reachable instance, anyone who finds the URL can create an account. With the
-  flag set, the first user can still register (so a fresh instance is not locked out) and
-  everyone after that has to be added as a workspace member by an owner.
+A production instance needs a real `SECRET_KEY`, `SECURE_COOKIES=1` behind a TLS-terminating
+proxy, a generated Postgres password, and **`DISABLE_REGISTRATION=1`** — sign-up is open by
+default. Each is explained in [Configuration](docs/configuration.md#required-in-production).
+Back up both the data directory and the Postgres volume; one without the other does not
+restore ([Operations](docs/operations.md#backup)).

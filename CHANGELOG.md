@@ -26,6 +26,11 @@ summarised per release rather than exhaustive.
 ### Removed
 
 - `.graphifyignore`.
+- `ROADMAP.md`. Pending work is tracked in issues.
+- Documentation that said the same thing in two places now says it once and links: features
+  and the page map live on `docs/index.md`, licence obligations in `docs/configuration.md`,
+  the production checklist in `docs/configuration.md` and `docs/operations.md`, the
+  code-scanning policy in `SECURITY.md`, and the relicensing history in the README.
 
 ## 0.31.10 — 2026-09-14
 

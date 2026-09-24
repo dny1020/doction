@@ -9,7 +9,7 @@ change merged is to keep it in that shape.
 - **Open an issue first for anything non-trivial.** A bug fix or a typo needs no
   ceremony. A new endpoint, a new dependency, or a new page in the UI does — it is
   cheaper to disagree about scope in an issue than in a diff. What is already identified and
-  not yet done is in [`ROADMAP.md`](ROADMAP.md).
+  not yet done is in the open issues.
 - **Read the design doc.** `DESIGN.md` describes the visual system as *implemented*: every
   token in it was read out of `app/static/style.css`. When the document and the code
   disagree, the document is the defect.
@@ -136,32 +136,11 @@ rather than published.
 
 Deploying is manual and separate — see `docs/operations.md`.
 
-### When a change defers something
-
-Write it into [`ROADMAP.md`](ROADMAP.md), not only into the change's `tasks.md` notes. An
-item that exists solely in an archived change is an item nobody will find: the notes explain
-what happened, the roadmap says what is still pending. Say where the item was identified, so
-the next reader can follow the reasoning rather than rebuild it.
-
 ## Code scanning alerts
 
-CodeQL and Trivy report into the repository's Security tab. **An alert has two possible
-outcomes: fixed, or dismissed with a reason that says what makes it not apply.** Leaving one
-open and unexamined is not one of them, and neither is dismissing one with the words "false
-positive" and nothing else.
-
-The reason is the point. Whoever dismisses an alert will not remember the argument in six
-months, and the next person needs enough to disagree with. Write what specifically makes it
-inapplicable — the sanitiser the analyser did not see, the validation that happens earlier,
-the reason a value cannot hold the character the rule is worried about.
-
-If you cannot state a specific reason, the alert is not a false positive. Say so and leave it
-open rather than dismissing it.
-
-This is not bureaucracy. This queue once sat unread for weeks with a genuine quadratic
-denial-of-service in it, hidden among twenty findings that were not real. The cost of an
-unread queue is not untidiness; it is that a real finding becomes indistinguishable from
-noise.
+CodeQL and Trivy report into the repository's Security tab. An alert is fixed, or dismissed
+with a reason that says specifically what makes it not apply — the policy and why it exists are
+in [SECURITY.md](SECURITY.md#scanners-and-their-queue).
 
 ## Reporting bugs and asking for features
 
@@ -201,9 +180,6 @@ checks it and the failure message tells you the exact command.
 ownership of what you write, which means **doction cannot be relicensed without the
 permission of everyone who has contributed**. That follows from choosing AGPL-3.0-only over
 a dual licence, and it is deliberate rather than an oversight.
-
-The project was MIT through 0.31.3, GPL-3.0-only at 0.31.4, and is AGPL-3.0-only from
-0.31.5.
 
 If you add a dependency, establish its licence is compatible **before** the change lands —
 a dependency cannot be removed from a release that has already shipped. Permissive licences

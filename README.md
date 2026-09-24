@@ -22,20 +22,6 @@ Every save is a git commit, so any page's history is a real diff:
 
 ---
 
-## Features
-
-- **Markdown-first** — pages, workspaces, `[[wikilinks]]`, `#tags`, and YAML frontmatter.
-- **Per-page git history** — every save is a commit; browse diffs and previous versions.
-- **A knowledge graph you can see** — backlinks with the sentence they sit in, and a graph
-  view of the whole workspace with orphans and broken links called out.
-- **Search** — PostgreSQL full-text search, plus opt-in local semantic search (MiniLM ONNX,
-  baked into the image, no API keys).
-- **Local ML, no LLM** — link and tag suggestions, near-duplicate detection, extractive
-  summaries and workspace insights, computed with numpy.
-- **REST API** and a **native MCP server** (JSON-RPC 2.0, 27 tools) for agents.
-- **Self-hosted and offline** — an app container and a Postgres container, amd64 + arm64,
-  with no CDN and no external request at runtime.
-
 ## Quick start
 
 ```bash
@@ -54,23 +40,10 @@ claude mcp add --transport http doction $DOCTION/api/mcp \
 
 ## Documentation
 
-The reference lives in [`docs/`](docs/index.md) and is published as a site.
-
-| Page | What it answers |
-| --- | --- |
-| [Installation](docs/install.md) | Compose, a bare `docker run` behind a proxy, or from source |
-| [Configuration](docs/configuration.md) | Every environment variable, and what breaks if you skip it |
-| [Writing pages](docs/writing-pages.md), [Linking](docs/linking.md), [Tags](docs/tags-and-metadata.md), [Search](docs/search.md), [Graph](docs/graph.md) | Using the wiki, including the behaviour that differs from what you would guess |
-| [REST API](docs/api.md) | Every endpoint the application serves, grouped, with the auth each needs |
-| [Agents and MCP](docs/mcp.md) | Connecting an agent, the auth model, choosing among the 27 tools |
-| [Architecture](docs/architecture.md) | How the pieces fit, and why the odd decisions are what they are |
-| [Operations](docs/operations.md) | Upgrades, backup and restore, logs, capacity |
-| [Troubleshooting](docs/troubleshooting.md) | Symptom-first index of the failures people actually hit |
-
-Development setup and the check gate are in [CONTRIBUTING.md](CONTRIBUTING.md), the
-security model and reporting channel in [SECURITY.md](SECURITY.md), release notes in
-[CHANGELOG.md](CHANGELOG.md), and what is identified but not yet done in
-[ROADMAP.md](ROADMAP.md).
+Features, how it works and the map of every page are in [`docs/`](docs/index.md), which is
+published at [doction.site](https://doction.site/). Development setup and the check gate are
+in [CONTRIBUTING.md](CONTRIBUTING.md), the security model and reporting channel in
+[SECURITY.md](SECURITY.md), and release notes in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
@@ -81,26 +54,10 @@ Affero General Public License, version 3, as published by the Free Software Foun
 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY, without even
 the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-### What this obliges you to do
-
-doction is software you host for people, so the licence attaches to *operating* it and not
-only to handing out copies. Three cases, which is the whole of it:
-
-| What you are doing | What you owe |
-| --- | --- |
-| Running a published release, unmodified | Nothing further. |
-| Modifying it, and keeping the instance to yourself or your team | Nothing further. |
-| Modifying it, and letting other people use it over a network | Those users are entitled to your modified source. |
-
-That third case is why the licence is AGPL and not GPL. Under the plain GPL, hosting a
-modified version for other people is not distribution, so nothing would be triggered and a
-fork could be sold as a service with its changes kept private.
-
-The instance helps you comply rather than leaving it to memory: set `SOURCE_URL` to where
-your source lives, and doction shows it to signed-in users in Settings. It defaults to this
-repository, so an unmodified deployment is already compliant with no configuration. If you
-run a modified fork, point it at your own source — the default would be a confidently
-incorrect claim.
+An operator who **modifies** doction and lets other people use it over a network owes those
+users the modified source; running it unmodified, or modified for yourself or your team,
+triggers nothing. The cases and the `SOURCE_URL` setting that surfaces the offer are in
+[Configuration](docs/configuration.md#licence-compliance).
 
 ### Previous releases
 

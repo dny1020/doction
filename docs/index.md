@@ -184,7 +184,7 @@ ORM.
 
 | Page | What it answers |
 | --- | --- |
-| [Introduction](../README.md) | Features, screenshots and a quick start |
+| [Introduction](../README.md) | Screenshots and a quick start |
 | [Installation](install.md) | Getting a working instance, from Compose to a bare `docker run` behind a proxy |
 | [Configuration](configuration.md) | Every environment variable, what it does, and what breaks if you skip it |
 | [Operations](operations.md) | Upgrades, backup and restore, logs, capacity, what to do at 3am |

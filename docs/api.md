@@ -67,7 +67,7 @@ reading.
 
 Response bodies are not described in the schema: the handlers return JSON directly rather than
 through declared models, so `/docs` shows request shapes and status codes but not response
-shapes. Adding those is [roadmap](../ROADMAP.md) work, tracked rather than forgotten.
+shapes. That is a known gap.
 
 ## Every endpoint
 

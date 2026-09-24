@@ -1,10 +1,9 @@
 name: Docs site
 
-# Manual only, for now. GitHub Pages is not enabled for this repository and will not be:
-# documentation is planned to move to a doction.dev domain instead, so `configure-pages` has
-# nothing to resolve and every automatic run fails on a decision rather than a defect. The
-# push trigger below stays commented rather than deleted because the path list is the part
-# worth keeping — restore it, and the site publishes again on the same terms as before.
+# Manual only, for now. The site is served at https://doction.site (`site_url` in mkdocs.yml),
+# and Pages is enabled with that custom domain once its DNS resolves. Until then an automatic
+# run has nothing to publish to. The push trigger below stays commented rather than deleted
+# because the path list is the part worth keeping — uncomment it once the domain is live.
 #
 # El sitio se publica desde main y solo cuando cambia la documentación o cómo se construye.
 # Un cambio de código que no toca nada de esto no tiene por qué republicar el sitio.
@@ -20,7 +19,6 @@ on:
   #     - "SECURITY.md"
   #     - "DESIGN.md"
   #     - "CHANGELOG.md"
-  #     - "ROADMAP.md"
   #     - "CODE_OF_CONDUCT.md"
   #     - ".github/workflows/pages.yaml"
   workflow_dispatch:

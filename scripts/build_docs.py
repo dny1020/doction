@@ -33,7 +33,6 @@ ROOT_DOCS = [
     "SECURITY.md",
     "DESIGN.md",
     "CHANGELOG.md",
-    "ROADMAP.md",
     "CODE_OF_CONDUCT.md",
     # No extension, so MkDocs treats it as a static file and the link still resolves.
     "LICENSE",
