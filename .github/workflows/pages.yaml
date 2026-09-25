@@ -1,8 +1,6 @@
 name: Docs site
 
-# Publishes https://doction.site (`site_url` in mkdocs.yml) from main, and only when the
-# documentation or how it is built changes: a code change that touches none of this has no
-# reason to republish the site. `workflow_dispatch` stays for a manual republish.
+# Publishes https://doction.site from main when the docs or their build change.
 on:
   push:
     branches: [main]
@@ -21,16 +19,13 @@ on:
       - ".github/workflows/pages.yaml"
   workflow_dispatch:
 
-# Lo mínimo para publicar en Pages y nada más: `contents: read` para el checkout,
-# `pages: write` para publicar y `id-token: write` porque el despliegue se autentica
-# con OIDC. Igual que release.yaml, que solo pide `contents: write`.
+# `pages: write` to publish, `id-token: write` for OIDC.
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Un despliegue a la vez, y sin cancelar el que ya está en vuelo: cancelar a medias
-# deja el sitio publicado a medias.
+# One deployment at a time; cancelling one halfway leaves a half-published site.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -46,8 +41,7 @@ jobs:
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
-      # El mismo comando que corre `make docs` y que corre el job `docs` de CI: estricto,
-      # así que un enlace roto falla aquí también en vez de publicarse.
+      # Same strict build as `make docs`, so a broken link fails here too.
       - name: Construir el sitio
         run: uv run --group docs python -m scripts.build_docs
 

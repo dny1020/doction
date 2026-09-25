@@ -12,8 +12,7 @@ dependencies = [
     "PyJWT>=2.8",
     "psycopg[binary]>=3.2",
     "psycopg-pool>=3.2",
-    # Local semantic search, opt-in via SEMANTIC_SEARCH; the ONNX model ships in the
-    # image. numpy arrives with onnxruntime.
+    # Opt-in semantic search (SEMANTIC_SEARCH); the ONNX model ships in the image.
     "onnxruntime>=1.20",
     "tokenizers>=0.21",
     "numpy>=2.1",
@@ -26,9 +25,7 @@ dev = [
     "ruff>=0.8",
     "pyright>=1.1.411",
 ]
-# Separate from dev on purpose: the Docker `test` stage runs `uv sync --frozen`, which installs
-# dev, so a documentation toolchain there would be installed on every CI test build for nothing.
-# Get it with `uv sync --group docs`.
+# Separate from dev: the Docker `test` stage installs dev. Get it with `uv sync --group docs`.
 docs = [
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
@@ -42,19 +39,16 @@ package = false
 line-length = 100
 
 [tool.ruff.lint]
-# ARG flags arguments that are accepted and ignored: that is how 17 `user_id` parameters
-# that filtered nothing but looked like access control got in. Where the framework fixes
-# the signature, the argument gets a leading underscore, which ruff does not flag.
+# ARG flags accepted-but-ignored arguments; where the framework fixes the signature, prefix
+# the argument with an underscore.
 select = ["E", "F", "I", "UP", "B", "ARG"]
 
 [tool.ruff.lint.per-file-ignores]
-# In tests ARG is only noise: monkeypatch doubles have to match a signature they do not
-# use, and a fixture requested for its side effect cannot be renamed — pytest resolves
-# them by name.
+# In tests ARG is noise: monkeypatch doubles and side-effect fixtures must keep their names.
 "tests/**" = ["ARG"]
 
 [tool.ruff.lint.flake8-bugbear]
-# FastAPI uses these as parameter defaults; it is its normal pattern.
+# FastAPI uses these as parameter defaults.
 extend-immutable-calls = ["fastapi.File", "fastapi.Form"]
 
 [tool.pyright]
@@ -63,6 +57,5 @@ include = ["app", "tests"]
 [tool.pytest.ini_options]
 addopts = "-q"
 pythonpath = ["."]
-# Without this, a bare `pytest` walks into data/ — the unreadable Postgres datadir —
-# and dies during collection.
+# Without this a bare `pytest` walks into data/, the unreadable Postgres datadir.
 testpaths = ["tests"]

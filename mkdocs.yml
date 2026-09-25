@@ -3,8 +3,7 @@ site_description: A self-hosted, markdown-first knowledge base for humans and co
 site_url: https://doction.site/
 copyright: AGPL-3.0-only
 
-# Not `docs/`: the site is built from a staged tree that also holds the root documents `docs/`
-# links to. scripts/build_docs.py stages it and is the only supported way to build.
+# A staged tree that also holds the root documents; build only through scripts/build_docs.py.
 docs_dir: build/docs
 site_dir: site
 exclude_docs: |
@@ -12,11 +11,9 @@ exclude_docs: |
 
 theme:
   name: material
-  # Template overrides (social metadata, home title, 404). Not documentation pages, so they
-  # are excluded from the build below.
+  # Template overrides (social metadata, home title, 404), excluded from the build.
   custom_dir: docs/overrides
-  # No Google Fonts: the application's vendored faces are staged by scripts/build_docs.py and
-  # declared in docs/assets/doction.css, so the site works with no route to the internet.
+  # No Google Fonts: the app's vendored faces are declared in docs/assets/doction.css.
   font: false
   logo: docs/assets/logo.svg
   favicon: docs/assets/favicon.svg
@@ -42,8 +39,7 @@ theme:
     - content.code.copy
     - search.highlight
 
-# A plain link, not `repo_url`: Material fetches stars and forks for `repo_url` from
-# api.github.com on every page load, and the site must request nothing off-site.
+# A plain link, not `repo_url`, which makes Material call api.github.com on every page.
 extra:
   social:
     - icon: fontawesome/brands/github
@@ -68,8 +64,7 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.details
 
-# Una advertencia de enlace roto tiene que ser un fallo, no una línea en el log: es lo único
-# que distingue un sitio publicado de uno publicado y roto.
+# A broken-link warning must fail the build, not just log a line.
 validation:
   links:
     not_found: warn

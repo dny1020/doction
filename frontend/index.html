@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>doction</title>
     <script>
-      /* Aplica el tema guardado antes de pintar, para evitar el parpadeo. */
+      /* Apply the saved theme before first paint to avoid a flash. */
       try {
         var t = localStorage.getItem('theme')
         if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -16,17 +16,15 @@
       }
     </script>
     <link rel="icon" type="image/svg+xml" href="__STATIC__/favicon.svg" />
-    <!-- PWA: sin estas tres líneas iOS no ofrece "Añadir a pantalla de inicio"
-         como app, y abre doction en una pestaña más de Safari. -->
+    <!-- PWA: without these, iOS opens doction as a Safari tab instead of an app. -->
     <link rel="manifest" href="__STATIC__/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="__STATIC__/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="doction" />
-    <!-- La barra del navegador sigue al tema, como el resto: un solo valor
-         pintaba el lienzo oscuro por encima del papel en modo claro. -->
+    <!-- The browser bar follows the theme. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f3eb" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e100e" />
-    <!-- Reutiliza el mismo CSS del design system que sirve el backend. -->
+    <!-- The design system's stylesheet, served by the backend. -->
     <link rel="stylesheet" href="__STATIC__/style.css" />
   </head>
   <body>

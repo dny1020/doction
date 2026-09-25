@@ -1,11 +1,8 @@
 version: 2
 
-# Cuatro ecosistemas, uno por manifiesto que el repo realmente tiene. Los PRs se
-# agrupan para que una semana normal sea un PR por ecosistema en vez de veinte:
-# cada PR extra es una corrida de CI y una revisión.
+# One ecosystem per manifest; PRs are grouped so a normal week is one PR per ecosystem.
 updates:
-  # Backend Python. `uv` (no `pip`) porque el lockfile comprometido es uv.lock, y
-  # es el que `uv sync --frozen` lee en el Dockerfile.
+  # `uv`, because the lockfile is uv.lock.
   - package-ecosystem: uv
     directory: /
     schedule:
@@ -23,7 +20,7 @@ updates:
         update-types: [minor, patch]
     labels: [dependencies, python]
 
-  # Frontend React/Vite. El package.json vive en frontend/, no en la raíz.
+  # package.json lives in frontend/.
   - package-ecosystem: npm
     directory: /frontend
     schedule:
@@ -36,11 +33,8 @@ updates:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
     groups:
-      # Los tres grupos de pares van PRIMERO: un paquete solo entra en un grupo, y
-      # gana el primero que lo empareja. Existen porque estas familias declaran peers
-      # entre sí, así que un PR de un solo paquete no resuelve — `npm ci` muere con
-      # ERESOLVE y el PR queda inmergeable por mucho que se rebasee. Agruparlas es lo
-      # que convierte una actualización mayor en algo que se puede probar de una pieza.
+      # Peer groups go FIRST (a package joins the first group that matches). These families
+      # declare peers, so a single-package PR fails `npm ci` with ERESOLVE.
       react:
         patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
       eslint:
@@ -52,7 +46,7 @@ updates:
         update-types: [minor, patch]
     labels: [dependencies, frontend]
 
-  # Imágenes base del Dockerfile (python:3.13-slim, node:20-slim, postgres:16-alpine).
+  # Dockerfile base images.
   - package-ecosystem: docker
     directory: /
     schedule:
@@ -64,8 +58,7 @@ updates:
       prefix: "chore(deps)"
     labels: [dependencies, docker]
 
-  # Las actions de los workflows. Es el ecosistema que más silenciosamente se
-  # queda atrás, porque nada falla cuando lo hace.
+  # Workflow actions: the ecosystem that falls behind silently.
   - package-ecosystem: github-actions
     directory: /
     schedule:

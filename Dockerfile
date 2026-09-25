@@ -22,9 +22,8 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends git curl ca
 
 COPY pyproject.toml uv.lock ./
 
-# CI gate: `docker build --target test` runs lint + suite; never shipped. Postgres
-# runs embedded in this stage (initdb + start, discarded when the layer finishes)
-# so the gate stays a single self-contained `docker build`, no sidecar containers.
+# CI gate: `docker build --target test` runs lint and the suite against an embedded
+# Postgres, so the gate is one self-contained build. Never shipped.
 FROM base AS test
 
 # nodejs is for pyright, which runs on node; without it one is downloaded mid-build.
@@ -41,8 +40,7 @@ ENV DATABASE_URL=postgresql://doction:doction@localhost:5432/doction \
     TEST_DATABASE_URL=postgresql://doction:doction@localhost:5432/postgres
 
 RUN service postgresql start \
-    # --superuser to match the ephemeral Postgres tests/conftest.py starts locally;
-    # without it the teardown's DROP DATABASE ... WITH (FORCE) fails only in CI.
+    # --superuser, as in tests/conftest.py: DROP DATABASE ... WITH (FORCE) needs it.
     && su postgres -c "createuser --createdb --superuser doction" \
     && su postgres -c "psql -c \"ALTER USER doction PASSWORD 'doction';\"" \
     && su postgres -c "createdb -O doction doction" \
@@ -52,62 +50,42 @@ RUN service postgresql start \
     && uv run pytest \
     && service postgresql stop
 
-# Builds the SPA. Node enters only in this stage; the runtime stays Python-only.
-#
-# Node 22 and not 20: jsdom and undici, which arrive through vitest, declare `engines`
-# node >=22.19.0, so on node:20 the gate fails loading the test environment — and only
-# there. When bumping the base image, check the lockfile's `engines`.
-# The bundle is plain JS and CSS, the same on every architecture, so it is built once on the
-# build host rather than once per platform — under QEMU the arm64 copy took four minutes.
+# Builds the SPA once on the build host (it is the same on every arch; under QEMU it took
+# minutes). Node 22: jsdom and undici require node >=22.19.
 FROM --platform=$BUILDPLATFORM node:22-slim AS web
 
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-# The backend serves the design system's CSS, but the local-asset check at the end of
-# `npm run check` has to read it: the @font-face rules live there, and so would a font
-# requested from a CDN.
+# The local-asset check reads the backend's stylesheet, where the @font-face rules live.
 COPY app/static/style.css /build/app/static/style.css
 # Hashed into index.html's URLs by vite.config.js, so a changed icon reaches the browser.
 COPY app/static/favicon.svg app/static/manifest.webmanifest app/static/apple-touch-icon.png \
      /build/app/static/
-# `check` is the same gate that runs locally, so the bundle is only produced if lint,
-# formatting, tests and the air-gap check pass.
+# The same gate as locally: no bundle unless lint, format, tests and the asset check pass.
 RUN npm run check
 
 FROM base AS runtime
 
-# uv builds the venv and is then unnecessary: the app starts `.venv/bin/uvicorn`. Removing
-# uv and pip also removes setuptools and msgpack, vendored inside pip and worth three Trivy
-# findings. A component that is not shipped never reappears in a scan; a waiver has to be
-# rejustified every time.
+# The app starts .venv/bin/uvicorn, so uv and pip go; that also drops pip's vendored
+# packages from Trivy's findings.
 RUN uv sync --frozen --no-dev && uv cache clean \
     && pip uninstall -y uv pip 2>/dev/null || true
 
-# With the build cache working, the upgrade below would be reused until an earlier layer
-# changed, freezing Debian's security fixes. CI passes the ISO week, so it is redone at most
-# weekly while the `uv sync` layer above stays cached.
+# CI passes the ISO week, so the apt upgrade below reruns weekly despite the build cache.
 ARG APT_REFRESH=
 
-# Opt-in local OCR (OCR_UPLOADS=1). Runtime only — the test stage does not need it.
-#
-# The same layer applies Debian's security updates: Trivy findings whose fix was already
-# published in the same Debian release are not waivable, since the corrected version exists
-# and this image was shipping the previous one. Here and not in `base`, so the `test` stage
-# does not pay the download on every build.
+# Opt-in OCR (OCR_UPLOADS=1) plus Debian security updates. Here, not in `base`, so the
+# `test` stage does not pay for it.
 RUN apt-get update -qq \
     && apt-get -y --no-install-recommends upgrade \
     && apt-get install -y --no-install-recommends \
         tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa \
     && rm -rf /var/lib/apt/lists/*
 
-# The embedding model (MiniLM int8, ~22MB) baked into the image, so semantic search works
-# offline. Opt-in at runtime; with it off the model never loads. Revision and sha256 pinned.
-#
-# --retry because a publish once died on a 429 from Hugging Face. The content is pinned by
-# revision and verified by sha256, so that was availability and not integrity. Deliberately
-# not --retry-all-errors: a 404 or a renamed revision has to fail now, not after five waits.
+# The embedding model, baked in so semantic search works offline; pinned by revision and
+# sha256. --retry for transient 429s, but not --retry-all-errors: a 404 must fail now.
 ARG MODEL_REPO=Xenova/all-MiniLM-L6-v2
 ARG MODEL_REV=751bff37182d3f1213fa05d7196b954e230abad9
 ARG MODEL_SHA256=afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1
@@ -120,8 +98,7 @@ RUN mkdir -p /app/models \
     && echo "${MODEL_SHA256}  /app/models/model_quantized.onnx" | sha256sum -c - \
     && echo "${TOKENIZER_SHA256}  /app/models/tokenizer.json" | sha256sum -c -
 
-# The cross-encoder reranker (~23MB), opt-in at runtime with RERANK=1, which needs
-# SEMANTIC_SEARCH=1. Off, it loads nothing.
+# The cross-encoder reranker, opt-in with RERANK=1 (needs SEMANTIC_SEARCH=1).
 ARG RERANK_REPO=Xenova/ms-marco-MiniLM-L-6-v2
 ARG RERANK_REV=a09144355adeed5f58c8ed011d209bf8ee5a1fec
 ARG RERANK_SHA256=e9d8ebf845c413e981c175bfe49a3bfa9b3dcce2a3ba54875ee5df5a58639fbe
@@ -139,9 +116,7 @@ COPY scripts ./scripts
 # The SPA bundle from the `web` stage, served by FastAPI at /app.
 COPY --from=web /build/app/static/app ./app/static/app
 
-# Non-root: uvicorn and the git subprocesses run as `doction` at uid 1000, the usual first
-# user on the Pi, so the /data and /logs bind mounts work without an extra chown. If the
-# existing data is root-owned from an older deploy:
+# Non-root, uid 1000 (the Pi's first user), so bind mounts need no chown. For root-owned data:
 #   sudo chown -R 1000:1000 /mnt/ssd/doction/{pages,uploads,logs}   (not postgres/!)
 RUN useradd --uid 1000 --create-home doction \
     && mkdir -p /data /logs \

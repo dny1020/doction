@@ -34,12 +34,9 @@ services:
       - ./data/logs:/logs
     environment:
       DATABASE_URL: postgresql://doction:${POSTGRES_PASSWORD:-doction}@postgres:5432/doction
-      # Without SECRET_KEY the server boots on the dev key and says so in the log; set it
-      # if this compose is used anywhere but localhost.
+      # Without SECRET_KEY the server boots on the dev key and logs it.
       SECRET_KEY: ${SECRET_KEY:-}
-      # The rest is forwarded with the application's own defaults, so what .env.example
-      # documents actually reaches the container: documenting a flag and not passing it
-      # here is the silent way to make it do nothing.
+      # Forwarded so every flag .env.example documents reaches the container.
       SECURE_COOKIES: ${SECURE_COOKIES:-0}
       DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-0}
       SOURCE_URL: ${SOURCE_URL:-}

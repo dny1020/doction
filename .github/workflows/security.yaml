@@ -5,16 +5,14 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    # Lunes 07:00 UTC. Una dependencia no se vuelve vulnerable cuando la tocas, sino
-    # cuando alguien publica el aviso, así que esto tiene que correr sin que haya push.
+    # Mondays 07:00 UTC: advisories are published without a push.
     - cron: "0 7 * * 1"
 
 permissions:
   contents: read
 
 jobs:
-  # Análisis estático de GitHub. Python y JavaScript se analizan por separado porque
-  # CodeQL construye una base de datos por lenguaje.
+  # CodeQL builds one database per language.
   codeql:
     runs-on: ubuntu-latest
     permissions:
@@ -34,20 +32,9 @@ jobs:
         with:
           category: /language:${{ matrix.language }}
 
-  # Avisos conocidos en las dependencias ya comprometidas. Es lo que Dependabot no
-  # cubre: Dependabot abre PRs de actualización, esto reporta si hoy hay algo
-  # vulnerable instalado.
-  #
-  # Solo en el cron semanal. Ni en pull_request ni en push, y por la misma razón en
-  # los dos casos: lo que esto detecta no lo introdujo el cambio que disparó la
-  # corrida. Un aviso publicado de madrugada pondría en rojo todos los PR abiertos
-  # —incluidos los de Dependabot que vienen a arreglarlo, bloqueados por el problema
-  # que resuelven—, y en main deja una marca roja fija hasta que exista una versión
-  # parcheada que se pueda fusionar. Un workflow permanentemente rojo se ignora, que
-  # es justo lo que esto quiere evitar.
-  #
-  # El gate de los PR es `dependency-review`, que solo mira lo que el PR *introduce*.
-  # Esto vigila el calendario: una revisión semanal que falla es una señal.
+  # Known advisories in committed dependencies. Weekly only: what it finds was not introduced
+  # by the triggering change, and a permanently red PR or main gets ignored.
+  # PRs are gated by `dependency-review`, which only looks at what they add.
   audit:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
@@ -71,12 +58,10 @@ jobs:
 
       - name: npm audit del frontend
         working-directory: frontend
-        # Solo `high` y arriba: en el árbol de dependencias de Vite lo moderado es casi
-        # siempre una herramienta de desarrollo que no llega al bundle.
+        # `high` and up: moderate findings in Vite's tree are almost always dev tools.
         run: npm audit --audit-level=high
 
-  # Escaneo de la imagen que realmente se publica: capa base incluida. Es la única
-  # comprobación que ve los paquetes del sistema (git, curl, tesseract).
+  # Scans the published image, base layer included: the only check that sees system packages.
   image:
     runs-on: ubuntu-latest
     permissions:
@@ -117,8 +102,7 @@ jobs:
           sarif_file: trivy.sarif
           category: trivy-image
 
-  # Bloquea un PR que introduce una dependencia con un aviso conocido o una licencia
-  # incompatible, antes de fusionarlo. Solo tiene sentido en pull_request.
+  # Blocks a PR that adds a dependency with a known advisory or an incompatible licence.
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

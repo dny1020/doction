@@ -18,9 +18,7 @@ dev:
 frontend:
 	cd frontend && npm run dev
 
-# The bundle is built into app/static/app/, which is gitignored. Without this, a change
-# under frontend/ does not reach the app uvicorn serves: the stylesheet is linked with a
-# content hash that only changes on build.
+# The bundle is gitignored; the stylesheet's content hash only changes on build.
 build-web:
 	cd frontend && npm run build
 
@@ -50,24 +48,19 @@ spec:
 	@if [ -d openspec ]; then openspec validate --all --strict && openspec list; \
 	else echo "spec: SKIPPED — openspec/ is not in this checkout"; fi
 
-# The licence is declared in seven places, one of them outside the tree. This compares
-# them against pyproject.toml, the only hand-written source.
+# The licence is declared in seven places; this compares them against pyproject.toml.
 license:
 	uv run python -m scripts.check_license
 
-# Release notes come from the CHANGELOG, so a version without an entry is a release nobody
-# can read. Checked here rather than at tag time, when it would already be too late.
+# A version without a CHANGELOG entry is a release nobody can read.
 changelog:
 	uv run python -m scripts.changelog --check
 
-# Orientation that does not travel in the clone orients nobody: CLAUDE.md and .claude/ are
-# gitignored, so a tracked document citing them dead-ends for everyone but the maintainer.
+# CLAUDE.md and .claude/ are gitignored, so tracked documents must not cite them.
 docs-reachable:
 	uv run python -m scripts.check_docs_reachable
 
-# The published site builds strictly: an internal link that does not resolve is a failure,
-# not a log warning. Covers what docs-reachable cannot see, the navigation once the
-# documentation is a site.
+# Strict site build: an internal link that does not resolve fails.
 docs:
 	uv run --group docs python -m scripts.build_docs
 
@@ -87,8 +80,7 @@ check:
 	$(MAKE) spec
 
 # ── Retrieval ────────────────────────────────────────────────────────────────
-# Outside pytest on purpose: a quality number that can fail a build is a build that gets
-# ignored. SWEEP=1 to sweep.
+# Outside pytest on purpose: a quality number that can fail a build gets ignored. SWEEP=1 to sweep.
 eval:
 	@test -n "$(EVAL_CORPUS)" || (echo "EVAL_CORPUS is required"; exit 1)
 	EVAL_CORPUS="$(EVAL_CORPUS)" uv run python -m evals.retrieval $(if $(SWEEP),--sweep,)

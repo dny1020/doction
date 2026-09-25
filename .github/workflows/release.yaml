@@ -1,16 +1,12 @@
 name: Release
 
-# Solo tags de versión. `v*` habría casado `rm`, el tag mal escrito que este repositorio
-# arrastraba, y lo habría convertido en una release publicada. El patrón exige tres números,
-# así que un tag que no es una versión queda ignorado por construcción y no por suerte.
+# Version tags only: the pattern needs three numbers, so a stray tag like `rm` is ignored.
 on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
-# Lo mínimo para crear una release y nada más. Este job no construye ni publica imagen: la
-# de esta versión se publicó cuando la versión se fusionó a main, y un job que la
-# reconstruyera podría producir una imagen distinta bajo el mismo nombre.
+# Only creates the release; the image was published when the version merged to main.
 permissions:
   contents: write
 
@@ -20,10 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Las notas salen del CHANGELOG, no se escriben otra vez aquí: dos copias a mano de
-      # lo que cambió divergen, y la que la gente lee es la que nadie actualiza. El gate ya
-      # comprobó que la versión declarada tiene entrada, así que esto no debería fallar
-      # nunca; si falla, la release no se publica vacía.
+      # Notes come from CHANGELOG.md; the gate already checked the version has an entry.
       - name: Extraer las notas del CHANGELOG
         id: notes
         run: |

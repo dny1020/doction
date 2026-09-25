@@ -8,8 +8,7 @@ on:
 env:
   IMAGE: ghcr.io/${{ github.repository }}
 
-# Un push que llega mientras la corrida anterior sigue viva la cancela. En main no,
-# porque ahí cada corrida publica una imagen.
+# A new push cancels the previous run, except on main, where each run publishes an image.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -18,29 +17,21 @@ permissions:
   contents: read
 
 jobs:
-  # Lint, tipos y tests corren dentro del stage `test` del Dockerfile, que trae su
-  # propio Postgres. Por eso aquí no hace falta ni Python ni base de datos: el
-  # `docker build` es la prueba entera.
+  # Lint, types and tests run in the Dockerfile's `test` stage, which brings its own Postgres.
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
-      # Antes del build y no dentro del stage `test`: el check compara ficheros del
-      # repositorio, no la imagen, y ese stage tarda ~4 min con su Postgres. Meterlo ahí
-      # obligaría a copiarle README, LICENSE y CONTRIBUTING, y una errata de documentación
-      # volvería a correr los 293 tests para verificar una comparación de cadenas. Solo
-      # usa la stdlib, así que le basta el Python del runner.
+      # Before the build: it compares repository files, not the image, and needs only the stdlib.
       - name: Licencia declarada de forma consistente
         run: python3 -m scripts.check_license
 
-      # Aquí y no al crear el tag: entonces el tag ya existiría, y el ruleset de esta
-      # misma ronda prohíbe borrarlo. Las notas de la release salen de este fichero.
+      # Here, not at tag time: by then the tag exists and the ruleset forbids deleting it.
       - name: La versión declarada tiene entrada en el CHANGELOG
         run: python3 -m scripts.changelog --check
 
-      # Necesita el índice de git, no la imagen: compara enlaces de documentos versionados
-      # contra lo que un clon contiene de verdad.
+      # Needs the git index, not the image: it checks links against what a clone contains.
       - name: La documentación no apunta a ficheros que no viajan
         run: python3 -m scripts.check_docs_reachable
 
@@ -50,28 +41,24 @@ jobs:
           context: .
           target: test
           push: false
-          # One scope per job: sharing the default one, each job overwrote the others' cache
-          # index and `publish` rebuilt everything on every push.
+          # One cache scope per job, or each job overwrites the others' index.
           cache-from: type=gha,scope=test
           cache-to: type=gha,scope=test,mode=max
 
-  # Procedencia de licencia: cada commit de un PR humano certifica bajo qué términos se aporta.
-  # Los PR generados por Dependabot quedan fuera de esta comprobación.
+  # Licence provenance: each commit of a human PR certifies its terms. Dependabot PRs are exempt.
   signoff:
     if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          # Necesita la historia del PR y la base para calcular el rango.
+          # Needs the PR history and its base to compute the range.
           fetch-depth: 0
       - name: Cada commit certifica sus términos
         run: python3 -m scripts.check_signoff
 
-  # La puerta del frontend vive en el stage `web`, que corre `npm run check`
-  # (eslint + prettier + vitest + build + comprobación de assets locales). Sin este
-  # job solo se ejecutaría al publicar, es decir despues de fusionar: un fallo de
-  # lint del frontend tumbaria la publicacion en vez de bloquear el PR.
+  # The frontend gate (`npm run check` in the `web` stage). Without this job it would only run
+  # at publish time, after merging.
   web:
     runs-on: ubuntu-latest
     steps:
@@ -85,14 +72,8 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max
 
-  # El sitio de documentación se construye en estricto: un enlace interno que no resuelve
-  # aborta el build. Cubre lo que check_docs_reachable no puede ver, que es la navegación
-  # una vez la documentación es un sitio, y es lo que verifica el requisito de que el sitio
-  # falle antes de publicar un enlace roto.
-  #
-  # Job aparte y no un paso del job `test`: necesita mkdocs, que vive en el grupo `docs` y
-  # no se instala por defecto. Meterlo en `test` obligaría a instalar la cadena de
-  # documentación antes de un build de imagen que no la usa.
+  # Strict docs build: an internal link that does not resolve fails. A job of its own because
+  # mkdocs lives in the `docs` dependency group.
   docs:
     runs-on: ubuntu-latest
     steps:
@@ -101,9 +82,8 @@ jobs:
       - name: El sitio se construye sin enlaces rotos
         run: uv run --group docs python -m scripts.build_docs
 
-  # Solo al hacer push a main, y solo si `test` y `web` pasaron: publica la imagen
-  # en GHCR etiquetada con la versión de pyproject.toml y como :latest.
-  # arm64 es para la Raspberry Pi; amd64, para todo lo demás.
+  # Only on push to main, after `test` and `web`: publishes the image to GHCR as the
+  # pyproject.toml version and :latest, for amd64 and arm64 (the Pi).
   publish:
     needs: [test, web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -139,15 +119,8 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:${{ steps.version.outputs.value }}
             ${{ env.IMAGE }}:latest
-          # Quien hace pull tiene que poder enumerar lo que se lleva y de dónde salió, sin
-          # preguntarnos. El SBOM responde «¿contiene el paquete de este aviso?» sin
-          # desarmar capas; Trivy corre en nuestra CI y ese resultado es nuestro, no suyo.
-          #
-          # La provenance ya existía: build-push-action la emite por defecto en mode=min,
-          # que nombra la corrida y las imágenes base pero no los pasos ni los materiales.
-          # mode=max sí, y con ello registra los build args: los ocho ARG de este
-          # Dockerfile son repos, revisiones y checksums, todos ya públicos en el
-          # repositorio, y la credencial del registro va a login-action y no al build.
+          # SBOM, so a pull can list what it contains; provenance mode=max also records build args,
+          # which here are public repos, revisions and checksums.
           sbom: true
           provenance: mode=max
           build-args: APT_REFRESH=${{ steps.week.outputs.value }}
