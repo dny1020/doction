@@ -21,7 +21,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.3",
-    "httpx>=0.28",  # lo necesita el TestClient de starlette
+    "httpx>=0.28",  # needed by starlette's TestClient
     "ruff>=0.8",
     "pyright>=1.1.411",
 ]

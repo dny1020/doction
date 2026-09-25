@@ -1,4 +1,4 @@
-"""Tests for the Phase A intelligence tools: extract / list_backlinks / related_pages."""
+"""Tests for the intelligence tools: extract / list_backlinks / related_pages."""
 
 import json
 
