@@ -3,11 +3,8 @@
 
     uv run python -m scripts.check_docs_reachable
 
-`CLAUDE.md` and `.claude/` are gitignored on purpose, so a versioned document citing them
-dead-ends for everyone but the maintainer.
-
-Scope is narrow on purpose — markdown links to paths inside the repository, no URLs or
-anchors: the gate has to pass on a machine with no route out.
+`CLAUDE.md` and `.claude/` are gitignored. Only repository paths are checked, so the gate
+works offline.
 """
 
 import argparse
@@ -18,8 +15,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# Un enlace markdown cuyo destino parece una ruta del repositorio: sin esquema, sin
-# protocolo relativo, y sin empezar por `#` (ancla dentro del mismo documento).
+# A markdown link whose target looks like a repository path: no scheme, not
+# protocol-relative, not a `#` anchor.
 LINK_RE = re.compile(r"\[[^\]]*\]\(\s*(?!https?:|mailto:|#|//)([^)\s#]+)")
 
 
@@ -52,14 +49,14 @@ def main() -> int:
         base = Path(doc).parent
         for match in LINK_RE.finditer(text):
             target = match.group(1)
-            # Resolver relativo al documento, y normalizar sin tocar el disco.
+            # Resolve relative to the document and normalise without touching the disk.
             try:
                 resolved = (base / target).resolve().relative_to(ROOT)
             except (ValueError, OSError):
                 continue
             checked += 1
             rel = str(resolved)
-            # Un directorio cuenta si el repositorio versiona algo dentro.
+            # A directory counts if the repository tracks something inside it.
             if rel in tracked or any(t.startswith(rel + "/") for t in tracked):
                 continue
             exists = (ROOT / rel).exists()

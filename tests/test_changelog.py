@@ -1,11 +1,7 @@
-"""Tests for the changelog parser that produces release notes.
+"""Tests for the changelog parser behind release notes.
 
-The case worth guarding hardest is the range heading: sections like `## 0.28.0 – 0.30.0`
-describe three versions at once, and matching one for a single version would produce
-release notes about versions it has nothing to do with.
-
-Two of these read the real CHANGELOG.md and skip where the tree is stripped; the rest
-build their own in a temporary tree, so the parser stays covered in CI too.
+Range headings (`## 0.28.0 – 0.30.0`) must match no single version. Two tests read the real
+CHANGELOG.md and skip on a stripped tree.
 """
 
 import subprocess

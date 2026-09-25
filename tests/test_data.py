@@ -32,7 +32,7 @@ def test_export_returns_zip_of_live_pages(client):
     zf = zipfile.ZipFile(io.BytesIO(r.content))
     names = zf.namelist()
     assert f"{slug}/keep-me.md" in names
-    assert f"{slug}/drop-me.md" not in names  # soft-deleted ⇒ excluida
+    assert f"{slug}/drop-me.md" not in names  # soft-deleted ⇒ excluded
     assert zf.read(f"{slug}/keep-me.md").decode() == "# keep"
 
 

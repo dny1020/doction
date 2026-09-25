@@ -1,10 +1,6 @@
-"""Loads a markdown dump into a throwaway database.
+"""Loads a markdown dump (`{DATA}/pages/` layout) into a throwaway database.
 
-The dump has the shape of `{DATA}/pages/`: one directory per workspace, one `<slug>.md`
-per page, with an optional `<slug>.title` beside it when the title cannot be derived.
-
-The real corpus is not in the repository — the wiki is private and the repository is
-public — so its path arrives through `EVAL_CORPUS`.
+The corpus is private and not in the repository; its path comes from `EVAL_CORPUS`.
 """
 
 import os
@@ -20,11 +16,8 @@ def corpus_dir() -> Path:
 
 
 def _sources(workspace: str) -> list[Path]:
-    """The directories to load. `all` merges them into one workspace.
-
-    Merging is not cosmetic: retrieval filters by workspace, so loading three separately
-    measures the same thing three times. In one, the other two's pages become distractors
-    and the task looks more like a real wiki.
+    """The directories to load. `all` merges them into one workspace, so each dump's pages
+    act as distractors for the others.
     """
     root = corpus_dir()
     if workspace == "all":
@@ -68,9 +61,7 @@ def load(workspace: str) -> tuple[int, int]:
 def _tag_by_origin(workspace_id: int, origins: dict[str, str]) -> None:
     """Tag each page with the dump it came from, so the tag filter can be scored.
 
-    The real corpus carries no usable tags. These are written straight into `page_tags`
-    and not into the markdown on purpose: touching the body would change the embedded
-    text, and with it the vectors and every earlier run's comparability.
+    Written to `page_tags`, not the markdown: changing the body would change the vectors.
     """
     with db.connect() as conn:
         rows = conn.execute(

@@ -153,7 +153,7 @@ def test_image_upload_rejects_non_image(client):
 
 def test_image_upload_rejects_spoofed_content_type(client):
     _register(client)
-    # Dice ser png pero los bytes no lo son → rechazado por magic bytes.
+    # Claims to be a PNG but the bytes are not: rejected by magic bytes.
     r = client.post("/api/uploads", files={"file": ("x.png", b"not a real png", "image/png")})
     assert r.status_code == 400
 

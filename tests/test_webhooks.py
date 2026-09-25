@@ -26,7 +26,7 @@ def _pendientes() -> list:
     return db.due_deliveries(50)
 
 
-# ── registro ─────────────────────────────────────────────────────────────────
+# ── registration ─────────────────────────────────────────────────────────────
 
 
 def test_secret_is_returned_once_and_never_listed(client):
@@ -81,7 +81,7 @@ def test_event_filter_is_respected(client):
 
 
 def test_no_webhook_means_no_queue(client):
-    """Sin receptores registrados la escritura no debe encolar nada."""
+    """With no receivers registered, a write queues nothing."""
     token = _token(client)
     client.post("/api/pages", json={"title": "Sin hook", "content": "x"}, headers=_h(token))
     assert _pendientes() == []
@@ -101,7 +101,7 @@ def test_rename_and_move_emit_their_own_events(client):
     assert "page.renamed" in eventos
 
 
-# ── firma y entrega ──────────────────────────────────────────────────────────
+# ── signature and delivery ───────────────────────────────────────────────────
 
 
 def test_signature_is_verifiable_by_the_receiver(client):
@@ -122,14 +122,14 @@ def test_unreachable_receiver_is_retried_not_dropped(client):
     assert detalle
 
     db.mark_failed(pendiente.id, pendiente.webhook_id, detalle, pendiente.attempts)
-    # Sigue en la cola, pero reprogramada al futuro: no se ha perdido.
+    # Still queued, rescheduled for later: not lost.
     assert _pendientes() == []
     hook = client.get("/api/webhooks", headers=_h(token)).json()[0]
     assert hook["last_status"]
 
 
 def test_delivery_never_raises_on_a_bad_url(client):
-    """deliver() debe devolver (False, motivo), nunca propagar."""
+    """deliver() returns (False, reason) and never raises."""
     item = PendingDelivery(
         id=1,
         webhook_id=1,

@@ -1,11 +1,6 @@
-"""Search snippets: the server returns no markup, in any mode.
+"""Search snippets carry no markup in any mode; highlighting travels as spans.
 
-Covers the defect behind it: `ts_headline` wrapped the match in <mark> and left the rest of
-the page text alone, and the sidebar painted it with dangerouslySetInnerHTML — stored XSS
-with the markdown renderer entirely intact.
-
-Checked here: the server adds no markup of its own and highlighting travels as spans. That
-the client paints those spans as text is checked by reading the client.
+Guards the stored XSS where <mark> from ts_headline was painted as HTML.
 """
 
 import pytest
@@ -83,7 +78,7 @@ def test_keyword_snippet_marks_only_the_match(client):
 
 
 def test_control_characters_in_content_cannot_forge_a_match(client):
-    """Los centinelas se borran del texto antes de resaltar."""
+    """Sentinels are stripped from the text before highlighting."""
     token = _token(client)
     _page(client, token, "Kamailio dispatcher", "\x01todo marcado\x02 dispatcher")
 
@@ -94,7 +89,7 @@ def test_control_characters_in_content_cannot_forge_a_match(client):
 
 
 def test_semantic_and_hybrid_snippets_carry_no_markup(semantic_client):
-    """Los tres modos comparten forma: ninguno es seguro mientras otro no lo sea."""
+    """All three modes share a shape: none is safe unless all are."""
     from app import embeddings
 
     client = semantic_client

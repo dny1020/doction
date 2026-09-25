@@ -4,11 +4,8 @@
     uv run python -m scripts.changelog 0.31.5      # prints the section
     uv run python -m scripts.changelog --check     # gate: the declared version has one
 
-One parser, two callers: the gate and the release workflow. A separate "does an entry
-exist" check would be a second implementation of the same heading rule.
-
-Range headings such as `## 0.28.0 – 0.30.0` deliberately match no single version — they
-describe history reconstructed in bulk.
+Shared by the gate and the release workflow. Range headings (`## 0.28.0 – 0.30.0`) match
+no single version.
 """
 
 import argparse
@@ -29,8 +26,7 @@ def declared_version() -> str:
 def section(version: str) -> str | None:
     """The body under `## <version>`, up to the next `## ` heading.
 
-    The heading may carry a date, so the version is followed by a boundary rather than the
-    end of the line — which is also what stops `0.31` matching `## 0.31.5`.
+    The version must be followed by a boundary, so `0.31` never matches `## 0.31.5`.
     """
     try:
         lines = CHANGELOG.read_text(encoding="utf-8").splitlines()

@@ -25,7 +25,7 @@ def _get_pages(client, token: str):
     return client.get("/api/pages", headers={"Authorization": f"Bearer {token}"})
 
 
-# ── Rate limit en /api/token (antes solo /api/auth/login estaba protegido) ────
+# ── Rate limit on /api/token ──────────────────────────────────────────────────
 
 
 def test_api_token_rate_limited(client):
@@ -71,7 +71,7 @@ def test_upload_too_large_413(client):
     big = _TINY_PNG + b"\x00" * (5 * 1024 * 1024)
     r = client.post("/api/uploads", files={"file": ("big.png", big, "image/png")})
     assert r.status_code == 413
-    assert "detail" in r.json()  # mismo shape de error que el resto de la API
+    assert "detail" in r.json()  # same error shape as the rest of the API
 
 
 # ── Sessions: expired JWTs and revocation on password change ─────────────────
@@ -110,7 +110,7 @@ def test_password_change_revokes_old_jwts(client):
     assert _get_pages(client, old_jwt).status_code == 401
 
 
-# ── SHA de git validado (un sha tipo "--flag" no llega a git show) ────────────
+# ── Validated git SHA (a "--flag" SHA never reaches git show) ────────────────
 
 
 def test_invalid_git_sha_rejected(client):
@@ -134,7 +134,7 @@ def test_enrichment_worker_skips_poison_page(client, main_module, monkeypatch):
 
     _register(client)
     client.post("/api/pages", json={"title": "Bad", "content": "contenido"})
-    assert db.pages_to_embed(50)  # hay pendientes (embed_dirty=1)
+    assert db.pages_to_embed(50)  # pending pages (embed_dirty=1)
 
     def boom(*args, **kwargs):
         raise RuntimeError("poison page")

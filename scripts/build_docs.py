@@ -4,13 +4,9 @@
     uv run --group docs python -m scripts.build_docs          # build into site/
     uv run --group docs python -m scripts.build_docs --serve  # local preview
 
-Links inside `docs/` point above it and MkDocs cannot reach outside its `docs_dir`, so the
-build stages a tree with the root documents at the top and `docs/` underneath — the shape
-the relative links already assume. The staged copies are build output, never committed.
-
-`--strict` is always on: a link that does not resolve fails the build rather than publishing.
-After a build, `check_site()` inspects what was produced: every page carries its title,
-description and social-preview tags, `robots.txt` exists, and nothing is loaded from another host.
+Stages root documents above `docs/` so their relative links resolve, builds with
+`--strict`, then `check_site()` verifies metadata, robots.txt and that nothing loads
+off-site.
 """
 
 import argparse

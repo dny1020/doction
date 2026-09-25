@@ -51,7 +51,7 @@ def _long_page(sections: int, filler: int = 400) -> str:
     return "\n".join(body)
 
 
-# ── Presupuesto ──────────────────────────────────────────────────────────────
+# ── Budget ───────────────────────────────────────────────────────────────────
 
 
 def test_budget_bounds_the_context_not_a_fragment_count(semantic_client):
@@ -125,7 +125,7 @@ def test_two_pieces_of_one_section_collapse(semantic_client):
 
 
 def test_distinct_sections_of_one_page_both_survive(semantic_client):
-    """El error contrario: colapsar dos secciones que responden a cosas distintas."""
+    """The opposite error: collapsing two sections that answer different things."""
     client = semantic_client
     token = _token(client)
     _page(

@@ -65,7 +65,7 @@ def test_search_results_are_reranked(client):
         assert "rerank_score" in r and "score" in r
     rerank_scores = [r["rerank_score"] for r in results if "rerank_score" in r]
     assert rerank_scores == sorted(rerank_scores, reverse=True)
-    # El cross-encoder (stub: solape de tokens) pone el texto denso en sip/routing primero.
+    # The cross-encoder stub (token overlap) puts the sip/routing-dense text first.
     assert ours[0]["slug"] == "routing-deep-dive"
 
 

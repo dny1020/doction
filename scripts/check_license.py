@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-"""Fails when the licence is not declared identically everywhere it is declared.
+"""Fails when the licence is not declared identically everywhere.
 
     uv run python -m scripts.check_license
     uv run python -m scripts.check_license --repo dny1020/doction
 
-The licence lives in seven places and nobody remembers all seven; the published repository
-description said "MIT licensed" for two releases after MIT was replaced. `pyproject.toml` is
-the single authored source and everything else must agree with it.
-
-The repository description is the one declaration a commit cannot reach, so it is checked
-over the network. With no route out that half prints a SKIP as loudly as a failure — a
-silent skip would reproduce the very failure this exists to catch.
+`pyproject.toml` is the source; the other six declarations must agree. The repository
+description is checked over the network and prints a loud SKIP when offline.
 """
 
 import argparse

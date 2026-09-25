@@ -46,7 +46,7 @@ def test_it_actually_examined_something():
 
 @needs_checkout
 def test_catches_a_reference_to_a_gitignored_file(tmp_path):
-    """El caso que motiva el check: citar CLAUDE.md, que existe pero no viaja."""
+    """The motivating case: citing CLAUDE.md, which exists but does not ship."""
     doc = ROOT / "CONTRIBUTING.md"
     original = doc.read_text(encoding="utf-8")
     try:

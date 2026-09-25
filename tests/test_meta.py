@@ -1,4 +1,4 @@
-"""Tests for app.meta — frontmatter / tags / wikilinks / chunking (puro, sin DB)."""
+"""Tests for app.meta — frontmatter / tags / wikilinks / chunking (pure, no DB)."""
 
 from app import meta
 

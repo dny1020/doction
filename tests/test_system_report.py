@@ -49,7 +49,7 @@ def test_index_counts_absent_when_semantic_is_off(client, monkeypatch):
 
 
 class _ExplodingEncoder:
-    """Tiene nombre pero no se puede construir: si el informe lo instancia, falla."""
+    """Has a name but cannot be built: if the report instantiates it, it fails."""
 
     name = "all-MiniLM-L6-v2-int8"
 

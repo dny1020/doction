@@ -2,9 +2,7 @@
 
     EVAL_CORPUS=data/eval-corpus uv run python -m evals.retrieval
 
-Run by hand, not under pytest: it measures quality, not behaviour, and a quality number
-that can fail a build is a build that gets ignored. The FTS variants are computed in the
-harness's own SQL, so a run never leaves the application schema experimental.
+Outside pytest on purpose: a quality number that can fail a build gets ignored.
 """
 
 import argparse
@@ -177,10 +175,8 @@ FILTER_QUERIES = Path(__file__).parent / "queries-filters.json"
 
 
 def _filter_cases(embeddings, workspace_id: int) -> dict:
-    """Score `search_knowledge`'s tag filter, apart from the main query set.
-
-    In its own file and its own row on purpose: folding these queries into the main set
-    would move the headline metrics and break comparability with every earlier run.
+    """Score `search_knowledge`'s tag filter, apart from the main set so headline metrics stay
+    comparable with earlier runs.
     """
     if not FILTER_QUERIES.is_file():
         return {}

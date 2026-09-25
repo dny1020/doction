@@ -1,11 +1,7 @@
-"""Guards the metadata parsers against super-linear cost on attacker-controlled content.
+"""Guards the metadata parsers against super-linear cost on untrusted content.
 
-`extract_links` runs synchronously inside the page save, so a parser whose cost grows
-faster than its input hands any member the server's CPU: 24 KB shaped as repeated `[[`
-once cost 7.9 seconds against 3.6 ms for 80 KB of real wikilinks.
-
-These assert a *ratio* between an adversarial input and a benign one of the same length,
-never a duration: a loaded machine slows both equally, where a threshold would flake.
+Asserts a ratio between adversarial and benign input of the same length, never a duration,
+so a loaded machine cannot make it flake.
 """
 
 import time
@@ -36,7 +32,7 @@ def _adversarial(n: int) -> str:
 
 
 def _benign(n: int) -> str:
-    """Misma longitud, wikilinks reales."""
+    """Same length, real wikilinks."""
     out = "[[destino]]" * (3 * n // 11)
     return out[: 3 * n]
 
@@ -59,7 +55,7 @@ def test_wikilinks_cost_no_more_on_adversarial_content(n):
 
 
 def test_cost_does_not_grow_with_size():
-    """Doblar la entrada debe doblar el coste, no cuadruplicarlo."""
+    """Doubling the input must double the cost, not quadruple it."""
     t1 = _time(meta.extract_links, _adversarial(2000))
     t2 = _time(meta.extract_links, _adversarial(4000))
     growth = t2 / max(t1, 1e-6)
@@ -90,7 +86,7 @@ def test_a_target_longer_than_the_bound_is_not_a_target():
 
 
 def test_other_metadata_parsers_are_linear_too():
-    """Tags y frontmatter corren sobre el mismo contenido no confiable."""
+    """Tags and frontmatter run over the same untrusted content."""
     for fn in (meta.extract_tags, meta.strip_code):
         t1 = _time(fn, _adversarial(2000))
         t2 = _time(fn, _adversarial(4000))

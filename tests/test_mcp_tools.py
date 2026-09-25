@@ -99,7 +99,7 @@ def test_search_knowledge_filters_by_tag(client):
 
 
 def test_search_knowledge_with_a_tag_that_matches_nothing_returns_empty(client):
-    """Un filtro que no deja nada devuelve nada; no cae de vuelta a la lista sin filtrar."""
+    """A filter that matches nothing returns nothing, not the unfiltered list."""
     token = _token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
     hits = _data(
@@ -236,7 +236,7 @@ def test_read_page_raw_on_a_missing_page_errors(client):
 
 
 def test_upsert_replaces_only_its_own_section(client):
-    """El resto del documento queda byte a byte igual."""
+    """The rest of the document stays byte for byte identical."""
     token = _token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
@@ -338,7 +338,7 @@ def test_upsert_disambiguates_by_level(client):
 
 
 def test_upsert_preserves_a_code_fence_in_a_neighbouring_section(client):
-    """La sintaxis del markdown de al lado no se toca: vallas, tablas y todo."""
+    """Neighbouring markdown syntax is untouched: fences, tables and all."""
     token = _token(client)
     doc = (
         "# Doc\n\n## Código\n\n```bash\n## esto no es un encabezado\ncertbot renew\n```\n\n"
@@ -361,7 +361,7 @@ def test_upsert_preserves_a_code_fence_in_a_neighbouring_section(client):
 
 
 def test_upsert_records_a_version_and_requeues_for_indexing(client):
-    """Pasa por el mismo camino que cualquier otra escritura, no por un atajo."""
+    """Goes through the same path as any other write, not a shortcut."""
     token = _token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
     with db.connect() as conn:
@@ -470,7 +470,7 @@ def test_upsert_section_stops_at_the_next_heading_of_the_same_level():
     out = meta.upsert_section(doc, "A", "reemplazo")
     # The subsection hangs off A, so it goes with it.
     assert "anidado" not in out
-    # B es hermana: se queda.
+    # B is a sibling: it stays.
     assert "## B\n\ndos" in out
 
 
@@ -482,14 +482,11 @@ def test_find_section_ignores_headings_inside_a_fence():
 
 
 # ── Knowledge graph navigation ───────────────────────────────────────────────
-#
-# The question an exploring agent asks: starting here, what is nearby, in which
-# direction and by what path. `list_backlinks` answers one hop; more than one is only
-# answered by the walk, and without it an agent pays a round trip per edge.
+# `list_backlinks` answers one hop; the walk answers more without a round trip per edge.
 
 
 def _graph_fixture(client, token):
-    """kamailio ←→ rtpengine, kamailio → asterisk → dialplan, y un destino roto."""
+    """kamailio ←→ rtpengine, kamailio → asterisk → dialplan, and one broken target."""
     _data(_call(client, token, "create_page", {"title": "Dialplan", "content": "hojas"}))
     _data(
         _call(
@@ -525,11 +522,11 @@ def test_agent_walks_one_hop_in_both_directions(client):
     assert out["slug"] == "kamailio"
     assert out["depth"] == 1
     reached = {n["slug"]: n for n in out["neighbors"]}
-    # Salientes y entrantes en la misma respuesta: rtpengine llega por los dos
-    # lados, y basta con que el recorrido lo cuente una vez.
+    # Outgoing and incoming in one response: rtpengine is reached both ways and
+    # counted once.
     assert {"rtpengine", "asterisk"} <= set(reached)
     assert all(n["distance"] == 1 for n in out["neighbors"])
-    assert reached["rtpengine"]["via"] == "both"  # se citan la una a la otra
+    assert reached["rtpengine"]["via"] == "both"  # they cite each other
     assert reached["asterisk"]["via"] == "outgoing"
     assert reached["asterisk"]["path"] == ["kamailio", "asterisk"]
 
@@ -566,7 +563,7 @@ def test_traversal_terminates_on_a_cycle(client):
 
     out = _data(_call(client, token, "get_linked_knowledge", {"slug": "uno", "depth": 3}))
     slugs = [n["slug"] for n in out["neighbors"]]
-    assert sorted(slugs) == ["dos", "tres"]  # cada una una vez, y "uno" no vuelve
+    assert sorted(slugs) == ["dos", "tres"]  # each once, and "uno" does not come back
     assert len(slugs) == len(set(slugs))
 
 
@@ -609,8 +606,8 @@ def test_unknown_page_is_a_tool_error(client):
 
 
 def test_the_relational_tools_say_which_relation_they_traverse(client):
-    """Un agente elige leyendo solo las descripciones: tags y enlaces responden
-    preguntas distintas y no puede tener que probarlas para averiguarlo."""
+    """An agent chooses from the descriptions alone: tags and links answer different
+    questions, and it must not have to try them to find out."""
     listed = client.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     tools = {t["name"]: t["description"] for t in listed.json()["result"]["tools"]}
     assert "not tags" in tools["list_backlinks"]

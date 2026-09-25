@@ -45,4 +45,4 @@ def test_create_user_script(app_mod):
             "/api/auth/login",
             json={"email": "cli@example.com", "password": "password123"},
         )
-        assert r.status_code == 200  # login correcto
+        assert r.status_code == 200  # login succeeds

@@ -29,7 +29,7 @@ def _backlinks(client, token, slug) -> list[str]:
     return sorted(b["slug"] for b in r.json()["backlinks"])
 
 
-# ── el parser ────────────────────────────────────────────────────────────────
+# ── the parser ───────────────────────────────────────────────────────────────
 
 
 def test_wikilink_inside_a_fence_is_not_a_link():
@@ -58,7 +58,7 @@ def test_target_is_trimmed_and_label_discarded():
     assert meta.extract_links("[[  espacios  |  etiqueta  ]]") == ["espacios"]
 
 
-# ── las aristas ──────────────────────────────────────────────────────────────
+# ── edges ────────────────────────────────────────────────────────────────────
 
 
 def test_saving_replaces_edges_instead_of_accumulating(client):
@@ -196,7 +196,7 @@ def test_mention_context_is_the_sentence_around_the_link(client):
     assert "El fallback usa" in text
     assert "cuando cae el SBC" in text
     assert "Intro que no viene al caso" not in text
-    # Lo marcado es la etiqueta que el lector ve, no `[[failover]]`.
+    # The marked text is the label the reader sees, not `[[failover]]`.
     assert [p["text"] for p in mention["context"] if p["match"]] == ["el procedimiento"]
 
 
@@ -231,7 +231,7 @@ def test_a_mention_without_a_findable_sentence_still_lists(client):
     assert mention["title"] == "Origen"
 
 
-# ── el endpoint del grafo ────────────────────────────────────────────────────
+# ── the graph endpoint ───────────────────────────────────────────────────────
 
 
 def test_graph_returns_nodes_and_edges(client):

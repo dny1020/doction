@@ -4,12 +4,7 @@
     uv run python -m scripts.check_signoff origin/main..HEAD
     uv run python -m scripts.check_signoff            # defaults to the range CI provides
 
-A `Signed-off-by` trailer attaches the record to the commit, so it survives independently of
-whatever `CONTRIBUTING.md` said at the time. Sign-off transfers no copyright, so the project
-cannot be relicensed without the permission of everyone who has contributed.
-
-This runs on pull requests and every commit so far is a direct push to `main`, so it must be
-verified against a constructed commit rather than trusted because CI is green.
+A `Signed-off-by` trailer keeps the record on the commit itself.
 """
 
 import argparse

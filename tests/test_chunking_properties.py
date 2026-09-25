@@ -64,7 +64,7 @@ def test_sibling_sections_stay_apart(semantic_client):
 
 
 def test_sibling_sections_are_not_near_identical_vectors(semantic_client):
-    """La propiedad medible: sin ella, dos secciones son un vector con dos etiquetas."""
+    """The measurable property: without it, two sections are one vector with two labels."""
     import numpy as np
 
     client = semantic_client
@@ -94,12 +94,8 @@ def test_sibling_sections_are_not_near_identical_vectors(semantic_client):
 
 
 def test_identically_worded_sections_in_different_pages_do_not_collide(semantic_client):
-    """The other half of the contract, checked where it matters: in the result.
-
-    Identical text produces identical vectors, which is correct — nothing *in the section*
-    tells them apart. The spec asks that a query matching one does not score the other
-    equally, and that is settled in the page ranking, where the lexical channel sees the
-    title.
+    """Identical sections embed identically; the page ranking, which sees the title,
+    must still keep them from scoring equally.
     """
     client = semantic_client
     token = _token(client)

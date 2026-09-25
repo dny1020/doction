@@ -1,4 +1,4 @@
-"""Tests for Phase B semantic search (sgrep / rag).
+"""Tests for semantic search (sgrep / rag).
 
 Uses a deterministic stub embedder (EMBED_STUB=1) and a no-op enrichment worker;
 embedding is driven explicitly via embeddings.drain_pending() for determinism.
@@ -127,7 +127,7 @@ def test_sgrep_reports_which_retrievers_found_a_page(client):
     top = next(r for r in results if r["slug"] == "kamailio-dispatcher")
     assert top["keyword_match"] is True
     assert top["via"] in ("fts", "both")
-    # Y los rangos de cada lista viajan con el resultado, para poder revisar el orden.
+    # Each list's ranks travel with the result, so the order can be checked.
     assert top["lexical_rank"] is not None
     assert "parts" not in top, "el troceado del resaltado es cosa de la interfaz"
 
@@ -176,7 +176,7 @@ def test_min_score_filters_weak_hits(client):
     wid = 1
 
     todos = emb.semantic_search(wid, "sip routing")
-    assert len(todos) > 1  # sin corte devuelve el workspace entero ordenado
+    assert len(todos) > 1  # with no floor, the whole workspace comes back in order
 
     corte = max(r["score"] for r in todos)
     filtrados = emb.semantic_search(wid, "sip routing", min_score=corte)
@@ -245,7 +245,7 @@ def test_hybrid_finds_pages_that_fts_alone_misses(client):
     _drain()
 
     assert _search(client, token, "espresso", "keyword")  # exact term, so FTS sees it
-    assert not _search(client, token, "espresso cappuccino", "keyword")  # AND: falta una
+    assert not _search(client, token, "espresso cappuccino", "keyword")  # AND: one is missing
     rescatados = _search(client, token, "espresso cappuccino", "hybrid")
     assert [r["slug"] for r in rescatados] == ["espresso"]
     assert rescatados[0]["via"] == "semantic"
@@ -297,7 +297,7 @@ def test_rrf_combines_positions_not_scores():
     assert scores["a"] == pytest.approx(1 / 61 + 1 / 62)
     assert scores["c"] == pytest.approx(1 / 63 + 1 / 61)
     assert scores["b"] == pytest.approx(1 / 62)
-    # Salir en las dos listas gana a salir primero en una sola.
+    # Appearing in both lists beats being first in one.
     assert scores["a"] > scores["c"] > scores["b"]
 
 
@@ -311,7 +311,7 @@ def test_rrf_with_one_empty_list_is_the_other_list():
 
 
 def test_hybrid_is_deterministic(client):
-    """La misma consulta sobre los mismos datos da siempre el mismo orden."""
+    """The same query on the same data always gives the same order."""
     from app import embeddings as emb
 
     token = _token(client)
@@ -336,7 +336,7 @@ def test_hybrid_carries_both_ranks(client):
 
 
 def test_hybrid_never_scores_a_cosine_against_a_ts_rank(client):
-    """El orden sale solo de las posiciones: dos escalas distintas nunca se suman."""
+    """Order comes from positions only: two different scales are never added."""
     from app import embeddings as emb
 
     token = _token(client)
@@ -355,7 +355,7 @@ def test_hybrid_never_scores_a_cosine_against_a_ts_rank(client):
 
 
 def test_ui_api_and_mcp_agree(client):
-    """Una consulta, un orden: la barra lateral, /api/search y sgrep no divergen."""
+    """One query, one order: the sidebar, /api/search and sgrep never diverge."""
     from app import embeddings as emb
 
     token = _token(client)

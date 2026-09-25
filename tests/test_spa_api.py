@@ -1,4 +1,4 @@
-"""Tests de los endpoints JSON que alimentan la SPA de React (Fase 1)."""
+"""Tests for the JSON endpoints behind the React SPA."""
 
 
 def _register(client, email="user@example.com", password="password123"):
@@ -80,7 +80,7 @@ def test_page_view(client):
     assert client.get("/api/pages/nope/view").status_code == 404
 
 
-# ── Fase 2: settings, papelera, historial/restaurar, workspaces ──────────────
+# ── Settings, trash, history/restore, workspaces ─────────────────────────────
 
 
 def test_update_profile(client):
@@ -155,12 +155,12 @@ def test_trash_restore_and_purge(client):
     assert deleted.status_code == 204
     trash = client.get("/api/trash").json()
     assert any(p["slug"] == slug for p in trash)
-    # Restaurar la saca de la papelera y la vuelve visible.
+    # Restoring takes it out of the trash and makes it visible.
     restored = client.post(f"/api/trash/{slug}/restore")
     assert restored.status_code == 200
     assert all(p["slug"] != slug for p in client.get("/api/trash").json())
     assert client.get(f"/api/pages/{slug}/view").status_code == 200
-    # Borrar de nuevo y purgar definitivamente.
+    # Delete again and purge for good.
     client.delete(f"/api/pages/{slug}")
     purged = client.post(f"/api/trash/{slug}/purge")
     assert purged.status_code == 204
@@ -214,6 +214,6 @@ def test_set_language_switches_catalog(client):
     body = client.get("/api/i18n").json()
     assert body["lang"] == "es"
     assert body["t"]["settings"] == "Configuración"
-    # Un idioma no soportado se rechaza.
+    # An unsupported language is rejected.
     bad = client.post("/api/lang/zz")
     assert bad.status_code == 400

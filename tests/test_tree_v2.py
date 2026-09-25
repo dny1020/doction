@@ -1,9 +1,4 @@
-"""The v2 model: move, rename with aliases, quick capture and the feed.
-
-The tree already existed, so what is tested here is that moving is cycle-safe, that renaming
-does not break [[wikilinks]], and that quick capture collapses neither the slug namespace
-nor the sidebar.
-"""
+"""Move (cycle-safe), rename with aliases, quick capture and the feed."""
 
 
 def _token(client, email="v2@example.com", password="password123") -> str:
@@ -22,7 +17,7 @@ def _create(client, token, **body) -> dict:
     return r.json()
 
 
-# ── mover ────────────────────────────────────────────────────────────────────
+# ── move ─────────────────────────────────────────────────────────────────────
 
 
 def test_move_reparents_and_keeps_slug(client):
@@ -91,11 +86,11 @@ def test_move_unknown_parent_is_400(client):
     assert r.status_code == 400
 
 
-# ── renombrar ────────────────────────────────────────────────────────────────
+# ── rename ───────────────────────────────────────────────────────────────────
 
 
 def test_rename_keeps_old_slug_resolving(client):
-    """El alias es lo que evita reescribir el markdown de terceros."""
+    """The alias is what avoids rewriting other pages' markdown."""
     token = _token(client)
     page = _create(client, token, title="Kamailio", content="notas de SIP")
 
@@ -105,7 +100,7 @@ def test_rename_keeps_old_slug_resolving(client):
     assert r.status_code == 200, r.text
     assert r.json()["slug"] == "kamailio-sbc"
 
-    # El slug nuevo responde...
+    # The new slug answers...
     assert client.get("/api/pages/kamailio-sbc", headers=_h(token)).status_code == 200
     # ...and the old one still resolves to the same page.
     old = client.get(f"/api/pages/{page['slug']}", headers=_h(token))
@@ -138,11 +133,11 @@ def test_rename_cannot_steal_an_alias(client):
 
 
 def test_forward_reference_resolves_when_target_is_created(client):
-    """Un enlace escrito antes que su destino no puede quedar roto para siempre."""
+    """A link written before its target must not stay broken forever."""
     token = _token(client)
     _create(client, token, title="Adelantada", content="apunto a [[futura]]")
 
-    # Al crearla, create_page rellena el dst_page_id pendiente.
+    # Creating it fills the pending dst_page_id.
     _create(client, token, title="Futura", content="ya existo", slug="futura")
 
     r = client.get("/api/pages/futura/view", headers=_h(token))
@@ -150,7 +145,7 @@ def test_forward_reference_resolves_when_target_is_created(client):
     assert any(b["slug"] == "adelantada" for b in r.json()["backlinks"])
 
 
-# ── captura ──────────────────────────────────────────────────────────────────
+# ── capture ──────────────────────────────────────────────────────────────────
 
 
 def test_capture_without_title_derives_one(client):
@@ -160,7 +155,7 @@ def test_capture_without_title_derives_one(client):
 
 
 def test_capture_without_title_does_not_collide(client):
-    """Sin esto, cien capturas darian untitled-2 … untitled-101."""
+    """Without this, a hundred captures would be untitled-2 … untitled-101."""
     token = _token(client)
     slugs = {_create(client, token, content="")["slug"] for _ in range(5)}
     assert len(slugs) == 5
@@ -208,7 +203,7 @@ def test_filing_a_memo_moves_it_from_the_inbox_into_the_tree(client):
     archivada = next(p for p in tree if p["slug"] == memo["slug"])
     assert archivada["depth"] == 1
 
-    # Sigue siendo un memo: el contenido no se toca, solo cambia de sitio.
+    # Still a memo: content untouched, only its place changes.
     page = client.get(f"/api/pages/{memo['slug']}", headers=_h(token)).json()
     assert "type: memo" in page["content"]
 

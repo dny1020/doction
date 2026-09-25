@@ -1,15 +1,8 @@
 #!/usr/bin/env python3
-"""Creates a doction user from the command line, bypassing web registration.
+"""Creates a doction user from the command line, using the app's DATABASE_URL.
 
-Uses the same DATABASE_URL as the app, so point it at the real database.
-
-    # in a local checkout
-    uv run python -m scripts.create_user alice@example.com
-    DATABASE_URL=postgresql://doction:doction@localhost:5432/doction \\
-        uv run python -m scripts.create_user bob@corp.io
-
-    # inside the deployed container
-    docker exec -it doction python -m scripts.create_user alice@example.com
+uv run python -m scripts.create_user alice@example.com
+docker exec -it doction python -m scripts.create_user alice@example.com
 """
 
 import argparse

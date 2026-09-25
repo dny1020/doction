@@ -1,4 +1,4 @@
-"""Tests for the local ML round (v0.16): suggest links/tags, summaries, insights.
+"""Tests for local suggestions: links, tags, summaries, insights.
 
 Same approach as test_semantic.py: deterministic stub embedder (EMBED_STUB=1),
 no background worker, embedding driven explicitly via drain_pending().

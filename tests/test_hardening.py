@@ -1,4 +1,4 @@
-"""Tests for the Phase 1 'trust foundation': security headers, XSS escaping,
+"""Tests for security headers, XSS escaping,
 login rate limiting, and the styled 500 handler."""
 
 from fastapi.testclient import TestClient
@@ -15,7 +15,7 @@ def test_security_headers_present(client):
 
 def test_login_rate_limited(client):
     client.post("/api/auth/register", json={"email": "rl@example.com", "password": "password123"})
-    # 5 intentos fallidos permitidos (401); el 6º se bloquea con 429.
+    # 5 failed attempts allowed (401); the 6th is blocked with 429.
     for _ in range(5):
         r = client.post("/api/auth/login", json={"email": "rl@example.com", "password": "wrong"})
         assert r.status_code == 401
@@ -36,7 +36,7 @@ def test_unhandled_exception_returns_json(main_module):
     with TestClient(main_module.app, raise_server_exceptions=False) as c:
         r = c.get("/_boom")
         assert r.status_code == 500
-        assert "kaboom" not in r.text  # sin filtrar el traceback
+        assert "kaboom" not in r.text  # without leaking the traceback
         assert r.json() == {"detail": "Internal server error"}
 
 

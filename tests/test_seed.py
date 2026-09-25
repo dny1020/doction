@@ -1,10 +1,4 @@
-"""The pages every new user is given.
-
-Seed content is the first thing anyone reads, so it is the easiest documentation to leave
-behind: nothing fails when it goes stale. These assert the claims the pages make about the
-deployment are still the deployment's claims, and that the runbook demonstrates the
-features it is there to show.
-"""
+"""The pages every new user is given: their claims about the deployment must stay true."""
 
 from app import db, graph, meta, seed
 

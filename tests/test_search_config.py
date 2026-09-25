@@ -36,7 +36,7 @@ def _search(client, token: str, query: str) -> list[str]:
     return [hit["slug"] for hit in r.json()]
 
 
-# ── Plegado de acentos ───────────────────────────────────────────────────────
+# ── Accent folding ───────────────────────────────────────────────────────────
 
 
 def test_unaccented_query_finds_accented_content(client):
@@ -68,7 +68,7 @@ def test_accent_folding_does_not_merge_unrelated_words(client):
     assert _search(client, token, "fstab") == [fstab]
 
 
-# ── Convergencia del esquema ─────────────────────────────────────────────────
+# ── Schema convergence ───────────────────────────────────────────────────────
 
 _LEGACY_PAGES_EXPR = (
     "setweight(to_tsvector('english', coalesce(title, '')), 'A') || "
@@ -115,7 +115,7 @@ def test_populated_legacy_database_converges(client):
 
     with db.connect() as conn:
         _downgrade_to_legacy(conn)
-    assert _search(client, token, "renovacion") == []  # el defecto, reproducido
+    assert _search(client, token, "renovacion") == []  # the defect, reproduced
 
     db.init_db()
 
@@ -125,7 +125,7 @@ def test_populated_legacy_database_converges(client):
 
 
 def test_convergence_is_idempotent(client):
-    """El segundo arranque no reconstruye: la columna conserva su attnum."""
+    """A second boot does not rebuild: the column keeps its attnum."""
     with db.connect() as conn:
         before = _attnum(conn, "pages")
     db.init_db()
@@ -197,7 +197,7 @@ def test_both_spellings_return_the_same_page(client, query):
     assert _search(client, token, query)[:1] == [slug]
 
 
-# ── Seguridad al cambiar de encoder ──────────────────────────────────────────
+# ── Safety when the encoder changes ──────────────────────────────────────────
 
 
 def test_chunks_from_another_model_are_not_scored(client, monkeypatch):

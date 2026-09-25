@@ -1,20 +1,9 @@
-"""MkDocs hooks: where pages are written, what a shared link shows, and keeping the site offline.
+"""MkDocs hooks: page destinations, link previews and keeping the site offline.
 
-The staged tree keeps `README.md` at the top and `docs/` underneath so every relative link
-resolves (see scripts/build_docs.py). That makes the README the root page and puts
-`docs/index.md` at `/docs/`. This hook only changes where the two are written; MkDocs
-resolves links by source path, so both pages' links keep working and stay checked by
-`--strict`.
-
-Runs after MkDocs' own README/index conflict check, which is why the root README does not
-trip it.
-
-The README's badges are remote images (shields.io, GitHub). They belong to the repository
-page, not to a site that must load nothing from a third-party host, so they are dropped from
-the site's copy only.
-
-A page that declares no `description` gets one from its first paragraph of prose, so no two
-pages share the site-wide description in search results or link previews.
+- Writes `docs/index.md` at `/` and the README at `/introduction/`; links still resolve by
+  source path.
+- Drops the README's remote badge images from the site's copy.
+- Gives a page without a `description` one from its first paragraph.
 """
 
 import re

@@ -56,7 +56,7 @@ def test_the_limit_counts_bytes_not_characters(client):
 
 
 def test_the_limit_also_covers_the_agent_surface():
-    """MCP llama a db directamente: el guard tiene que estar donde ambos caminos convergen."""
+    """MCP calls db directly: the guard must sit where both paths meet."""
     try:
         db.create_page(1, 1, "T", _page_of(db.MAX_CONTENT_BYTES + 1))
     except ValueError as exc:

@@ -1,11 +1,7 @@
-"""Fixtures shared by the whole suite.
+"""Fixtures shared by the whole suite: one database per test and `DATA_DIR` on `tmp_path`.
 
-One isolated database per test (CREATE DATABASE / DROP DATABASE), and `DATA_DIR` on
-`tmp_path` so the page git repo and the uploads are isolated too.
-
-The tests bring their own Postgres: with `TEST_DATABASE_URL` unset, conftest starts a
-`doction-test-pg` container with its datadir in tmpfs on loopback port 55432, so the
-suite does not depend on the dev compose. Cleanup: `docker rm -f doction-test-pg`.
+With `TEST_DATABASE_URL` unset, a `doction-test-pg` container (tmpfs, 127.0.0.1:55432) is
+started. Cleanup: `docker rm -f doction-test-pg`.
 """
 
 import importlib
@@ -90,7 +86,7 @@ def admin_database_url() -> str:
 
 @pytest.fixture()
 def main_module(tmp_path, monkeypatch, admin_database_url):
-    """App fresca: base Postgres aislada (una por test) + DATA_DIR en tmp_path."""
+    """Fresh app: an isolated Postgres database per test and DATA_DIR in tmp_path."""
     db_name = f"doction_test_{uuid.uuid4().hex[:16]}"
     with psycopg.connect(admin_database_url, autocommit=True) as admin:
         admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))

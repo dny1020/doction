@@ -61,7 +61,7 @@ def test_passes_on_the_real_tree(tmp_path):
 def test_unreachable_api_skips_loudly_instead_of_failing(tmp_path):
     r = _run(_tree(tmp_path))
     assert r.returncode == 0
-    # Un skip silencioso reproduce el fallo que el check existe para cazar.
+    # A silent skip would reproduce the failure the check exists to catch.
     assert "SKIPPED" in r.stdout
 
 

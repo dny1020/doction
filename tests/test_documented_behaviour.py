@@ -1,10 +1,6 @@
-"""Holds the user documentation to what the code actually does.
+"""Holds `docs/search.md` and `docs/tags-and-metadata.md` to what the code does.
 
-Every assertion mirrors a claim in `docs/search.md` or `docs/tags-and-metadata.md`, including
-the surprising ones — a query has no syntax, the metadata block is not YAML. When one fails,
-the change that broke it made the documentation untrue, and the message says which page to fix.
-
-These read only the code, so they run in the stripped Docker `test` stage like any other test.
+A failure names the page whose claim became untrue.
 """
 
 from app import meta
