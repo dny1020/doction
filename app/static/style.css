@@ -1,26 +1,8 @@
-/* ── Tipografía ──────────────────────────────────────────────────────────────
-   Tres familias con papeles estrictos (DESIGN.md §3), todas autohospedadas:
-   doction se sirve en LAN, en VPN y a veces sin salida a internet, así que una
-   petición a un CDN fallaría justo donde más se usa.
-
-     Manrope           navegación, cuerpo, formularios, botones, tablas, controles.
-     Instrument Serif  solo títulos de página y encabezados de documento.
-     JetBrains Mono    código, rutas, atajos, marcas de tiempo, metadatos.
-
-   Esa última regla es la que hace que esto se lea como documentación y no como
-   una aplicación con contenido dentro: un slug, una etiqueta, una ruta de
-   sección o una fecha se reconocen sin leerlos.
-
-   Solo se vendorizan las caras que se pintan: Manrope en 400/500/600 porque §3
-   pide 400 para texto, 500 para controles y navegación y 600 para encabezados de
-   interfaz; la serif en un solo peso; la mono en 400 y 500. Ninguna cursiva.
-
-   Inter NO se vendoriza aunque §3 la nombre como respaldo. Vendorizar dos caras
-   de interfaz es pagar dos veces por un caso que no ocurre: ambas vendrían del
-   mismo origen, así que si una no carga la otra tampoco. El respaldo real es
-   `system-ui`, que es de la misma clase y siempre está.
-
-   font-display: swap — texto legible desde el primer pintado. */
+/* ── Typography ───────────────────────────────────────────────────────────────
+   Three self-hosted families (DESIGN.md §3): doction runs on LANs and VPNs, often
+   with no route to a CDN. Only the painted faces are vendored; no italics.
+   Inter is not vendored: it would come from the same origin, so `system-ui` is
+   the real fallback. */
 @font-face {
   font-family: 'Manrope';
   font-style: normal;
@@ -143,13 +125,10 @@
 }
 
 /* === Light tokens ========================================================= */
-/* Todo el color en oklch, con los valores de DESIGN.md §2 copiados tal cual salvo
-   donde una medida lo impide. Cuando eso pasa se conserva el tono y el papel del
-   documento y se mueve la luminosidad hasta que cumple, y la corrección queda
-   escrita de vuelta en el documento. Un valor especificado dice una intención;
-   una ratio medida dice quién puede usar el resultado. */
+/* Colours are DESIGN.md §2 in oklch. Where a value fails its contrast target,
+   the hue is kept and the lightness moved; the note says so. */
 :root {
-  /* Superficies — papel técnico cálido. */
+  /* Surfaces: warm technical paper. */
   --background:     oklch(0.965 0.012 94);
   --surface:        oklch(0.982 0.008 92);
   --surface-raised: oklch(0.994 0.004 90);
@@ -157,72 +136,61 @@
   --surface-inset:  oklch(0.908 0.020 91);
 
 
-  /* Tinta: verde oscuro, no azul. Las ratios son contra la superficie más
-     desfavorable en la que la tinta aparece, no contra la página. */
-  --ink:         oklch(0.245 0.030 151);  /* 15.00:1 */
+  /* Ink: dark green, not blue. */
+  --ink:         oklch(0.245 0.030 151);
   --ink-strong:  oklch(0.185 0.026 150);
-  --ink-muted:   oklch(0.445 0.025 151);  /*  7.01:1 */
-  /* Corregido: el documento da 0.590, que mide 3.80:1 y este nivel se usa para
-     texto en 42 sitios. */
-  --ink-subtle:  oklch(0.501 0.020 151);  /*  4.50:1 */
+  --ink-muted:   oklch(0.445 0.025 151);
+  /* Corrected from 0.590, which fails 4.5:1 for text. */
+  --ink-subtle:  oklch(0.501 0.020 151);
   --ink-on-green:    oklch(0.982 0.008 92);
-  /* La tinta sobre el color de identidad del avatar, que no gira con el tema. */
+  /* Ink on the avatar's identity colour, which does not follow the theme. */
   --ink-on-identity: oklch(0.982 0.008 92);
 
-  /* Verde funcional — lo que se pulsa y lo que se lee. */
-  --green:       oklch(0.365 0.055 151);  /*  9.69:1 */
+  /* Functional green: what you click and what you read. */
+  --green:       oklch(0.365 0.055 151);
   --green-hover: oklch(0.315 0.052 151);
   --green-press: oklch(0.315 0.052 151);
   --green-soft:  oklch(0.915 0.030 151);
-  /* Corregido: el documento da alfa 0.13, que compone a 1.24:1. Un indicador de
-     foco necesita 3:1, y este anillo ya se subió una vez por esta misma razón. */
-  --green-ring:  oklch(0.365 0.055 151 / 0.60);  /*  3.03:1 */
+  /* Corrected from alpha 0.13, which fails the 3:1 a focus ring needs. */
+  --green-ring:  oklch(0.365 0.055 151 / 0.60);
 
-  /* Naranja: señal, no color dominante. Se parte por consecuencia — el primero
-     decora y puede no verse, el segundo señala algo y por eso mide. */
-  --orange:       oklch(0.635 0.155 52);   /* decoración */
-  --orange-ink:   oklch(0.515 0.133 52);   /*  4.50:1 — croma 0.155 no llega en ningún nivel */
+  /* Orange is a signal. The first decorates; the second informs, so it must pass 4.5:1. */
+  --orange:       oklch(0.635 0.155 52);   /* decoration */
+  --orange-ink:   oklch(0.515 0.133 52);   /* chroma 0.155 cannot reach 4.5:1 at any lightness */
 
-  /* Líneas. La decorativa puede no verse; la de control tiene que verse. */
+  /* Lines: decorative ones may fade; control boundaries must be seen. */
   --border-subtle:  oklch(0.875 0.018 90);
-  /* Corregido: el documento da 0.818, que mide 1.64:1 y esta línea delimita 16
-     controles. */
-  --border-default: oklch(0.600 0.024 90);  /*  3.00:1 */
+  /* Corrected from 0.818, which fails 3:1 as a control boundary. */
+  --border-default: oklch(0.600 0.024 90);
 
-  /* Estado. Corregido: el documento da 0.590, que mide 4.20:1 sobre texto. */
-  --danger:      oklch(0.525 0.185 28);   /*  4.51:1 */
-  --danger-soft: oklch(0.911 0.046 28);   /* tinta encima 12.15:1 */
-  --ok-soft:     oklch(0.981 0.030 148);  /* tinta encima 15.37:1 */
+  /* State. Corrected from 0.590, which fails 4.5:1 for text. */
+  --danger:      oklch(0.525 0.185 28);
+  --danger-soft: oklch(0.911 0.046 28);
+  --ok-soft:     oklch(0.981 0.030 148);
 
-  /* Mezclas precalculadas. §9 y §11 las escriben con color-mix(), que Safari
-     15.4-16.1 rechaza y falla en silencio al valor inicial: entradas y avisos
-     transparentes. Aquí van planas, que además las hace medibles. */
-  --callout-bg: oklch(0.960 0.022 63.2);  /* tinta 14.26:1, filete naranja 3.21:1 */
-  --input-bg:   oklch(0.987 0.007 97.3);  /* tinta 15.49:1, borde 3.80:1 */
+  /* Pre-mixed, not color-mix(): Safari 15.4–16.1 rejects it silently. */
+  --callout-bg: oklch(0.960 0.022 63.2);
+  --input-bg:   oklch(0.987 0.007 97.3);
 
-  /* Brillo interior de la losa de §9. */
+  /* Inner sheen of the code slab (§9). */
   --code-sheen:     oklch(1 0 0 / 0.045);
 
-  /* Velo de lo que está delante: cajón móvil, modales y paleta de comandos. */
+  /* Scrim behind the mobile drawer, modals and the command palette. */
   --scrim: oklch(0.200 0.020 150 / 0.45);
 
-  /* Código en línea: verde sobre verde tenue. Es tipografía dentro de una frase. */
+  /* Inline code: green on faint green. */
   --code-inline-bg:     oklch(0.915 0.030 151);
   --code-inline-border: oklch(0.870 0.035 151);
 
-  /* La losa del bloque. §2 le da valor propio por tema, así que vuelve a seguir
-     al tema: en la 009 era una sola superficie en ambos. */
+  /* The code slab has its own value per theme (§2). */
   --code-bg:        oklch(0.205 0.024 151);
   --code-text:      oklch(0.930 0.018 96);
   --code-muted:     oklch(0.690 0.025 120);
   --code-green:     oklch(0.760 0.110 142);
   --code-orange:    oklch(0.780 0.130 61);
 
-  /* Radios — DESIGN.md §6. Estándar de interfaz 4px; código 6px; modales 8px.
-     `--radius-xl` y `--radius-2xl` desaparecen: el documento tope en 8px, así que
-     lo que estaba en 12 y 14 baja al escalón grande. La píldora sobrevive solo en
-     las tres cosas redondas de verdad (avatares y puntos de tema), que es la
-     excepción que §6 permite. */
+  /* Radii (§6): 4px interface, 6px code, 8px modals. xl/2xl alias the 8px cap;
+     the pill is only for avatars and theme dots. */
   --radius-xs:   2px;
   --radius-sm:   4px;
   --radius-md:   6px;
@@ -231,77 +199,55 @@
   --radius-2xl:  var(--radius-lg);
   --radius-pill: 999px;
 
-  /* Sombras — DESIGN.md §6: solo para lo que flota. Una superficie que se apoya
-     en la página lleva línea, no sombra. */
+  /* Shadows (§6) are only for what floats. */
   --shadow-1: 0 1px 2px oklch(0.20 0.02 150 / 0.05);
   --shadow-2: 0 4px 14px oklch(0.20 0.02 150 / 0.07);
   --shadow-3: 0 12px 32px oklch(0.20 0.02 150 / 0.10);
-  /* Cuatro escalones colapsan en tres: lo mínimo, lo elevado y lo modal. */
+  /* Four steps collapse into three: minimal, raised and modal. */
   --shadow-xs: var(--shadow-1);
   --shadow-sm: var(--shadow-1);
   --shadow-md: var(--shadow-2);
   --shadow-lg: var(--shadow-3);
 
-  /* Espaciado — base de 4px de §5, más un escalón óptico por debajo que el
-     documento no nombra: hay 17 sitios con separaciones de 2px bajo texto de
-     11 y 12px, y subirlos a 4 engorda cada insignia y cada marca en línea. */
+  /* Spacing (§5) on a 4px base, plus a 2px optical step for gaps under 11–12px text. */
   --space-0:  2px;
   --space-1:  4px;   --space-2:  8px;   --space-3: 12px;  --space-4: 16px;
   --space-5: 20px;   --space-6: 24px;   --space-8: 32px;
   --space-12: 48px;  --space-16: 64px;  --space-20: 80px;  --space-24: 96px;
 
-  /* Ancho de la barra de desplazamiento propia. No es espaciado ni radio: es la
-     geometría de un control, y por eso tiene nombre propio. */
+  /* Width of the custom scrollbar. */
   --scrollbar-width: 8px;
-  /* Dos escalones que el ritmo de §5 pide y su propia escala no contiene: el aire
-     sobre un H2 (56px) y sobre un H3 (36px). Van aquí en lugar de quedar sueltos
-     en una regla, que es lo que la escala existe para evitar. */
+  /* Air above H2 (56px) and H3 (36px), which §5 asks for. */
   --space-7:  28px;
   --space-9:  36px;
   --space-14: 56px;
 
-  /* === Chrome — la navegación es otro material ==========================
-     El sidebar no es papel: es una región de tinta verde, en los dos temas.
-     Estos son sus primitivos; el mapeo a los nombres de siempre está en
-     `.sidebar`, escrito una vez y sin saber qué tema hay puesto.
-
-     Todas las ratios son contra el peor de los CUATRO suelos que usa el
-     chrome —claro y oscuro, base y hover—, no contra uno solo.
-
-     El chrome es MÁS OSCURO que el documento, también en tema oscuro. Con los
-     valores de §8 quedaba más claro que el lienzo, así que en oscuro el panel
-     destacaba en vez de recederse y el conjunto se leía como una sola masa
-     verde. El chrome recede: es el marco, no el contenido. */
-  /* §8: the floor is a vertical gradient. The active row has no surface of its
-     own since app-landing-parity, so the ratios above were measured against more
-     floors than now exist and still hold. */
+  /* === Chrome: navigation is another material ===============================
+   The sidebar is dark green ink in both themes; `.sidebar` maps these onto the
+   usual token names. It is darker than the canvas in both themes so it recedes. */
+  /* §8: the floor is a vertical gradient; the active row has no surface of its own. */
   --nav-bg:        oklch(0.145 0.028 151);
   --nav-bg-end:    oklch(0.115 0.022 151);
   --nav-hover:     oklch(0.185 0.030 151);
-  /* El canto del panel se mide contra el LIENZO, no contra su propio suelo. */
-  --nav-edge:      oklch(0.330 0.030 151);  /* 10.90:1 en claro, 1.58:1 en oscuro */
+  /* The panel edge is measured against the canvas, not the chrome. */
+  --nav-edge:      oklch(0.330 0.030 151);
 
-  --nav-ink:            oklch(0.928 0.014 93);   /* 11.37:1 */
-  /* El texto del elemento activo. Sin remapear aquí, `--ink-strong` resolvía a
-     la tinta OSCURA del lienzo sobre el fondo oscuro del activo: 1.32:1. Es el
-     mismo fallo que dejó el activo a 1.06:1 en la ronda anterior, y solo se ve
-     midiendo. */
-  --nav-ink-strong:     oklch(0.975 0.007 93);   /* 13.08:1 */
-  --nav-ink-muted:      oklch(0.720 0.018 100);  /*  5.68:1 */
-  --nav-ink-subtle:     oklch(0.659 0.018 110);  /*  4.52:1 */
+  --nav-ink:            oklch(0.928 0.014 93);
+  /* Active row text: without this, --ink-strong resolves to the canvas's dark ink. */
+  --nav-ink-strong:     oklch(0.975 0.007 93);
+  --nav-ink-muted:      oklch(0.720 0.018 100);
+  --nav-ink-subtle:     oklch(0.659 0.018 110);
   --nav-border-subtle:  oklch(0.290 0.028 151);
-  --nav-border-default: oklch(0.556 0.025 150);  /*  3.01:1 */
+  --nav-border-default: oklch(0.556 0.025 150);
 
-  --nav-green:        oklch(0.745 0.090 145);  /*  6.42:1 */
+  --nav-green:        oklch(0.745 0.090 145);
   --nav-green-hover:  oklch(0.805 0.090 145);
   --nav-green-press:  oklch(0.805 0.090 145);
   --nav-green-soft:   oklch(0.290 0.050 149);
-  --nav-green-ring:   oklch(0.745 0.090 145 / 0.55);  /*  3.00:1 */
+  --nav-green-ring:   oklch(0.745 0.090 145 / 0.55);
   --nav-ink-on-green: oklch(0.185 0.024 151);
 
-  /* El naranja del chrome solo hace de filete en el elemento activo, así que le
-     basta el 3:1 de una marca que informa: 3.88:1 contra los cuatro suelos. Ya
-     no hay tinta sobre naranja: dejó de ser un relleno. */
+  /* Chrome orange is only a rule on the active item, so 3:1 is enough. */
   --nav-orange:         oklch(0.635 0.155 52);
   --nav-danger:         oklch(0.700 0.150 28);
   --nav-danger-soft:    oklch(0.280 0.070 28);
@@ -311,14 +257,10 @@
   --nav-shadow-md: 0 4px 16px oklch(0 0 0 / 0.42);
   --nav-shadow-lg: 0 12px 32px oklch(0 0 0 / 0.55);
 
-  /* === Vuelta al lienzo ==================================================
-     Un `<dialog>` declarado dentro del sidebar hereda su paleta, pero
-     `showModal()` lo pinta centrado sobre el lienzo claro. Estos alias
-     existen para devolvérsela sin repetir un solo literal.
-
-     OJO: dependen de que `[data-theme="dark"]` siga DESPUÉS de `:root` en
-     este archivo. Misma especificidad, gana el orden. Si alguien mueve los
-     bloques, estos alias se congelan en claro sin avisar. */
+  /* === Back to the canvas ====================================================
+   A <dialog> declared inside the sidebar inherits its palette, but showModal()
+   paints it over the canvas. These aliases give the canvas palette back.
+   They depend on [data-theme="dark"] coming AFTER :root in this file. */
   --canvas-background:             var(--background);
   --canvas-surface:        var(--surface);
   --canvas-surface-muted: var(--surface-muted);
@@ -343,57 +285,48 @@
   --canvas-shadow-md:      var(--shadow-md);
   --canvas-shadow-lg:      var(--shadow-lg);
 
-  /* Layout — DESIGN.md §4. El documento nunca queda pegado al borde del panel. */
+  /* Layout (§4). */
   --sidebar-width:       280px;
   --toc-width:           220px;
   --topbar-height:       56px;
-  /* En móvil el safe-area hace la barra más alta, y lo que se pega debajo lo lee. */
+  /* On mobile the safe area makes the bar taller; what sticks under it reads this. */
   --topbar-height-mobile: calc(44px + env(safe-area-inset-top));
   --document-max-width:   760px;
   --document-gutter:      72px;
   --shell-max-width:     1720px;
   --editor-measure:      1600px;
 
-  /* Movimiento — §13. */
+  /* Motion (§13). */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --duration-fast: 120ms;
   --duration-base: 180ms;
   --duration-slow: 240ms;
 
-  /* Tipografía — §3. Tres familias, tres papeles. El respaldo de cada una es de su
-     misma clase: si una cara no carga, el texto sigue leyéndose como lo que es. */
+  /* Typography (§3). Each fallback is of the same class as its face. */
   --font-ui:      'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   --font-mono:    'JetBrains Mono', ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
-  /* Alias por papel, para que una regla diga por qué usa la fuente y no cuál.
-     `data` es todo lo que es un valor —slug, etiqueta, ruta, fecha, contador— y
-     `code` es código. Comparten cara; separarlos deja cambiar una sin la otra. */
+  /* Role aliases: `data` is any value (slug, tag, path, date, count), `code` is code. */
   --font-data:    var(--font-mono);
 
-  /* Escala de §3. Baja respecto a la anterior: la interfaz va a 14px y la
-     navegación a 13, y el cuerpo del documento sube a 16 con 1.78 de interlínea.
-     El suelo son 11px, que es el tamaño de los metadatos en la cara de datos. */
-  --text-xs:   0.6875rem;  /* 11px — metadatos */
+  /* Scale (§3): 14px interface, 13px navigation, 16px document body, 11px floor. */
+  --text-xs:   0.6875rem;  /* 11px — metadata */
   --text-sm:   0.75rem;    /* 12px */
-  --text-base: 0.875rem;   /* 14px — interfaz */
-  --text-md:   1rem;       /* 16px — cuerpo del documento */
+  --text-base: 0.875rem;   /* 14px — interface */
+  --text-md:   1rem;       /* 16px — document body */
   --text-lg:   1.125rem;   /* 18px */
   --text-xl:   1.375rem;   /* 22px — H2 */
   --text-2xl:  1.75rem;    /* 28px */
-  --text-3xl:  2.25rem;    /* 36px — H1 del documento */
-  --text-4xl:  3.25rem;    /* 52px — título de página */
-  /* La navegación tiene su propio escalón: §3 la pone en 13px, entre la interfaz
-     y el texto pequeño, y ningún paso de la escala cae ahí. */
+  --text-3xl:  2.25rem;    /* 36px — document H1 and page title */
+  --text-4xl:  3.25rem;    /* 52px — landing hero only */
+  /* Navigation has its own 13px step (§3). */
   --text-nav:  0.8125rem;  /* 13px */
 }
 
 /* === Dark tokens ========================================================== */
-/* Carbón cálido de §2, con las mismas correcciones por medida que en claro: se
-   conserva tono y papel, se mueve la luminosidad hasta que cumple. */
+/* Warm charcoal (§2), corrected the same way as the light theme. */
 [data-theme="dark"] {
-  /* Mismo tono que §2, un tercio de croma. Con 0.018-0.023 el carbón se leía
-     verde y, sumado al chrome, la aplicación entera quedaba teñida. El verde se
-     queda donde dice algo: acento, elemento activo, código. */
+  /* A third of §2's chroma: at 0.018–0.023 the whole app read as tinted green. */
   --background:     oklch(0.170 0.006 150);
   --surface:        oklch(0.205 0.007 150);
   --surface-raised: oklch(0.238 0.008 150);
@@ -401,48 +334,43 @@
   --surface-inset:  oklch(0.265 0.008 150);
 
 
-  --ink:         oklch(0.925 0.016 93);   /* 12.18:1 */
+  --ink:         oklch(0.925 0.016 93);
   --ink-strong:  oklch(0.975 0.007 93);
-  --ink-muted:   oklch(0.720 0.018 100);  /*  6.13:1 */
-  /* Corregido: el documento da 0.550, que mide 3.14:1. */
-  --ink-subtle:  oklch(0.639 0.018 110);  /*  4.51:1 */
+  --ink-muted:   oklch(0.720 0.018 100);
+  /* Corrected from 0.550, which fails 4.5:1. */
+  --ink-subtle:  oklch(0.639 0.018 110);
   --ink-on-green:    oklch(0.170 0.018 150);
   --ink-on-identity: oklch(0.982 0.008 92);
 
-  --green:       oklch(0.745 0.090 145);  /*  6.94:1 */
+  --green:       oklch(0.745 0.090 145);
   --green-hover: oklch(0.805 0.090 145);
   --green-press: oklch(0.805 0.090 145);
   --green-soft:  oklch(0.290 0.050 149);
-  /* Corregido igual que en claro: 0.13 no llega a 3:1 en ningún tema. */
-  --green-ring:  oklch(0.745 0.090 145 / 0.53);  /*  3.00:1 */
+  /* Corrected as in light: alpha 0.13 fails 3:1 in both themes. */
+  --green-ring:  oklch(0.745 0.090 145 / 0.53);
 
-  --orange:       oklch(0.735 0.135 57);   /*  6.23:1 */
-  /* Sobre carbón el naranja llega de sobra, así que un solo valor cubre los dos
-     papeles. La regla no cambia entre temas; cambian los tonos que hacen falta. */
-  --orange-ink:   oklch(0.735 0.135 57);   /*  6.23:1 */
+  --orange:       oklch(0.735 0.135 57);
+  /* On charcoal the orange passes as text, so one value covers both roles. */
+  --orange-ink:   oklch(0.735 0.135 57);
 
   --border-subtle:  oklch(0.285 0.020 150);
-  /* Corregido: el documento da 0.345, que mide 1.33:1 y esta línea delimita
-     controles. */
-  --border-default: oklch(0.538 0.025 150);  /*  3.01:1 */
+  /* Corrected from 0.345, which fails 3:1 as a control boundary. */
+  --border-default: oklch(0.538 0.025 150);
 
-  --danger:      oklch(0.700 0.150 28);   /* medido abajo */
+  --danger:      oklch(0.700 0.150 28);
   --danger-soft: oklch(0.280 0.070 28);
   --ok-soft:     oklch(0.270 0.050 148);
 
-  /* Derivados igual que en claro, componiendo la mezcla de §9 y §11 sobre la
-     superficie de este tema. El primero estaba puesto a ojo y salía marrón
-     saturado, que es justo la estética que §14 prohíbe. */
-  --callout-bg: oklch(0.248 0.030 72.5);  /* tinta 12.95:1, filete 6.63:1 */
-  --input-bg:   oklch(0.222 0.021 150.5); /* tinta 13.74:1, borde 3.40:1 */
+  /* Pre-mixed as in light, composed over this theme's surface. */
+  --callout-bg: oklch(0.248 0.030 72.5);
+  --input-bg:   oklch(0.222 0.021 150.5);
 
   --scrim: oklch(0.100 0.010 150 / 0.62);
 
   --code-inline-bg:     oklch(0.290 0.050 149);
   --code-inline-border: oklch(0.345 0.045 149);
 
-  /* La losa sí sigue al tema: §2 le da valor propio en cada uno. Contra este
-     lienzo separa 1.07:1, así que el canto lo lleva el borde de §9. */
+  /* Against this canvas the slab barely separates, so §9's border carries the edge. */
   --code-bg:        oklch(0.115 0.014 150);
   --code-text:      oklch(0.925 0.016 93);
   --code-muted:     oklch(0.620 0.025 113);
@@ -454,14 +382,9 @@
   --shadow-md: 0 4px 16px oklch(0 0 0 / 0.35);
   --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.5);
 
-  /* El chrome NO tiene variante oscura. §8 da un solo degradado y el sidebar ya
-     es tinta verde oscura en los dos temas: eso es lo que significa que sea otro
-     material y no otra superficie del tema. Contra el lienzo oscuro el extremo
-     superior separa y el canto lo lleva --nav-edge a 1.58:1.
-
-     El suelo no puede aclararse: el disco del avatar toma su color de un `style`
-     inline —no de un token— y sobre el extremo más claro mide 3.16:1, justo por
-     encima del límite de un borde de control. */
+  /* The chrome has no dark variant: it is the same ink in both themes (§8).
+     Its floor cannot be lightened: the avatar's inline colour is a control
+     boundary that would drop below 3:1. */
 }
 
 /* === Theme transition on key surfaces ==================================== */
@@ -493,19 +416,12 @@ body {
 }
 a { color: inherit; }
 
-/* Selección de texto con el tono de acento. */
 ::selection { background: var(--green-soft); color: var(--green-press); }
 
-/* === Piezas compartidas =================================================== */
-/* Siete piezas pequeñas, sacadas del estilo que ya usaba Ajustes en vez de
-   inventarlo. Cada una hace una cosa y se componen entre sí; ninguna crece en
-   variantes para cubrir un caso que solo tiene una pantalla.
-   Consistencia no es uniformidad: una pantalla puede componerlas como quiera —
-   el lector y los ajustes no se parecen ni deben —, lo que comparten es el
-   vocabulario: qué superficie, qué tinta, qué separación, qué foco. */
+/* === Shared pieces ======================================================== */
+/* Seven small pieces that compose; none grows variants for a single screen. */
 
-/* 1. Card — una superficie que se apoya en la página. Lleva línea, no sombra:
-      la sombra es para lo que flota de verdad, y si todo flota nada lo hace. */
+/* 1. Card: a surface resting on the page. A line, not a shadow. */
 .card {
   background: var(--surface);
   border: 1px solid var(--border-subtle);
@@ -521,16 +437,13 @@ a { color: inherit; }
   color: var(--ink);
 }
 
-/* La frase bajo el título. Explica de qué va la tarjeta y se calla. */
 .card-desc {
   margin: 0 0 var(--space-4);
   color: var(--ink-subtle);
   font-size: var(--text-base);
 }
 
-/* 2. Eyebrow — la etiqueta pequeña que encabeza un grupo. Antes eran cuatro:
-      dos tamaños distintos dentro de la propia pantalla de Ajustes, más las de
-      la barra lateral y las subpáginas. */
+/* 2. Eyebrow: the small label heading a group. */
 .eyebrow {
   margin: 0 0 var(--space-2);
   font-family: var(--font-ui);
@@ -541,7 +454,7 @@ a { color: inherit; }
   color: var(--ink-subtle);
 }
 
-/* Un rótulo atado a un control es el mismo rótulo, con menos aire debajo. */
+/* A label tied to a control: same label, less air below. */
 .field-label {
   display: block;
   margin-bottom: var(--space-1);
@@ -553,17 +466,14 @@ a { color: inherit; }
   color: var(--ink-subtle);
 }
 
-/* 3. Rows / Row — una lista de cosas y una cosa dentro de ella. La separación
-      es del contenedor y no la vuelve a decidir cada fila; la última no cierra
-      con línea porque el borde de la tarjeta ya cierra. */
+/* 3. Rows / Row: the container owns separation; the card's border closes the last row. */
 .rows {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-/* `flex-wrap` porque las filas que esto sustituye lo tenían: en una pantalla
-   estrecha las acciones bajan bajo el nombre en vez de aplastarlo. */
+/* Actions wrap under the name on narrow screens instead of squeezing it. */
 .row {
   display: flex;
   align-items: center;
@@ -575,9 +485,6 @@ a { color: inherit; }
 
 .rows--divided > * + * { border-top: 1px solid var(--border-subtle); }
 
-/* Lo que da nombre a la fila: ocupa lo que sobra y no empuja a las acciones.
-   Es una columna, así que sirve igual para un nombre suelto y para un nombre con
-   su dato debajo — que es la otra mitad de las filas de la aplicación. */
 .row-name {
   flex: 1;
   min-width: 0;
@@ -585,12 +492,10 @@ a { color: inherit; }
   flex-direction: column;
   gap: var(--space-0);
   color: var(--ink);
-  /* Un correo o una URL no tienen espacios donde partir: sin esto empujan la
-     fila a lo ancho en cuanto la pantalla se estrecha. */
+  /* An email or URL has no spaces to break at. */
   overflow-wrap: anywhere;
 }
 
-/* El nombre en sí, cuando la fila lleva además un dato debajo. */
 .row-title {
   color: var(--ink);
   font-weight: 500;
@@ -612,8 +517,7 @@ a { color: inherit; }
   flex-shrink: 0;
 }
 
-/* 4. Meta — una fecha, un conteo, un estado, un rol, un slug. Cara de datos y
-      cifras de ancho fijo, para que una columna de números se lea como columna. */
+/* 4. Meta: data face with tabular figures, so a column of numbers reads as one. */
 .meta {
   margin: 0;
   color: var(--ink-subtle);
@@ -623,7 +527,7 @@ a { color: inherit; }
 }
 .meta--strong { color: var(--ink); }
 
-/* 5. Field — un campo de texto. Uno, no siete. */
+/* 5. Field: one text input style. */
 .field {
   width: 100%;
   min-height: 36px;
@@ -643,8 +547,7 @@ a { color: inherit; }
   box-shadow: 0 0 0 3px var(--green-ring);
 }
 
-/* El campo desnudo: el textarea del editor, el título, la entrada de la paleta.
-   Siguen siendo el mismo control, sin la caja. */
+/* The bare field: editor textarea, title, palette input. */
 .field--bare {
   min-height: 0;
   padding: 0;
@@ -656,10 +559,7 @@ a { color: inherit; }
 
 
 /* === Layout =============================================================== */
-/* El tope de §4 es para la COLUMNA de lectura, no para el shell entero. Puesto
-   aquí centraba también el sidebar, que en una pantalla ancha quedaba despegado
-   del borde con el fondo asomando a su izquierda. Un panel de navegación se
-   ancla al borde de la ventana; lo que se limita es el contenido. */
+/* §4's width cap applies to the reading column, not the shell: the sidebar stays on the edge. */
 .layout {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -667,20 +567,9 @@ a { color: inherit; }
 }
 
 /* === Sidebar ============================================================== */
-/* El chrome cambia de material redefiniendo los NOMBRES que las reglas de
-   dentro ya leen. `var()` se resuelve en el elemento que hace match, con las
-   propiedades que ese elemento hereda —no donde está escrita la regla—, así que
-   el campo de búsqueda, el selector de workspace, el árbol, los botones, las
-   filas, los menús y los toggles se re-tematizan solos, sin tocar ni una.
-   Por lo mismo, las listas de selectores transversales (foco, presión, puntero
-   grueso) tampoco hacen falta tocarlas.
-
-   Van los diecisiete: los cuatro obvios y los que no se ven hasta que fallan.
-   `--green-press` es el texto del elemento activo del árbol: sin él caía al
-   verde del lienzo y medía 1.06:1 sobre este suelo, invisible. `--green-ring`
-   es el foco de teclado de todo lo que hay aquí dentro. Las sombras claras del
-   lienzo no existen sobre tinta oscura, así que los menús flotantes perdían el
-   relieve y se leían como agujeros. */
+/* The chrome changes material by redefining the token NAMES its rules already
+   read. var() resolves at the matched element, so everything inside re-themes
+   with no rule of its own. --green-press is the active tree item's text. */
 .sidebar {
   --background:             var(--nav-bg);
   --surface:        var(--nav-bg);
@@ -713,9 +602,6 @@ a { color: inherit; }
   --shadow-lg: var(--nav-shadow-lg);
 
   width: var(--sidebar-width);
-  /* §8: el chrome es un degradado vertical, no un plano. Las tintas de arriba
-     están derivadas contra los DOS extremos y contra el fondo del elemento
-     activo compuesto sobre ellos, que son los cuatro suelos reales. */
   background: linear-gradient(180deg, var(--nav-bg) 0%, var(--nav-bg-end) 100%);
   border-right: 1px solid var(--nav-edge);
   display: flex;
@@ -753,7 +639,6 @@ a { color: inherit; }
 }
 .icon-btn:hover { background: var(--surface-inset); color: var(--ink); }
 
-/* Back-compat: old sidebar-toggle class */
 .sidebar-toggle {
   font: inherit;
   line-height: 1;
@@ -773,13 +658,7 @@ a { color: inherit; }
 .sidebar-toggle:hover { background: var(--surface-inset); color: var(--ink); }
 .sidebar-toggle .lucide { display: block; }
 
-/* Este botón flotaba sobre el lienzo para poder desplegar el sidebar cuando no
-   había ningún otro sitio donde ponerlo: el comentario de `.conn` recoge esa
-   misma restricción. Desde que la barra superior se ve a todos los anchos hay
-   un sitio, y su botón hace exactamente esto, así que al plegar aparecían dos
-   controles para una sola acción.
-   El nodo lo sigue pintando el shell en todos los anchos; ocultarlo aquí es
-   suficiente y evita tocar el JSX. */
+/* The top bar's toggle does this at every width; the floating one would duplicate it. */
 .sidebar-toggle--show { display: none !important; }
 
 /* === Collapsed state ====================================================== */
@@ -788,7 +667,6 @@ a { color: inherit; }
   opacity: 0;
   pointer-events: none;
 }
-/* (Ya no se muestra al plegar: lo hace el botón de la barra superior.) */
 .sidebar-collapsed .content { padding-left: var(--space-12); }
 
 .sidebar-overlay {
@@ -818,8 +696,7 @@ a { color: inherit; }
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  /* The brand mark is green on every surface — sidebar, favicon, installable-app icons
-     and the documentation site (DESIGN.md §8). On the chrome it measures 6.42:1. */
+  /* The brand mark is green on every surface (DESIGN.md §8). */
   color: var(--nav-green);
 }
 
@@ -881,7 +758,6 @@ a { color: inherit; }
   pointer-events: auto;
 }
 
-/* La lista se desplaza si hay muchos workspaces (10+). */
 .ws-menu-list {
   display: flex;
   flex-direction: column;
@@ -890,8 +766,7 @@ a { color: inherit; }
   padding: var(--space-1);
 }
 
-/* Reset completo de <button>: en la SPA cada opción es un botón, y sin esto el
-   navegador pinta su botón nativo (fondo blanco, borde biselado) dentro del menú. */
+/* Full <button> reset: each option is a button and would paint natively. */
 .ws-option {
   display: flex;
   align-items: center;
@@ -988,7 +863,7 @@ a { color: inherit; }
   color: var(--ink);
 }
 .search-field input::placeholder { color: var(--ink-subtle); }
-/* La X de limpiar: botón sin CSS propio heredaba el botón nativo del navegador. */
+/* The clear button: without this it paints as a native button. */
 .search-clear {
   display: inline-flex;
   align-items: center;
@@ -1005,21 +880,15 @@ a { color: inherit; }
 .search-clear:hover { background: var(--surface-inset); color: var(--ink); }
 
 
-/* El rótulo de la barra lateral necesita el mismo margen lateral que sus
-   hermanos: la pieza compartida no lo trae porque los demás rótulos viven dentro
-   de contenedores que ya lo ponen, y aquí no. Posicionar es de la pantalla; el
-   rótulo sigue siendo el mismo. */
+/* The sidebar's label needs the side margin its siblings get from their containers. */
 .sidebar > .eyebrow {
   padding: var(--space-2) var(--space-4) var(--space-1);
   flex-shrink: 0;
 }
 
 /* === Search results ======================================================= */
-/* Lo que queda propio de aquí es solo el aire de arriba: la lista, la fila y el
-   enlace ya los define `.rows`. */
 #search-results .results { margin-top: var(--space-2); }
-/* El fragmento de un resultado y la frase de una mención son lo mismo: texto
-   citado, con lo que coincidió marcado. */
+/* A result snippet and a mention are the same: quoted text with the match marked. */
 .snippet {
   margin: var(--space-1) 0 0;
   font-size: var(--text-sm);
@@ -1034,16 +903,9 @@ a { color: inherit; }
 }
 .no-results { font-size: var(--text-base); margin-top: var(--space-2); color: var(--ink-subtle); }
 
-/* ── Barra de desplazamiento ─────────────────────────────────────────────────
-   La del sistema es la única superficie que no salía del design system: ancha,
-   con su propio gris y sus flechas, y encima con el contraste al revés dentro
-   del chrome oscuro. Se define una vez y la heredan los tres sitios que
-   desplazan —el árbol, el menú de workspaces y el índice—, así que dentro del
-   sidebar se re-tematiza sola como todo lo demás.
-
-   `scrollbar-width`/`scrollbar-color` es el camino estándar; `::-webkit-*` es
-   el respaldo para los motores que aún no lo implementan. Los dos declaran lo
-   mismo, así que ninguno pinta algo distinto del otro. */
+/* ── Scrollbar ────────────────────────────────────────────────────────────────
+   One definition for the tree, the workspace menu and the TOC, so it re-themes
+   inside the sidebar. `scrollbar-*` is the standard; `::-webkit-*` the fallback. */
 .page-list,
 .ws-menu-list,
 .has-toc .toc {
@@ -1064,11 +926,8 @@ a { color: inherit; }
 .ws-menu-list::-webkit-scrollbar-thumb,
 .has-toc .toc::-webkit-scrollbar-thumb {
   background: var(--border-default);
-  /* Redondeado a su propio ancho: una barra de 8px con el radio de un control
-     se vería como una cápsula recortada. */
   border-radius: var(--radius-lg);
-  /* El borde transparente deja el pulgar más fino que la pista y le da aire a
-     los lados sin necesitar un contenedor aparte. */
+  /* A transparent border keeps the thumb thinner than the track. */
   border: 2px solid transparent;
   background-clip: content-box;
 }
@@ -1082,8 +941,7 @@ a { color: inherit; }
 /* === Nav / page list ====================================================== */
 .page-list {
   flex: 1;
-  /* Sin esto un item flex no baja de su altura de contenido, el desbordamiento
-     se escapa a .sidebar y la cabecera y el pie se van con el scroll. */
+  /* Without this a flex item won't shrink below its content, and the head and foot scroll away. */
   min-height: 0;
   overflow-y: auto;
   /* The 44px touch area of each row's ⋯ overhangs the edge; it must not scroll sideways. */
@@ -1106,25 +964,19 @@ a { color: inherit; }
   transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 .page-list a:hover { background: var(--surface-inset); color: var(--ink); }
-/* §8: a 2px green left rule and no surface — the same "you are here" mark as the
-   documentation site. Weight and ink do the rest, so colour never travels alone.
-   Inside .sidebar, --green resolves to the chrome's green. */
+/* §8: a 2px green rule and no surface, as on doction.site; weight and ink carry the rest. */
 .page-list a.active {
   color: var(--ink-strong);
   font-weight: 500;
   box-shadow: inset 2px 0 0 var(--green);
 }
-/* El sangrado por nivel lo pone el arbol (aria-level), no data-depth: la lista
-   plana con sangrado paso a ser jerarquia plegable. Misma escala de 14px por
-   nivel que antes, para que la densidad de la barra no cambie. */
+/* Indent comes from the tree's aria-level: 14px per level. */
 .page-list [aria-level='2'] { padding-left: calc(var(--space-3) + 14px); }
 .page-list [aria-level='3'] { padding-left: calc(var(--space-3) + 28px); }
 .page-list [aria-level='4'] { padding-left: calc(var(--space-3) + 42px); }
 .muted { color: var(--ink-subtle); }
 
-/* Control de plegado de cada rama. Ocupa su hueco tambien en las filas sin hijos
-   (disabled + sin icono) para que todos los titulos del mismo nivel arranquen en
-   la misma columna. */
+/* The twisty keeps its slot on leaf rows so titles of a level line up. */
 .page-row-twisty {
   flex: none;
   width: 16px;
@@ -1167,7 +1019,7 @@ a { color: inherit; }
   padding: 0 var(--space-1);
 }
 
-/* avatar-menu opens upward when in sidebar footer */
+/* The avatar menu opens upward in the sidebar footer. */
 .sidebar-user .avatar-menu {
   top: auto;
   bottom: calc(100% + 6px);
@@ -1321,35 +1173,17 @@ a { color: inherit; }
 
 .content-body {
   flex: 1;
-  /* §4: el contenido arranca a 72px del lateral y el documento nunca queda
-     pegado al borde del panel. */
+  /* §4: content starts 72px from the side. */
   padding: var(--space-16) var(--document-gutter) var(--space-20);
-  /* El shell se limita aquí, no en `.layout`: así el documento deja de crecer en
-     una pantalla ancha y el sidebar sigue pegado al borde. */
+  /* The shell is capped here, not on .layout, so the sidebar stays on the edge. */
   max-width: var(--shell-max-width);
   display: flex;
-  /* §4: el contenido ARRANCA a 72px del lateral. Centrarlo en el hueco haría
-     que el margen izquierdo dependiera del ancho de la ventana. Lo que se
-     centra es el shell entero, a 1720px. */
+  /* Content starts at a fixed 72px; centring it would tie the margin to the window width. */
   justify-content: flex-start;
 }
 
-/* Barra de app: solo en móvil. `sticky` y no `fixed` para que participe en el
-   flujo — así el contenido no necesita padding-top de compensación ni pelearse
-   con el safe-area del PWA. */
-/* Barra superior — §4 la pide a 56px. El nodo ya existía en el DOM a todos los
-   anchos; solo lo ocultaba esta regla, así que mostrarlo es repintar y no
-   estructura nueva.
-
-   Dos cosas se limpian con CSS porque sin JSX no se pueden arreglar de raíz. El
-   botón de la barra solo sabe ABRIR la barra lateral, y en escritorio ya está
-   abierta: es un control que no hace nada, así que se oculta mientras el sidebar
-   esté desplegado. Y el menú ⋯ ofrece Editar, Nueva subpágina e Historial, que
-   son tres de los cuatro botones que el lector ya pinta justo debajo; se oculta
-   esa fila y las acciones viven en la barra, que es donde §4 las quiere.
-   Delete se queda fuera del menú a propósito: destruir no se esconde en un
-   desplegable de tres puntos. Lo que falta para que la barra sea útil de verdad
-   está anotado en DESIGN.md §4. */
+/* sticky, not fixed: it stays in the flow, so content needs no top padding. */
+/* Top bar (§4), at every width. */
 .app-bar {
   display: flex;
   align-items: center;
@@ -1363,13 +1197,7 @@ a { color: inherit; }
   border-bottom: 1px solid var(--border-subtle);
 }
 
-/* El toggle de la barra solo abre; con el sidebar ya abierto no tiene nada que
-   hacer. El de cerrar vive dentro del sidebar y el flotante aparece al colapsar. */
-/* Hijo DIRECTO: el botón ⋯ del lector lleva la misma clase y vive dentro de
-   `.app-bar-actions`, así que un descendiente cualquiera los ocultaba los dos.
-   Con el sidebar desplegado este botón no tiene nada que hacer —solo sabe
-   abrir— y el de cerrar vive dentro del propio panel. Al plegar reaparece, y es
-   el único: el flotante ya no compite con él. */
+/* Direct child only: the reader's ⋯ button shares the class inside .app-bar-actions. The bar's toggle only opens, so it hides while the sidebar is open. */
 html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .app-bar-title {
   font-family: var(--font-ui);
@@ -1404,9 +1232,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   max-width: calc(var(--document-max-width) + var(--toc-width) + var(--space-24));
   display: grid;
   grid-template-columns: 1fr var(--toc-width);
-  /* §4 pide 64px como MÍNIMO. A esa distancia el índice todavía se leía pegado
-     al final del renglón: es texto pequeño y gris junto a texto de lectura, y la
-     única separación entre los dos es el aire. */
+  /* §4 asks for 64px as a minimum; at that distance the TOC read as part of the line. */
   gap: var(--space-24);
   align-items: start;
 }
@@ -1429,9 +1255,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   gap: 0;
 }
 
-/* El índice es secundario por definición: acompaña a la lectura, no la
-   interrumpe. Se queda en tinta terciaria y el filete de reposo es la línea
-   decorativa, no una barra. */
+/* The TOC is secondary: tertiary ink, and a decorative line at rest. */
 .toc-item {
   display: block;
   font-family: var(--font-ui);
@@ -1447,18 +1271,14 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   transition: color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
 .toc-item:hover { color: var(--ink); }
-/* Un solo portador del estado: el filete. Antes lo decían el color del texto y
-   el filete a la vez, que es decirlo dos veces y subir el volumen del índice
-   entero. El texto solo sube a tinta principal, que ya es contraste suficiente
-   para no depender del color. */
+/* One carrier for the active state: the rule. The text only steps up to primary ink. */
 .toc-item.active { color: var(--ink); border-left-color: var(--green); border-left-width: 2px; }
 .toc-h1 { font-weight: 500; }
 .toc-h2 { padding-left: var(--space-4); }
 .toc-h3 { padding-left: var(--space-6); font-size: var(--text-sm); }
 
 @media (max-width: 1120px) {
-  /* Entre 820 y 1120 la barra seguía a ancho completo y sin TOC: el contenido
-     se quedaba estrecho sin ganar nada. */
+  /* Between 820 and 1120px the bar stayed full width with no TOC, narrowing content for nothing. */
   :root { --sidebar-width: 220px; }
 
   .page-wrap.has-toc {
@@ -1469,15 +1289,13 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 }
 
 /* === Page view ============================================================ */
-/* Encabezado del documento — §9. Respira arriba, cierra con una línea abajo, y
-   la franja de metadatos va en la cara de datos al tamaño mínimo de la escala. */
+/* Document header (§9). */
 .page-header {
   padding-bottom: var(--space-6);
   margin-bottom: var(--space-8);
   border-bottom: 1px solid var(--border-subtle);
 }
-/* La ruta de una página es un dato, no una frase: se pone en la cara de datos
-   y deja de competir con el título que va justo debajo. */
+/* A page's path is data, not prose: data face, so it doesn't compete with the title. */
 .breadcrumbs {
   display: flex;
   flex-wrap: wrap;
@@ -1495,8 +1313,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   text-decoration: none;
 }
 .breadcrumbs a:hover { color: var(--green); }
-/* El separador es `aria-hidden`: no dice nada que no diga la propia ruta, así
-   que puede llevar el naranja decorativo sin deberle contraste a nadie. */
+/* The separator is aria-hidden, so it owes no contrast. */
 .breadcrumbs .crumb-sep { color: var(--ink-subtle); }
 .breadcrumbs .crumb-current { color: var(--ink-subtle); font-weight: 500; }
 .page-header h1 {
@@ -1509,9 +1326,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   margin: 0 0 var(--space-4);
   color: var(--ink);
 }
-/* On desktop the other actions live in the top bar. Delete stays in the header on
-   purpose — destroying is never hidden in a menu — and shares the metadata row so
-   it is not a row of its own. */
+/* On desktop the other actions live in the top bar. Delete stays here: destroying is never hidden in a menu. */
 .page-header-foot {
   display: flex;
   flex-wrap: wrap;
@@ -1539,11 +1354,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   font-variant-numeric: tabular-nums;
 }
 
-/* La franja de metadatos del encabezado. Va con ámbito estricto porque `.meta`
-   tiene trece usos —fechas de subpáginas, historial, papelera, ajustes— y tocar
-   la clase pelada pondría una línea bajo todos ellos.
-   Lleva los dos campos que existen de verdad: cuándo se actualizó y quién.
-   Ni propietario ni tiempo de lectura: eso no está en el payload. */
+/* Scoped: .meta has many uses and only the header's gets this treatment. */
 .page-header .meta {
   margin: 0;
   font-family: var(--font-data);
@@ -1574,9 +1385,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 }
 
 
-/* Excepción declarada: una tarjeta que además es un enlace, dentro de una
-   rejilla. Solo cambia el relleno y la respuesta al puntero; superficie, línea y
-   radio siguen siendo los de .card. */
+/* A card that is also a link, in a grid: only padding and hover differ from .card. */
 .subpage-card {
   display: flex;
   align-items: flex-start;
@@ -1712,10 +1521,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 
 /* === Prose (reading view) ================================================= */
 .prose {
-  /* El cuerpo en la cara de texto. Esta regla decía `--font-display` desde siempre,
-     pero el token contenía Inter, así que nadie lo notó: hacerlo honesto puso un
-     serif de verdad en párrafos de 15px, que se lee peor en pantalla. La serif es
-     de los encabezados, y es ahí donde dice «esto es un documento». */
+  /* Body in the interface face; the serif is only for headings, where it says "document". */
   font-family: var(--font-ui);
   font-size: var(--text-md);
   line-height: 1.78;
@@ -1728,8 +1534,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   text-wrap: balance;
   color: var(--ink);
 }
-/* Ritmo del documento — §5. El tamaño lo fija el bloque de encabezados de abajo;
-   aquí solo va la separación. */
+/* Document rhythm (§5). Sizes come from the heading block further down. */
 .prose h1 { margin: var(--space-16) 0 var(--space-4); }
 .prose h2 { margin: var(--space-14) 0 var(--space-4); }
 .prose h3 { margin: var(--space-9) 0 var(--space-3); }
@@ -1739,11 +1544,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .prose a  { color: var(--green); text-underline-offset: 2px; text-decoration-thickness: 1px; }
 .prose a:hover { color: var(--green-hover); }
 
-/* Wikilinks. Un enlace a una página que aún no existe no es un error: en un wiki
-   que crece es el estado normal de algo que se va a escribir. Por eso se apaga a
-   la tinta terciaria con subrayado discontinuo en vez de usar el tono de peligro,
-   que en el resto de la interfaz significa destruir. La vista de grafo sí lo
-   marca como hallazgo, porque allí la pregunta es la salud del conjunto. */
+/* A wikilink to a page that doesn't exist yet is something to write, not an error: dim and dashed, not danger. */
 .prose a.wikilink--missing {
   color: var(--ink-subtle);
   text-decoration-style: dashed;
@@ -1751,9 +1552,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .prose a.wikilink--missing:hover { color: var(--ink-muted); }
 .prose ul, .prose ol { padding-left: var(--space-6); }
 .prose li { margin: var(--space-1) 0; }
-/* Relativo a propósito: el código en línea va un punto por debajo del texto que
-   lo rodea, sea cual sea ese tamaño. Un token fijo lo desalinearía en cada
-   contexto donde la prosa no mide lo mismo. */
+/* Relative on purpose: inline code sits one step below whatever text surrounds it. */
 .prose code {
   font-family: var(--font-mono);
   font-size: 0.85em;
@@ -1762,10 +1561,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   border-radius: var(--radius-xs);
   padding: 0.1em 0.35em;
 }
-/* El color va AQUÍ y no en `.hljs`. prose.js solo resalta las vallas que
-   declaran lenguaje, así que una ``` pelada nunca recibe la clase: heredaba la
-   tinta del documento y sobre esta losa medía 1.05:1, ilegible. Delegar el
-   color al resaltador es delegarlo a algo que no siempre corre. */
+/* Colour lives here, not on .hljs: prose.js only highlights fences that declare a language. */
 .prose pre {
   position: relative;
   background: var(--code-bg);
@@ -1780,15 +1576,14 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 }
 .prose pre code { background: none; border: none; padding: 0; font-size: var(--text-base); line-height: 1.6; }
 
-/* Mermaid: el bloque se reemplaza por <div class="mermaid"> y lo renderiza prose.js. */
+/* Mermaid: prose.js replaces the block with <div class="mermaid"> and renders it. */
 .prose .mermaid {
   margin: var(--space-4) 0;
   text-align: center;
   overflow-x: auto;
 }
 
-/* highlight.js — tema propio, medido contra --code-bg. Los seis colores
-   son los mismos en ambos temas porque la losa también lo es. */
+/* highlight.js theme, measured against --code-bg; the same in both themes like the slab. */
 .hljs { color: var(--code-text); background: transparent; }
 .hljs-comment, .hljs-quote { color: var(--code-muted); }
 .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section { color: var(--code-text); }
@@ -1803,7 +1598,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .hljs-strong { font-weight: 600; }
 .hljs-link { color: var(--code-green); }
 
-/* Botón de copiar código (aparece al hover del bloque). */
+/* Copy button, shown on hover. */
 .code-copy {
   position: absolute;
   top: var(--space-2);
@@ -1830,7 +1625,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .code-copy:hover { color: var(--ink); background: var(--surface-inset); }
 .code-copy.copied { color: var(--green); border-color: var(--green); opacity: 1; }
 
-/* Anclas en encabezados (#). */
+/* Heading anchors (#). */
 .prose h1, .prose h2, .prose h3 { position: relative; }
 .heading-anchor {
   position: absolute;
@@ -1848,9 +1643,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .prose h3:hover .heading-anchor,
 .heading-anchor:focus { opacity: 1; }
 .heading-anchor:hover { color: var(--green); }
-/* La cita como nota técnica: un aparte que el documento señala, no una frase
-   susurrada. Se le quita la cursiva —párrafos enteros en cursiva se leen peor—
-   y el filete naranja hace de marca al margen. */
+/* Quotes as technical notes: no italics (whole italic paragraphs read worse), an orange rule in the margin. */
 .prose blockquote {
   margin: var(--space-7) 0;
   padding: var(--space-4) var(--space-5);
@@ -1865,11 +1658,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   font-size: var(--text-md);
   width: 100%;
   margin: var(--space-4) 0;
-  /* §16: la textura no entra en una tabla. Las celdas son transparentes, así que
-     el suelo lo pone la tabla — y lo pone del color del lienzo, no de --surface:
-     con --surface la tabla se convertía en un panel, que es justo la decoración
-     de fondo que §20 pide evitar. Opaco y del mismo tono: tapa la fibra y no se
-     ve. */
+  /* Opaque canvas colour, not --surface: --surface turned tables into panels. */
   background: var(--background);
 }
 .prose th, .prose td { border: 1px solid var(--border-subtle); padding: var(--space-2) var(--space-3); text-align: left; font-variant-numeric: tabular-nums; }
@@ -1888,7 +1677,7 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--border-subtle);
 }
-/* El título de una página se escribe en la misma serif con la que se lee. */
+/* A page's title is written in the serif it is read in. */
 .title-input {
   flex: 1;
   font-family: var(--font-display);
@@ -1909,7 +1698,7 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
   overflow: hidden;
 }
 
-/* Escribir markdown es leer datos: cara mono y el papel hundido del panel. */
+/* Writing markdown is reading data: mono face on the inset paper. */
 .editor-textarea {
   resize: none;
   font-family: var(--font-mono);
@@ -1960,7 +1749,7 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
   margin: 0 0 var(--space-2);
 }
 .placeholder .btn { margin-top: var(--space-4); }
-/* Estado de error (500): se diferencia del placeholder neutro con el acento de peligro. */
+/* Error state (500): the danger accent sets it apart from the neutral placeholder. */
 .placeholder--error { margin-top: var(--space-12); }
 .placeholder--error h1 { color: var(--danger); }
 
@@ -1986,8 +1775,7 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
   color: var(--ink);
 }
 
-/* Scoped above `.auth-card h1` so the brand wordmark keeps its tracked accent
-   treatment instead of inheriting the plain ink heading style (register's h1). */
+/* Scoped above `.auth-card h1` so the wordmark keeps its own treatment. */
 .auth-card .auth-brand {
   font-family: var(--font-ui);
   font-size: var(--text-xl);
@@ -2049,8 +1837,7 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
     transform: translateX(-110%);
     opacity: 0;
   }
-  /* El hueco existía para el botón flotante; con la barra ya no hace falta,
-     y sin esto la barra se desplazaba al abrir y cerrar el cajón. */
+  /* Without this the bar shifted when the drawer opened and closed. */
   .sidebar-collapsed .content { padding-left: 0; }
 
   .content-body {
@@ -2079,7 +1866,7 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
     pointer-events: auto;
   }
 
-  /* Guardar tiene que alcanzarse desde el final de un documento largo. */
+  /* Save must be reachable from the end of a long document. */
   .editor-bar {
     position: sticky;
     top: var(--topbar-height);
@@ -2093,8 +1880,7 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
   .editor-split { grid-template-columns: 1fr; }
   .editor-textarea { min-height: 40vh; }
 
-  /* El panel partido se apila en móvil, así que la vista previa quedaba una
-     pantalla por debajo del textarea: se alterna con un botón normal. */
+  /* The split stacks on mobile, so preview is toggled with a button instead. */
   .editor-preview-toggle { display: inline-flex; }
   .editor-split > .preview { display: none; }
   .editor-split--preview > .editor-textarea { display: none; }
@@ -2226,7 +2012,7 @@ kbd {
 .ws-rename { display: flex; gap: var(--space-2); flex: 1; min-width: 220px; margin: 0; }
 .ws-delete { margin: 0; }
 
-/* Cada workspace es una fila colapsable (<details>) → escala a muchos sin saturar. */
+/* Each workspace is a collapsible <details> row, so many of them stay manageable. */
 .ws-actions {
   display: flex;
   align-items: center;
@@ -2265,16 +2051,15 @@ kbd {
 }
 .member-add { display: flex; gap: var(--space-2); margin: 0; }
 
-/* Cluster de controles (tema, idioma) en el footer del sidebar (logueado) y
-   en login/registro vía el wrapper .auth-lang. */
+/* Theme and language controls: sidebar footer, and login/register via .auth-lang. */
 .sidebar-controls {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-/* === Phase 3 UX polish ==================================================== */
+/* === Accessibility and polish ============================================== */
 
-/* Skip link — visible solo al enfocar con teclado. */
+/* Skip link, visible only on keyboard focus. */
 .skip-link {
   position: fixed;
   top: var(--space-2);
@@ -2291,7 +2076,7 @@ kbd {
 }
 .skip-link:focus { transform: translateY(0); outline: none; }
 
-/* Toasts — pila abajo a la derecha. */
+/* Toasts, stacked bottom right. */
 .toasts {
   position: fixed;
   right: var(--space-4);
@@ -2321,17 +2106,10 @@ kbd {
 .toast--ok { border-left-color: var(--green); }
 .toast--error { border-left-color: var(--danger); }
 
-/* Diálogo de confirmación (reemplaza confirm() nativo). */
-/* Este diálogo se declara DENTRO del sidebar (lo abre el menú de una fila del
-   árbol) pero `showModal()` lo pinta centrado sobre el lienzo. Las propiedades
-   personalizadas se heredan por el DOM, y subir al top layer cambia el apilado,
-   no la herencia: sin esto llegaría vestido de chrome y saldría oscuro, mientras
-   el diálogo idéntico que lanza el resto de la app sale claro. Una clase, dos
-   aspectos, según qué subárbol la contenga.
-   No hay «heredar de la raíz»: `initial` y `revert` dan el valor inválido
-   garantizado, así que hay que redeclarar. Los alias evitan repetir literales.
-   Solo el diálogo: `.ws-menu` y `.avatar-menu` están anclados dentro y siguen
-   oscuros. */
+/* Confirm dialog (replaces native confirm()). */
+/* Declared inside the sidebar but painted over the canvas by showModal(): custom
+   properties inherit through the DOM, not the top layer, so the canvas palette is
+   redeclared here. Only the dialog; anchored menus stay dark. */
 .sidebar .confirm-dialog {
   --background:             var(--canvas-background);
   --surface:        var(--canvas-surface);
@@ -2372,8 +2150,7 @@ kbd {
 .confirm-dialog-msg { margin: 0 0 var(--space-4); color: var(--ink); }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
-/* Menú de acciones de una fila del árbol. Vive en el <dialog> porque .page-list
-   recorta su desbordamiento; reutiliza los items del resto de menús. */
+/* Row actions menu. It lives in the <dialog> because .page-list clips overflow. */
 .row-menu { display: flex; flex-direction: column; gap: var(--space-0); }
 .row-menu .avatar-menu-item { border-radius: var(--radius-sm); }
 
@@ -2427,7 +2204,7 @@ kbd {
 .palette-item:hover { background: var(--green-soft); color: var(--ink); }
 .palette-empty { padding: var(--space-3); color: var(--ink-subtle); font-size: var(--text-base); }
 
-/* Tokens de API en settings. */
+/* API tokens in settings. */
 .secret-reveal {
   margin-bottom: var(--space-4);
   padding: var(--space-3) var(--space-4);
@@ -2447,7 +2224,7 @@ kbd {
 .row-name { display: flex; flex-direction: column; gap: var(--space-0); min-width: 0; }
 .add-form { display: flex; gap: var(--space-2); }
 
-/* === Accesibilidad: sin animaciones si el sistema lo pide ================== */
+/* === Reduced motion ======================================================= */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -2458,9 +2235,9 @@ kbd {
   }
 }
 
-/* ── Modelo v2: captura rápida, bandeja y acciones por página ───────────── */
+/* ── Capture, inbox and per-page actions ───────────────────────────────────── */
 
-/* El modal de captura reusa .palette pero con textarea en vez de input. */
+/* The capture modal reuses .palette with a textarea. */
 .capture-input {
   resize: vertical;
   min-height: 7rem;
@@ -2475,8 +2252,7 @@ kbd {
   padding: var(--space-2) var(--space-3);
 }
 
-/* Cada fila del árbol aloja su menú "⋯", que solo aparece al pasar por encima
-   o al enfocar con teclado, para no ensuciar la lista. */
+/* Each tree row hosts a ⋯ menu, shown on hover or keyboard focus. */
 .page-row {
   display: flex;
   align-items: center;
@@ -2520,37 +2296,30 @@ kbd {
   color: var(--ink);
 }
 
-/* ── Táctil e iPhone ─────────────────────────────────────────────────────────
-   Medido en Safari de iPhone: los tres problemas de abajo no se ven en un
-   escritorio pero hacen que la app "se sienta" mal en el móvil. */
+/* ── Touch and iPhone ─────────────────────────────────────────────────────────── */
 
-/* Safari hace zoom automático al enfocar un input de menos de 16px, y ya no
-   vuelve solo: la vista queda descuadrada el resto de la sesión. */
+/* Safari zooms into inputs under 16px and never zooms back. */
 @media (pointer: coarse) {
   input,
   textarea,
   select {
-    /* El umbral de iOS son 16px exactos, que es justo lo que vale el cuerpo
-       desde que la escala es la de §6: el token y el umbral coinciden. */
     font-size: var(--text-md);
   }
 }
 
-/* Sin esto cada toque deja el destello gris azulado por defecto de Safari. */
+/* Removes Safari's default grey tap flash. */
 html {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Evita que al llegar al final de la barra lateral o de un modal el scroll
-   siga en la página de detrás. */
+/* Scrolling past the end of the sidebar or a modal must not scroll the page behind. */
 .sidebar,
 .page-list,
 .palette-box {
   overscroll-behavior: contain;
 }
 
-/* Instalada como PWA no hay barras del navegador que hagan de colchón: sin
-   esto el pie de la barra lateral queda bajo el indicador de inicio. */
+/* Installed as a PWA there is no browser chrome, so the footer would sit under the home indicator. */
 @supports (padding: max(0px)) {
   .sidebar-foot {
     padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
@@ -2560,9 +2329,7 @@ html {
   }
 }
 
-/* Los afordances que solo aparecen al pasar el ratón no existen en táctil.
-   El menú ⋯ de cada página estaba en opacity:0 hasta el hover, o sea que en
-   el iPhone era inalcanzable. */
+/* Hover-only affordances don't exist on touch: the ⋯ menu must always be visible there. */
 @media (hover: hover) {
   .page-row-actions-btn {
     opacity: 0;
@@ -2578,11 +2345,9 @@ html {
   }
 }
 
-/* ── Ajustes por secciones ───────────────────────────────────────────────────
-   Una seccion en pantalla, navegacion propia dentro del contenido. El corte es
-   1120px y no los 820px del shell: entre medias la barra lateral sigue siendo
-   columna fija y una segunda columna dejaria el contenido mas estrecho que su
-   propio cromo. 1120 ya es donde el lector suelta la tabla de contenidos. */
+/* ── Settings sections ────────────────────────────────────────────────────────
+   The cut is 1120px, not the shell's 820px: in between, a second column would
+   leave content narrower than its own chrome. */
 .settings-layout { display: grid; gap: var(--space-6); }
 .settings-panel { min-width: 0; }
 
@@ -2667,8 +2432,7 @@ html {
   .settings-select { display: none; }
 }
 
-/* Objetivo táctil de 44px (guía de Apple) sin agrandar el diseño: el área se
-   extiende con un pseudo-elemento, el botón se ve igual. */
+/* 44px touch targets (Apple HIG) without changing the look: a pseudo-element extends the area. */
 @media (pointer: coarse) {
   .page-row-actions-btn,
   .sidebar-toggle,
@@ -2678,12 +2442,7 @@ html {
   .btn {
     position: relative;
   }
-  /* El twisty es la excepcion al cuadrado de 44px, y es geometria y no descuido:
-     la fila mide 44px de alto pero el control vive en un canalon de ~24px a la
-     izquierda del titulo. Un cuadrado de 44px centrado en el se comeria el
-     principio del titulo, y entonces tocar el texto plegaria la rama en vez de
-     abrir la pagina. Se le da toda la altura de la fila y el ancho del canalon:
-     nada de solape con el enlace ni con el menu "..." del otro extremo. */
+  /* The twisty gets the row's height and its ~24px gutter, not a 44px square that would eat the title. */
   .page-row-twisty {
     width: 24px;
     height: 44px;
@@ -2711,20 +2470,16 @@ html {
     align-items: center;
   }
   .settings-select-trigger { min-height: 44px; }
-  /* Aqui no vale flex: convertiria el texto en item anonimo y se perderia el
-     text-overflow: ellipsis de los titulos largos. */
+  /* Not flex: it would turn the text into an anonymous item and lose the ellipsis. */
   .page-list a {
     padding-block: var(--space-3);
     min-height: 44px;
   }
 }
 
-/* ── Movimiento ──────────────────────────────────────────────────────────────
-   Los menus, la paleta y los toasts ya se animaban con transiciones. Lo que
-   faltaba era lo que se nota mas: que el contenido entre en vez de aparecer de
-   golpe, y que los controles respondan al pulsarlos.
-   El bloque prefers-reduced-motion de mas arriba usa !important sobre `*`, asi
-   que todo lo de aqui queda anulado si el sistema lo pide. */
+/* ── Motion ────────────────────────────────────────────────────────────────────
+   Content rises in and controls respond to presses. The reduced-motion block
+   above overrides all of it. */
 
 @keyframes rise {
   from {
@@ -2737,15 +2492,14 @@ html {
   }
 }
 
-/* Entrada del contenido al navegar entre paginas. */
+/* Content entering on navigation. */
 .prose,
 .placeholder,
 .settings {
   animation: rise var(--duration-base) var(--ease-standard) both;
 }
 
-/* Las listas entran escalonadas: 30ms por fila, tope a la sexta para que una
-   lista larga no tarde un segundo en terminar de aparecer. */
+/* Lists stagger 30ms per row, capped at the sixth. */
 .results .row {
   animation: rise var(--duration-base) var(--ease-standard) both;
 }
@@ -2756,8 +2510,7 @@ html {
 .results .row:nth-child(5) { animation-delay: 120ms; }
 .results .row:nth-child(n + 6) { animation-delay: 150ms; }
 
-/* Respuesta al pulsar. En movil es lo unico que confirma el toque, porque no
-   hay hover que preceda al clic. */
+/* Press feedback: on touch it is the only confirmation of a tap. */
 .btn,
 .new-btn,
 .inbox-link,
@@ -2785,12 +2538,7 @@ html {
   transform: scale(0.96);
 }
 
-/* Dos tratamientos de foco, y la división es por lo que es cada cosa, no por
-   cuál se acordó alguien de cubrir.
-   Un control tiene caja, así que se rodea con el anillo del acento.
-   Un enlace dentro del texto no la tiene y puede partirse en dos líneas: el
-   anillo dibujaría la caja que une los dos fragmentos, que no es donde está el
-   enlace. `outline` sigue cada fragmento, y por eso los enlaces lo llevan. */
+/* Controls get the accent ring; links get an outline, which follows each fragment of a wrapped link. */
 :where(button, input, textarea, select, summary, [tabindex]):focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--green-ring);
@@ -2801,17 +2549,11 @@ html {
   transition: outline-color var(--duration-fast) var(--ease-standard);
 }
 
-/* ── Bloque 3: estados de vista, conexion y entregas ──────────────────────────
-   Todo reusa los tokens del design system: nada de colores nuevos, nada de
-   tipografias nuevas. Lo que se anade es forma, no vocabulario. */
+/* ── View states, connection and deliveries ─────────────────────────────────── */
 
-/* Un error que cae fuera del shell (URL desconocida, fallo de ruta) no tiene
-   barra lateral alrededor: se centra como pagina entera en vez de quedarse
-   pegado al borde del hueco de contenido. */
+/* An error outside the shell has no sidebar, so it centres as a full page. */
 .placeholder--standalone {
-  /* `.placeholder` se limita a --document-max-width porque dentro del shell es la columna de
-     lectura. Fuera de él no hay columna: la pagina es todo el ancho y lo que se
-     centra es su contenido. */
+  /* Outside the shell there is no reading column: the page is full width and its content is centred. */
   max-width: none;
   margin-top: 0;
   min-height: 100vh;
@@ -2823,8 +2565,7 @@ html {
   text-align: center;
 }
 
-/* Aviso dentro del editor: borrador recuperable, o servidor que no responde.
-   Va sobre el texto y no lo tapa; el editor sigue usandose por debajo. */
+/* Editor notice (recoverable draft, server down): it sits above the text without covering it. */
 .editor-notice {
   display: flex;
   align-items: center;
@@ -2849,10 +2590,8 @@ html {
   flex: none;
 }
 
-/* Estado de la API y de MCP. Callado cuando todo va —no se pinta nada—, asi que
-   estas reglas solo aplican cuando algo pasa. */
-/* Abajo a la izquierda: los toasts ya viven abajo a la derecha, y el shell no
-   tiene un sitio visible en todos los anchos —.app-bar solo existe en movil—. */
+/* API and MCP status: renders nothing while everything works. */
+/* Bottom left: toasts already live bottom right. */
 .conn {
   position: fixed;
   left: var(--space-4);
@@ -2860,7 +2599,7 @@ html {
   z-index: 400;
 }
 @media (max-width: 820px) {
-  /* En movil la barra lateral es un cajon y su pie llega hasta abajo del todo. */
+  /* On mobile the sidebar is a drawer whose footer reaches the bottom. */
   .conn {
     left: auto;
     right: var(--space-4);
@@ -2940,16 +2679,14 @@ html {
   overflow-wrap: anywhere;
 }
 
-/* ── Bloque 4: markdown completo ─────────────────────────────────────────────── */
+/* ── Full markdown ────────────────────────────────────────────────────────────── */
 
-/* Alineacion de columnas. markdown-it la escribe como `style` en linea y el
-   saneador se lo lleva —correctamente—, asi que markdown.js la traduce a clase. */
+/* Column alignment: the sanitizer drops inline style, so markdown.js maps it to a class. */
 .prose .align-left { text-align: left; }
 .prose .align-center { text-align: center; }
 .prose .align-right { text-align: right; }
 
-/* Listas de tareas: sin vineta, la casilla alineada con la primera linea y sin
-   sangrado extra respecto a una lista normal. */
+/* Task lists: no bullet, checkbox on the first line, no extra indent. */
 .prose li.task-list-item { list-style: none; margin-left: -1.25em; }
 .prose li.task-list-item input[type='checkbox'] {
   margin-right: var(--space-2);
@@ -2957,22 +2694,16 @@ html {
   accent-color: var(--green);
 }
 
-/* Formulas. KaTeX trae su propio CSS (vendorizado, cargado bajo demanda); esto
-   solo coloca el bloque y deja que una formula ancha haga scroll en vez de
-   ensanchar la columna de lectura. */
+/* Formulas: KaTeX brings its own CSS; a wide formula scrolls instead of widening the column. */
 .prose .math--block {
   display: block;
   margin: var(--space-4) 0;
   overflow-x: auto;
   overflow-y: hidden;
 }
-/* Sin estilos propios sobre .math: KaTeX pinta dentro de ese mismo nodo y trae su
-   propia tipografia. Hasta que carga se ve el origen en la fuente del texto, que
-   es un parpadeo corto y solo en las paginas que llevan formulas. */
 
-/* ── Esqueletos de carga ──────────────────────────────────────────────────────
-   Con la forma de lo que va a llegar, no con la palabra "cargando". Las medidas
-   son las reales de cada sitio: cuando llega el contenido, nada se mueve. */
+/* ── Loading skeletons ─────────────────────────────────────────────────────────
+   Shaped like what arrives, with real sizes, so nothing moves when it does. */
 .skeleton-bar {
   display: block;
   height: 0.9em;
@@ -2988,8 +2719,7 @@ html {
   .skeleton-bar { animation: none; }
 }
 
-/* Arbol lateral: misma altura de fila y mismo sangrado por nivel que el arbol
-   real (14px), para que el cambio no salte. */
+/* Sidebar tree: same row height and 14px indent as the real tree. */
 .skeleton-tree { padding: 0 var(--space-2); }
 .skeleton-row {
   display: flex;
@@ -3003,7 +2733,7 @@ html {
 .skeleton-row:nth-child(2n) .skeleton-bar { width: 55%; }
 .skeleton-row:nth-child(3n) .skeleton-bar { width: 82%; }
 
-/* Cuerpo del documento, al ancho de la columna de lectura. */
+/* Document body, at the reading column's width. */
 .skeleton-doc {
   width: 100%;
   max-width: var(--document-max-width);
@@ -3029,7 +2759,7 @@ html {
 }
 .skeleton-list .skeleton-bar { height: 1.4em; }
 
-/* Busqueda sin resultados: el mensaje y la salida, no solo el mensaje. */
+/* No results: the message and a way out. */
 .no-results {
   display: flex;
   flex-direction: column;
@@ -3038,14 +2768,9 @@ html {
   margin-top: var(--space-2);
 }
 
-/* ── Datos frente a prosa ─────────────────────────────────────────────────────
-   La regla que hace que esto se lea como documentación. Un valor de máquina
-   —slug, etiqueta, ruta de sección, fecha, contador, versión, estado de una
-   entrega, una constante de recuperación— va en la cara de datos; una frase
-   nunca. Quien busca un dato lo encuentra sin leer, y quien lee una frase no
-   tiene que analizar una ruta.
-
-   Se aplica por clase existente: ninguna de estas reglas necesita tocar el JSX. */
+/* ── Data vs prose ─────────────────────────────────────────────────────────────
+   A machine value (slug, tag, section path, date, count, version, status) is set
+   in the data face; a sentence never is. */
 .member-role,
 .delivery-event,
 .delivery-when,
@@ -3055,26 +2780,18 @@ html {
 .conn-row span:last-child,
 .page-meta,
 
-/* La ruta de encabezados de un fragmento es la coordenada de un dato, no prosa.
-   `.crumb-current` salía de aquí: desde que los breadcrumbs SON la cara de
-   datos, heredar era heredar mono para volver a pedir mono. */
+/* A snippet's heading path is a data coordinate, not prose. */
 .snippet mark {
   font-family: inherit;
 }
 
-/* El token de un PAT y el secreto de un webhook ya iban en <code>; se les da el
-   tamaño de dato para que no compitan con el texto que los rodea. */
+/* PAT tokens and webhook secrets get the data size so they don't compete with text. */
 .secret-value {
   font-family: var(--font-data);
 }
 
-/* ── Encabezados en serif ─────────────────────────────────────────────────────
-   El título de la página y los encabezados del documento. La serif es lo que
-   dice «esto es un documento» antes de leer una palabra; la interfaz alrededor
-   sigue en la cara de texto, que es la que se lee mejor a tamaño pequeño. */
-/* §3 usa la serif SOLO en el título de página y el H1 del documento. Los H2 y H3
-   pasan a la cara de interfaz: a 22 y 16px la serif tiene el ojo demasiado
-   pequeño para pesar como un encabezado, y el documento pide 600 ahí. */
+/* ── Serif headings ──────────────────────────────────────────────────────────── */
+/* §3: serif only for the page title and document H1; at 22 and 16px its x-height is too small. */
 .page-header h1,
 .prose h1,
 .settings-h1,
@@ -3089,7 +2806,7 @@ html {
 .placeholder h1  { font-size: var(--text-3xl); line-height: 1.1; }
 .prose h1        { font-size: var(--text-3xl); line-height: 1.15; }
 
-/* Encabezados de sección: cara de interfaz, peso 600, tamaños de §3. */
+/* Section headings: interface face, weight 600, §3 sizes. */
 .prose h2, .prose h3 {
   font-family: var(--font-ui);
   font-weight: 600;
@@ -3098,10 +2815,8 @@ html {
 .prose h2 { font-size: var(--text-xl); line-height: 1.3; }
 .prose h3 { font-size: var(--text-md); line-height: 1.45; }
 
-/* === Vista de grafo ======================================================= */
-/* Todo el color sale de las variables del tema y ninguno del JavaScript: el SVG
-   lo escribe la aplicación, así que el modo oscuro es la misma cascada de siempre
-   y no hace falta puentear paleta como con mermaid. */
+/* === Graph view =========================================================== */
+/* Every colour comes from theme variables, so dark mode is the usual cascade. */
 
 .graph-page {
   display: flex;
@@ -3140,35 +2855,28 @@ html {
   color: var(--ink-muted);
 }
 
-/* §12 adaptado, no copiado: sus selectores suponen un DOM que no existe aquí.
-   `.graph-node` es un <g> que envuelve un circle y un text, así que el relleno
-   y el trazo van a esos hijos; `.graph-node-active` y `.graph-node-label` no
-   tienen contrapartida y sus reglas viven en `.is-hover` y en `text`. Los
-   estados propios de doction —huérfana y rota— el documento no los nombra y se
-   quedan como están: son hallazgos de esta vista, no decoración. */
+/* §12 adapted: .graph-node is a <g> around a circle and a text, so fill and stroke go on those. Orphan and broken states are doction's own. */
 .graph-canvas {
   flex: 1;
   min-height: 320px;
   width: 100%;
-  /* §12: profundidad tonal suave desde el centro, sin cuadrículas fuertes. */
+  /* §12: soft tonal depth from the centre, no strong grid. */
   background: radial-gradient(
     circle at 52% 42%,
     var(--surface-muted) 0%,
     var(--background) 62%
   );
-  touch-action: none;      /* el arrastre es nuestro, no del navegador */
+  touch-action: none;      /* dragging is ours, not the browser's */
   cursor: grab;
 }
 .graph-canvas:active { cursor: grabbing; }
-/* §12: relaciones como líneas cartográficas, no como constelaciones. */
+/* §12: relations as cartographic lines. */
 .graph-edge {
   stroke: var(--border-default);
   stroke-width: 1;
   stroke-opacity: 0.38;
 }
-/* Un enlace a una página que no existe: aquí sí es un hallazgo, porque la
-   pregunta de esta vista es la salud del conjunto. En la prosa el mismo enlace se
-   pinta apagado, porque allí es algo que aún no se ha escrito. */
+/* A broken link is a finding here: this view is about the whole graph's health. */
 .graph-edge--broken {
   stroke: var(--danger);
   stroke-dasharray: 3 3;
@@ -3176,9 +2884,7 @@ html {
 }
 
 .graph-node { cursor: pointer; }
-/* §12: nodos sin brillo ni efectos. El nodo en reposo es una superficie con
-   contorno, no un punto de color; el naranja queda para la señal mínima del
-   nodo activo. */
+/* §12: no glow. A resting node is an outlined surface. */
 .graph-node circle {
   fill: var(--surface-raised);
   stroke: var(--green);
@@ -3187,19 +2893,16 @@ html {
               stroke var(--duration-fast) var(--ease-standard);
 }
 .graph-node text {
-  /* §12 pone la etiqueta del grafo en la cara de interfaz: es un nombre de
-     página, prosa, no la coordenada de un dato. */
+  /* §12: labels are page names, so interface face. */
   font-family: var(--font-ui);
   font-size: var(--text-sm);
   fill: var(--ink-muted);
   pointer-events: none;
   user-select: none;
-  /* Centrada bajo el nodo: es lo que hace que la caja que ocupa una etiqueta sea
-     simétrica, que es la única forma que el colisionador del layout sabe medir. */
+  /* Centred under the node: the layout's collision check can only measure symmetric boxes. */
   text-anchor: middle;
 }
-/* Huérfana: sin enlaces en ningún sentido. No es un error, es una página que
-   nadie ha conectado todavía, así que se apaga en vez de alarmar. */
+/* Orphan: no links either way. Not an error, so dimmed rather than alarming. */
 .graph-node--orphan circle { fill: var(--border-default); }
 .graph-node--broken { cursor: default; }
 .graph-node--broken circle {
@@ -3208,9 +2911,7 @@ html {
   stroke-dasharray: 2 2;
 }
 .graph-node--broken text { fill: var(--danger); }
-/* The hovered node: green fill with a darker green edge. The state is carried by the fill
-   (surface -> green) and the label's ink; the edge is decorative. Orange marks notes only
-   (DESIGN.md §2). */
+/* The hovered node: green fill; the state is carried by fill and label ink. */
 .graph-node.is-hover circle {
   fill: var(--green);
   stroke: var(--green-hover);
