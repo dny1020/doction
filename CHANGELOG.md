@@ -15,6 +15,38 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.33.0 — 2026-09-25
+
+The application now presents a page the way https://doction.site does, and behaves like an app
+on the iPhone. No API or MCP contract changed.
+
+### Changed
+
+- **A page looks the same in the app and on the site.** The page title is 36px, the size the
+  site uses (52px is kept for a landing hero). The header is compact: breadcrumbs, title, then
+  one row with the metadata and the page's actions, so Delete is no longer a row of its own.
+  The document's first block starts right under the header instead of 64px further down.
+- **The canvas is flat.** The diagonal sheen behind the document is gone, along with its
+  `--material*` tokens.
+- **The top bar does not repeat the title.** On desktop it shows the page title only once the
+  page's own title has scrolled under it. Mobile is unchanged.
+- **"You are here" in the page tree** is the green rule, weight and ink, with no filled surface,
+  the same mark as the site's navigation. `--nav-active-bg` is removed.
+- The mobile drawer slides in instead of only fading.
+- `DESIGN.md` §3, §7, §8 and §9 describe the result.
+
+### Fixed
+
+- On touch screens the sidebar page tree scrolled sideways: each row's 44px touch area overhung
+  the panel edge.
+- On a phone, a wide table widened the whole page. It now scrolls within itself.
+- Dragging the scrim behind the open mobile drawer scrolled the page underneath.
+- Safe-area insets were ignored on iOS because the viewport lacked `viewport-fit=cover`; the
+  top bar, content and drawer now also respect the side insets in landscape.
+- The Inbox and Graph links in the sidebar were underlined.
+- Code blocks showed a light native scrollbar on their dark slab.
+- The editor's title was set in a synthesized bold: Instrument Serif ships only in 400.
+
 ## 0.32.0 — 2026-09-24
 
 A finished-product pass over the application and https://doction.site, and one visual language
