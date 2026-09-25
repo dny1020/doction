@@ -51,6 +51,7 @@ cd frontend && npm run check     # eslint + prettier + build + no-remote-asset c
 make license                     # the licence agrees everywhere it is declared
 make changelog                   # the declared version has a CHANGELOG entry
 make docs-reachable              # no tracked document points at an untracked file
+make comments                    # comments and docstrings are in English
 make docs                        # the documentation site builds with no broken link
 ```
 
@@ -88,8 +89,8 @@ Two things trip people up:
 - **Docs move with the code.** If you change behaviour, update the README, `docs/`, or
   `DESIGN.md` in the same PR. A README that describes last month's behaviour is a bug.
 - **English in the repo.** Code, comments, docstrings, commit messages, and docs are in
-  English regardless of the language the discussion happens in. Some existing comments are
-  in Spanish; new ones should not be.
+  English regardless of the language the discussion happens in. `make comments` fails on a
+  comment or docstring with Spanish characters.
 
 ## Commit messages
 
