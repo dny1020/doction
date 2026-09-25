@@ -56,6 +56,7 @@ export default function Layout() {
     () => isMobile() || localStorage.getItem('sidebar') === 'collapsed',
   )
   const [barMenuOpen, setBarMenuOpen] = useState(false)
+  const [titleOffscreen, setTitleOffscreen] = useState(false)
   const barMenuRef = useRef(null)
 
   const setCollapsed = useCallback((value) => {
@@ -154,7 +155,13 @@ export default function Layout() {
         onCollapse={() => setCollapsed(true)}
       />
       <main className="content" id="content">
-        <div className="app-bar">
+        <div
+          className={
+            'app-bar' +
+            (isReader ? ' app-bar--reader' : '') +
+            (titleOffscreen ? ' app-bar--titled' : '')
+          }
+        >
           <button
             className="sidebar-toggle"
             type="button"
@@ -195,7 +202,16 @@ export default function Layout() {
           {unknownWs ? (
             <NotFound />
           ) : (
-            <Outlet context={{ ws, pages, pagesReady: pagesWs === ws, pagesError, reloadPages }} />
+            <Outlet
+              context={{
+                ws,
+                pages,
+                pagesReady: pagesWs === ws,
+                pagesError,
+                reloadPages,
+                setTitleOffscreen,
+              }}
+            />
           )}
         </div>
       </main>

@@ -15,7 +15,7 @@ import { useDocumentTitle } from '../useDocumentTitle.js'
 // backlinks and related pages in one call.
 export default function Reader() {
   const { slug } = useParams()
-  const { ws, pages, pagesReady, pagesError, reloadPages } = useOutletContext()
+  const { ws, pages, pagesReady, pagesError, reloadPages, setTitleOffscreen } = useOutletContext()
   const { t } = useI18n()
   const navigate = useNavigate()
   const toast = useToast()
@@ -30,6 +30,7 @@ export default function Reader() {
   const slugSet = useMemo(() => new Set(pages.map((p) => p.slug)), [pages])
   const wrapRef = useRef(null)
   const proseRef = useRef(null)
+  const titleRef = useRef(null)
 
   // The AbortController lives in a ref so `load` can retry without leaving the previous
   // request hanging.
@@ -56,6 +57,23 @@ export default function Reader() {
   useEffect(load, [load])
 
   useDocumentTitle(view ? view.title : null, ws)
+
+  // The top bar shows the title only once this one has scrolled under it, so a page
+  // never says its name twice on one screen. The bar's height is the top margin.
+  useEffect(() => {
+    const title = titleRef.current
+    if (!title) return undefined
+    const barHeight = document.querySelector('.app-bar')?.offsetHeight ?? 0
+    const observer = new IntersectionObserver(
+      ([entry]) => setTitleOffscreen(!entry.isIntersecting),
+      { rootMargin: `-${barHeight}px 0px 0px 0px` },
+    )
+    observer.observe(title)
+    return () => {
+      observer.disconnect()
+      setTitleOffscreen(false)
+    }
+  }, [view, setTitleOffscreen])
 
   // The home route opens the first page, or the empty state — unless the tree failed to
   // load, since a dead network is not an empty workspace.
@@ -153,34 +171,41 @@ export default function Reader() {
             <span className="crumb-current">{view.title}</span>
           </nav>
 
-          <h1>{view.title}</h1>
+          <h1 ref={titleRef}>{view.title}</h1>
 
-          <div className="page-actions">
-            <Link className="btn" to={pagePath(ws, slug, '/edit')}>
-              {t('edit')}
-            </Link>
-            <Link className="btn" to={newPagePath(ws, slug)}>
-              {t('new_subpage')}
-            </Link>
-            <Link className="btn" to={pagePath(ws, slug, '/history')}>
-              {t('history')}
-            </Link>
-            <button className="btn btn-danger" type="button" onClick={onDelete} disabled={deleting}>
-              {t('delete')}
-            </button>
+          <div className="page-header-foot">
+            <p className="meta">
+              {t('updated')} {updatedDate}
+              {editor && (
+                <>
+                  <span className="crumb-sep" aria-hidden="true">
+                    ·
+                  </span>{' '}
+                  {t('by')} {editor}
+                </>
+              )}
+            </p>
+
+            <div className="page-actions">
+              <Link className="btn btn-sm" to={pagePath(ws, slug, '/edit')}>
+                {t('edit')}
+              </Link>
+              <Link className="btn btn-sm" to={newPagePath(ws, slug)}>
+                {t('new_subpage')}
+              </Link>
+              <Link className="btn btn-sm" to={pagePath(ws, slug, '/history')}>
+                {t('history')}
+              </Link>
+              <button
+                className="btn btn-sm btn-danger"
+                type="button"
+                onClick={onDelete}
+                disabled={deleting}
+              >
+                {t('delete')}
+              </button>
+            </div>
           </div>
-
-          <p className="meta">
-            {t('updated')} {updatedDate}
-            {editor && (
-              <>
-                <span className="crumb-sep" aria-hidden="true">
-                  ·
-                </span>{' '}
-                {t('by')} {editor}
-              </>
-            )}
-          </p>
         </header>
 
         {view.content.trim() ? (

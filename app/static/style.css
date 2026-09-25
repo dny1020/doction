@@ -200,18 +200,8 @@
   --callout-bg: oklch(0.960 0.022 63.2);  /* tinta 14.26:1, filete naranja 3.21:1 */
   --input-bg:   oklch(0.987 0.007 97.3);  /* tinta 15.49:1, borde 3.80:1 */
 
-  /* Material de §7 y brillo interior de la losa de §9. Son colores, así que van
-     aquí y no sueltos en una regla. */
-  --material-sheen: oklch(1 0 0 / 0.18);
-  --material-warm:  oklch(0.72 0.025 92 / 0.05);
+  /* Brillo interior de la losa de §9. */
   --code-sheen:     oklch(1 0 0 / 0.045);
-  /* El ángulo y las paradas son de §7; solo cambia la fuerza entre temas. */
-  --material: linear-gradient(
-    112deg,
-    var(--material-sheen) 0%,
-    transparent 32%,
-    var(--material-warm) 100%
-  );
 
   /* Velo de lo que está delante: cajón móvil, modales y paleta de comandos. */
   --scrim: oklch(0.200 0.020 150 / 0.45);
@@ -282,13 +272,12 @@
      valores de §8 quedaba más claro que el lienzo, así que en oscuro el panel
      destacaba en vez de recederse y el conjunto se leía como una sola masa
      verde. El chrome recede: es el marco, no el contenido. */
-  /* §8: el suelo es un degradado vertical. Los dos extremos y el fondo del
-     elemento activo compuesto sobre ellos son los CUATRO suelos reales contra
-     los que se mide todo lo que va encima. */
+  /* §8: the floor is a vertical gradient. The active row has no surface of its
+     own since app-landing-parity, so the ratios above were measured against more
+     floors than now exist and still hold. */
   --nav-bg:        oklch(0.145 0.028 151);
   --nav-bg-end:    oklch(0.115 0.022 151);
   --nav-hover:     oklch(0.185 0.030 151);
-  --nav-active-bg: oklch(0.310 0.040 151 / 0.72);
   /* El canto del panel se mide contra el LIENZO, no contra su propio suelo. */
   --nav-edge:      oklch(0.330 0.030 151);  /* 10.90:1 en claro, 1.58:1 en oscuro */
 
@@ -449,12 +438,6 @@
 
   --scrim: oklch(0.100 0.010 150 / 0.62);
 
-  /* Mismo ángulo y mismas paradas, una sexta parte de fuerza. §7 pide un material
-     que se sienta más de lo que se ve, y sobre carbón el blanco al 18% no se
-     siente: se ve, como una banda diagonal que cruza el documento. */
-  --material-sheen: oklch(1 0 0 / 0.030);
-  --material-warm:  oklch(0.72 0.025 92 / 0.018);
-
   --code-inline-bg:     oklch(0.290 0.050 149);
   --code-inline-border: oklch(0.345 0.045 149);
 
@@ -494,20 +477,10 @@ body, .sidebar, .content-body, .auth-card,
 /* === Reset ================================================================ */
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-/* Textura de papel — DESIGN.md §4/§16. Ruido fractal SVG en un data URI: no es
-   una petición, no es un fichero, y `check-local-assets` no tiene nada que
-   vigilar. Va solo en el lienzo y a la intensidad baja del rango (0.025), que es
-   donde se percibe como tacto y no como una capa. Las superficies densas —editor,
-   tablas, formularios, modales, bloques de código— pintan su propio fondo encima,
-   así que la textura no llega a ninguna: §16 lo pide y la cascada lo cumple sola. */
+/* DESIGN.md §7: the canvas is a flat tone, as on doction.site. Depth comes from
+   the chrome/canvas contrast, not from anything painted over the paper. */
 body {
   background-color: var(--background);
-  /* Material de §7: profundidad tonal, no textura. El ruido fractal que había
-     aquí lo prohíbe el propio §7 —«no noise filters, no grain visible»—, y lo
-     que pide en su lugar es un degradado que se sienta más de lo que se ve.
-     Las líneas verticales opcionales del §7 se dejan fuera: ya hay una decisión
-     de material, y §1 pide pocas y deliberadas. */
-  background-image: var(--material);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--text-md);
@@ -1130,11 +1103,10 @@ a { color: inherit; }
   transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 .page-list a:hover { background: var(--surface-inset); color: var(--ink); }
-/* §8: a faint green surface and a 2px green left rule, not a fill — the same "you are
-   here" mark as the documentation site. Weight and ink do the rest, so colour never
-   travels alone. Inside .sidebar, --green resolves to the chrome's green. */
+/* §8: a 2px green left rule and no surface — the same "you are here" mark as the
+   documentation site. Weight and ink do the rest, so colour never travels alone.
+   Inside .sidebar, --green resolves to the chrome's green. */
 .page-list a.active {
-  background: var(--nav-active-bg);
   color: var(--ink-strong);
   font-weight: 500;
   box-shadow: inset 2px 0 0 var(--green);
@@ -1409,6 +1381,11 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   text-overflow: ellipsis;
 }
 .app-bar-actions { position: relative; flex: none; }
+/* On desktop a page's title shows in the bar only once its own H1 has scrolled
+   under it, as doction.site's header does. `visibility` keeps the row's layout. */
+@media (min-width: 821px) {
+  .app-bar--reader:not(.app-bar--titled) .app-bar-title { visibility: hidden; }
+}
 
 .page, .placeholder { width: 100%; max-width: var(--document-max-width); min-width: 0; }
 .editor { width: 100%; max-width: var(--editor-measure); }
@@ -1492,8 +1469,8 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 /* Encabezado del documento — §9. Respira arriba, cierra con una línea abajo, y
    la franja de metadatos va en la cara de datos al tamaño mínimo de la escala. */
 .page-header {
-  padding-bottom: var(--space-12);
-  margin-bottom: var(--space-12);
+  padding-bottom: var(--space-6);
+  margin-bottom: var(--space-8);
   border-bottom: 1px solid var(--border-subtle);
 }
 /* La ruta de una página es un dato, no una frase: se pone en la cara de datos
@@ -1529,9 +1506,16 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   margin: 0 0 var(--space-4);
   color: var(--ink);
 }
-/* En escritorio las acciones viven en la barra superior; esta fila diría lo
-   mismo dos veces. Delete se queda aquí a propósito: destruir no se esconde en
-   un desplegable de tres puntos, así que la fila reaparece solo con ese botón. */
+/* On desktop the other actions live in the top bar. Delete stays in the header on
+   purpose — destroying is never hidden in a menu — and shares the metadata row so
+   it is not a row of its own. */
+.page-header-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
 @media (min-width: 821px) {
   .page-actions > .btn:not(.btn-danger) { display: none; }
 }
@@ -1558,7 +1542,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
    Lleva los dos campos que existen de verdad: cuándo se actualizó y quién.
    Ni propietario ni tiempo de lectura: eso no está en el payload. */
 .page-header .meta {
-  margin: var(--space-5) 0 0;
+  margin: 0;
   font-family: var(--font-data);
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
@@ -1746,6 +1730,8 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .prose h1 { margin: var(--space-16) 0 var(--space-4); }
 .prose h2 { margin: var(--space-14) 0 var(--space-4); }
 .prose h3 { margin: var(--space-9) 0 var(--space-3); }
+/* The header above already closes with a rule and its own margin. */
+.prose > :first-child { margin-top: 0; }
 .prose p  { margin: 0 0 var(--space-4); text-wrap: pretty; }
 .prose a  { color: var(--green); text-underline-offset: 2px; text-decoration-thickness: 1px; }
 .prose a:hover { color: var(--green-hover); }
@@ -1786,6 +1772,8 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   box-shadow: inset 0 1px 0 var(--code-sheen);
   padding: var(--space-5) var(--space-6);
   overflow-x: auto;
+  /* The slab is dark in both themes; without this the native scrollbar is light. */
+  color-scheme: dark;
 }
 .prose pre code { background: none; border: none; padding: 0; font-size: var(--text-base); line-height: 1.6; }
 
@@ -1902,7 +1890,7 @@ mark, .prose mark { background: var(--green-soft); color: var(--green-press); bo
   flex: 1;
   font-family: var(--font-display);
   font-size: var(--text-2xl);
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: -0.01em;
 }
 .editor-actions { display: flex; gap: var(--space-2); }
@@ -2515,6 +2503,7 @@ kbd {
   padding: var(--space-2) var(--space-3);
   color: var(--ink-muted);
   font-size: var(--text-base);
+  text-decoration: none;
   border-radius: var(--radius-sm);
 }
 .inbox-link:hover {
@@ -3086,7 +3075,7 @@ html {
   letter-spacing: -0.015em;
 }
 
-.page-header h1  { font-size: var(--text-4xl); line-height: 1.03; }
+.page-header h1  { font-size: var(--text-3xl); line-height: 1.15; }
 .settings-h1     { font-size: var(--text-3xl); line-height: 1.1; }
 .placeholder h1  { font-size: var(--text-3xl); line-height: 1.1; }
 .prose h1        { font-size: var(--text-3xl); line-height: 1.15; }

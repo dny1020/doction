@@ -18,7 +18,7 @@ a generic notes app.
 
 1. The document is the visual protagonist.
 2. Few visual decisions, but deliberate ones.
-3. Material is felt more than it is seen.
+3. The canvas is flat; depth comes from the chrome against it.
 4. Hierarchy is built with typography, rhythm, alignment and tone, not with cards.
 5. Technical content uses monospace, controlled density, and restrained color.
 6. Design neither adds nor removes functionality, routes, panels, or information.
@@ -178,12 +178,12 @@ fallback is `system-ui`.
 --text-xl:   1.375rem;   /* 22px */
 --text-2xl:  1.75rem;    /* 28px */
 --text-3xl:  2.25rem;    /* 36px */
---text-4xl:  3.25rem;    /* 52px */
+--text-4xl:  3.25rem;    /* 52px — landing hero only */
 ```
 
 | Element | Family | Size | Line height |
 |---|---|---|---|
-| Page title | display | 52px | 1.03 |
+| Page title | display | 36px | 1.15 |
 | Document H1 | display | 36px | 1.15 |
 | H2 | interface, 600 | 22px | 1.3 |
 | H3 | interface, 600 | 16px | 1.45 |
@@ -191,6 +191,9 @@ fallback is `system-ui`.
 | Interface | interface | 14px | 1.45 |
 | Navigation | interface | 13px | 1.3 |
 | Metadata | data | 11px | 1.45 |
+
+The page title uses the same 36px step as the document H1, which is the size doction.site
+uses. 52px is reserved for a landing hero.
 
 H2 and H3 use the interface face, not the serif: at 22 and 16px the serif's x-height is
 too small to carry weight as a heading.
@@ -276,25 +279,14 @@ gets a line, not a shadow.
 
 ## 7. Material
 
-Material is tonal, not textural. **No noise, visible grain, textures, or paper
-images.**
+The canvas is a **flat tone**: paper in the light theme, charcoal in the dark one, with
+nothing painted over it. **No gradients, sheens, noise, grain, textures, or paper
+images.** Depth comes from the contrast between the chrome and the canvas, which is the
+same composition doction.site uses.
 
-```css
---material: linear-gradient(
-  112deg,
-  var(--material-sheen) 0%,
-  transparent 32%,
-  var(--material-warm) 100%
-);
-```
-
-Strength changes between themes: on charcoal, the same value that works on paper
-paints a hard-edged diagonal band across the document instead of just being felt.
-
-| | light | dark |
-|---|---|---|
-| `--material-sheen` | 0.18 | 0.030 |
-| `--material-warm` | 0.05 | 0.018 |
+A diagonal sheen used to sit here. It was removed because on charcoal it showed as a
+band across the document, and on paper it was the one thing that made the application
+look different from the site.
 
 ---
 
@@ -308,7 +300,6 @@ chrome recedes, the document leads.
 --nav-bg:        oklch(0.145 0.028 151);  /* top end of the gradient */
 --nav-bg-end:    oklch(0.115 0.022 151);  /* bottom end */
 --nav-hover:     oklch(0.185 0.030 151);
---nav-active-bg: oklch(0.310 0.040 151 / 0.72);
 --nav-edge:      oklch(0.330 0.030 151);  /* the edge, measured against the CANVAS */
 
 --nav-ink:            oklch(0.928 0.014 93);   /* 11.37:1 */
@@ -323,14 +314,13 @@ chrome recedes, the document leads.
 The chrome **is darker than the document even in dark theme**. If it's lighter, the
 panel advances instead of receding, and the app reads as a single mass.
 
-Its four real floors are the gradient's two ends plus the active element's background
-composited over each. Everything on top of it is measured against the worst of the
-four.
+Its real floors are the gradient's two ends. Everything on top of it is measured against
+the worse of the two.
 
-The active element carries a faint green surface and a 2px green left rule, **not** a
-fill: the rule marks the edge (6.92:1 against the active surface), and weight plus ink do
-the rest, so color never travels
-alone.
+The active element carries a 2px green left rule and **no surface**: the rule marks the
+edge, and weight 500 plus the strong ink do the rest, so color never travels alone. It is
+the same mark the documentation site's navigation uses. It used to sit on a faint green
+surface, which read as a filled pill next to the site's bare rule.
 
 ### The brand mark
 
@@ -372,7 +362,14 @@ away.
 
 ## 9. Document
 
-- Header with air above it and a line closing it below.
+- A compact header: breadcrumbs, the title at 36px, then one row with the metadata on
+  the left and the page's actions on the right, closed by a line. On desktop the only
+  action there is Delete — the rest live in the top bar — and destroying is never
+  hidden in a menu, so it stays visible without taking a row of its own.
+- The document's first block begins within 160px of the top of the title. Its own top
+  margin is dropped, because the header already closes with a line.
+- On desktop the top bar shows the page title only after the page's own title has
+  scrolled under it, so a page never says its name twice on one screen.
 - Breadcrumbs in the data face, uppercase, 11px. Their separator carries the decorative
   orange: it's `aria-hidden`, so it owes no one contrast.
 - Metadata strip with the two fields that exist, last-updated date and last editor.
