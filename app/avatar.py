@@ -1,9 +1,7 @@
-"""Avatar identity colours.
+"""Avatar identity colours: eight distinguishable hues, not brand colours.
 
-Eight because they have to be told apart, not because they are brand: the product has
-one accent. They share the rest of the visual language's ground — all measured against
-the warm paper — and one ink on top (`--fg-on-identity`), which does not follow the
-theme because the background does not either. Each passes 4.5:1 in both themes.
+One ink on top (`--ink-on-identity`) that does not follow the theme, since the colour
+does not either.
 """
 
 AVATAR_COLORS = [

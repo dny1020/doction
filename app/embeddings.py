@@ -212,11 +212,8 @@ def _from_blob(blob: bytes) -> np.ndarray:
 def _embed_text(title: str, chunk) -> str:
     """The section's own heading, then its body.
 
-    The page title and ancestor chain are deliberately left out: every section of a page
-    shares that prefix, so it says nothing about which one answers, and including it held
-    sibling sections at 0.685 mean cosine. Dropping the heading too measures worse still.
-    Identical sections in different pages therefore embed identically, which is correct —
-    the page ranking separates them through the lexical channel, which does see the title.
+    No page title or ancestors: every section shares them, so they cannot tell sections
+    apart (measured). The lexical channel, which sees the title, ranks the pages.
     """
     heading = chunk.headings[-1] if chunk.headings else title
     return f"# {heading}\n\n{chunk.text}" if heading else chunk.text
@@ -291,10 +288,8 @@ def semantic_search(
 ) -> list[dict]:
     """The vector list: cosine similarity, ranked. Falls back to FTS when unavailable.
 
-    Cosine only — the lexical mix lives in `search(mode="hybrid")` and fuses by rank.
-    Without `min_score` the list is the whole workspace in order, which is what an agent
-    over MCP wants and a search box does not. The floor applies before the cross-encoder,
-    so reranking reorders what passed it and never rescues what did not.
+    Without `min_score` it is the whole workspace in order, which is what an agent wants.
+    The floor applies before reranking, so reranking never rescues a hit below it.
     """
     query = (query or "").strip()
     if not query:
@@ -372,9 +367,8 @@ def semantic_search(
 def _rrf(rankings: list[tuple[float, list[str]]]) -> dict[str, float]:
     """RRF score per slug: the sum of 1/(k + position) over every list it appears in.
 
-    By position and not by score, because a cosine and a ts_rank share no unit: any
-    constant added from one to the other is arbitrary somewhere down the list. An empty
-    list contributes nothing, so one dead channel leaves the other's order intact.
+    By position, not score: a cosine and a ts_rank share no unit. An empty list adds
+    nothing, so one dead channel leaves the other's order intact.
     """
     scores: dict[str, float] = {}
     for weight, ranking in rankings:
@@ -555,9 +549,8 @@ def _context_path(workspace: str, title: str, section: str) -> str:
 def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> list[dict]:
     """Lexical-channel candidates: whole sections, not ranking extracts.
 
-    `ts_headline` returns twelve words chosen to show a person why a result matched —
-    good for ordering, useless as an answer. The page is chunked the same way the indexer
-    chunks it, on the fly, since with semantics off no worker has stored anything.
+    ts_headline's twelve words explain a match but are no answer. Chunked on the fly as
+    the indexer would, since with semantics off nothing is stored.
     """
     terms = {word for word in _words(query) if len(word) > 2}
     candidates: list[dict] = []
@@ -597,9 +590,8 @@ def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> l
 def _section_candidates(workspace_id: int, query: str, workspace: str, pool: int) -> list[dict]:
     """Candidate chunks: the fusion picks the pages, cosine picks the section.
 
-    Walked in rounds — the best section of every page, then each page's second — so the
-    budget spreads sideways first. An agent assembling context wants one section from
-    every relevant page before five from the first.
+    Walked in rounds (every page's best section, then each one's second), so the budget
+    covers every relevant page before going deep into one.
     """
     rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
     if not rows:

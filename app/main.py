@@ -52,14 +52,12 @@ SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in {"1", "true", "
 # the instance would be unreachable; the rest go through scripts/create_user.py.
 DISABLE_REGISTRATION = os.environ.get("DISABLE_REGISTRATION", "").lower() in {"1", "true", "yes"}
 
-# AGPL-3.0 §13: anyone using the instance over a network is owed the corresponding source.
-# Configurable because an operator who modifies doction owes their changes to *their* users;
-# a fixed upstream URL would leave a modified fork believing it complied.
+# AGPL-3.0 §13: network users are owed the source. Configurable, so a modified fork points
+# at its own code.
 SOURCE_URL = os.environ.get("SOURCE_URL", "").strip() or "https://github.com/dny1020/doction"
 
-# Security headers set on every response, as defence in depth. 'unsafe-inline' in
-# script-src is still needed by the inline theme script in frontend/index.html, which
-# applies light or dark before the first paint.
+# Security headers as defence in depth. script-src keeps 'unsafe-inline' for the theme
+# script in frontend/index.html.
 _CSP = (
     "default-src 'self'; "
     "img-src 'self' data:; "
@@ -301,7 +299,7 @@ def _api_owned_workspace(uid: int, slug: str) -> Workspace:
 @api_router.put("/workspaces/{slug}", tags=["workspaces"])
 def api_rename_workspace(request: Request, slug: str, body: _WorkspaceIn):
     uid = _api_user(request)
-    _api_owned_workspace(uid, slug)  # exige ser owner
+    _api_owned_workspace(uid, slug)  # owner only
     if not db.rename_workspace(uid, slug, body.name):
         raise HTTPException(status_code=400, detail="Enter a valid name")
     return {"slug": slug, "name": body.name.strip()}
@@ -584,12 +582,7 @@ def api_insights(request: Request):
 
 @api_router.get("/graph", tags=["intelligence"])
 def api_graph(request: Request):
-    """Nodes and edges of the wikilink graph, ready to draw.
-
-    Separate from `/insights`, which summarises: there the question is the workspace's
-    health and here it is its shape. The workspace comes from the request context as in
-    the rest of the API, not from the path.
-    """
+    """Nodes and edges of the wikilink graph, ready to draw. `/insights` summarises instead."""
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     return graph.workspace_graph(wid)
@@ -599,12 +592,7 @@ def api_graph(request: Request):
 def api_system(request: Request):
     """What this deployment is running: version, database and retrieval.
 
-    Read-only. The flags come from the process environment, so a form that appeared to
-    change them would be lying: there is no way to rewrite that file and restart. It
-    exists because until now there was no way to tell which search mode a server was in
-    except by looking at the shape of its results.
-
-    Separate from /health, which is anonymous and is what the container healthcheck uses.
+    Read-only: the flags come from the process environment. /health is the anonymous check.
     """
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -635,9 +623,8 @@ def api_system(request: Request):
         "search_min_score": embeddings.SEARCH_MIN_SCORE,
     }
     if semantic and db_state == "ok":
-        # current_model_name() reads a class attribute, so reporting never loads the
-        # model. The counters only appear with semantics on: a 0 with it off would be
-        # indistinguishable from a broken index.
+        # current_model_name() reads a class attribute, so this never loads the model. Counters only
+        # with semantics on: a 0 would look like a broken index.
         model = embeddings.current_model_name()
         total, indexed = db.index_counts(wid, model, meta.CHUNKER_ID)
         report["embedding_model"] = model
@@ -980,15 +967,11 @@ async def lifespan(_: FastAPI):
     db.reset_pool()
 
 
-# Same version /health reports and the image is tagged with. Without it FastAPI declares 0.1.0
-# in /openapi.json, and a reference announcing a version the server never reports leaves the
-# reader unable to tell which of the two numbers is the software they are talking to.
+# Without this FastAPI declares 0.1.0 in /openapi.json.
 app = FastAPI(title="doction", version=VERSION, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-# Uploads live next to the database, not in the image, and are served through an
-# authenticated route rather than StaticFiles: an image pasted into a private workspace
-# would otherwise be a public URL forever.
+# Served by an authenticated route, not StaticFiles: a private upload must not be public.
 UPLOADS_DIR = db.data_dir() / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 _UPLOAD_NAME_RE = re.compile(r"[0-9a-f]{32}\.[a-z0-9]{2,5}")
@@ -1008,20 +991,13 @@ async def serve_upload(request: Request, name: str) -> Response:
 app.include_router(api_router)
 app.include_router(mcp.router)
 
-# Must match the `base` the bundle was built with (DOCTION_APP_PATH in vite.config.js):
-# the HTML requests its assets by absolute path, so a bundle built for /app and served
-# at /wiki cannot find its own JavaScript.
+# Must match the bundle's `base` (DOCTION_APP_PATH in vite.config.js): assets load by absolute path.
 APP_PATH = "/" + os.getenv("DOCTION_APP_PATH", "/app").strip("/")
 SPA_DIR = BASE_DIR / "static" / "app"
 
 
 async def serve_spa(full_path: str = "") -> Response:
-    """Serves the React SPA.
-
-    Returns the requested file when it exists (assets such as /app/assets/...);
-    otherwise returns index.html, so reloading a client-side route such as
-    /app/p/my-page is resolved by React Router.
-    """
+    """Serves the React SPA: the file if it exists, else index.html for client-side routes."""
     if full_path:
         candidate = (SPA_DIR / full_path).resolve()
         # Stay inside SPA_DIR and serve only real files.
@@ -1289,10 +1265,8 @@ async def attach_user(request: Request, call_next):
                 workspaces = db.list_workspaces(user_id)
             request.state.workspaces = workspaces
 
-            # ?ws= is sent by a caller that knows which workspace it wants; the cookie
-            # is only a memory of the last visit. So a ?ws= that does not resolve is an
-            # error and a cookie that does not resolve is not: silently falling into
-            # another workspace would show a shared link the wrong page.
+            # ?ws= is explicit, so an unknown one is an error; the cookie only remembers the last
+            # visit, so an unknown one falls back rather than showing a shared link the wrong page.
             requested_slug = (request.query_params.get("ws") or "").strip()
             explicit = bool(requested_slug)
             if not requested_slug:

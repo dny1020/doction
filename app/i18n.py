@@ -23,7 +23,7 @@ _EN: dict[str, str] = {
     "show_sidebar": "Show sidebar",
     "hide_sidebar": "Hide sidebar",
     "language": "Language",
-    # Atajos
+    # Shortcuts
     "shortcuts_title": "Keyboard shortcuts",
     "sc_focus_search": "Focus search",
     "sc_edit": "Edit current page",
@@ -54,7 +54,7 @@ _EN: dict[str, str] = {
     "related": "Related",
     "diff": "Diff",
     "confirm_delete_page": "Delete",  # prefijo: Delete "Title"?
-    # Historial / versiones
+    # History / versions
     "history": "History",
     "no_history": "No versions yet.",
     "restore": "Restore",
@@ -105,7 +105,7 @@ _EN: dict[str, str] = {
     "msg_token_revoked": "Token revoked.",
     # Search
     "no_matches": "No matches for",
-    # Login / registro
+    # Login / register
     "login_subtitle": "Log in to access your notes.",
     "email": "Email",
     "password": "Password",
@@ -138,7 +138,7 @@ _EN: dict[str, str] = {
     "member": "Member",
     "remove": "Remove",
     "by": "by",
-    # Mensajes flash de settings
+    # Settings flash messages
     "msg_profile": "Profile updated.",
     "msg_password": "Password updated.",
     "msg_ws_created": "Workspace created.",
@@ -180,7 +180,7 @@ _EN: dict[str, str] = {
     "conn_down": "Unreachable",
     "conn_server_down": "Server unreachable",
     "conn_mcp_down": "MCP unavailable",
-    # Entregas de webhooks.
+    # Webhook deliveries
     "deliveries": "Deliveries",
     "deliveries_unavailable": "Couldn't load deliveries.",
     "delivery_delivered": "delivered",
@@ -193,7 +193,7 @@ _EN: dict[str, str] = {
     # Mobile editor: the preview toggles rather than stacking
     "preview": "Preview",
     "write": "Write",
-    # Webhooks de salida.
+    # Outgoing webhooks
     "webhooks": "Webhooks",
     "webhooks_desc": (
         "doction posts page events to these URLs. Signed with HMAC-SHA256 in "
@@ -426,7 +426,7 @@ _ES: dict[str, str] = {
     "webhook_events_ph": "Eventos (vacío = todos)",
     "all_events": "todos los eventos",
     "confirm_delete_webhook": "¿Eliminar este webhook? Dejarán de enviarse eventos.",
-    # Ajustes por secciones.
+    # Settings sections
     "settings_sections": "Secciones de configuración",
     "sec_account": "Mi cuenta",
     "sec_preferences": "Preferencias",

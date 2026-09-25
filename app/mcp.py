@@ -255,9 +255,7 @@ def _tool_get_workspace_tree(user_id: int, args: dict) -> dict:
 def _tool_read_page_raw(user_id: int, args: dict) -> dict:
     """The markdown exactly as stored, frontmatter included.
 
-    Unrendered, unsanitized and untrimmed: whoever asks for the raw page is going to
-    edit it and needs to see what they have to preserve. The frontmatter also comes
-    parsed separately, so it need not be read twice.
+    Unrendered and untrimmed, for editing. The frontmatter also comes parsed.
     """
     slug = _require(args, "slug")
     ws = _workspace(user_id, args)

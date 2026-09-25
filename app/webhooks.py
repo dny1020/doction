@@ -1,12 +1,8 @@
 """Outgoing webhook delivery: HMAC signature plus retries with backoff.
 
-`urllib.request` in a thread, no new dependency. `db.emit_event()` only queues; this
-worker delivers separately, so no HTTP ever happens on the request path.
-
-Destinations are deliberately unfiltered: the use case is publishing to internal
-services (n8n at `http://n8n:5678`), so blocking private addresses would break the
-feature. Only an authenticated user can register a webhook, and that is the trust
-boundary.
+`db.emit_event()` only queues; this worker delivers, so no HTTP runs on the request path.
+Destinations are unfiltered on purpose: internal services (n8n) are the use case, and only
+an authenticated user can register a webhook.
 """
 
 import asyncio

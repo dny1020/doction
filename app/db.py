@@ -451,11 +451,8 @@ def _index_page_meta(conn, page_id: int, workspace_id: int, content: str) -> Non
     conn.execute("UPDATE pages SET embed_dirty = 1 WHERE id = %s", (page_id,))
 
 
-# Our own search configuration: fold accents before stemming. A bare `unaccent()` is
-# STABLE, not IMMUTABLE, so Postgres rejects it in a generated column; chained inside a
-# named configuration it is fine, because to_tsvector(regconfig, text) is IMMUTABLE.
-# The stemmer is English by measurement: `spanish_stem` scores 0.00 MRR on English
-# queries. See evals/results/2026-08-24-minilm-en.json.
+# Accent folding before stemming. unaccent() is STABLE, so a generated column rejects it;
+# inside a named configuration it is fine. English stemmer by measurement (evals/results/).
 TS_CONFIG = "doction"
 _TS_STEMMER = "english_stem"
 _TS_WORD_TOKENS = "asciiword, asciihword, hword_asciipart, word, hword, hword_part"
@@ -505,10 +502,8 @@ def _ensure_text_search_config(conn) -> bool:
     return True
 
 
-# Postgres computes generated columns on write, so neither a new definition nor a
-# changed configuration mapping reaches an existing database on its own. Rather than a
-# migration ladder, this compares the stored state against what the code declares and
-# converges — which also makes rolling back to an older image work.
+# Generated columns are computed on write, so a changed definition or configuration never
+# reaches an existing database alone. Converging on boot also makes rollback work.
 _SEARCH_VECTOR_COLUMNS = {
     "pages": (
         "setweight(to_tsvector('doction', coalesce(title, '')), 'A') || "
@@ -558,10 +553,8 @@ def init_db() -> None:
         _ensure_member_owners(conn)
 
 
-# A ceiling on what one request can cost when a parser turns out worse than believed,
-# not the ReDoS fix (that is the linear pattern in meta.py). It lives here and not in
-# the Pydantic models because MCP calls create_page/update_page directly, and the agent
-# surface is where an enormous page is easiest to generate.
+# A cost ceiling, not the ReDoS fix (that is meta.py's linear pattern). Here, not in the
+# Pydantic models, because MCP calls create_page/update_page directly.
 MAX_CONTENT_BYTES = 1024 * 1024
 
 
@@ -839,9 +832,7 @@ def list_pages_tree(workspace_id: int) -> list[PageNode]:
     """Flat DFS list carrying `depth`, for rendering the sidebar tree."""
     with connect() as conn:
         rows = conn.execute(
-            # Unfiled notes (type: memo, no parent) live in the paginated feed, not
-            # here: this query does not paginate and the sidebar draws all of it.
-            # Moving one under a parent is what files it into the tree.
+            # Unfiled notes (memo, no parent) live in the paginated feed, not this tree.
             "SELECT p.id, p.slug, p.title, p.parent_id FROM pages p "
             "LEFT JOIN page_meta m ON m.page_id = p.id "
             "WHERE p.workspace_id = %s AND p.deleted_at IS NULL "
@@ -1045,10 +1036,8 @@ def upsert_page_section(
 ) -> str | None:
     """Write a single section of a page. Returns the slug, or None if it does not exist.
 
-    Goes through `update_page` rather than its own UPDATE, so the version lands in git
-    history, the page is re-queued for indexing and the webhook event fires like any
-    other write. Reading and writing inside one call also means two agents editing
-    different sections do not overwrite each other. `AmbiguousSection` propagates.
+    Goes through `update_page` so git history, reindexing and webhooks happen as for any
+    write. `AmbiguousSection` propagates.
     """
     page = get_page(slug, workspace_id)
     if page is None:
@@ -1484,20 +1473,9 @@ def _fts_query(raw: str) -> str:
     return " & ".join(f"{term}:*" for term in terms)
 
 
-# The text ts_headline reads, with the markdown syntax taken off.
-#
-# The stored page keeps its syntax — that is what is indexed and what `read_page_raw` hands
-# an agent — but a snippet is prose for a person to read, so `##`, table pipes, `[[...]]`
-# and mermaid blocks come off here and nowhere else. Ranking is untouched: `search_vector`
-# is built from the stored content, so what a query matches does not change.
-#
-# Stripped before ts_headline rather than after, because this also decides which twelve
-# words get picked. A fragment chosen out of a mermaid block is noise however it is cleaned
-# up afterwards, and the marks are applied to the result, so a page still cannot forge one.
-#
-# Ordered, because the steps interfere: fenced blocks go before anything looks inside them,
-# wikilinks are unwrapped before `|` becomes a space, and whitespace collapses last, once
-# every removal has left its gap behind.
+# Markdown syntax stripped for ts_headline only: snippets are prose, ranking still uses the
+# stored content. Before the headline, because it decides which words get picked. Order
+# matters: fences first, wikilinks before `|`, whitespace last.
 _SNIP_FRONT: LiteralString = r"regexp_replace(p.content, '^---\n.*?\n---\n', '')"
 _SNIP_FENCE: LiteralString = f"regexp_replace({_SNIP_FRONT}, '```.*?```|~~~.*?~~~', ' ', 'g')"
 _SNIP_IMG: LiteralString = f"regexp_replace({_SNIP_FENCE}, '!\\[[^]]*\\]\\([^)]*\\)', ' ', 'g')"
@@ -1517,10 +1495,8 @@ _SNIP_PIPES: LiteralString = f"regexp_replace({_SNIP_TABLE_RULE}, '\\|', ' ', 'g
 _SNIP_INLINE: LiteralString = f"regexp_replace({_SNIP_PIPES}, '[*_`~]', '', 'g')"
 _SNIPPET_SOURCE: LiteralString = f"regexp_replace({_SNIP_INLINE}, '[[:space:]]+', ' ', 'g')"
 
-# ts_headline marks matches with these control characters rather than <mark>, so the
-# snippet leaves here as text and the highlighting as positions: page content cannot
-# re-enter the DOM as HTML. Control characters because `translate()` strips them from
-# the input first, so a marked span can only have come from the highlighter.
+# Matches are marked with control characters, not <mark>: translate() strips them from the
+# input, so a marked span can only come from the highlighter and content never becomes HTML.
 _MARK_OPEN = "\x01"
 _MARK_CLOSE = "\x02"
 _HEADLINE_OPTS = (
