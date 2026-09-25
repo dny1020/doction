@@ -4,12 +4,8 @@ import { renderMarkdown } from '../markdown.js'
 import { enhanceProse } from '../prose.js'
 import { APP_BASE } from '../config.js'
 
-// Renders markdown into a .prose container, through markdown.js's whitelist sanitizer, and
-// enhances it afterwards (highlighting, diagrams). The ref forwards to the .prose div so
-// the Reader can build its TOC from the painted headings.
-//
-// `ws` and `slugs` are what wikilinks need to know where they point and whether the target
-// exists.
+// Renders sanitized markdown into .prose, then enhances it. The ref reaches the .prose div
+// so the Reader builds its TOC from painted headings. `ws` and `slugs` resolve wikilinks.
 const Markdown = forwardRef(function Markdown({ text, ws, slugs }, ref) {
   const navigate = useNavigate()
 

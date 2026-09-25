@@ -15,12 +15,8 @@ import EmptyState from '../components/EmptyState.jsx'
 import { ListSkeleton } from '../components/Skeleton.jsx'
 import { useDocumentTitle } from '../useDocumentTitle.js'
 
-// The bird's-eye view: the workspace as its wikilink graph.
-//
-// Drawn as SVG the application writes itself rather than letting a library render. d3-force
-// only solves positions here — it is a numerical solver, not a renderer — so every colour
-// and face comes from the theme variables through ordinary CSS and dark mode needs no
-// bridge. That is the lesson from mermaid, which did need its palette carried by hand.
+// The workspace as its wikilink graph. Our own SVG; d3-force only solves positions, so
+// every colour comes from theme variables through CSS.
 
 function reducedMotion() {
   try {
@@ -55,12 +51,9 @@ export default function Graph() {
 
   useDocumentTitle(t('graph'), ws)
 
-  // ResizeObserver rather than window.resize: the sidebar collapses and the canvas
-  // changes width without the window noticing.
-  //
-  // It depends on `data` because the <svg> does not exist until there is a graph, and it
-  // only writes state when the measurement actually changed: a new object per notification
-  // would cause a render, and that render another notification.
+  // ResizeObserver, not window.resize: collapsing the sidebar changes the canvas width.
+  // Depends on `data` (no <svg> before a graph) and only sets state on a real change, or each
+  // render would trigger another notification.
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) return undefined

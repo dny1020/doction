@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
 
-// A loading placeholder shaped like what is coming.
-//
-// The delay is half the point: below it nothing paints, because a skeleton that appears
-// and vanishes in 80 ms reads as a glitch. It only shows once the wait is noticeable.
+// A loading placeholder shaped like what is coming, shown only after a delay: one that
+// flashes for 80 ms reads as a glitch.
 const DELAY = 250
 
 function useVisibleAfterDelay(delay = DELAY) {

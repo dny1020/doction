@@ -52,8 +52,7 @@ export default function SystemSection() {
         )}
       </dl>
 
-      {/* Las constantes que ordenan cada resultado híbrido. Solo lectura, como el
-          resto: son configuración del despliegue y no una preferencia. */}
+      {/* The constants that order hybrid results: read-only deployment config. */}
       <h3 className="eyebrow">{t('system_ranking')}</h3>
       <dl className="rows rows--divided">
         <Fact label={t('rrf_k')} value={String(report.rrf_k)} />
@@ -67,9 +66,7 @@ export default function SystemSection() {
         <Fact label={t('database')} value={report.db === 'ok' ? t('db_ok') : t('db_unreachable')} />
       </dl>
 
-      {/* La AGPL obliga a la instancia, no al repositorio: quien la usa por red tiene
-          derecho al fuente, así que se ofrece desde aquí y no solo desde el README. El
-          operador de un fork modificado apunta SOURCE_URL a su propio código. */}
+      {/* AGPL binds the instance: network users are owed the source (SOURCE_URL). */}
       {report.license !== undefined && (
         <>
           <h3 className="eyebrow">{t('system_license')}</h3>

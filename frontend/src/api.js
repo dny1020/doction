@@ -1,10 +1,8 @@
 // Minimal fetch wrapper for the FastAPI backend: always sends the session cookie, speaks
 // JSON, and throws an Error carrying the backend's `detail` and `error.status`.
 
-// The active workspace travels on every request as ?ws=<slug> rather than in session
-// state, so two tabs in different workspaces do not collide and a link to a page opens
-// that page. The shell sets it from the URL before any child asks for anything — here,
-// because forgetting it in one call out of a dozen means reading the wrong workspace.
+// The active workspace travels on every request as ?ws=<slug>, not session state, so tabs
+// in different workspaces do not collide. Set here so no call can forget it.
 let workspace = null
 
 export function setWorkspace(slug) {

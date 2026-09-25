@@ -32,7 +32,7 @@ export default function History() {
   const navigate = useNavigate()
   const toast = useToast()
   const confirm = useConfirm()
-  const [history, setHistory] = useState(null) // null = cargando
+  const [history, setHistory] = useState(null) // null = loading
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function History() {
 // One version: metadata and actions. The diff only loads when "Diff" is pressed.
 function HistoryItem({ slug, commit, canRestore, onRestore }) {
   const { t } = useI18n()
-  const [diff, setDiff] = useState(null) // null = oculto; string = visible
+  const [diff, setDiff] = useState(null) // null = hidden; string = shown
   const [loading, setLoading] = useState(false)
 
   async function toggleDiff() {

@@ -17,7 +17,7 @@ export default function Notes() {
   const { ws } = useOutletContext()
   const { t } = useI18n()
   const toast = useToast()
-  const [items, setItems] = useState(null) // null = cargando
+  const [items, setItems] = useState(null) // null = loading
   const [done, setDone] = useState(false)
 
   useDocumentTitle(t('notes'), ws)
@@ -58,8 +58,7 @@ export default function Notes() {
               <li className="row" key={n.slug}>
                 <div className="row-name">
                   <Link to={pagePath(ws, n.slug)}>{n.title}</Link>
-                  {/* El título de una captura se deriva de su primera línea, así
-                      que en una nota corta el extracto repetiría el título. */}
+                  {/* A capture's title is its first line, so a short note's excerpt would repeat it. */}
                   {n.excerpt && n.excerpt !== n.title && <p className="snippet">{n.excerpt}</p>}
                 </div>
                 <span className="meta">{n.created_at?.slice(0, 10)}</span>

@@ -1,11 +1,5 @@
-// Fails if the built bundle, its HTML or the design system's CSS asks an external host
-// for anything.
-//
-// doction is served on LANs, over VPNs and sometimes on networks with no route out, where
-// a request to fonts.gstatic.com fails exactly where it is most used. This exists so the
-// next dependency reaching for a CDN breaks the build rather than a deployment.
-//
-// Runs inside `npm run check`, after `vite build`.
+// Fails if the bundle, its HTML or the stylesheet requests an external host: doction runs
+// on networks with no route out. Runs in `npm run check`, after `vite build`.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, extname } from 'node:path'

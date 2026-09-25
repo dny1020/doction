@@ -1,8 +1,5 @@
-// Every content route hangs off the workspace: /w/<ws>/…. Built here so no link is left
-// on the old scheme — one would be enough to open another workspace's page.
-//
-// Pages sit under /w/<ws>/p/<slug> and not /w/<ws>/<slug> on purpose: the slug is chosen
-// by the writer, and a page titled "new", "trash" or "notes" would shadow those routes.
+// Every content route hangs off /w/<ws>/. Pages live under /p/<slug> so a page titled
+// "new" or "trash" cannot shadow a route.
 
 export function wsPath(ws, rest = '') {
   return '/w/' + ws + rest

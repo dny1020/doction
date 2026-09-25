@@ -66,10 +66,8 @@ function LegacyRedirect({ to }) {
   return <Navigate to={wsPath(slug, rest) + location.search} replace />
 }
 
-// The route tree for createBrowserRouter (main.jsx). Everything hangs off a contentless
-// root so the errorElement can hang off it too: the data router catches render errors
-// itself, and without this it shows its default screen with the stack visible — the error
-// boundary in main.jsx never sees them.
+// Routes hang off a contentless root so its errorElement catches render errors, which the
+// data router handles before main.jsx's error boundary could.
 export const routes = [
   {
     element: <Outlet />,

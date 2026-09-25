@@ -4,14 +4,14 @@ import { useI18n } from '../../i18n.jsx'
 import { useToast } from '../../components/Toast.jsx'
 import { useConfirm } from '../../components/ConfirmDialog.jsx'
 
-// ── Tokens de API ───────────────────────────────────────────────────────────
+// ── API tokens ──────────────────────────────────────────────────────────────
 export default function TokensSection() {
   const { t } = useI18n()
   const toast = useToast()
   const confirm = useConfirm()
   const [tokens, setTokens] = useState([])
   const [name, setName] = useState('')
-  const [newToken, setNewToken] = useState(null) // texto plano, mostrado una sola vez
+  const [newToken, setNewToken] = useState(null) // plaintext, shown once
   const [busy, setBusy] = useState(false)
   const [revoking, setRevoking] = useState(null)
 

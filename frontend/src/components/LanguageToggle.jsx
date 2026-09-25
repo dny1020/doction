@@ -1,12 +1,8 @@
 import { useI18n } from '../i18n.jsx'
 import { useToast } from './Toast.jsx'
 
-// Language switch. With two languages it works as a toggle: it shows the *other*
-// language's code and switches to it.
-//
-// Its own class even though it looks like the theme toggle: it used to carry
-// `theme-toggle`, which made a selector on that class hit the wrong control. They share
-// styling through a selector list, not through a name.
+// With two languages it is a toggle: it shows the other language's code. Its own class,
+// not theme-toggle, so selectors hit the right control.
 export default function LanguageToggle({ className = 'lang-toggle' }) {
   const { lang, langs, setLang, t } = useI18n()
   const toast = useToast()

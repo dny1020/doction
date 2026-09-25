@@ -82,7 +82,7 @@ export default function CommandPalette({ ws, pages }) {
       // tab order inside an aria-hidden subtree.
       {...(open ? {} : { inert: '' })}
       onClick={(event) => {
-        if (event.target === event.currentTarget) setOpen(false) // clic en el fondo
+        if (event.target === event.currentTarget) setOpen(false) // backdrop click
       }}
     >
       <div

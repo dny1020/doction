@@ -1,11 +1,5 @@
-// A draft lives in the writer's browser, not on the server. The editor's save button and
-// unsaved-changes guard cover leaving, not the server leaving: if the Pi stops answering
-// mid-paragraph, the text exists only in React state and a reload takes it.
-//
-// It deliberately does not autosave against the API: every server save is a git commit,
-// and autosaving would turn a page's history into one commit per typing pause.
-//
-// The key carries workspace and slug, so two half-written pages do not collide.
+// Drafts live in the browser, so a server that stops answering mid-paragraph loses
+// nothing. No autosave to the API: every save is a git commit. Keyed by workspace and slug.
 
 const PREFIX = 'doction:draft:'
 

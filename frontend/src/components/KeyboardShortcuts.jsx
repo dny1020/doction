@@ -14,7 +14,7 @@ export default function KeyboardShortcuts({ ws }) {
   const closeRef = useRef(null)
   const prevFocusRef = useRef(null) // where to return focus on close
 
-  // Ruta actual en un ref para que el listener (montado una vez) la lea fresca.
+  // Current path in a ref, so the listener (mounted once) reads it fresh.
   const locRef = useRef(location)
   locRef.current = location
   const wsRef = useRef(ws)
@@ -41,7 +41,7 @@ export default function KeyboardShortcuts({ ws }) {
         return
       }
 
-      // No disparar atajos mientras se escribe, ni pisar combos con modificadores (⌘K…).
+      // No shortcuts while typing, and never over modifier combos (⌘K…).
       const el = event.target
       if (el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'))
         return

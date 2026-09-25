@@ -1,9 +1,7 @@
 import { defineConfig } from 'vitest/config'
 
-// jsdom, because DOMPurify sanitizes against a real DOM.
-//
-// The `define` repeats vite.config.js's because vitest does not inherit it and config.js
-// reads it at import time; without it the whole suite fails with a ReferenceError.
+// jsdom, because DOMPurify needs a real DOM. `define` repeats vite.config.js's: vitest does
+// not inherit it and config.js reads it at import time.
 export default defineConfig({
   define: {
     __DOCTION_MCP_PATH__: JSON.stringify('/api/mcp'),

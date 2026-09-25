@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 
-// The "On this page" index, built from the h1/h2/h3 of the painted prose.
-//
-// Rather than toggling each heading separately, which could leave two active at once in
-// short sections, it tracks the set of headings visible in the top band and activates only
-// the last of them in document order.
+// "On this page", from the painted h1–h3. Only the last visible heading in the top band is
+// active, so two are never active at once.
 export default function Toc({ proseRef, wrapRef, content }) {
   const { t } = useI18n()
   const [items, setItems] = useState([])

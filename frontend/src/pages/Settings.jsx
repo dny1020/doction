@@ -4,16 +4,8 @@ import { Check, ChevronDown } from 'lucide-react'
 import { useI18n } from '../i18n.jsx'
 import { useDocumentTitle } from '../useDocumentTitle.js'
 
-// Settings by section: one route per section, one section on screen.
-//
-// The breakpoint is 1120px and not the shell's 820px: between the two the sidebar is still
-// a fixed column, and a second navigation column would leave the content narrower than its
-// own chrome. 1120 is where the reader drops its table of contents, so the interface loses
-// its secondary column at one width rather than two.
-//
-// That width lives only in the CSS. Both navigations render and the media query hides the
-// spare one: a second copy of the number here in JS could drift and leave the list without
-// its two-column grid, stacked over the content.
+// One route and one section per screen. The two-column breakpoint (1120px, where the reader
+// drops its TOC) lives only in CSS: both navigations render and a media query hides one.
 
 export const SECTIONS = [
   { path: 'account', key: 'sec_account' },

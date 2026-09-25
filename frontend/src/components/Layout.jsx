@@ -196,9 +196,7 @@ export default function Layout() {
           )}
         </div>
         <div className="content-body">
-          {/* El workspace de la URL no existe: el 404 va dentro del shell, con la
-              barra lateral del workspace propio, para no dejar a nadie en una
-              pantalla sin salida. */}
+          {/* Unknown workspace: the 404 renders inside the shell so there is a way out. */}
           {unknownWs ? (
             <NotFound />
           ) : (
@@ -215,9 +213,7 @@ export default function Layout() {
           )}
         </div>
       </main>
-      {/* Fuera de .app-bar: esa barra solo existe por debajo de 820px, así que ahí
-          el indicador era invisible en escritorio. Va fijo sobre el shell, y como
-          se calla cuando todo va bien, no ocupa nada la mayor parte del tiempo. */}
+      {/* Fixed over the shell; it renders nothing while everything works. */}
       <ConnectionStatus />
       <CommandPalette ws={ws} pages={pages} />
       <CaptureModal />

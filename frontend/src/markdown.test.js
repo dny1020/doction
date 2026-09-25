@@ -10,7 +10,7 @@ describe('HTML embebido', () => {
     const html = renderMarkdown('Antes\n\n<script>alert(1)</script>\n\nDespués')
     expect(html).not.toContain('<script')
     expect(html).not.toContain('alert(1)')
-    // El documento de alrededor se sigue pintando: no se rechaza entero.
+    // The surrounding document still renders; it is not rejected whole.
     expect(html).toContain('Antes')
     expect(html).toContain('Después')
   })
@@ -26,7 +26,7 @@ describe('HTML embebido', () => {
   })
 
   it('desactiva las URL javascript:, escritas como enlace o como HTML', () => {
-    // markdown-it ya rechaza el esquema y no llega a construir el enlace…
+    // markdown-it rejects the scheme before building the link…
     expect(renderMarkdown('[pincha](javascript:alert(1))')).not.toContain('<a ')
     // ...and the sanitizer strips it when it arrives as embedded HTML too.
     const html = renderMarkdown('<a href="javascript:alert(1)">pincha</a>')

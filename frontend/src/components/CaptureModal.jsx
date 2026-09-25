@@ -3,11 +3,8 @@ import { useI18n } from '../i18n.jsx'
 import { useToast } from './Toast.jsx'
 import { api } from '../api.js'
 
-// Quick capture (⌘/Ctrl + Shift + K): write a note without leaving where you are or
-// inventing a title. Saved with `type: memo`, so it lands in the inbox feed rather than
-// cluttering the sidebar tree.
-//
-// Reusa las clases `.palette*` del design system, igual que CommandPalette.
+// Quick capture (⌘/Ctrl + Shift + K): saved as `type: memo`, so it lands in the inbox
+// feed, not the tree. Reuses the `.palette*` classes, like CommandPalette.
 export default function CaptureModal({ onCaptured }) {
   const { t } = useI18n()
   const toast = useToast()

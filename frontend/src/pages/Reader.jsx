@@ -21,7 +21,7 @@ export default function Reader() {
   const toast = useToast()
   const confirm = useConfirm()
   const [view, setView] = useState(null)
-  const [error, setError] = useState(null) // Error de api.js (trae .status)
+  const [error, setError] = useState(null) // api.js Error (carries .status)
   // The button is disabled while the delete is in flight, so two clicks are not two
   // deletes.
   const [deleting, setDeleting] = useState(false)

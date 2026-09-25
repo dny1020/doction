@@ -102,7 +102,7 @@ function WorkspaceRow({ ws, ownedCount, isActive }) {
     try {
       await api.del('/api/workspaces/' + ws.slug)
       if (isActive) {
-        // Si borramos el activo, recargamos para re-arrancar con otro workspace.
+        // Deleting the active workspace reloads into another one.
         window.location.assign(APP_BASE + '/')
         return
       }

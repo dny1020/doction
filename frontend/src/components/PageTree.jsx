@@ -5,11 +5,8 @@ import { useI18n } from '../i18n.jsx'
 import { pagePath } from '../routes.js'
 import PageActions from './PageActions.jsx'
 
-// The sidebar's page tree. The API returns a flat DFS list with `depth`, which is enough
-// to rebuild the tree here.
-//
-// What is stored is what is *collapsed*, not what is expanded, so the initial state is the
-// whole tree open.
+// The sidebar's page tree, rebuilt from the API's flat DFS list with `depth`. Collapsed
+// branches are stored, so the default is fully open.
 
 function buildTree(pages) {
   const roots = []

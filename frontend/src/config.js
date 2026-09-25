@@ -1,8 +1,5 @@
-// Where each surface of the deployment lives, from the build environment. Everything
-// defaults to today's layout, so a deployment that configures nothing never notices this
-// file. Paths only — whatever enters the bundle is published to whoever loads it.
-//
-// /api is deliberately not configurable: this backend serves it and no deployment moves it.
+// Where each surface lives, from the build environment; defaults to today's layout. Paths
+// only: the bundle is public. /api is not configurable.
 
 // The router basename, without a trailing slash and empty for the root. Substituted by
 // vite from the same DOCTION_APP_PATH that sets the build's `base`.

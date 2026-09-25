@@ -37,7 +37,7 @@ export default function Editor({ mode }) {
   const slugSet = useMemo(() => new Set(pages.map((p) => p.slug)), [pages])
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [loaded, setLoaded] = useState(!isEdit) // en modo "new" no hay nada que cargar
+  const [loaded, setLoaded] = useState(!isEdit) // nothing to load in "new" mode
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
@@ -96,11 +96,8 @@ export default function Editor({ mode }) {
     if (saved && (saved.title || saved.content)) setDraft(saved)
   }, [isEdit, ws])
 
-  // Arriving from a broken wikilink prefills the title, without overwriting a draft or
-  // anything already typed.
-  //
-  // It also moves the unsaved baseline: the link set that title, not the writer, so
-  // leaving without touching anything should not ask about discarding changes.
+  // A broken wikilink prefills the title (never over a draft) and moves the unsaved
+  // baseline, so leaving untouched does not ask to discard changes.
   useEffect(() => {
     if (isEdit || !seededTitle) return
     setTitle((current) => {
@@ -155,7 +152,7 @@ export default function Editor({ mode }) {
     function onBeforeUnload(event) {
       if (!isDirty()) return
       event.preventDefault()
-      event.returnValue = '' // requerido por Chrome para mostrar el aviso
+      event.returnValue = '' // Chrome needs it to show the prompt
     }
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)

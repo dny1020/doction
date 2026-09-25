@@ -36,7 +36,7 @@ export function I18nProvider({ children }) {
     if (code === data.lang) return
     await api.post('/api/lang/' + code)
     const fresh = await api.get('/api/i18n')
-    setData(fresh) // re-renderiza toda la app en el nuevo idioma, sin recargar
+    setData(fresh) // re-renders the whole app in the new language, no reload
   }
 
   // Wait for the catalogue, so the raw keys never flash on screen.

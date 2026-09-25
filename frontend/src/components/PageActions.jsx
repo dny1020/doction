@@ -4,11 +4,8 @@ import { useI18n } from '../i18n.jsx'
 import { useToast } from './Toast.jsx'
 import { api } from '../api.js'
 
-// The "⋯" menu on each tree row: move and rename. Renaming leaves an alias so existing
-// [[wikilinks]] keep resolving, which is what the save message says.
-//
-// A modal <dialog> rather than an absolute dropdown: the tree scrolls, and a dropdown
-// anchored to a row clipped against .page-list's edge near the bottom.
+// The ⋯ menu on each tree row: move and rename (rename leaves an alias). A modal <dialog>,
+// because a dropdown is clipped by .page-list.
 export default function PageActions({ page, pages, onDone, tabIndex }) {
   const { t } = useI18n()
   const toast = useToast()

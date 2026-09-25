@@ -3,11 +3,8 @@ import { AlertTriangle, WifiOff } from 'lucide-react'
 import { MCP_PATH } from '../config.js'
 import { useI18n } from '../i18n.jsx'
 
-// The state of doction's two machine surfaces, the REST API and the MCP server. They fail
-// separately — an agent can go silent with the API perfectly fine — so they are checked
-// and reported separately.
-//
-// Silent when all is well: a permanent green badge is noise.
+// REST API and MCP status, checked separately because they fail separately. Silent when
+// all is well.
 const INTERVAL = 30000
 
 async function probe() {

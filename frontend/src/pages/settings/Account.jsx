@@ -15,7 +15,7 @@ export default function AccountSection() {
   )
 }
 
-// ── Perfil: nombre visible + color del avatar ───────────────────────────────
+// ── Profile: display name and avatar colour ─────────────────────────────────
 function ProfileSection() {
   const { user, refresh } = useAuth()
   const { t } = useI18n()
@@ -32,7 +32,7 @@ function ProfileSection() {
     setBusy(true)
     try {
       await api.post('/api/settings/profile', { display_name: name, avatar_color: color })
-      await refresh() // refresca el avatar de la barra lateral
+      await refresh() // refreshes the sidebar avatar
       toast(t('msg_profile'))
     } catch (e) {
       toast(e.message, 'error')

@@ -4,10 +4,8 @@ import DOMPurify from 'dompurify'
 import { APP_BASE } from './config.js'
 import { newPageWithTitlePath, pagePath } from './routes.js'
 
-// Markdown rendering lives only in the client — the backend stores raw markdown and
-// renders nothing — so every decision here is a security boundary. Embedded HTML is
-// enabled and passes through a whitelist sanitizer: the two halves go together, because
-// enabling one without the other is exactly how stored XSS ships.
+// Rendering happens only here, so this is a security boundary: embedded HTML is on and
+// always passes through a whitelist sanitizer. One without the other is stored XSS.
 
 // ── Whitelist ────────────────────────────────────────────────────────────────
 // doction's own and not the library's on purpose: what gets rendered is a product
@@ -109,9 +107,8 @@ md.enable(['table', 'strikethrough'])
 md.use(taskLists, { enabled: false, label: false })
 
 // ── Math ─────────────────────────────────────────────────────────────────────
-// `$…$` and `$$…$$` are marked here and painted later by KaTeX (prose.js), so its 600 KB
-// only downloads on pages that carry formulas. The source is emitted as text inside a
-// marked node, so what reaches the sanitizer is text and never markup.
+// Marked here, painted by KaTeX (prose.js) only on pages with formulas. Emitted as text,
+// so the sanitizer never sees markup.
 function mathPlugin(instance) {
   instance.inline.ruler.before('escape', 'doction_math', (state, silent) => {
     const start = state.pos
@@ -144,15 +141,9 @@ function mathPlugin(instance) {
 md.use(mathPlugin)
 
 // ── Wikilinks ────────────────────────────────────────────────────────────────
-// `[[target]]` and `[[target|label]]` become anchors to the page.
-//
-// The rule emits tokens (`link_open` / `text` / `link_close`) rather than an HTML string.
-// That is not style: splicing a document-derived target into `<a href="...">` is the shape
-// of the stored XSS closed in change 001. As a token the target is an attribute value
-// markdown-it escapes, and the sanitizer sees an ordinary anchor.
-//
-// The href is always a route prefix plus one encoded segment, so a target such as
-// `javascript:alert(1)` ends up as the relative path `/w/<ws>/p/javascript%3Aalert(1)`.
+// `[[target]]` and `[[target|label]]` become anchors. Emitted as tokens, never an HTML
+// string, so markdown-it escapes the target (splicing it into <a href> is stored XSS). The
+// href is a route prefix plus one encoded segment, so `javascript:` stays a relative path.
 function wikilinkPlugin(instance) {
   instance.inline.ruler.before('link', 'doction_wikilink', (state, silent) => {
     const start = state.pos
@@ -203,9 +194,8 @@ function wikilinkPlugin(instance) {
 md.use(wikilinkPlugin)
 
 // ── Table alignment ──────────────────────────────────────────────────────────
-// markdown-it writes column alignment as an inline `style`, and the sanitizer strips
-// `style` — rightly, since that is how a page paints over the rest of the UI. It is
-// translated to a class instead, which survives, and the alignment lives in the CSS.
+// The sanitizer strips inline `style` (a page must not paint over the UI), so markdown-it's
+// alignment is translated to a class.
 function tableAlignPlugin(instance) {
   for (const rule of ['th_open', 'td_open']) {
     instance.renderer.rules[rule] = (tokens, idx, options, env, self) => {
@@ -221,11 +211,8 @@ function tableAlignPlugin(instance) {
 }
 md.use(tableAlignPlugin)
 
-// A leading frontmatter block is page metadata, not prose, and markdown-it does not know
-// that — to it, `type: runbook` followed by `---` is a setext heading.
-//
-// Stripped before rendering rather than on the server: the API returns the markdown as
-// stored, which is what the editor edits and what `read_page_raw` promises an agent.
+// Frontmatter is metadata, and markdown-it would read `key: value` + `---` as a heading.
+// Stripped here, not on the server, which returns the markdown as stored.
 const FRONTMATTER = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/
 
 function stripFrontmatter(text) {

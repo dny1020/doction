@@ -1,21 +1,14 @@
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from 'd3-force'
 
-// The numerical half of the graph view: where the nodes go, and nothing about how they look.
-//
-// Separate from Graph.jsx because a layout is the one part of that view with a right and a
-// wrong answer — labels either overlap or they do not — and a claim about it should be
-// measurable without a browser. graphLayout.test.js measures it.
+// Where the graph's nodes go, nothing about how they look. Separate from Graph.jsx so
+// graphLayout.test.js can measure overlaps without a browser.
 
 export const NODE_R = 5
 export const MAX_R = 14
 export const LABEL_AT = 40 // above this, only nodes with links are labelled
 
-// Label geometry, shared by the collider and the renderer because they have to agree.
-//
-// The label sits centred under its node rather than off to one side, so the space a node
-// occupies is a symmetric box — which is the only shape forceCollide can model. Anchored to
-// the right, a long title reached far past anything the simulation knew about, and two nodes
-// the collider considered well separated still had their labels on top of each other.
+// Label geometry, shared by the collider and the renderer. Centred under the node, so each
+// node is a symmetric box, the only shape forceCollide can model.
 export const LABEL_PX = 6.6 // mean advance of the UI face at --text-sm (12px)
 export const LABEL_BASELINE = 13 // from the node's centre down to the label's baseline
 export const LABEL_MAX = 24 // characters; a title longer than this is elided
@@ -57,12 +50,8 @@ export function buildSimulation(nodes, links) {
       // The collider works on the whole label box, not the circle, which is what stops two
       // names overlapping while their nodes sit politely apart.
       .force('collide', forceCollide((d) => Math.max(radius(d), halfLabel(d)) + 8).strength(0.85))
-      // forceX/forceY rather than forceCenter: centering translates the whole set and holds
-      // nobody, so an orphan page with no edges pulling on it was flung off the canvas by
-      // the repulsion. This ties it weakly to the centre instead.
-      //
-      // Y pulls harder than X on purpose: the canvas is wider than it is tall and the labels
-      // are horizontal, so the layout should spend the space it has sideways.
+      // forceX/forceY, not forceCenter, which holds no node, so orphans drifted off the canvas.
+      // Y pulls harder than X: the canvas is wide and labels are horizontal.
       .force('x', forceX(0).strength(0.04))
       .force('y', forceY(0).strength(0.08))
       .stop()

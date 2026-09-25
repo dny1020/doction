@@ -3,12 +3,8 @@ import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Where each surface is served. A deployment that wants something else says so through
-// the environment rather than by editing this file.
-//
-// DOCTION_APP_PATH has to match the backend's (app/main.py): the HTML requests its assets
-// by absolute path, so a bundle built for /app and served at /wiki cannot find its own
-// JavaScript.
+// Where each surface is served, set through the environment. DOCTION_APP_PATH must match
+// app/main.py: assets load by absolute path.
 function path(name, fallback) {
   const value = process.env[name] ?? fallback
   if (!value.startsWith('/')) {
@@ -21,11 +17,8 @@ const appPath = path('DOCTION_APP_PATH', '/app')
 const staticPath = path('DOCTION_STATIC_PATH', '/static')
 const mcpPath = path('DOCTION_MCP_PATH', '/api/mcp')
 
-// The backend serves these from fixed paths, so they cannot carry a hash in their names
-// like Vite's assets do; each carries its content hash in the query instead. A browser
-// with the old sheet cached and the new bundle paints new markup with old rules, which is
-// a broken screen and not a stale style — and a favicon without a version outlives any
-// brand change, because browsers keep favicons in a cache of their own.
+// Served from fixed paths, so the content hash goes in the query: a cached old stylesheet
+// with a new bundle is a broken screen, and favicons have their own long-lived cache.
 const HASHED_STATIC = ['style.css', 'favicon.svg', 'manifest.webmanifest', 'apple-touch-icon.png']
 
 function fileHash(name) {
@@ -41,10 +34,8 @@ function fileHash(name) {
   }
 }
 
-// index.html references the backend's CSS, favicon and manifest by absolute path, and
-// Vite leaves absolute URLs alone, so the substitution happens here. It runs at 'pre'
-// because Vite decodes hrefs as URIs while parsing, and an unsubstituted placeholder is
-// not a valid URI.
+// Vite leaves absolute URLs alone, so the placeholder is substituted here, at 'pre': an
+// unsubstituted placeholder is not a valid URI.
 const staticUrls = {
   name: 'doction-static-urls',
   transformIndexHtml: {

@@ -2,7 +2,7 @@
 // highlighting and formulas. All three libraries are vendored under /static/vendor and
 // load lazily, so a page with no diagrams, code or math downloads none of them.
 
-const loaded = {} // cache de promesas por src, para no cargar dos veces
+const loaded = {} // promise cache per src, so nothing loads twice
 
 function loadStyle(href) {
   if (loaded[href]) return loaded[href]
@@ -30,12 +30,8 @@ function loadScript(src) {
   return loaded[src]
 }
 
-// Mermaid has its own colour parser and does not understand `oklch()`, which is how every
-// design token is declared. Handed one it fails silently and the diagram just disappears.
-//
-// The browser will not convert it either: neither `getComputedStyle().color` nor
-// `ctx.fillStyle` normalize to rgb. Painting it and reading the pixel does, and gives
-// exactly the colour that would appear on screen.
+// Mermaid cannot parse oklch() and fails silently. Neither getComputedStyle nor fillStyle
+// normalise it to rgb, so the colour is painted and the pixel read back.
 let probe = null
 function toRgbHex(value) {
   if (!value || value.startsWith('#')) return value
@@ -105,10 +101,7 @@ function renderMermaid(root) {
       if (typeof mermaid === 'undefined') return
       mermaid.initialize({
         startOnLoad: false,
-        // `base` plus our own variables rather than `default`/`dark`: Mermaid's themes
-        // bring a lavender and a blue-grey that read as a screenshot from another
-        // application on warm paper. These values come from the same tokens the rest of
-        // the UI paints with, so the diagram follows the theme.
+        // `base` with our tokens, not Mermaid's own themes, so diagrams follow the theme.
         theme: 'base',
         themeVariables: mermaidPalette(),
         fontFamily: token('--font-ui'),
