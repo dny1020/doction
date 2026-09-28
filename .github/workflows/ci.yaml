@@ -96,6 +96,9 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The guard below diffs against the previous head of main.
+          fetch-depth: 0
 
       - name: Leer la versión de pyproject.toml
         id: version
@@ -114,7 +117,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+      # A version tag names one image. When it is already published, a push that changes
+      # nothing shipped (docs, CI) skips; one that does fails until the version is bumped.
+      - name: Version not yet published
+        id: guard
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if ! docker buildx imagetools inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null &&
+             git diff --quiet "$BEFORE" HEAD -- Dockerfile .dockerignore pyproject.toml uv.lock app scripts frontend; then
+            echo "::notice::$VERSION is already published and this push changes nothing in the image; skipping."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::$VERSION is already published. Bump the version in pyproject.toml (and CHANGELOG.md)."
+          exit 1
+
+      - if: steps.guard.outputs.publish == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
