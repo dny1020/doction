@@ -35,6 +35,7 @@ Nothing yet.
 - The frontend's no-external-assets check ignores `/*! … */` licence banners, which no browser
   fetches, and accepts `reactrouter.com` in React Router's warning text. Both tripped the
   DOMPurify 3.4.16 and Vite 8 updates.
+- `brace-expansion` 1.1.21 in the frontend's dev tooling (GHSA-mh99-v99m-4gvg, GHSA-rgw5-rvv9-x895).
 - Dependabot no longer proposes eslint 10: `eslint-plugin-react` does not accept it as a peer.
 
 ## 0.33.0 — 2026-09-25
