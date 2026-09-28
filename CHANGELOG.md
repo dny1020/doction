@@ -22,6 +22,9 @@ Nothing yet.
 - **A page's primary actions are the visible ones.** Edit, New subpage and History show in the
   page header on every screen size; Delete moved into the ⋯ menu beside them and is still
   confirmed. The irreversible action is no longer the easiest one to hit.
+- **The API reference describes response bodies.** Every operation in `/openapi.json` now
+  declares what it returns; JSON bodies are Pydantic models in `app/schemas.py`, validated on
+  the way out. The bodies themselves are unchanged.
 - **OpenSSF Scorecard runs** on pushes to `main` and weekly, reporting into the same
   code-scanning queue as CodeQL and Trivy.
 

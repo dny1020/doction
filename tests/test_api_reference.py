@@ -112,3 +112,28 @@ def test_every_operation_carries_a_tag(main_module):
         if not operation.get("tags")
     ]
     assert not untagged, "operations with no tag: " + ", ".join(untagged)
+
+
+def test_every_operation_declares_what_it_returns(main_module):
+    """A success response with neither a JSON schema nor another media type tells a client
+    nothing about what comes back. 202, 204 and 303 carry no body."""
+    bodiless = {"202", "204", "303"}
+    undeclared = []
+    for path, methods in main_module.app.openapi()["paths"].items():
+        for method, operation in methods.items():
+            success = {
+                code: response
+                for code, response in operation["responses"].items()
+                if code.startswith(("2", "3"))
+            }
+            declared = any(
+                code in bodiless
+                or any(
+                    media != "application/json" or body.get("schema")
+                    for media, body in response.get("content", {}).items()
+                )
+                for code, response in success.items()
+            )
+            if not declared:
+                undeclared.append(f"{method.upper()} {path}")
+    assert not undeclared, "operations with no declared response body: " + ", ".join(undeclared)

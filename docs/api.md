@@ -65,9 +65,10 @@ itself is served locally.
 The document declares the same version `/health` reports, so you can tell which build you are
 reading.
 
-Response bodies are not described in the schema: the handlers return JSON directly rather than
-through declared models, so `/docs` shows request shapes and status codes but not response
-shapes. That is tracked in [#65](https://github.com/dny1020/doction/issues/65).
+Every operation declares what it returns. JSON bodies are Pydantic models in `app/schemas.py`,
+validated on the way out, so the schema cannot promise a field the server stopped sending. The
+rest name their media type: the zip export, the raw markdown, uploaded images and the
+application's HTML.
 
 ## Every endpoint
 
