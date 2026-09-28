@@ -15,6 +15,18 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.33.2 — 2026-09-28
+
+### Security
+
+- **React Router 7.18.4** (from `react-router-dom` 6.30.6), for GHSA-wrjc-x8rr-h8h6 (open redirect
+  via a backslash in `<Link>`/`navigate`) and GHSA-337j-9hxr-rhxg (SSR hydration). Neither was
+  reachable here: wikilink targets are URL-encoded under `/w/<ws>/p/`, and there is no SSR. 6.x
+  has no fixed release. The package is now `react-router`; `RouterProvider` comes from
+  `react-router/dom`. No route or link behaviour changes.
+- The external-asset check accepts the one exact `github.com` URL in React Router 7's warning
+  text, not the host.
+
 ## 0.33.1 — 2026-09-28
 
 ### Changed

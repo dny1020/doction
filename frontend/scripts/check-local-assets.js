@@ -21,6 +21,14 @@ const ALLOWED = new Map([
   ['127.0.0.1', 'the deployment itself'],
 ])
 
+// Exact URLs for hosts too broad to allow whole: a library's warning text links them.
+const ALLOWED_URLS = new Map([
+  [
+    'https://github.com/ungap/url-search-params',
+    "React Router's warning for browsers without URLSearchParams",
+  ],
+])
+
 function files(path) {
   if (statSync(path).isFile()) return [path]
   return readdirSync(path).flatMap((entry) => files(join(path, entry)))
@@ -39,6 +47,12 @@ for (const root of ROOTS) {
     for (const match of text.matchAll(EXTERNAL)) {
       const host = match[1].toLowerCase()
       if (ALLOWED.has(host)) continue
+      // Up to the end of the string literal, less the sentence's closing punctuation.
+      const url = text
+        .slice(match.index)
+        .match(/^[^\s"'`)<>]+/)[0]
+        .replace(/[.,;:]+$/, '')
+      if (ALLOWED_URLS.has(url)) continue
       // Reported either way: a comment should not carry a URL that looks loadable.
       const line = text.slice(0, match.index).split('\n').length
       findings.push(`${file}:${line}  ${host}`)

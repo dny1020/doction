@@ -1,4 +1,4 @@
-import { useRouteError } from 'react-router-dom'
+import { useRouteError } from 'react-router'
 
 // A failure of navigation itself, caught by the router. No i18n, like ErrorBoundary: it
 // can fire outside the providers.
