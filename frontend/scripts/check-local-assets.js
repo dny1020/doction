@@ -16,6 +16,7 @@ const ALLOWED = new Map([
   ['www.w3.org', 'SVG XML namespaces (xmlns), not downloads'],
   ['reactjs.org', 'a URL inside the text of React errors'],
   ['react.dev', 'the same, in newer versions'],
+  ['reactrouter.com', 'a URL inside the text of React Router deprecation warnings'],
   ['localhost', 'the deployment itself'],
   ['127.0.0.1', 'the deployment itself'],
 ])
@@ -25,11 +26,16 @@ function files(path) {
   return readdirSync(path).flatMap((entry) => files(join(path, entry)))
 }
 
+// `/*! ... */` is a licence banner the minifier must keep; no browser follows a URL in it.
+// Blanked rather than removed, so reported line numbers stay right.
+const LEGAL_COMMENT = /\/\*![\s\S]*?\*\//g
+const blank = (comment) => comment.replace(/[^\n]/g, ' ')
+
 const findings = []
 for (const root of ROOTS) {
   for (const file of files(root)) {
     if (!SCAN.has(extname(file))) continue
-    const text = readFileSync(file, 'utf8')
+    const text = readFileSync(file, 'utf8').replace(LEGAL_COMMENT, blank)
     for (const match of text.matchAll(EXTERNAL)) {
       const host = match[1].toLowerCase()
       if (ALLOWED.has(host)) continue
