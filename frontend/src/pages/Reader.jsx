@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom'
+import { MoreHorizontal } from 'lucide-react'
 import { api, isAbort } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { newPagePath, pagePath, wsPath } from '../routes.js'
@@ -25,6 +26,9 @@ export default function Reader() {
   // The button is disabled while the delete is in flight, so two clicks are not two
   // deletes.
   const [deleting, setDeleting] = useState(false)
+  // Delete sits behind the ⋯ menu: the irreversible action is never the easiest to hit.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
   // Wikilinks need the set of existing slugs to tell a link from one that leads nowhere
   // yet. The Layout already has the tree.
   const slugSet = useMemo(() => new Set(pages.map((p) => p.slug)), [pages])
@@ -55,6 +59,16 @@ export default function Reader() {
   }, [slug, ws])
 
   useEffect(load, [load])
+
+  // Another page, or a click outside, closes the menu.
+  useEffect(() => setMenuOpen(false), [slug])
+  useEffect(() => {
+    function onDocClick(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) setMenuOpen(false)
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [])
 
   useDocumentTitle(view ? view.title : null, ws)
 
@@ -129,6 +143,7 @@ export default function Reader() {
   if (!view) return <DocumentSkeleton />
 
   async function onDelete() {
+    setMenuOpen(false)
     if (deleting) return
     let message = t('confirm_delete_page') + ' “' + view.title + '”?'
     // A page takes its children with it. Say so first, not after.
@@ -196,14 +211,28 @@ export default function Reader() {
               <Link className="btn btn-sm" to={pagePath(ws, slug, '/history')}>
                 {t('history')}
               </Link>
-              <button
-                className="btn btn-sm btn-danger"
-                type="button"
-                onClick={onDelete}
-                disabled={deleting}
-              >
-                {t('delete')}
-              </button>
+              <span className="page-actions-more" ref={menuRef}>
+                <button
+                  className="btn btn-sm"
+                  type="button"
+                  aria-label={t('page_actions')}
+                  title={t('page_actions')}
+                  aria-expanded={menuOpen}
+                  onClick={() => setMenuOpen((v) => !v)}
+                >
+                  <MoreHorizontal size={14} />
+                </button>
+                <div className={'avatar-menu' + (menuOpen ? ' open' : '')}>
+                  <button
+                    className="avatar-menu-item avatar-menu-item--danger"
+                    type="button"
+                    onClick={onDelete}
+                    disabled={deleting}
+                  >
+                    {t('delete')}
+                  </button>
+                </div>
+              </span>
             </div>
           </div>
         </header>
