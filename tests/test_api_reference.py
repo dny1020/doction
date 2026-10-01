@@ -37,8 +37,9 @@ def _documented() -> set[tuple[str, str]]:
     entries: set[tuple[str, str]] = set()
     in_block = False
     collecting = False
-    for raw in open(REFERENCE, encoding="utf-8"):
-        line = raw.rstrip("\n")
+    with open(REFERENCE, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    for line in lines:
         if line.startswith("```"):
             if in_block:
                 in_block, collecting = False, False

@@ -1,4 +1,6 @@
-FROM python:3.14-slim AS base
+FROM ghcr.io/astral-sh/uv:0.12.21@sha256:a7aed3216253ee804de3e2d8afa5073baa1a177335345d43845cd4165e43b711 AS uv
+
+FROM python:3.14-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -15,7 +17,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir uv
+COPY --from=uv /uv /usr/local/bin/uv
 
 RUN apt-get update -qq && apt-get install -y --no-install-recommends git curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -52,7 +54,7 @@ RUN service postgresql start \
 
 # Builds the SPA once on the build host (it is the same on every arch; under QEMU it took
 # minutes). Node 22: jsdom and undici require node >=22.19.
-FROM --platform=$BUILDPLATFORM node:22-slim AS web
+FROM --platform=$BUILDPLATFORM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS web
 
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -71,7 +73,7 @@ FROM base AS runtime
 # The app starts .venv/bin/uvicorn, so uv and pip go; that also drops pip's vendored
 # packages from Trivy's findings.
 RUN uv sync --frozen --no-dev && uv cache clean \
-    && pip uninstall -y uv pip 2>/dev/null || true
+    && rm -f /usr/local/bin/uv && (pip uninstall -y pip 2>/dev/null || true)
 
 # CI passes the ISO week, so the apt upgrade below reruns weekly despite the build cache.
 ARG APT_REFRESH=
