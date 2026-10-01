@@ -15,6 +15,23 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.33.3 — 2026-09-30
+
+### Security
+
+- **urllib3 2.8.0**, for GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 and GHSA-gh4c-6fx4-qh6g.
+- **markdown-it 14.3.2**, for GHSA-253c-mchw-3w2r.
+- Every workflow action is pinned by commit SHA, and the Dockerfile's base images by digest.
+  Dependabot already updates both ecosystems, so the pins move with each release.
+- uv is copied from its pinned image instead of `pip install`ed unpinned.
+- The release workflow's write permission is scoped to its job; the workflow default is
+  read-only.
+
+### Changed
+
+- Dependency updates from Dependabot: undici 8.11.2, DOMPurify 3.4.16, lucide-react,
+  prettier, and the vite group (vite, `@vitejs/plugin-react`, vitest, jsdom).
+
 ## 0.33.2 — 2026-09-28
 
 ### Security
