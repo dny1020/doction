@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
 import LanguageToggle from '../components/LanguageToggle.jsx'

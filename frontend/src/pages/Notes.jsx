@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { ListSkeleton } from '../components/Skeleton.jsx'

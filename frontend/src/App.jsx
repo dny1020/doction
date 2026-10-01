@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom'
+import { Navigate, Outlet, useLocation, useParams } from 'react-router'
 import { useAuth } from './auth.jsx'
 import { wsPath } from './routes.js'
 import { useI18n } from './i18n.jsx'

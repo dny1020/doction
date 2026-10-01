@@ -6,7 +6,7 @@ import {
   useOutletContext,
   useParams,
   useSearchParams,
-} from 'react-router-dom'
+} from 'react-router'
 import { api, withWorkspace } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { useToast } from '../components/Toast.jsx'

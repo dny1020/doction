@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { renderMarkdown } from '../markdown.js'
 import { enhanceProse } from '../prose.js'
 import { APP_BASE } from '../config.js'

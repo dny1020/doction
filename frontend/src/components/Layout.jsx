@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, Outlet, useLocation, useParams } from 'react-router-dom'
+import { Link, Outlet, useLocation, useParams } from 'react-router'
 import { MoreHorizontal, PanelLeft } from 'lucide-react'
 import { api, isAbort, setWorkspace } from '../api.js'
 import { useAuth } from '../auth.jsx'
