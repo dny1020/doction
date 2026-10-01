@@ -15,6 +15,29 @@ summarised per release rather than exhaustive.
 
 Nothing yet.
 
+## 0.33.1 — 2026-09-28
+
+### Changed
+
+- **A page's primary actions are the visible ones.** Edit, New subpage and History show in the
+  page header on every screen size; Delete moved into the ⋯ menu beside them and is still
+  confirmed. The irreversible action is no longer the easiest one to hit.
+- **The API reference describes response bodies.** Every operation in `/openapi.json` now
+  declares what it returns; JSON bodies are Pydantic models in `app/schemas.py`, validated on
+  the way out. The bodies themselves are unchanged.
+- **OpenSSF Scorecard runs** on pushes to `main` and weekly, reporting into the same
+  code-scanning queue as CodeQL and Trivy.
+
+### Fixed
+
+- `publish` no longer overwrites a version tag that is already in the registry. A push that
+  changes nothing in the image skips it; one that does fails until the version is bumped.
+- The frontend's no-external-assets check ignores `/*! … */` licence banners, which no browser
+  fetches, and accepts `reactrouter.com` in React Router's warning text. Both tripped the
+  DOMPurify 3.4.16 and Vite 8 updates.
+- `brace-expansion` 1.1.21 in the frontend's dev tooling (GHSA-mh99-v99m-4gvg, GHSA-rgw5-rvv9-x895).
+- Dependabot no longer proposes eslint 10: `eslint-plugin-react` does not accept it as a peer.
+
 ## 0.33.0 — 2026-09-25
 
 The application now presents a page the way https://doction.site does, and behaves like an app

@@ -103,17 +103,17 @@ Knowing the intended boundaries makes reports sharper.
 ## Scanners and their queue
 
 CodeQL (`security-and-quality`) analyses Python and JavaScript; Trivy scans the published
-runtime image. Both report into the repository's Security tab, and both run weekly as well as
-on changes.
+runtime image; OpenSSF Scorecard grades the repository's supply-chain posture. All three
+report into the repository's Security tab, and all run weekly as well as on changes.
 
 **A finding is fixed or dismissed with a written reason — never left undecided.** Dismissals
 record what specifically makes the finding inapplicable, so a later reader can judge whether
 the argument still holds. If no specific reason can be stated, the finding is not a false
 positive and stays open.
 
-**An additional scanner is enabled only when that queue is at zero.** OpenSSF Scorecard is
-the pending case: it publishes its results as SARIF into this same queue, so turning it on
-while a backlog exists would make its findings indistinguishable from the backlog. That is
+**An additional scanner is enabled only when that queue is at zero.** Scorecard was held
+back on that rule until the queue emptied: it publishes into this same queue, so turning it
+on over a backlog would have made its findings indistinguishable from the backlog. That is
 not a hypothetical concern — this queue once held a real quadratic denial of service that
 went unread for weeks because twenty false positives were sitting on top of it.
 

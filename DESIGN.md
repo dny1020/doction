@@ -363,9 +363,9 @@ away.
 ## 9. Document
 
 - A compact header: breadcrumbs, the title at 36px, then one row with the metadata on
-  the left and the page's actions on the right, closed by a line. On desktop the only
-  action there is Delete — the rest live in the top bar — and destroying is never
-  hidden in a menu, so it stays visible without taking a row of its own.
+  the left and the page's actions on the right, closed by a line. Edit, New subpage and
+  History are visible there; Delete lives in the ⋯ menu beside them and is confirmed, so
+  the irreversible action is never the easiest one to hit.
 - The document's first block begins within 160px of the top of the title. Its own top
   margin is dropped, because the header already closes with a line.
 - On desktop the top bar shows the page title only after the page's own title has

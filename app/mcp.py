@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse, Response
 
 from app import db, embeddings, git_repo, graph, meta, suggest
 from app.models import Workspace
+from app.schemas import JsonRpcResponse
 from app.version import VERSION
 
 logger = logging.getLogger(__name__)
@@ -859,7 +860,13 @@ def _handle_message(request: Request, msg) -> dict | None:
     return _error(msg_id, -32601, f"Method not found: {method}")
 
 
-@router.post("/mcp", tags=["mcp"])
+@router.post(
+    "/mcp",
+    tags=["mcp"],
+    # Batches answer with a list; the endpoint builds its JSONResponse itself.
+    response_model=JsonRpcResponse | list[JsonRpcResponse],
+    responses={202: {"description": "Notifications only: nothing to answer"}},
+)
 async def mcp_endpoint(request: Request) -> Response:
     try:
         body = await request.json()

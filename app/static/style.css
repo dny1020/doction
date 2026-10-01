@@ -1163,6 +1163,8 @@ a { color: inherit; }
   transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 .avatar-menu-item:hover { background: var(--surface-inset); color: var(--green); }
+.avatar-menu-item--danger,
+.avatar-menu-item--danger:hover { color: var(--danger); }
 
 /* === Content area ========================================================= */
 .content {
@@ -1326,7 +1328,7 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   margin: 0 0 var(--space-4);
   color: var(--ink);
 }
-/* On desktop the other actions live in the top bar. Delete stays here: destroying is never hidden in a menu. */
+/* Edit, New subpage and History stay visible; Delete lives in the ⋯ menu beside them. */
 .page-header-foot {
   display: flex;
   flex-wrap: wrap;
@@ -1334,16 +1336,13 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   justify-content: space-between;
   gap: var(--space-3);
 }
-@media (min-width: 821px) {
-  .page-actions > .btn:not(.btn-danger) { display: none; }
-}
-
 .page-actions {
   display: flex;
   gap: var(--space-2);
   align-items: center;
 }
 .page-actions form { margin: 0; }
+.page-actions-more { position: relative; display: inline-flex; }
 .meta {
   color: var(--ink-subtle);
   font-size: var(--text-sm);

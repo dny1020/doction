@@ -16,6 +16,7 @@ from fastapi import APIRouter, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import (
     FileResponse,
+    HTMLResponse,
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
@@ -27,6 +28,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import HTTP_303_SEE_OTHER
 
 from app import db, embeddings, git_repo, graph, i18n, mcp, meta, ocr, seed, suggest, webhooks
+from app import schemas as out
 from app.auth import (
     TOKEN_PREFIX,
     generate_api_token,
@@ -191,7 +193,7 @@ def _authenticate(request: Request, email: str, password: str):
     return user
 
 
-@api_router.post("/token", tags=["auth"])
+@api_router.post("/token", tags=["auth"], response_model=out.Token)
 def api_token(request: Request, body: _TokenIn):
     user = _authenticate(request, body.email, body.password)
     return {
@@ -200,7 +202,7 @@ def api_token(request: Request, body: _TokenIn):
     }
 
 
-@api_router.post("/tokens", status_code=201, tags=["auth"])
+@api_router.post("/tokens", status_code=201, tags=["auth"], response_model=out.ApiTokenCreated)
 def api_create_token(request: Request, body: _ApiTokenIn):
     uid = _api_user(request)
     token = generate_api_token()
@@ -209,13 +211,13 @@ def api_create_token(request: Request, body: _ApiTokenIn):
     return {"id": token_id, "name": body.name.strip() or "token", "token": token}
 
 
-@api_router.get("/tokens", tags=["auth"])
+@api_router.get("/tokens", tags=["auth"], response_model=list[out.ApiToken])
 def api_list_tokens(request: Request):
     uid = _api_user(request)
     return [dataclasses.asdict(t) for t in db.list_api_tokens(uid)]
 
 
-@api_router.get("/webhooks", tags=["webhooks"])
+@api_router.get("/webhooks", tags=["webhooks"], response_model=list[out.Webhook])
 def api_list_webhooks(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -230,7 +232,11 @@ def api_list_webhooks(request: Request):
     return hooks
 
 
-@api_router.get("/webhooks/{webhook_id}/deliveries", tags=["webhooks"])
+@api_router.get(
+    "/webhooks/{webhook_id}/deliveries",
+    tags=["webhooks"],
+    response_model=list[out.Delivery],
+)
 def api_webhook_deliveries(request: Request, webhook_id: int):
     """What this webhook has delivered and what it has not. Read-only: looking is not a retry."""
     uid = _api_user(request)
@@ -240,7 +246,7 @@ def api_webhook_deliveries(request: Request, webhook_id: int):
     return [dataclasses.asdict(d) for d in db.list_deliveries(webhook_id)]
 
 
-@api_router.post("/webhooks", status_code=201, tags=["webhooks"])
+@api_router.post("/webhooks", status_code=201, tags=["webhooks"], response_model=out.WebhookCreated)
 def api_create_webhook(request: Request, body: _WebhookIn):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -269,7 +275,7 @@ def api_revoke_token(request: Request, token_id: int):
         raise HTTPException(status_code=404, detail="Token not found")
 
 
-@api_router.get("/workspaces", tags=["workspaces"])
+@api_router.get("/workspaces", tags=["workspaces"], response_model=list[out.Workspace])
 def api_list_workspaces(request: Request):
     uid = _api_user(request)
     # Built by hand to return only these fields, not user_id and the rest.
@@ -279,7 +285,12 @@ def api_list_workspaces(request: Request):
     ]
 
 
-@api_router.post("/workspaces", status_code=201, tags=["workspaces"])
+@api_router.post(
+    "/workspaces",
+    status_code=201,
+    tags=["workspaces"],
+    response_model=out.WorkspaceName,
+)
 def api_create_workspace(request: Request, body: _WorkspaceIn):
     uid = _api_user(request)
     slug = db.create_workspace(uid, body.name)
@@ -296,7 +307,7 @@ def _api_owned_workspace(uid: int, slug: str) -> Workspace:
     return ws
 
 
-@api_router.put("/workspaces/{slug}", tags=["workspaces"])
+@api_router.put("/workspaces/{slug}", tags=["workspaces"], response_model=out.WorkspaceName)
 def api_rename_workspace(request: Request, slug: str, body: _WorkspaceIn):
     uid = _api_user(request)
     _api_owned_workspace(uid, slug)  # owner only
@@ -305,22 +316,21 @@ def api_rename_workspace(request: Request, slug: str, body: _WorkspaceIn):
     return {"slug": slug, "name": body.name.strip()}
 
 
-@api_router.delete("/workspaces/{slug}", tags=["workspaces"])
-def api_delete_workspace(request: Request, slug: str) -> Response:
+@api_router.delete("/workspaces/{slug}", tags=["workspaces"], response_model=out.SlugOk)
+def api_delete_workspace(request: Request, response: Response, slug: str):
     uid = _api_user(request)
     _api_owned_workspace(uid, slug)  # owner only
     if not db.delete_workspace(uid, slug):
         raise HTTPException(status_code=400, detail="Cannot delete your only workspace")
-    response = JSONResponse({"slug": slug, "ok": True})
     # If the active workspace was deleted, point the cookie at one that remains.
     if request.cookies.get("workspace") == slug:
         remaining = db.list_workspaces(uid)
         if remaining:
             _ws_cookie(response, remaining[0].slug)
-    return response
+    return {"slug": slug, "ok": True}
 
 
-@api_router.get("/workspaces/{slug}/members", tags=["workspaces"])
+@api_router.get("/workspaces/{slug}/members", tags=["workspaces"], response_model=list[out.Member])
 def api_list_members(request: Request, slug: str):
     uid = _api_user(request)
     ws = db.get_workspace_by_slug(uid, slug)
@@ -337,7 +347,12 @@ def api_list_members(request: Request, slug: str):
     ]
 
 
-@api_router.post("/workspaces/{slug}/members", status_code=201, tags=["workspaces"])
+@api_router.post(
+    "/workspaces/{slug}/members",
+    status_code=201,
+    tags=["workspaces"],
+    response_model=out.MemberAdded,
+)
 def api_add_member(request: Request, slug: str, body: _MemberIn):
     uid = _api_user(request)
     ws = _api_owned_workspace(uid, slug)
@@ -360,7 +375,12 @@ def api_remove_member(request: Request, slug: str, member_id: int):
         raise HTTPException(status_code=404, detail="Member not found")
 
 
-@api_router.get("/workspaces/{slug}/export", tags=["workspaces"])
+@api_router.get(
+    "/workspaces/{slug}/export",
+    tags=["workspaces"],
+    response_class=Response,
+    responses={200: {"content": {"application/zip": {}}, "description": "A zip of markdown files"}},
+)
 def api_export_workspace(request: Request, slug: str) -> Response:
     """Downloads the workspace as a zip of markdown files, one .md per page."""
     uid = _api_user(request)
@@ -378,14 +398,14 @@ def api_export_workspace(request: Request, slug: str) -> Response:
     )
 
 
-@api_router.get("/pages", tags=["pages"])
+@api_router.get("/pages", tags=["pages"], response_model=list[out.PageNode])
 def api_list_pages(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
     return db.list_pages_tree(wid)
 
 
-@api_router.post("/pages", status_code=201, tags=["pages"])
+@api_router.post("/pages", status_code=201, tags=["pages"], response_model=out.PageCreated)
 def api_create_page(request: Request, body: _PageIn):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -406,7 +426,7 @@ def api_create_page(request: Request, body: _PageIn):
     return {"slug": slug, "title": title}
 
 
-@api_router.get("/pages/{slug}/history", tags=["pages"])
+@api_router.get("/pages/{slug}/history", tags=["pages"], response_model=list[out.HistoryEntry])
 def api_page_history(request: Request, slug: str, limit: int = 50):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -416,7 +436,7 @@ def api_page_history(request: Request, slug: str, limit: int = 50):
     return git_repo.get_page_history(_workspace_slug(request, wid), slug, limit=limit)
 
 
-@api_router.get("/pages/{slug}/history/{sha}", tags=["pages"])
+@api_router.get("/pages/{slug}/history/{sha}", tags=["pages"], response_model=out.PageAtCommit)
 def api_page_at_commit(request: Request, slug: str, sha: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -429,7 +449,7 @@ def api_page_at_commit(request: Request, slug: str, sha: str):
     return {"slug": slug, "sha": sha, "content": content}
 
 
-@api_router.get("/pages/{slug}/history/{sha}/diff", tags=["pages"])
+@api_router.get("/pages/{slug}/history/{sha}/diff", tags=["pages"], response_model=out.PageDiff)
 def api_page_diff(request: Request, slug: str, sha: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -452,7 +472,7 @@ def api_get_page_raw(request: Request, slug: str):
     return page.content
 
 
-@api_router.get("/pages/{slug}", tags=["pages"])
+@api_router.get("/pages/{slug}", tags=["pages"], response_model=out.Page)
 def api_get_page(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -471,7 +491,7 @@ def api_get_page(request: Request, slug: str):
     }
 
 
-@api_router.put("/pages/{slug}", tags=["pages"])
+@api_router.put("/pages/{slug}", tags=["pages"], response_model=out.PageUpdated)
 def api_update_page(request: Request, slug: str, body: _PagePatch):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -488,7 +508,7 @@ def api_update_page(request: Request, slug: str, body: _PagePatch):
     return {"slug": slug, "title": new_title, "updated": True}
 
 
-@api_router.post("/pages/{slug}/move", tags=["pages"])
+@api_router.post("/pages/{slug}/move", tags=["pages"], response_model=out.PageMoved)
 def api_move_page(request: Request, slug: str, body: _MoveIn):
     """Reparents a page. Cheap: the git repo is flat, so no file moves."""
     uid = _api_user(request)
@@ -502,7 +522,7 @@ def api_move_page(request: Request, slug: str, body: _MoveIn):
     return {"slug": moved, "parent_slug": body.parent_slug}
 
 
-@api_router.post("/pages/{slug}/rename", tags=["pages"])
+@api_router.post("/pages/{slug}/rename", tags=["pages"], response_model=out.PageRenamed)
 def api_rename_page(request: Request, slug: str, body: _RenameIn):
     """Changes the slug, leaving an alias for the old one so [[wikilinks]] keep resolving."""
     uid = _api_user(request)
@@ -519,7 +539,7 @@ def api_rename_page(request: Request, slug: str, body: _RenameIn):
     return {"slug": renamed, "previous_slug": slug}
 
 
-@api_router.get("/pages/{slug}/children", tags=["pages"])
+@api_router.get("/pages/{slug}/children", tags=["pages"], response_model=list[out.PageRef])
 def api_page_children(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -537,7 +557,11 @@ def api_delete_page(request: Request, slug: str):
         raise HTTPException(status_code=404, detail="Page not found")
 
 
-@api_router.get("/pages/{slug}/suggest-links", tags=["intelligence"])
+@api_router.get(
+    "/pages/{slug}/suggest-links",
+    tags=["intelligence"],
+    response_model=out.LinkSuggestions,
+)
 def api_suggest_links(request: Request, slug: str):
     """Candidate wikilinks: related pages, by embeddings or title mentions, that this
     page does not link to yet."""
@@ -549,7 +573,11 @@ def api_suggest_links(request: Request, slug: str):
     return result
 
 
-@api_router.get("/pages/{slug}/suggest-tags", tags=["intelligence"])
+@api_router.get(
+    "/pages/{slug}/suggest-tags",
+    tags=["intelligence"],
+    response_model=out.TagSuggestions,
+)
 def api_suggest_tags(request: Request, slug: str):
     """Candidate tags, by TF-IDF against the rest of the workspace."""
     uid = _api_user(request)
@@ -560,7 +588,7 @@ def api_suggest_tags(request: Request, slug: str):
     return result
 
 
-@api_router.get("/pages/{slug}/summary", tags=["intelligence"])
+@api_router.get("/pages/{slug}/summary", tags=["intelligence"], response_model=out.Summary)
 def api_page_summary(request: Request, slug: str, k: int = 3):
     """Extractive summary (TextRank) of the page; `lead` when semantic search is off."""
     uid = _api_user(request)
@@ -572,7 +600,7 @@ def api_page_summary(request: Request, slug: str, k: int = 3):
     return {"slug": slug, **suggest.summarize(page.content, k=k)}
 
 
-@api_router.get("/insights", tags=["intelligence"])
+@api_router.get("/insights", tags=["intelligence"], response_model=out.Insights)
 def api_insights(request: Request):
     """Workspace health: the wikilink graph plus duplicates and semantic clusters."""
     uid = _api_user(request)
@@ -580,7 +608,7 @@ def api_insights(request: Request):
     return suggest.workspace_insights(wid)
 
 
-@api_router.get("/graph", tags=["intelligence"])
+@api_router.get("/graph", tags=["intelligence"], response_model=out.Graph)
 def api_graph(request: Request):
     """Nodes and edges of the wikilink graph, ready to draw. `/insights` summarises instead."""
     uid = _api_user(request)
@@ -588,7 +616,12 @@ def api_graph(request: Request):
     return graph.workspace_graph(wid)
 
 
-@api_router.get("/system", tags=["system"])
+@api_router.get(
+    "/system",
+    tags=["system"],
+    response_model=out.System,
+    response_model_exclude_unset=True,
+)
 def api_system(request: Request):
     """What this deployment is running: version, database and retrieval.
 
@@ -633,7 +666,7 @@ def api_system(request: Request):
     return report
 
 
-@api_router.get("/notes", tags=["pages"])
+@api_router.get("/notes", tags=["pages"], response_model=list[out.Note])
 def api_notes(request: Request, limit: int = 50, before: str | None = None):
     """Chronological feed of quick captures (`type: memo`), paginated by cursor.
 
@@ -645,7 +678,12 @@ def api_notes(request: Request, limit: int = 50, before: str | None = None):
     return db.list_notes(wid, limit=limit, before=before)
 
 
-@api_router.get("/search", tags=["search"])
+@api_router.get(
+    "/search",
+    tags=["search"],
+    response_model=list[out.SearchHit | out.UploadHit],
+    response_model_exclude_unset=True,
+)
 def api_search(request: Request, q: str = "", mode: str = "keyword", uploads: bool = False):
     """Workspace search: `keyword` (FTS), `semantic` (embeddings) or `hybrid`.
 
@@ -697,25 +735,24 @@ def _me_payload(user_id: int, active_slug: str | None) -> dict:
     }
 
 
-@api_router.get("/me", tags=["account"])
+@api_router.get("/me", tags=["account"], response_model=out.Me)
 def api_me(request: Request):
     user_id = _api_user(request)
     active = getattr(request.state, "workspace", None)
     return _me_payload(user_id, active.slug if active else None)
 
 
-@api_router.post("/auth/login", tags=["auth"])
-def api_login(request: Request, body: _TokenIn) -> Response:
+@api_router.post("/auth/login", tags=["auth"], response_model=out.Me)
+def api_login(request: Request, response: Response, body: _TokenIn):
     user = _authenticate(request, body.email, body.password)
     user_id = int(user.id)
     workspace = db.ensure_default_workspace(user_id)
-    response = JSONResponse(_me_payload(user_id, workspace.slug))
     _issue_session(response, user_id, workspace.slug, user.token_version)
-    return response
+    return _me_payload(user_id, workspace.slug)
 
 
-@api_router.post("/auth/register", status_code=201, tags=["auth"])
-def api_register(body: _TokenIn) -> Response:
+@api_router.post("/auth/register", status_code=201, tags=["auth"], response_model=out.Me)
+def api_register(response: Response, body: _TokenIn):
     email = body.email.strip().lower()
     if not _registration_open():
         raise HTTPException(status_code=403, detail="Registration is closed")
@@ -733,48 +770,48 @@ def api_register(body: _TokenIn) -> Response:
         db.claim_unowned_pages(user_id, workspace_id)
     for title, content in seed.SEED_PAGES:
         db.create_page(user_id, workspace_id, title, content)
-    response = JSONResponse(_me_payload(user_id, workspace.slug), status_code=201)
     _issue_session(response, user_id, workspace.slug)
-    return response
+    return _me_payload(user_id, workspace.slug)
 
 
-@api_router.post("/auth/logout", tags=["auth"])
-def api_logout() -> Response:
-    response = JSONResponse({"ok": True})
+@api_router.post("/auth/logout", tags=["auth"], response_model=out.Ok)
+def api_logout(response: Response):
     response.delete_cookie("session")
     response.delete_cookie("workspace")
-    return response
+    return {"ok": True}
 
 
-@api_router.get("/i18n", tags=["system"])
+@api_router.get("/i18n", tags=["system"], response_model=out.Catalog)
 def api_i18n(request: Request):
     """Translation catalogue for the active language, for the SPA. Public, login included."""
     lang = _lang(request)
     return {"lang": lang, "langs": list(i18n.LANGS), "t": i18n.get_catalog(lang)}
 
 
-@api_router.post("/lang/{code}", tags=["account"])
-def api_set_lang(code: str) -> Response:
+@api_router.post("/lang/{code}", tags=["account"], response_model=out.Lang)
+def api_set_lang(response: Response, code: str):
     """Switches the SPA's language by setting the `lang` cookie."""
     if code not in i18n.LANGS:
         raise HTTPException(status_code=400, detail="Unsupported language")
-    response = JSONResponse({"lang": code})
     _lang_cookie(response, code)
-    return response
+    return {"lang": code}
 
 
-@api_router.post("/workspaces/{slug}/switch", tags=["workspaces"])
-def api_switch_workspace(request: Request, slug: str) -> Response:
+@api_router.post(
+    "/workspaces/{slug}/switch",
+    tags=["workspaces"],
+    response_model=out.WorkspaceBrief,
+)
+def api_switch_workspace(request: Request, response: Response, slug: str):
     uid = _api_user(request)
     ws = db.get_workspace_by_slug(uid, slug)
     if ws is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
-    response = JSONResponse(_workspace_brief(ws))
     _ws_cookie(response, ws.slug)
-    return response
+    return _workspace_brief(ws)
 
 
-@api_router.get("/pages/{slug}/view", tags=["pages"])
+@api_router.get("/pages/{slug}/view", tags=["pages"], response_model=out.PageView)
 def api_page_view(request: Request, slug: str):
     """Everything the SPA's reading view needs, in one call."""
     uid = _api_user(request)
@@ -828,7 +865,7 @@ class _PasswordIn(BaseModel):
     confirm_password: str = Field(max_length=_MAX_PASSWORD_LEN)
 
 
-@api_router.post("/settings/profile", tags=["account"])
+@api_router.post("/settings/profile", tags=["account"], response_model=out.Me)
 def api_update_profile(request: Request, body: _ProfileIn):
     uid = _api_user(request)
     name = body.display_name.strip()[:40]
@@ -838,8 +875,8 @@ def api_update_profile(request: Request, body: _ProfileIn):
     return _me_payload(uid, active.slug if active else None)
 
 
-@api_router.post("/settings/password", tags=["account"])
-def api_update_password(request: Request, body: _PasswordIn):
+@api_router.post("/settings/password", tags=["account"], response_model=out.Ok)
+def api_update_password(request: Request, response: Response, body: _PasswordIn):
     uid = _api_user(request)
     user = db.get_user_by_id(uid)
     if user is None or not _verify_password(body.current_password, user.password_hash):
@@ -851,12 +888,11 @@ def api_update_password(request: Request, body: _PasswordIn):
     new_version = db.update_user_password(uid, _hash_password(body.new_password))
     # The token_version bump invalidates every JWT, so this tab's session is reissued
     # rather than logging out whoever just changed their password.
-    response = JSONResponse({"ok": True})
     _issue_session(response, uid, token_version=new_version)
-    return response
+    return {"ok": True}
 
 
-@api_router.get("/trash", tags=["pages"])
+@api_router.get("/trash", tags=["pages"], response_model=list[out.TrashItem])
 def api_trash(request: Request):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -866,7 +902,7 @@ def api_trash(request: Request):
     ]
 
 
-@api_router.post("/trash/{slug}/restore", tags=["pages"])
+@api_router.post("/trash/{slug}/restore", tags=["pages"], response_model=out.SlugOk)
 def api_trash_restore(request: Request, slug: str):
     uid = _api_user(request)
     wid = _api_workspace(request, uid)
@@ -883,7 +919,7 @@ def api_trash_purge(request: Request, slug: str):
         raise HTTPException(status_code=404, detail="Page not found in trash")
 
 
-@api_router.post("/pages/{slug}/restore/{sha}", tags=["pages"])
+@api_router.post("/pages/{slug}/restore/{sha}", tags=["pages"], response_model=out.SlugOk)
 def api_restore_version(request: Request, slug: str, sha: str):
     """Restores the content of an older version (a git commit) as a new version."""
     uid = _api_user(request)
@@ -977,7 +1013,12 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 _UPLOAD_NAME_RE = re.compile(r"[0-9a-f]{32}\.[a-z0-9]{2,5}")
 
 
-@app.get("/uploads/{name}", tags=["uploads"])
+@app.get(
+    "/uploads/{name}",
+    tags=["uploads"],
+    response_class=FileResponse,
+    responses={200: {"content": {"image/*": {}}, "description": "The stored image"}},
+)
 async def serve_upload(request: Request, name: str) -> Response:
     _api_user(request)
     if not _UPLOAD_NAME_RE.fullmatch(name):
@@ -1096,7 +1137,12 @@ def _lang_cookie(response: Response, lang: str) -> None:
     )
 
 
-@app.get("/health", tags=["system"])
+@app.get(
+    "/health",
+    tags=["system"],
+    response_model=out.Health,
+    responses={503: {"model": out.Health, "description": "The database does not answer"}},
+)
 async def health() -> Response:
     """Liveness and readiness: checks that the database answers. 503 if it does not."""
     version = mcp.SERVER_INFO["version"]
@@ -1114,16 +1160,16 @@ async def health() -> Response:
 
 if APP_PATH != "/":
     # With the SPA on a subpath, the root and the familiar shortcuts still reach it.
-    @app.get("/", tags=["app"])
+    @app.get("/", tags=["app"], status_code=303, response_class=RedirectResponse)
     async def home() -> Response:
         """The frontend is the React SPA, served at APP_PATH."""
         return RedirectResponse(APP_PATH + "/", status_code=HTTP_303_SEE_OTHER)
 
-    @app.get("/login", tags=["app"])
+    @app.get("/login", tags=["app"], status_code=303, response_class=RedirectResponse)
     async def login_redirect() -> Response:
         return RedirectResponse(APP_PATH + "/login", status_code=HTTP_303_SEE_OTHER)
 
-    @app.get("/register", tags=["app"])
+    @app.get("/register", tags=["app"], status_code=303, response_class=RedirectResponse)
     async def register_redirect() -> Response:
         return RedirectResponse(APP_PATH + "/register", status_code=HTTP_303_SEE_OTHER)
 
@@ -1166,8 +1212,8 @@ async def _ocr_index_upload(name: str, user_id: int, workspace_id: int, path: Pa
         logger.exception("ocr: failed to index %s", name)
 
 
-@app.post("/api/uploads", tags=["uploads"])
-async def upload_image(request: Request, file: UploadFile = File(...)) -> Response:
+@app.post("/api/uploads", tags=["uploads"], response_model=out.Upload)
+async def upload_image(request: Request, file: UploadFile = File(...)):
     """Takes an image pasted or dragged into the editor, stores it under a name derived
     from its hash, and returns the URL to insert as markdown."""
     uid = _api_user(request)
@@ -1186,7 +1232,7 @@ async def upload_image(request: Request, file: UploadFile = File(...)) -> Respon
         task = asyncio.create_task(_ocr_index_upload(name, uid, wid, dest))
         _OCR_TASKS.add(task)
         task.add_done_callback(_OCR_TASKS.discard)
-    return JSONResponse({"url": f"/uploads/{name}"})
+    return {"url": f"/uploads/{name}"}
 
 
 # In-memory login rate limit, keyed by (ip, email) over a sliding window. Enough for a
@@ -1302,9 +1348,14 @@ async def attach_user(request: Request, call_next):
 
 # Registered last on purpose: Starlette resolves in registration order, so mounted at
 # the root its `/{full_path:path}` would swallow /api, /health, /uploads and /static.
+_SPA_ROUTE = {
+    "tags": ["app"],
+    "response_class": HTMLResponse,
+    "responses": {200: {"description": "The application's index.html, or a file of its bundle"}},
+}
 if APP_PATH == "/":
-    app.get("/", tags=["app"])(serve_spa)
-    app.get("/{full_path:path}", tags=["app"])(serve_spa)
+    app.get("/", **_SPA_ROUTE)(serve_spa)
+    app.get("/{full_path:path}", **_SPA_ROUTE)(serve_spa)
 else:
-    app.get(APP_PATH, tags=["app"])(serve_spa)
-    app.get(APP_PATH + "/{full_path:path}", tags=["app"])(serve_spa)
+    app.get(APP_PATH, **_SPA_ROUTE)(serve_spa)
+    app.get(APP_PATH + "/{full_path:path}", **_SPA_ROUTE)(serve_spa)
