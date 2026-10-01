@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 // An empty state says what is empty and, when one action fills it, offers that one and
 // no other. Not used for what is optional: a page without children is not empty, it just

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useOutletContext } from 'react-router'
 import { Check, ChevronDown } from 'lucide-react'
 import { useI18n } from '../i18n.jsx'
 import { useDocumentTitle } from '../useDocumentTitle.js'

@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
-import { RouterProvider, createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
 import { routes } from './App.jsx'
 import { APP_BASE } from './config.js'
 import { AuthProvider } from './auth.jsx'

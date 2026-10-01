@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router'
 import { MoreHorizontal } from 'lucide-react'
 import { api, isAbort } from '../api.js'
 import { useI18n } from '../i18n.jsx'

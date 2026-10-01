@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
+import { Link, useNavigate, useOutletContext, useParams } from 'react-router'
 import { api } from '../api.js'
 import { useI18n } from '../i18n.jsx'
 import { pagePath } from '../routes.js'
