@@ -19,6 +19,8 @@ summarised per release rather than exhaustive.
   updates are unaffected and still arrive when an advisory is published.
 - `publish` no longer fails when the version is already in the registry: it skips with a
   warning, and image changes merged under that version ship with the next bump.
+- Dependabot's minor and patch PRs queue GitHub auto-merge, so they merge on their own once
+  `test` and `web` pass. Majors and failing updates stay open.
 
 ## 0.33.3 — 2026-09-30
 
