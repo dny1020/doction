@@ -117,8 +117,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # A version tag names one image. When it is already published, a push that changes
-      # nothing shipped (docs, CI) skips; one that does fails until the version is bumped.
+      # A version tag names one image, so an already-published version is never pushed again.
+      # Image changes merged under it (dependency updates) wait for the next version bump.
       - name: Version not yet published
         id: guard
         env:
@@ -129,14 +129,13 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "publish=false" >> "$GITHUB_OUTPUT"
           if git cat-file -e "$BEFORE^{commit}" 2>/dev/null &&
              git diff --quiet "$BEFORE" HEAD -- Dockerfile .dockerignore pyproject.toml uv.lock app scripts frontend; then
             echo "::notice::$VERSION is already published and this push changes nothing in the image; skipping."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          else
+            echo "::warning::$VERSION is already published; this change ships with the next version bump."
           fi
-          echo "::error::$VERSION is already published. Bump the version in pyproject.toml (and CHANGELOG.md)."
-          exit 1
 
       - if: steps.guard.outputs.publish == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7

@@ -118,9 +118,9 @@ Maintainer task, recorded here so the process is not folklore.
    already exist, and a published tag cannot be deleted.
 3. Merge to `main`. CI runs the gate inside `docker build --target test`, then publishes
    `ghcr.io/dny1020/doction:{version}` and `:latest` for amd64 and arm64, each carrying an
-   SBOM and SLSA provenance. A version already in the registry is never republished: a
-   push that changes nothing in the image (docs, CI) skips `publish`, and one that does
-   fails it until the version is bumped.
+   SBOM and SLSA provenance. A version already in the registry is never republished:
+   `publish` skips, with a warning when the push changed the image, and those changes
+   (typically merged dependency updates) ship with the next version bump.
 4. Tag the commit `vX.Y.Z` and push the tag. Pushing it publishes the GitHub Release
    automatically, with that version's changelog section as the body. Nothing else to do.
 
