@@ -13,7 +13,12 @@ summarised per release rather than exhaustive.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+
+- **Dependabot runs monthly**, one grouped PR per ecosystem, minor and patch only. Security
+  updates are unaffected and still arrive when an advisory is published.
+- `publish` no longer fails when the version is already in the registry: it skips with a
+  warning, and image changes merged under that version ship with the next bump.
 
 ## 0.33.3 — 2026-09-30
 

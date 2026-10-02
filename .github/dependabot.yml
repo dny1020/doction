@@ -1,78 +1,74 @@
 version: 2
 
-# One ecosystem per manifest; PRs are grouped so a normal week is one PR per ecosystem.
+# Monthly, one grouped PR per ecosystem, minor and patch only: a personal project cannot
+# triage a PR a day. Major upgrades are migrations, done by hand when wanted. Security
+# updates are not governed by this file and still arrive as soon as an advisory lands.
 updates:
   # `uv`, because the lockfile is uv.lock.
   - package-ecosystem: uv
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "06:00"
       timezone: America/Bogota
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-      prefix-development: "chore(deps-dev)"
-    groups:
-      python-minor-patch:
-        patterns: ["*"]
-        update-types: [minor, patch]
-    labels: [dependencies, python]
-
-  # package.json lives in frontend/.
-  - package-ecosystem: npm
-    directory: /frontend
-    schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-      timezone: America/Bogota
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
     commit-message:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
     ignore:
-      # eslint-plugin-react 7.37.5 declares `eslint <= 9` as a peer, so eslint 10 fails
-      # `npm ci` with ERESOLVE. Drop this once the plugin supports 10.
-      - dependency-name: "eslint"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@eslint/js"
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
     groups:
-      # Peer groups go FIRST (a package joins the first group that matches). These families
-      # declare peers, so a single-package PR fails `npm ci` with ERESOLVE.
-      react:
-        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
-      eslint:
-        patterns: ["eslint", "@eslint/*", "eslint-plugin-*", "eslint-config-*"]
-      vite:
-        patterns: ["vite", "@vitejs/*", "vitest", "@vitest/*", "jsdom"]
-      npm-minor-patch:
+      python:
         patterns: ["*"]
-        update-types: [minor, patch]
+    labels: [dependencies, python]
+
+  # package.json lives in frontend/. One group, so peer families (react, eslint, vite) always
+  # move together and never fail `npm ci` with ERESOLVE.
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: monthly
+      time: "06:00"
+      timezone: America/Bogota
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      npm:
+        patterns: ["*"]
     labels: [dependencies, frontend]
 
-  # Dockerfile base images.
+  # Dockerfile base images: digest refreshes within the pinned tag; majors (node 22 -> 26)
+  # are ignored like everywhere else.
   - package-ecosystem: docker
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "06:00"
       timezone: America/Bogota
+    open-pull-requests-limit: 1
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      docker:
+        patterns: ["*"]
     labels: [dependencies, docker]
 
-  # Workflow actions: the ecosystem that falls behind silently.
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "06:00"
       timezone: America/Bogota
+    open-pull-requests-limit: 1
     commit-message:
       prefix: "chore(ci)"
     groups:
