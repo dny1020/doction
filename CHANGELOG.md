@@ -11,6 +11,16 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
+## 0.35.2 — 2026-10-15
+
+### Added
+
+- **MCP `initialize` returns `instructions`** that teach an agent how pages connect: only
+  `[[slug]]` / `[[slug|label]]` wikilinks build the graph, nesting a page under a parent
+  does not link them, and `suggest_links` finds what is worth linking. `create_page`,
+  `update_page` and `upsert_page_section` carry the same hint, so an agent writes links
+  without being told in every prompt.
+
 ## 0.35.1 — 2026-10-15
 
 ### Fixed

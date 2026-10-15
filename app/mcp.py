@@ -19,6 +19,18 @@ from app.version import VERSION
 logger = logging.getLogger(__name__)
 
 SERVER_INFO = {"name": "doction", "version": VERSION}
+# Sent once on `initialize`; clients show it to the model, so an agent learns how pages
+# connect without being told in every prompt. The graph is built from wikilinks only.
+INSTRUCTIONS = (
+    "doction is a markdown wiki. Pages connect only through wikilinks: write [[slug]] or "
+    "[[slug|label]] in the markdown to link to another page in the same workspace. "
+    "Nesting a page under a parent does not link them, so a parent page should link its "
+    "subpages and related pages should link each other. A link to a slug that does not "
+    "exist yet is kept as a page still to be written. After writing, `suggest_links` "
+    "lists pages worth linking, and `list_backlinks` shows what links in. Tags are "
+    "inline #tags or a frontmatter `tags:` list."
+)
+_LINK_HINT = " Link other pages with [[slug]] or [[slug|label]]; nesting alone does not."
 PROTOCOL_VERSIONS = {"2024-11-05", "2025-03-26", "2025-06-18"}
 DEFAULT_PROTOCOL = "2025-03-26"
 
@@ -403,7 +415,7 @@ TOOLS: list[dict] = [
     },
     {
         "name": "create_page",
-        "description": "Create a markdown page. Returns the generated slug.",
+        "description": "Create a markdown page. Returns the generated slug." + _LINK_HINT,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -470,7 +482,7 @@ TOOLS: list[dict] = [
     },
     {
         "name": "update_page",
-        "description": "Update a page's title and/or content. Slug stays stable.",
+        "description": "Update a page's title and/or content. Slug stays stable." + _LINK_HINT,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -645,7 +657,7 @@ TOOLS: list[dict] = [
             "other byte untouched — no need to send the whole body back, so two agents "
             "editing different sections do not overwrite each other. Refuses when the "
             "page has more than one heading with that text; pass `level` to "
-            "disambiguate. Records a version and re-indexes like any other write."
+            "disambiguate. Records a version and re-indexes like any other write." + _LINK_HINT
         ),
         "inputSchema": {
             "type": "object",
@@ -849,6 +861,7 @@ def _handle_message(request: Request, msg) -> dict | None:
                 "protocolVersion": version,
                 "capabilities": {"tools": {}},
                 "serverInfo": SERVER_INFO,
+                "instructions": INSTRUCTIONS,
             },
         )
     if method == "ping":
