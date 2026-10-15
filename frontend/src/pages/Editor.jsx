@@ -158,11 +158,16 @@ export default function Editor({ mode }) {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [])
 
-  // ⌘S / Ctrl-S saves. The global shortcut listener ignores text fields on purpose, so
-  // this one lives here; requestSubmit goes through the form's validation.
+  // ⌘S / Ctrl-S saves, and so does ⌘Enter, as in quick capture. The global shortcut
+  // listener ignores text fields on purpose, so this one lives here; requestSubmit goes
+  // through the form's validation.
   useEffect(() => {
     function onKey(event) {
-      if ((event.metaKey || event.ctrlKey) && (event.key === 's' || event.key === 'S')) {
+      if (!(event.metaKey || event.ctrlKey)) return
+      // ⌘Enter only from inside this form: quick capture (⌘⇧K) can be open over the
+      // editor, and its own ⌘Enter must not also save the page underneath.
+      const isEnter = event.key === 'Enter' && formRef.current?.contains(event.target)
+      if (event.key === 's' || event.key === 'S' || isEnter) {
         event.preventDefault()
         formRef.current?.requestSubmit()
       }
@@ -210,53 +215,68 @@ export default function Editor({ mode }) {
     setDraft(null)
   }
 
+  // Reads the caret when the upload lands and updates from the latest text, so whatever
+  // was typed while the upload was in flight is kept.
   function insertAtCursor(text) {
     const el = textareaRef.current
-    if (!el) {
-      setContent(content + text)
-      return
-    }
-    const next = content.slice(0, el.selectionStart) + text + content.slice(el.selectionEnd)
-    setContent(next)
+    setContent((prev) =>
+      el ? prev.slice(0, el.selectionStart) + text + prev.slice(el.selectionEnd) : prev + text,
+    )
   }
 
-  // Pasting an image uploads it to /api/uploads and inserts ![](url).
+  // Uploads an image to /api/uploads and inserts ![](url). Shared by paste and drop.
+  async function uploadImage(file) {
+    const form = new FormData()
+    form.append('file', file, file.name || 'pasted.png')
+    setUploading(true)
+    try {
+      // A bare fetch with FormData, so the workspace has to be added by hand.
+      const res = await fetch(withWorkspace('/api/uploads'), {
+        method: 'POST',
+        body: form,
+        credentials: 'same-origin',
+      })
+      let data = null
+      try {
+        data = await res.json()
+      } catch {
+        data = null
+      }
+      if (res.ok && data && data.url) {
+        insertAtCursor('![](' + data.url + ')')
+        toast(t('img_uploaded'))
+      } else {
+        toast((data && data.detail) || t('img_upload_failed'), 'error')
+      }
+    } catch {
+      toast(t('img_upload_failed'), 'error')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function onPaste(event) {
     const items = event.clipboardData ? Array.from(event.clipboardData.items) : []
     for (const item of items) {
       if (item.type && item.type.indexOf('image/') === 0) {
         event.preventDefault()
         const file = item.getAsFile()
-        if (!file) continue
-        const form = new FormData()
-        form.append('file', file, file.name || 'pasted.png')
-        setUploading(true)
-        try {
-          // A bare fetch with FormData, so the workspace has to be added by hand.
-          const res = await fetch(withWorkspace('/api/uploads'), {
-            method: 'POST',
-            body: form,
-            credentials: 'same-origin',
-          })
-          let data = null
-          try {
-            data = await res.json()
-          } catch {
-            data = null
-          }
-          if (res.ok && data && data.url) {
-            insertAtCursor('![](' + data.url + ')')
-            toast(t('img_uploaded'))
-          } else {
-            toast((data && data.detail) || t('img_upload_failed'), 'error')
-          }
-        } catch {
-          toast(t('img_upload_failed'), 'error')
-        } finally {
-          setUploading(false)
-        }
+        if (file) await uploadImage(file)
       }
     }
+  }
+
+  // Dropped files are taken over and only images uploaded; left to the browser, a dropped
+  // file would navigate away from the editor. Dragging text keeps the native behaviour.
+  function hasFiles(event) {
+    return Array.from(event.dataTransfer?.types || []).includes('Files')
+  }
+
+  async function onDrop(event) {
+    if (!hasFiles(event)) return
+    event.preventDefault()
+    const images = Array.from(event.dataTransfer.files).filter((f) => f.type.startsWith('image/'))
+    for (const file of images) await uploadImage(file)
   }
 
   if (!loaded) return <div className="placeholder">{t('loading')}</div>
@@ -317,7 +337,11 @@ export default function Editor({ mode }) {
           </span>
         </div>
       )}
-      {error && <p className="auth-error">{error}</p>}
+      {error && (
+        <p className="auth-error" role="alert">
+          {error}
+        </p>
+      )}
       <div className={'editor-split' + (showPreview ? ' editor-split--preview' : '')}>
         <textarea
           ref={textareaRef}
@@ -326,6 +350,8 @@ export default function Editor({ mode }) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onPaste={onPaste}
+          onDragOver={(e) => hasFiles(e) && e.preventDefault()}
+          onDrop={onDrop}
         />
         {content ? (
           <div

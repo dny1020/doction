@@ -10,6 +10,7 @@ import Markdown from '../components/Markdown.jsx'
 import Toc from '../components/Toc.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { DocumentSkeleton } from '../components/Skeleton.jsx'
+import { closeOnEscape } from '../components/Sidebar.jsx'
 import { useDocumentTitle } from '../useDocumentTitle.js'
 
 // A page's reading view. /api/pages/{slug}/view brings content, breadcrumbs, children,
@@ -98,7 +99,7 @@ export default function Reader() {
     if (pages && pages.length > 0) return <Navigate to={pagePath(ws, pages[0].slug)} replace />
     if (pagesError) {
       return (
-        <div className="placeholder placeholder--error">
+        <div className="placeholder placeholder--error" role="alert">
           <h1>{t('tree_error')}</h1>
           <button className="btn btn-primary" type="button" onClick={reloadPages}>
             {t('retry')}
@@ -131,7 +132,7 @@ export default function Reader() {
   }
   if (error) {
     return (
-      <div className="placeholder placeholder--error">
+      <div className="placeholder placeholder--error" role="alert">
         <h1>{t('error_title')}</h1>
         <p className="muted">{error.message}</p>
         <button className="btn btn-primary" type="button" onClick={load}>
@@ -211,18 +212,27 @@ export default function Reader() {
               <Link className="btn btn-sm" to={pagePath(ws, slug, '/history')}>
                 {t('history')}
               </Link>
-              <span className="page-actions-more" ref={menuRef}>
+              <span
+                className="page-actions-more"
+                ref={menuRef}
+                onKeyDown={(e) => closeOnEscape(e, menuOpen, setMenuOpen)}
+              >
                 <button
                   className="btn btn-sm"
                   type="button"
                   aria-label={t('page_actions')}
                   title={t('page_actions')}
                   aria-expanded={menuOpen}
+                  aria-controls="page-actions-menu"
                   onClick={() => setMenuOpen((v) => !v)}
                 >
                   <MoreHorizontal size={14} />
                 </button>
-                <div className={'avatar-menu' + (menuOpen ? ' open' : '')}>
+                <div
+                  id="page-actions-menu"
+                  className={'avatar-menu' + (menuOpen ? ' open' : '')}
+                  inert={!menuOpen}
+                >
                   <button
                     className="avatar-menu-item avatar-menu-item--danger"
                     type="button"

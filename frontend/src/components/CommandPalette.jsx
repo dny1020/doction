@@ -1,23 +1,57 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { api, isAbort } from '../api.js'
+import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
 import { pagePath } from '../routes.js'
+import { Snippet } from './Sidebar.jsx'
 
-// Command palette (⌘K / Ctrl-K): jump to any page by title, keyboard-navigable.
+// Command palette (⌘K / Ctrl-K): title matches at once, then the same hybrid search the
+// sidebar runs, for pages that only mention the query in their content.
 export default function CommandPalette({ ws, pages }) {
   const { t } = useI18n()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [hits, setHits] = useState([]) // content results for the current query
   const [sel, setSel] = useState(0) // the highlighted index within the results
   const inputRef = useRef(null)
   const prevFocusRef = useRef(null) // where to return focus on close
 
-  // Pages whose title contains the query, up to 50; an empty query lists them all.
+  // Debounced and abortable like the sidebar search, so a slow answer for an older query
+  // cannot land under a newer one. One letter matches too much content to be useful.
+  useEffect(() => {
+    setHits([])
+    const q = query.trim()
+    if (q.length < 2) return undefined
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      api
+        .get('/api/search?mode=hybrid&q=' + encodeURIComponent(q), controller.signal)
+        .then(setHits)
+        .catch((e) => {
+          if (!isAbort(e)) setHits([])
+        })
+    }, 200)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [query])
+
+  // Titles containing the query first, then content hits not already listed; up to 50.
+  // An empty query lists every page.
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return pages.filter((p) => p.title.toLowerCase().includes(q)).slice(0, 50)
-  }, [pages, query])
+    const byTitle = pages.filter((p) => p.title.toLowerCase().includes(q))
+    const seen = new Set(byTitle.map((p) => p.slug))
+    return byTitle.concat(hits.filter((h) => !seen.has(h.slug))).slice(0, 50)
+  }, [pages, query, hits])
+
+  // A late content answer must not leave the highlight past the end of the list.
+  const active = Math.min(sel, Math.max(matches.length - 1, 0))
+  const wsName = (user?.workspaces.find((w) => w.slug === ws) || {}).name || ''
 
   // ⌘K / Ctrl-K toggles from anywhere; Esc closes even with focus outside the input.
   useEffect(() => {
@@ -64,13 +98,13 @@ export default function CommandPalette({ ws, pages }) {
       setOpen(false)
     } else if (event.key === 'ArrowDown' && matches.length) {
       event.preventDefault()
-      setSel((i) => (i + 1) % matches.length)
+      setSel((active + 1) % matches.length)
     } else if (event.key === 'ArrowUp' && matches.length) {
       event.preventDefault()
-      setSel((i) => (i - 1 + matches.length) % matches.length)
-    } else if (event.key === 'Enter' && matches[sel]) {
+      setSel((active - 1 + matches.length) % matches.length)
+    } else if (event.key === 'Enter' && matches[active]) {
       event.preventDefault()
-      go(matches[sel])
+      go(matches[active])
     }
   }
 
@@ -80,7 +114,7 @@ export default function CommandPalette({ ws, pages }) {
       aria-hidden={open ? 'false' : 'true'}
       // Closed it stays in the DOM at opacity:0, so `inert` keeps its input out of the
       // tab order inside an aria-hidden subtree.
-      {...(open ? {} : { inert: '' })}
+      inert={!open}
       onClick={(event) => {
         if (event.target === event.currentTarget) setOpen(false) // backdrop click
       }}
@@ -96,7 +130,7 @@ export default function CommandPalette({ ws, pages }) {
           className="palette-input"
           type="text"
           autoComplete="off"
-          placeholder={t('palette_placeholder')}
+          placeholder={t('palette_placeholder').replace('{ws}', wsName)}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
@@ -109,7 +143,7 @@ export default function CommandPalette({ ws, pages }) {
             matches.map((p, i) => (
               <li key={p.slug}>
                 <a
-                  className={'palette-item' + (i === sel ? ' active' : '')}
+                  className={'palette-item' + (i === active ? ' active' : '')}
                   onMouseEnter={() => setSel(i)}
                   onClick={(e) => {
                     e.preventDefault()
@@ -118,6 +152,8 @@ export default function CommandPalette({ ws, pages }) {
                   href={'/app' + pagePath(ws, p.slug)}
                 >
                   {p.title}
+                  {/* Only content hits carry a snippet; a title match already shows why. */}
+                  {(p.parts || p.snippet) && <Snippet parts={p.parts} text={p.snippet} />}
                 </a>
               </li>
             ))

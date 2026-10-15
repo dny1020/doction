@@ -2202,6 +2202,8 @@ kbd {
 .palette-item.active,
 .palette-item:hover { background: var(--green-soft); color: var(--ink); }
 .palette-empty { padding: var(--space-3); color: var(--ink-subtle); font-size: var(--text-base); }
+/* A content hit's snippet sits on the highlight too, so its ink follows the row's. */
+.palette-item .snippet { color: inherit; }
 
 /* API tokens in settings. */
 .secret-reveal {
@@ -2250,6 +2252,10 @@ kbd {
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
 }
+/* The inbox's own capture form: the same field and actions, flush with the page column. */
+.notes-capture { margin-bottom: var(--space-6); }
+.notes-capture .capture-input { min-height: 0; }
+.notes-capture .capture-actions { padding: var(--space-2) 0 0; }
 
 /* Each tree row hosts a ⋯ menu, shown on hover or keyboard focus. */
 .page-row {
