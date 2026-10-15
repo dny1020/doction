@@ -8,6 +8,7 @@ docs_dir: build/docs
 site_dir: site
 exclude_docs: |
   docs/overrides/
+  docs/es/
 
 theme:
   name: material
@@ -41,6 +42,15 @@ theme:
 
 # A plain link, not `repo_url`, which makes Material call api.github.com on every page.
 extra:
+  # Each language's home. scripts/docs_hooks.py rewrites the links per page to that page's
+  # counterpart; the Spanish site is mkdocs.es.yml.
+  alternate:
+    - name: English
+      link: https://doction.site/
+      lang: en
+    - name: Español
+      link: https://doction.site/es/
+      lang: es
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/dny1020/doction

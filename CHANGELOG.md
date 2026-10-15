@@ -11,6 +11,18 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
+## Unreleased
+
+### Added
+
+- **doction.site in Spanish**, under `/es/`, with every page of the guide translated. English
+  stays at the same URLs. A two-letter `ES`/`EN` button beside the theme toggle, like the
+  app's, leads to the same page in the other language, or to its home for an English-only
+  document. Each page declares its counterpart with `hreflang`, and each language has its own
+  search index and sitemap.
+- The docs build fails when the Spanish pages drift from the English ones: a page missing in
+  either language, or an English page edited since its translation was reviewed.
+
 ## 0.35.3 — 2026-10-15
 
 ### Added
