@@ -11,6 +11,13 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
+## 0.35.1 — 2026-10-15
+
+### Fixed
+
+- After deleting a page or subpage, deleting another one no longer needs a page reload: the
+  Delete item stayed disabled because its in-flight flag was only cleared on failure.
+
 ## 0.35.0 — 2026-10-15
 
 ### Changed

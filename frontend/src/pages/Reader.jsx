@@ -157,8 +157,10 @@ export default function Reader() {
       await api.del('/api/pages/' + slug)
     } catch (e) {
       toast(e.message, 'error')
-      setDeleting(false)
       return
+    } finally {
+      // The router keeps this Reader mounted for the next page, so the flag must not outlive the delete.
+      setDeleting(false)
     }
     reloadPages()
     navigate(wsPath(ws))
