@@ -6,12 +6,10 @@ import {
   Inbox,
   Share2,
   LogOut,
-  Moon,
   PanelLeftClose,
   Plus,
   Search,
   Settings,
-  Sun,
   Terminal,
   Trash2,
   X,
@@ -20,9 +18,9 @@ import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
 import { api, isAbort } from '../api.js'
 import { avatarColor, avatarLetter } from '../avatar.js'
-import { getTheme, toggleTheme } from '../theme.js'
 import { newPagePath, pagePath, wsPath } from '../routes.js'
 import LanguageToggle from './LanguageToggle.jsx'
+import ThemeToggle from './ThemeToggle.jsx'
 import PageTree from './PageTree.jsx'
 import { TreeSkeleton } from './Skeleton.jsx'
 
@@ -38,7 +36,6 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
   const [results, setResults] = useState(null) // null shows the tree; [] means no matches
   const [wsOpen, setWsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [theme, setTheme] = useState(getTheme())
 
   const wsRef = useRef(null)
   const avatarRef = useRef(null)
@@ -91,10 +88,6 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
   async function onLogout() {
     await logout()
     navigate('/login')
-  }
-
-  function onToggleTheme() {
-    setTheme(toggleTheme())
   }
 
   const active = user ? user.workspaces.find((w) => w.slug === ws) : null
@@ -245,15 +238,7 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
         <div className="sidebar-user">
           <div className="sidebar-controls">
             <LanguageToggle />
-            <button
-              className="theme-toggle"
-              type="button"
-              onClick={onToggleTheme}
-              title={t('toggle_theme')}
-              aria-label={t('toggle_theme')}
-            >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
+            <ThemeToggle />
           </div>
           <div
             className="avatar-wrap"

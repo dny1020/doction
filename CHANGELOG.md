@@ -11,6 +11,17 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
+## 0.35.3 — 2026-10-15
+
+### Added
+
+- The login and register pages have the light/dark toggle next to the language toggle.
+
+### Changed
+
+- The theme toggle is one shared component, and doction.site's header uses the same lucide
+  moon and sun icons as the app instead of Material's weather icons.
+
 ## 0.35.2 — 2026-10-15
 
 ### Added

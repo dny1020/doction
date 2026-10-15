@@ -320,3 +320,9 @@
   .md-typeset .dx-hero h1 { font-size: 36px; line-height: 1.15; }
   .md-typeset .dx-lead { font-size: 16px; }
 }
+
+/* The theme toggle uses the app's lucide icons, which are stroked, not filled. */
+[data-md-component="palette"] .md-header__button svg {
+  fill: none;
+  stroke: currentColor;
+}
