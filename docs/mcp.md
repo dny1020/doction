@@ -12,6 +12,11 @@ is extractive TextRank, selecting sentences that already exist.
 `initialize` and `tools/list` are open, so a client can discover the server without
 credentials. `tools/call` requires a Bearer token.
 
+`initialize` also returns `instructions`, which MCP clients show to the model: pages connect
+only through `[[slug]]` / `[[slug|label]]` wikilinks, nesting a page under a parent does not
+link them, and `suggest_links` finds what is worth linking. An agent learns this on connect,
+so a prompt does not have to repeat it.
+
 Two kinds work:
 
 | Token | Lifetime | Get it from | Use for |

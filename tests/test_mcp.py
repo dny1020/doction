@@ -2,6 +2,8 @@
 
 import json
 
+from app.meta import extract_links
+
 
 def _register_and_token(client) -> str:
     client.post("/api/auth/register", json={"email": "u@test.com", "password": "password123"})
@@ -48,6 +50,17 @@ def test_initialize_unauthenticated(client):
     assert result["protocolVersion"] == "2025-03-26"
     assert result["serverInfo"]["name"] == "doction"
     assert "tools" in result["capabilities"]
+
+
+def test_initialize_teaches_linking(client):
+    # An agent must learn wikilink syntax from the server itself, and the syntax it is
+    # taught must be the one the parser reads.
+    result = _rpc(client, "initialize", {"protocolVersion": "2025-03-26"}).json()["result"]
+    assert "[[slug|label]]" in result["instructions"]
+    assert extract_links("see [[slug|label]]") == ["slug"]
+    tools = {t["name"]: t for t in _rpc(client, "tools/list").json()["result"]["tools"]}
+    for name in ("create_page", "update_page", "upsert_page_section"):
+        assert "[[slug]]" in tools[name]["description"]
 
 
 def test_initialize_unknown_protocol_falls_back(client):
