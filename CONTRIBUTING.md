@@ -90,7 +90,14 @@ Two things trip people up:
   `DESIGN.md` in the same PR. A README that describes last month's behaviour is a bug.
 - **English in the repo.** Code, comments, docstrings, commit messages, and docs are in
   English regardless of the language the discussion happens in. `make comments` fails on a
-  comment or docstring with Spanish characters.
+  comment or docstring with Spanish characters. The one exception is the Spanish translation
+  of the site under `docs/es/`.
+- **A page under `docs/` is edited in both languages.** Each page in `docs/es/` records the
+  hash of the English text it was reviewed against, and `make docs` fails while the two
+  disagree. Update the translation and run
+  `uv run python -m scripts.build_docs --stamp <page>`; for a change that needs no
+  translation, such as a typo, the stamp alone acknowledges it. A new page needs its Spanish
+  counterpart in the same PR.
 
 ## Commit messages
 
