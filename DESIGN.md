@@ -4,8 +4,10 @@ This document describes the design **as implemented**, not as intended. Every va
 here is in `app/static/style.css` and can be verified by reading it. When the two
 disagree, the defect is in this document before it is in the stylesheet.
 
-Concept: modern technical notebook. Warm, editorial, restrained, with no look of a
-generated template.
+Concept: a quiet notebook. The canvas is a flat off-white (graphite in dark theme), the
+document rests on a white card, and the sidebar is the same material one step deeper. The
+reference is Memos (usememos/memos): its surfaces, sidebar and card shape were measured and
+adapted here, not its code. Restrained, with no look of a generated template.
 
 ---
 
@@ -18,18 +20,20 @@ a generic notes app.
 
 1. The document is the visual protagonist.
 2. Few visual decisions, but deliberate ones.
-3. The canvas is flat; depth comes from the chrome against it.
-4. Hierarchy is built with typography, rhythm, alignment and tone, not with cards.
+3. The canvas is flat; depth comes from a card resting on it, drawn with a line.
+4. Cards hold units of content (the document, a capture); inside them hierarchy is
+   built with typography, rhythm, alignment and tone, never with nested cards.
 5. Technical content uses monospace, controlled density, and restrained color.
 6. Design neither adds nor removes functionality, routes, panels, or information.
 
 ### Anti-patterns
 
 Do not implement purple or electric-blue gradients, visible-noise backgrounds,
-parchment or retro aesthetics, everything inside cards, borders wider than 8px, pills
+parchment or retro aesthetics, cards inside cards, borders wider than 8px, pills
 except genuinely round ones, large or repeated shadows, glassmorphism, "AI" or "MCP"
 labels as decoration, invented panels or metrics, neon graphs, or imitations of Notion,
-GitBook, Obsidian, or Linear.
+GitBook, Obsidian, or Linear. Memos is the one deliberate reference (see the concept above):
+its tones and shapes, adapted, never its components or its code.
 
 ---
 
@@ -43,49 +47,50 @@ against the canvas passes review and then fails on a row with the pointer over i
 
 ```css
 :root {
-  /* Surfaces: warm technical paper */
-  --background:     oklch(0.965 0.012 94);
-  --surface:        oklch(0.982 0.008 92);
-  --surface-raised: oklch(0.994 0.004 90);
-  --surface-muted:  oklch(0.936 0.016 91);
-  --surface-inset:  oklch(0.908 0.020 91);
+  /* Surfaces: off-white canvas, white cards */
+  --background:     oklch(0.982 0.005 95);
+  --surface:        oklch(1 0 0);
+  --surface-raised: oklch(1 0 0);
+  --surface-muted:  oklch(0.950 0.010 95);
+  --surface-inset:  oklch(0.925 0.014 93);
+  --nav-bg:         oklch(0.966 0.008 99);   /* the sidebar */
 
-  /* Ink: dark green, not blue */
-  --ink:        oklch(0.245 0.030 151);  /* 15.00:1 */
-  --ink-strong: oklch(0.185 0.026 150);
-  --ink-muted:  oklch(0.445 0.025 151);  /*  7.01:1 */
-  --ink-subtle: oklch(0.501 0.020 151);  /*  4.50:1 */
+  /* Ink: warm neutral grey */
+  --ink:        oklch(0.244 0.027 96);
+  --ink-strong: oklch(0.190 0.010 100);
+  --ink-muted:  oklch(0.433 0.018 99);
+  --ink-subtle: oklch(0.490 0.012 97);   /* 4.5:1 on --surface-inset */
 
   /* Functional green: what gets clicked and what gets read */
-  --green:       oklch(0.365 0.055 151);  /* 9.69:1 */
+  --green:       oklch(0.365 0.055 151);
   --green-hover: oklch(0.315 0.052 151);
   --green-soft:  oklch(0.915 0.030 151);
-  --green-ring:  oklch(0.365 0.055 151 / 0.60);  /* 3.03:1 */
+  --green-ring:  oklch(0.365 0.055 151 / 0.60);  /* ≥3.25:1 composited */
 
   /* Orange: signal, not a dominant color */
   --orange:     oklch(0.635 0.155 52);   /* decoration */
   --orange-ink: oklch(0.515 0.133 52);   /* 4.50:1, marks that inform */
 
   /* Lines */
-  --border-subtle:  oklch(0.875 0.018 90);
-  --border-default: oklch(0.600 0.024 90);  /* 3.00:1, delimits controls */
+  --border-subtle:  oklch(0.885 0.007 97);
+  --border-default: oklch(0.620 0.012 97);  /* 3:1, delimits controls */
 
   /* State */
-  --danger:      oklch(0.525 0.185 28);  /* 4.51:1 */
+  --danger:      oklch(0.525 0.185 28);
   --danger-soft: oklch(0.911 0.046 28);
   --ok-soft:     oklch(0.981 0.030 148);
 
   /* Composite surfaces, precomputed */
   --callout-bg: oklch(0.960 0.022 63.2);
-  --input-bg:   oklch(0.987 0.007 97.3);
+  --input-bg:   oklch(1 0 0);
 
-  /* Code */
+  /* Code: a quiet inset with the document's own inks */
   --code-inline-bg: oklch(0.915 0.030 151);
-  --code-bg:        oklch(0.205 0.024 151);
-  --code-text:      oklch(0.930 0.018 96);
-  --code-muted:     oklch(0.690 0.025 120);
-  --code-green:     oklch(0.760 0.110 142);
-  --code-orange:    oklch(0.780 0.130 61);
+  --code-bg:        oklch(0.960 0.008 95);
+  --code-text:      oklch(0.244 0.027 96);
+  --code-muted:     oklch(0.490 0.012 97);
+  --code-green:     oklch(0.365 0.055 151);
+  --code-orange:    oklch(0.515 0.133 52);
 }
 ```
 
@@ -96,29 +101,31 @@ The selector is `[data-theme="dark"]` on `<html>`, **not** `.dark`: the theme to
 
 ```css
 [data-theme="dark"] {
-  --background:     oklch(0.170 0.006 150);
-  --surface:        oklch(0.205 0.007 150);
-  --surface-raised: oklch(0.238 0.008 150);
-  --surface-muted:  oklch(0.238 0.008 150);
-  --surface-inset:  oklch(0.265 0.008 150);
+  --background:     oklch(0.240 0.008 255);
+  --surface:        oklch(0.275 0.009 255);
+  --surface-raised: oklch(0.320 0.010 255);
+  --surface-muted:  oklch(0.300 0.010 255);
+  --surface-inset:  oklch(0.330 0.012 255);
+  --nav-bg:         oklch(0.210 0.009 255);
 
-  --ink:        oklch(0.925 0.016 93);   /* 12.24:1 */
-  --ink-strong: oklch(0.975 0.007 93);
-  --ink-muted:  oklch(0.720 0.018 100);  /*  6.16:1 */
-  --ink-subtle: oklch(0.639 0.018 110);  /*  4.54:1 */
+  --ink:        oklch(0.920 0.006 255);
+  --ink-strong: oklch(0.970 0.004 255);
+  --ink-muted:  oklch(0.790 0.007 255);
+  --ink-subtle: oklch(0.735 0.008 255);  /* 4.5:1 on --surface-inset */
 
-  --green:      oklch(0.745 0.090 145);  /* 6.97:1 */
-  --green-ring: oklch(0.745 0.090 145 / 0.53);  /* 3.00:1 */
-  --orange:     oklch(0.735 0.135 57);   /* 6.27:1 */
+  --green:      oklch(0.780 0.090 145);
+  --green-ring: oklch(0.780 0.090 145 / 0.55);  /* ≥3.36:1 composited */
+  --orange:     oklch(0.760 0.135 57);
 
-  --border-default: oklch(0.538 0.025 150);  /* 3.03:1 */
-  --code-bg:        oklch(0.115 0.014 150);
+  --border-subtle:  oklch(0.360 0.010 255);
+  --border-default: oklch(0.590 0.012 255);  /* 3:1 */
+  --code-bg:        oklch(0.215 0.008 255);
 }
 ```
 
-**Dark chroma is deliberately low.** At 0.018–0.023 the charcoal reads as green, and
-combined with the chrome, the whole app ends up tinted. Green is reserved for where it
-says something: accent, active element, and code.
+**Dark is graphite, not charcoal.** A soft blue-grey at chroma 0.008–0.012 keeps long
+reading comfortable and leaves green as the only hue that says something: accent, active
+element, and code.
 
 ### Orange marks a note
 
@@ -136,7 +143,7 @@ That's why there are two:
 
 The question that decides which one to use is what whoever doesn't see the mark loses.
 
-On charcoal, orange does reach the ratio, so in dark theme a single value covers both
+On graphite, orange does reach the ratio, so in dark theme a single value covers both
 roles. The rule doesn't change between themes; what changes is how many shades it takes
 to meet it.
 
@@ -144,27 +151,28 @@ to meet it.
 
 ## 3. Typography
 
-Three families, self-hosted at `app/static/vendor/fonts/`. doction is served on a LAN,
+Two families, self-hosted at `app/static/vendor/fonts/`. doction is served on a LAN,
 over a VPN, and sometimes with no route to the internet, so a request to a CDN would
 fail exactly where it's used most.
 
 ```css
 --font-ui:      'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
---font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+--font-display: var(--font-ui);
 --font-mono:    'JetBrains Mono', ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
 --font-data:    var(--font-mono);
 ```
 
-- **Manrope** — navigation, body, forms, buttons, tables and controls. Vendored at
-  400, 500 and 600.
-- **Instrument Serif** — only the page title and the document's H1. One weight.
+- **Manrope** — everything that is not code or data, titles included. Vendored at 400,
+  500 and 600.
 - **JetBrains Mono** — code, paths, shortcuts, timestamps and metadata. Never a
   sentence. That last rule is what makes the app read as documentation rather than as
   an application with content inside it.
 
-`Inter` appears in the stack but **is not vendored**: that would be paying twice for a
-case that can't happen, since both faces would come from the same origin. The real
-fallback is `system-ui`.
+Titles used to be set in Instrument Serif. Next to Memos-style cards the serif read as a
+second voice, so the title is now set apart by size and weight alone, here and on the
+documentation site, and the serif is no longer vendored.
+
+`Inter` appears in the stack but **is not vendored**: the real fallback is `system-ui`.
 
 ### Scale
 
@@ -183,8 +191,8 @@ fallback is `system-ui`.
 
 | Element | Family | Size | Line height |
 |---|---|---|---|
-| Page title | display | 36px | 1.15 |
-| Document H1 | display | 36px | 1.15 |
+| Page title | interface, 600 | 28px | 1.2 |
+| Document H1 | interface, 600 | 28px | 1.2 |
 | H2 | interface, 600 | 22px | 1.3 |
 | H3 | interface, 600 | 16px | 1.45 |
 | Document body | interface | 16px | 1.78 |
@@ -192,14 +200,10 @@ fallback is `system-ui`.
 | Navigation | interface | 13px | 1.3 |
 | Metadata | data | 11px | 1.45 |
 
-The page title uses the same 36px step as the document H1, which is the size doction.site
-uses. 52px is reserved for a landing hero.
+The page title uses the same 28px step as the document H1. 52px is reserved for a landing
+hero.
 
-H2 and H3 use the interface face, not the serif: at 22 and 16px the serif's x-height is
-too small to carry weight as a heading.
-
-Weight 400 for text, 500 for controls and navigation, 600 only for interface headings.
-Avoid 700.
+Weight 400 for text, 500 for controls and navigation, 600 for titles and headings. Avoid 700.
 
 ---
 
@@ -207,9 +211,10 @@ Avoid 700.
 
 ```css
 --sidebar-width:      280px;
---toc-width:          220px;
+--toc-width:          208px;
 --topbar-height:       56px;
---document-max-width: 760px;
+--document-max-width: 760px;   /* reading measure */
+--page-card-width:    960px;   /* the card, at most */
 --document-gutter:     72px;
 --shell-max-width:   1720px;
 ```
@@ -221,9 +226,10 @@ Viewport
     ├── Top bar: 56px
     └── Document zone (max. 1720px)
         ├── Left margin: 72px
-        ├── Reading column: max. 760px
-        ├── Gap: 96px
-        └── Table of contents: 220px
+        ├── Document card: max. 960px
+        ├── Gap: 40px
+        ├── Table of contents: 208px
+        └── Right margin: 24px
 ```
 
 Composition rules:
@@ -233,9 +239,13 @@ Composition rules:
   background peeking out to its left.
 - Content **starts** 72px from the side. Centering it would make the margin depend on
   the window's width.
-- The table of contents breathes at 96px from the document. It's small, gray text next
-  to reading text, and whitespace is the only thing that separates them.
-- No giant white card around the document.
+- The table of contents sits 40px from the card and 24px from the right edge. The card's
+  line already separates it from the text, so the old 96px of whitespace only made the
+  card narrower; the card takes whatever width the window leaves (816px at 1440).
+  Below 1120px the table of contents is hidden.
+- The document sits on one white card (`.page`): a 1px `--border-subtle` line, 8px radius,
+  32px by 48px of padding (20 by 16 under 820px), no shadow. It grows to 960px, so on a wide
+  window the text runs about 860px.
 
 ---
 
@@ -247,7 +257,7 @@ A 4px base, plus one optical step below it.
 --space-0:  2px;   --space-1:  4px;   --space-2:  8px;   --space-3: 12px;
 --space-4: 16px;   --space-5: 20px;   --space-6: 24px;   --space-7: 28px;
 --space-8: 32px;   --space-9: 36px;   --space-12: 48px;  --space-14: 56px;
---space-16: 64px;  --space-20: 80px;  --space-24: 96px;
+--space-10: 40px;  --space-16: 64px;  --space-20: 80px;  --space-24: 96px;
 ```
 
 `--space-0` exists because there are seventeen places with 2px gaps under 11 and
@@ -261,73 +271,51 @@ around a code block or a note.
 ## 6. Radius, borders and shadows
 
 ```css
---radius-xs: 2px;   --radius-sm: 4px;   --radius-md: 6px;   --radius-lg: 8px;
---radius-pill: 999px;
+--radius-xs: 4px;   --radius-sm: 6px;   --radius-md: 8px;   --radius-lg: 8px;
+--radius-xl: 12px;  --radius-pill: 999px;
 
 --shadow-1: 0 1px 2px  oklch(0.20 0.02 150 / 0.05);
 --shadow-2: 0 4px 14px oklch(0.20 0.02 150 / 0.07);
 --shadow-3: 0 12px 32px oklch(0.20 0.02 150 / 0.10);
 ```
 
-Standard interface radius 4px; code 6px; modals 8px. The pill survives only on what's
-genuinely round: avatars and theme dots.
+Controls 6px; cards and code 8px; modals 12px. The pill survives only on what's genuinely
+round: avatars and theme dots.
 
-Shadows are for what floats — menus, popovers, modals. A surface that rests on the page
-gets a line, not a shadow.
+Shadows are for what floats — menus, popovers, modals. A card that rests on the page gets
+a line, not a shadow.
 
 ---
 
 ## 7. Material
 
-The canvas is a **flat tone**: paper in the light theme, charcoal in the dark one, with
+The canvas is a **flat tone**: off-white in the light theme, graphite in the dark one, with
 nothing painted over it. **No gradients, sheens, noise, grain, textures, or paper
-images.** Depth comes from the contrast between the chrome and the canvas, which is the
-same composition doction.site uses.
-
-A diagonal sheen used to sit here. It was removed because on charcoal it showed as a
-band across the document, and on paper it was the one thing that made the application
-look different from the site.
+images.** Depth comes from white cards resting on it, each drawn with a line.
 
 ---
 
 ## 8. Chrome
 
-Navigation **is not paper**: it's a region of dark green ink, in both themes, and the
-document is the light surface next to it. That contrast is what gives hierarchy: the
-chrome recedes, the document leads.
+Navigation is **the canvas one step deeper** (`--nav-bg`), separated from the content by a
+1px `--border-subtle` line. It used to be a dark green panel in both themes; next to
+Memos-style cards that read as a second application, so the sidebar now uses the same
+tokens as everything else and needs no palette of its own.
 
-```css
---nav-bg:        oklch(0.145 0.028 151);  /* top end of the gradient */
---nav-bg-end:    oklch(0.115 0.022 151);  /* bottom end */
---nav-hover:     oklch(0.185 0.030 151);
---nav-edge:      oklch(0.330 0.030 151);  /* the edge, measured against the CANVAS */
+The active page is a **filled row**: `--surface-inset` behind it, weight 500 and the strong
+ink, so colour never travels alone. Hover uses the same surface without the weight. The
+workspace selector is a labelled button with no boundary until hovered; the search field
+keeps its 3:1 boundary because it is a field.
 
---nav-ink:            oklch(0.928 0.014 93);   /* 11.37:1 */
---nav-ink-strong:     oklch(0.975 0.007 93);   /* 13.08:1 */
---nav-ink-muted:      oklch(0.720 0.018 100);  /*  5.68:1 */
---nav-ink-subtle:     oklch(0.659 0.018 110);  /*  4.52:1 */
---nav-border-default: oklch(0.556 0.025 150);  /*  3.01:1 */
---nav-green:          oklch(0.745 0.090 145);  /*  6.42:1 */
---nav-orange:         oklch(0.635 0.155 52);   /*  3.88:1 */
-```
-
-The chrome **is darker than the document even in dark theme**. If it's lighter, the
-panel advances instead of receding, and the app reads as a single mass.
-
-Its real floors are the gradient's two ends. Everything on top of it is measured against
-the worse of the two.
-
-The active element carries a 2px green left rule and **no surface**: the rule marks the
-edge, and weight 500 plus the strong ink do the rest, so color never travels alone. It is
-the same mark the documentation site's navigation uses. It used to sit on a faint green
-surface, which read as a filled pill next to the site's bare rule.
+In both themes the sidebar is a shade darker than the canvas (0.966 against 0.982 in
+light, 0.210 against 0.240 in dark), so it recedes.
 
 ### The brand mark
 
-The terminal glyph (`>_`, lucide `terminal`) is **green on every surface**: `--nav-green` in the
-sidebar and the documentation site's header, where it sits on the chrome at 6.42:1; the same
-colour on `--nav-bg` in the installable-app icons; and in a browser tab, which is not the
-chrome, `--green` on a light tab and `--nav-green` on a dark one. SVGs used as images and PNGs
+The terminal glyph (`>_`, lucide `terminal`) is **green on every surface**: `--green` in the
+sidebar; the light-on-dark green in the documentation site's header and in the
+installable-app icons, which keep the earlier dark green ground; and in a browser tab, the
+dark green on a light tab and the light green on a dark one. SVGs used as images and PNGs
 cannot read custom properties, so those files carry the tokens' sRGB values (`#27472f`,
 `#88bc89`, `#030d05`), read from the browser rather than converted by hand.
 
@@ -335,41 +323,19 @@ It used to be orange in the sidebar and blue in the favicon, a leftover of an ea
 One colour means the tab, the home screen, the application and its documentation are
 recognisably the same product.
 
-### How it's implemented
-
-The chrome redefines token **names** within its scope instead of rewriting the rules it
-contains. `var()` resolves at the element that matches, against the properties that
-element inherits, so everything living inside re-themes itself automatically.
-
-Two consequences learned by measuring:
-
-- **Every name the chrome redefines has to be redefined again at the re-entry to the
-  canvas.** A forgotten name doesn't fail loudly: it resolves to the canvas value,
-  which is the wrong one exactly where it was forgotten.
-- **What's declared inside but painted outside has to return to the canvas.** The
-  move-and-rename dialog lives in the tree, but `showModal()` paints it centered over
-  the document; without returning it, it came out dark while the identical dialog
-  elsewhere in the app came out light.
-
-### The floor can't be lightened
-
-The avatar disc takes its color from an inline `style`, not a token, and it's a control
-boundary that needs 3:1. Against the current floor it measures 3.68:1. Lightening the
-chrome would drop it below the threshold without anything in the sidebar giving it
-away.
-
 ---
 
 ## 9. Document
 
-- A compact header: breadcrumbs, the title at 36px, then one row with the metadata on
+- A compact header inside the document's card: breadcrumbs, the title at 28px, then one row with the metadata on
   the left and the page's actions on the right, closed by a line. Edit, New subpage and
   History are visible there; Delete lives in the ⋯ menu beside them and is confirmed, so
   the irreversible action is never the easiest one to hit.
 - The document's first block begins within 160px of the top of the title. Its own top
   margin is dropped, because the header already closes with a line.
-- On desktop the top bar shows the page title only after the page's own title has
-  scrolled under it, so a page never says its name twice on one screen.
+- The top bar shows the page title (on desktop) and its ⋯ menu of page actions (at every
+  width) only after the page's own title has scrolled under it, so a page never says its
+  name, or offers its actions, twice on one screen.
 - Breadcrumbs in the data face, uppercase, 11px. Their separator carries the decorative
   orange: it's `aria-hidden`, so it owes no one contrast.
 - Metadata strip with the two fields that exist, last-updated date and last editor.
@@ -386,13 +352,13 @@ italics read worse.
 
 ### Code
 
-The **block** is a dark slab, a terminal inset inside a book. Its text color is
-declared on the block, not on the highlighter: highlighting only applies to fences
-that declare a language, and a bare fence would inherit the document's ink over the
-slab.
+The **block** is a quiet inset on the card: `--code-bg` with a 1px `--border-subtle` line
+and an 8px radius, in the document's own inks. In dark theme it is a shade darker than the
+card. Its text color is declared on the block, not on the highlighter: highlighting only
+applies to fences that declare a language.
 
 **Inline code** doesn't share that surface. It's typography inside a sentence, green on
-faint green; on the slab, every `` `foo` `` in a paragraph would be a black pill.
+faint green.
 
 Highlighting is reduced to three signals over the code's ink: dimmed comments, strings
 in green, numbers in orange. Everything else stays `--code-text`.
@@ -401,10 +367,10 @@ in green, numbers in orange. Everything else stays `--code-text`.
 
 ## 10. Table of contents
 
-220px wide, sticky position, 96px from the document. Interface typography at 12px and
-the label in the data face at 11px. No card and no floating background.
+208px wide, sticky position, 40px from the card. Interface typography at 13px, the
+navigation step, and the label at 12px. No card and no floating background.
 
-The active state has **a single carrier**: the orange rule. The text steps up to the
+The active state has **a single carrier**: the green rule. The text steps up to the
 primary ink, which is already enough contrast without relying on color. Saying it with
 color and with the rule at once turns up the volume of the whole table of contents.
 
@@ -413,21 +379,21 @@ color and with the rule at once turns up the volume of the whole table of conten
 ## 11. Controls
 
 ```css
-.button-primary  { height: 32px; background: var(--green); border-radius: var(--radius-sm); }
+.button-primary  { height: 32px; background: var(--green); border-radius: var(--radius-sm); /* 6px */ }
 .button-secondary{ height: 32px; background: transparent; border: 1px solid var(--border-default); }
 .input           { min-height: 36px; background: var(--input-bg); border: 1px solid var(--border-default); }
 .input:focus     { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-ring); }
 ```
 
-The focus ring measures 3.03:1 in light and 3.00:1 in dark. A focus indicator needs
+The focus ring measures at least 3.25:1 in light and 3.36:1 in dark, composited over the
+canvas, the card and the sidebar. A focus indicator needs
 3:1, and this one has had to be raised twice for falling short: any proposal to lower
 it goes against a deliberate correction.
 
 ### Scrollbar
 
 Custom, not the system's. Defined once and inherited by the three places that scroll —
-the tree, the workspaces menu, and the table of contents — so inside the chrome it
-re-themes itself. 8px wide, thumb rounded to its own width and thinner than the track
+the tree, the workspaces menu, and the table of contents — so it follows the theme. 8px wide, thumb rounded to its own width and thinner than the track
 thanks to a transparent border.
 
 ### One control, one action
@@ -471,9 +437,8 @@ continuous animations, or parallax.
 These rules are checked, not trusted.
 
 - **Contrast measured from the stylesheet itself**, not from a hand-written table: the
-  token blocks are parsed and every pair is calculated against the six floors — light
-  canvas, dark canvas, the chrome's two ends, the code slab, and the notes' composited
-  background. Zero failures is the condition for shipping.
+  token blocks are parsed and every pair is calculated against each theme's floors —
+  canvas, card, inset, sidebar, the code block, and the notes' composited background. Zero failures is the condition for shipping.
 - **Gamut**: a color outside sRGB gets remapped by the browser to something the author
   didn't choose, so a ratio calculated on the original value describes a color no one
   sees.

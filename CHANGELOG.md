@@ -11,6 +11,23 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
+## Unreleased
+
+### Changed
+
+- **New visual language, modelled on Memos.** The canvas is a flat off-white (graphite in
+  dark theme) and the document, each inbox capture and the capture box rest on white cards.
+  The sidebar is the canvas a step deeper instead of a dark green panel, and its active page
+  is a filled row instead of a rule. Titles use the interface face at 600 instead of
+  Instrument Serif, code blocks are a quiet inset instead of a dark slab, and radii grow to
+  6px for controls, 8px for cards and 12px for modals. Green stays the accent and the brand
+  mark; every text and boundary pair was re-measured (4.5:1 and 3:1). The documentation
+  site at doction.site follows the same tokens, header, active row and content card.
+- The document card is wider (up to 960px) and the table of contents sits closer to the
+  right edge, at 13px instead of 12px.
+- The top bar's ⋯ page-actions menu only appears once the page's own header, which has the
+  same buttons, has scrolled out of view.
+
 ## 0.34.0 — 2026-10-15
 
 ### Added

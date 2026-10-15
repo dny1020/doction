@@ -90,7 +90,7 @@ export default function Notes() {
   } else if (items.length > 0) {
     list = (
       <>
-        <ul className="rows rows--divided">
+        <ul className="rows notes-list">
           {items.map((n) => (
             <li className="row" key={n.slug}>
               <div className="row-name">
