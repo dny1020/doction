@@ -396,6 +396,13 @@ Custom, not the system's. Defined once and inherited by the three places that sc
 the tree, the workspaces menu, and the table of contents — so it follows the theme. 8px wide, thumb rounded to its own width and thinner than the track
 thanks to a transparent border.
 
+### Theme toggle
+
+One component (`ThemeToggle.jsx`) in the sidebar footer, on login and on register, next to
+the language toggle. It shows the theme it switches to: lucide `moon` in light, `sun` in dark.
+doction.site's header uses the same two lucide icons (`docs/overrides/.icons/lucide/`), so the
+control reads the same on both.
+
 ### One control, one action
 
 With the sidebar collapsed, only **one** button to expand it should be visible: the one

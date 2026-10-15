@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
 import LanguageToggle from '../components/LanguageToggle.jsx'
+import ThemeToggle from '../components/ThemeToggle.jsx'
 
 export default function Register() {
   const { register } = useAuth()
@@ -64,8 +65,9 @@ export default function Register() {
         <p className="auth-switch">
           {t('register_switch_q')} <Link to="/login">{t('log_in')}</Link>
         </p>
-        <div className="auth-lang">
+        <div className="auth-lang sidebar-controls">
           <LanguageToggle />
+          <ThemeToggle />
         </div>
       </div>
     </div>
