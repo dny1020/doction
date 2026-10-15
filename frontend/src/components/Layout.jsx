@@ -6,7 +6,7 @@ import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
 import { newPagePath, pagePath } from '../routes.js'
 import NotFound from '../pages/NotFound.jsx'
-import Sidebar from './Sidebar.jsx'
+import Sidebar, { closeOnEscape } from './Sidebar.jsx'
 import CommandPalette from './CommandPalette.jsx'
 import ConnectionStatus from './ConnectionStatus.jsx'
 import CaptureModal from './CaptureModal.jsx'
@@ -57,6 +57,8 @@ export default function Layout() {
   )
   const [barMenuOpen, setBarMenuOpen] = useState(false)
   const [titleOffscreen, setTitleOffscreen] = useState(false)
+  // Bumped by every quick capture, so an open inbox reloads without a page refresh.
+  const [notesVersion, setNotesVersion] = useState(0)
   const barMenuRef = useRef(null)
 
   const setCollapsed = useCallback((value) => {
@@ -172,16 +174,26 @@ export default function Layout() {
           </button>
           <span className="app-bar-title">{barTitle}</span>
           {isReader && (
-            <span className="app-bar-actions" ref={barMenuRef}>
+            <span
+              className="app-bar-actions"
+              ref={barMenuRef}
+              onKeyDown={(e) => closeOnEscape(e, barMenuOpen, setBarMenuOpen)}
+            >
               <button
                 className="sidebar-toggle"
                 type="button"
                 aria-label={t('page_actions')}
+                aria-expanded={barMenuOpen}
+                aria-controls="bar-menu"
                 onClick={() => setBarMenuOpen((v) => !v)}
               >
                 <MoreHorizontal size={16} />
               </button>
-              <div className={'avatar-menu' + (barMenuOpen ? ' open' : '')}>
+              <div
+                id="bar-menu"
+                className={'avatar-menu' + (barMenuOpen ? ' open' : '')}
+                inert={!barMenuOpen}
+              >
                 <Link className="avatar-menu-item" to={pagePath(ws, activeSlug, '/edit')}>
                   {t('edit')}
                 </Link>
@@ -208,6 +220,7 @@ export default function Layout() {
                 pagesError,
                 reloadPages,
                 setTitleOffscreen,
+                notesVersion,
               }}
             />
           )}
@@ -216,7 +229,7 @@ export default function Layout() {
       {/* Fixed over the shell; it renders nothing while everything works. */}
       <ConnectionStatus />
       <CommandPalette ws={ws} pages={pages} />
-      <CaptureModal />
+      <CaptureModal onCaptured={() => setNotesVersion((v) => v + 1)} />
       <KeyboardShortcuts ws={ws} />
     </div>
   )

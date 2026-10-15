@@ -120,12 +120,27 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
 
       {user && user.workspaces.length > 0 && (
         <div className="workspace-wrap">
-          <div className="ws-select" ref={wsRef}>
-            <button className="ws-trigger" type="button" onClick={() => setWsOpen(!wsOpen)}>
+          <div
+            className="ws-select"
+            ref={wsRef}
+            onKeyDown={(e) => closeOnEscape(e, wsOpen, setWsOpen)}
+          >
+            <button
+              className="ws-trigger"
+              type="button"
+              aria-expanded={wsOpen}
+              aria-controls="ws-menu"
+              onClick={() => setWsOpen(!wsOpen)}
+            >
               <span className="ws-trigger-label">{active ? active.name : '—'}</span>
               <ChevronsUpDown className="ws-trigger-icon lucide" size={15} />
             </button>
-            <div className={'ws-menu' + (wsOpen ? ' open' : '')}>
+            <div
+              id="ws-menu"
+              className={'ws-menu' + (wsOpen ? ' open' : '')}
+              // Closed it is only invisible; `inert` keeps its items out of the tab order.
+              inert={!wsOpen}
+            >
               <div className="ws-menu-list">
                 {user.workspaces.map((w) => (
                   <button
@@ -160,7 +175,7 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
               className="search-clear"
               type="button"
               onClick={() => setQuery('')}
-              aria-label="Clear"
+              aria-label={t('clear_search')}
             >
               <X size={14} />
             </button>
@@ -200,7 +215,7 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
           <div className="eyebrow">{t('pages')}</div>
           <nav className="page-list">
             {pagesError ? (
-              <p className="muted">
+              <p className="muted" role="alert">
                 {t('tree_error')}{' '}
                 <button className="btn btn-sm" type="button" onClick={onReload}>
                   {t('retry')}
@@ -235,21 +250,33 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
               type="button"
               onClick={onToggleTheme}
               title={t('toggle_theme')}
+              aria-label={t('toggle_theme')}
             >
               {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             </button>
           </div>
-          <div className="avatar-wrap" ref={avatarRef}>
+          <div
+            className="avatar-wrap"
+            ref={avatarRef}
+            onKeyDown={(e) => closeOnEscape(e, menuOpen, setMenuOpen)}
+          >
             <button
               className="avatar"
               type="button"
               onClick={() => setMenuOpen(!menuOpen)}
               title={user ? user.email : ''}
+              aria-label={t('account_menu')}
+              aria-expanded={menuOpen}
+              aria-controls="account-menu"
               style={user ? { background: avatarColor(user) } : undefined}
             >
               {letter}
             </button>
-            <div className={'avatar-menu' + (menuOpen ? ' open' : '')}>
+            <div
+              id="account-menu"
+              className={'avatar-menu' + (menuOpen ? ' open' : '')}
+              inert={!menuOpen}
+            >
               {user && user.display_name && (
                 <div className="avatar-menu-name">{user.display_name}</div>
               )}
@@ -277,9 +304,17 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
   )
 }
 
+// Esc inside an open dropdown closes it and returns focus to its trigger, which is the
+// first button in every dropdown's wrapper. Shared by the four dropdowns in the shell.
+export function closeOnEscape(event, open, setOpen) {
+  if (event.key !== 'Escape' || !open) return
+  setOpen(false)
+  event.currentTarget.querySelector('button')?.focus()
+}
+
 // A result's snippet arrives already split into spans by the server: the matching ones
 // go in <mark> and the rest as text. Nothing from the server is painted as markup.
-function Snippet({ parts, text }) {
+export function Snippet({ parts, text }) {
   if (!parts || parts.length === 0) return <p className="snippet">{text}</p>
   return (
     <p className="snippet">

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 import { useToast } from './Toast.jsx'
-import { api } from '../api.js'
+import { saveCapture } from '../api.js'
 
 // Quick capture (⌘/Ctrl + Shift + K): saved as `type: memo`, so it lands in the inbox
 // feed, not the tree. Reuses the `.palette*` classes, like CommandPalette.
@@ -44,9 +44,7 @@ export default function CaptureModal({ onCaptured }) {
     if (!body || saving) return
     setSaving(true)
     try {
-      // No title: the backend derives one from the first line and gives it a
-      // timestamped slug, so a hundred captures do not collide.
-      await api.post('/api/pages', { content: '---\ntype: memo\n---\n\n' + body })
+      await saveCapture(body)
       setOpen(false)
       toast(t('capture_saved'))
       onCaptured?.()
@@ -70,7 +68,7 @@ export default function CaptureModal({ onCaptured }) {
     <div
       className={'palette' + (open ? ' open' : '')}
       aria-hidden={open ? 'false' : 'true'}
-      {...(open ? {} : { inert: '' })}
+      inert={!open}
       onClick={(event) => {
         if (event.target === event.currentTarget) setOpen(false)
       }}

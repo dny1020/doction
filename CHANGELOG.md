@@ -11,10 +11,29 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
-## Unreleased
+## 0.34.0 — 2026-10-15
+
+### Added
+
+- **⌘K searches content**, not only titles: after the title matches it lists the same hybrid
+  search the sidebar runs, each hit with its snippet, scoped to the current workspace.
+- **The inbox has its own capture form**, and the list refreshes after any capture, inline or
+  ⌘⇧K. A failed load shows an error with Retry instead of an empty inbox.
+- The editor saves on ⌘Enter, as quick capture does, and uploads images dropped on it.
+
+### Fixed
+
+- The closed command palette, shortcut help and quick capture stayed in the tab order:
+  React 19 ignores `inert=""`, so they now pass a boolean.
+- The workspace, account, page ⋯ and mobile bar menus close on Esc, return focus to their
+  button, announce whether they are open, and leave the tab order when closed. The theme and
+  account buttons have accessible names, and error states are announced.
+- Text typed while an image uploaded was lost when the upload finished.
 
 ### Changed
 
+- CI pins Python 3.14 where it installs the uv environment (docs, Pages, pip-audit):
+  onnxruntime ships no wheels for 3.15 yet.
 - **Dependabot runs monthly**, one grouped PR per ecosystem, minor and patch only. Security
   updates are unaffected and still arrive when an advisory is published.
 - `publish` no longer fails when the version is already in the registry: it skips with a

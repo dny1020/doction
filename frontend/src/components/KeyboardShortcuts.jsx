@@ -71,7 +71,7 @@ export default function KeyboardShortcuts({ ws }) {
       className={'shortcuts-overlay' + (helpOpen ? ' open' : '')}
       aria-hidden={helpOpen ? 'false' : 'true'}
       // Closed it stays in the DOM at opacity:0, so `inert` takes it out of the tab order.
-      {...(helpOpen ? {} : { inert: '' })}
+      inert={!helpOpen}
       onClick={(event) => {
         if (event.target === event.currentTarget) setHelpOpen(false)
       }}
@@ -105,6 +105,18 @@ export default function KeyboardShortcuts({ ws }) {
             <span>{t('sc_command_palette')}</span>
             <span>
               <kbd>⌘</kbd> <kbd>K</kbd>
+            </span>
+          </li>
+          <li>
+            <span>{t('capture')}</span>
+            <span>
+              <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>K</kbd>
+            </span>
+          </li>
+          <li>
+            <span>{t('sc_save')}</span>
+            <span>
+              <kbd>⌘</kbd> <kbd>↵</kbd>
             </span>
           </li>
           <li>
