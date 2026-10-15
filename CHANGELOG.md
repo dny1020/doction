@@ -11,7 +11,7 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
-## Unreleased
+## 0.35.0 — 2026-10-15
 
 ### Changed
 
