@@ -64,26 +64,6 @@
     U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: 'Instrument Serif';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/static/vendor/fonts/instrument-serif-latin-400-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Instrument Serif';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/static/vendor/fonts/instrument-serif-latin-ext-400-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
-    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
-    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
   font-family: 'JetBrains Mono';
   font-style: normal;
   font-weight: 400;
@@ -128,20 +108,19 @@
 /* Colours are DESIGN.md §2 in oklch. Where a value fails its contrast target,
    the hue is kept and the lightness moved; the note says so. */
 :root {
-  /* Surfaces: warm technical paper. */
-  --background:     oklch(0.965 0.012 94);
-  --surface:        oklch(0.982 0.008 92);
-  --surface-raised: oklch(0.994 0.004 90);
-  --surface-muted:  oklch(0.936 0.016 91);
-  --surface-inset:  oklch(0.908 0.020 91);
+  /* Surfaces: an off-white canvas with white cards resting on it. */
+  --background:     oklch(0.982 0.005 95);
+  --surface:        oklch(1 0 0);
+  --surface-raised: oklch(1 0 0);
+  --surface-muted:  oklch(0.950 0.010 95);
+  --surface-inset:  oklch(0.925 0.014 93);
 
-
-  /* Ink: dark green, not blue. */
-  --ink:         oklch(0.245 0.030 151);
-  --ink-strong:  oklch(0.185 0.026 150);
-  --ink-muted:   oklch(0.445 0.025 151);
-  /* Corrected from 0.590, which fails 4.5:1 for text. */
-  --ink-subtle:  oklch(0.501 0.020 151);
+  /* Ink: warm neutral grey. */
+  --ink:         oklch(0.244 0.027 96);
+  --ink-strong:  oklch(0.190 0.010 100);
+  --ink-muted:   oklch(0.433 0.018 99);
+  /* 4.5:1 against --surface-inset, the worst surface it sits on. */
+  --ink-subtle:  oklch(0.490 0.012 97);
   --ink-on-green:    oklch(0.982 0.008 92);
   /* Ink on the avatar's identity colour, which does not follow the theme. */
   --ink-on-identity: oklch(0.982 0.008 92);
@@ -159,9 +138,9 @@
   --orange-ink:   oklch(0.515 0.133 52);   /* chroma 0.155 cannot reach 4.5:1 at any lightness */
 
   /* Lines: decorative ones may fade; control boundaries must be seen. */
-  --border-subtle:  oklch(0.875 0.018 90);
-  /* Corrected from 0.818, which fails 3:1 as a control boundary. */
-  --border-default: oklch(0.600 0.024 90);
+  --border-subtle:  oklch(0.885 0.007 97);
+  /* 3:1 as a control boundary against the canvas. */
+  --border-default: oklch(0.620 0.012 97);
 
   /* State. Corrected from 0.590, which fails 4.5:1 for text. */
   --danger:      oklch(0.525 0.185 28);
@@ -170,10 +149,7 @@
 
   /* Pre-mixed, not color-mix(): Safari 15.4–16.1 rejects it silently. */
   --callout-bg: oklch(0.960 0.022 63.2);
-  --input-bg:   oklch(0.987 0.007 97.3);
-
-  /* Inner sheen of the code slab (§9). */
-  --code-sheen:     oklch(1 0 0 / 0.045);
+  --input-bg:   oklch(1 0 0);
 
   /* Scrim behind the mobile drawer, modals and the command palette. */
   --scrim: oklch(0.200 0.020 150 / 0.45);
@@ -182,21 +158,21 @@
   --code-inline-bg:     oklch(0.915 0.030 151);
   --code-inline-border: oklch(0.870 0.035 151);
 
-  /* The code slab has its own value per theme (§2). */
-  --code-bg:        oklch(0.205 0.024 151);
-  --code-text:      oklch(0.930 0.018 96);
-  --code-muted:     oklch(0.690 0.025 120);
-  --code-green:     oklch(0.760 0.110 142);
-  --code-orange:    oklch(0.780 0.130 61);
+  /* Code blocks are a quiet inset on the card, with the document's own inks. */
+  --code-bg:        oklch(0.960 0.008 95);
+  --code-text:      oklch(0.244 0.027 96);
+  --code-muted:     oklch(0.490 0.012 97);
+  --code-green:     oklch(0.365 0.055 151);
+  --code-orange:    oklch(0.515 0.133 52);
 
-  /* Radii (§6): 4px interface, 6px code, 8px modals. xl/2xl alias the 8px cap;
-     the pill is only for avatars and theme dots. */
-  --radius-xs:   2px;
-  --radius-sm:   4px;
-  --radius-md:   6px;
+  /* Radii (§6): 6px controls, 8px cards and code, 12px modals; the pill is only
+     for avatars and theme dots. */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   8px;
   --radius-lg:   8px;
-  --radius-xl:   var(--radius-lg);
-  --radius-2xl:  var(--radius-lg);
+  --radius-xl:   12px;
+  --radius-2xl:  12px;
   --radius-pill: 999px;
 
   /* Shadows (§6) are only for what floats. */
@@ -213,7 +189,7 @@
   --space-0:  2px;
   --space-1:  4px;   --space-2:  8px;   --space-3: 12px;  --space-4: 16px;
   --space-5: 20px;   --space-6: 24px;   --space-8: 32px;
-  --space-12: 48px;  --space-16: 64px;  --space-20: 80px;  --space-24: 96px;
+  --space-10: 40px;  --space-12: 48px;  --space-16: 64px;  --space-20: 80px;  --space-24: 96px;
 
   /* Width of the custom scrollbar. */
   --scrollbar-width: 8px;
@@ -222,76 +198,18 @@
   --space-9:  36px;
   --space-14: 56px;
 
-  /* === Chrome: navigation is another material ===============================
-   The sidebar is dark green ink in both themes; `.sidebar` maps these onto the
-   usual token names. It is darker than the canvas in both themes so it recedes. */
-  /* §8: the floor is a vertical gradient; the active row has no surface of its own. */
-  --nav-bg:        oklch(0.145 0.028 151);
-  --nav-bg-end:    oklch(0.115 0.022 151);
-  --nav-hover:     oklch(0.185 0.030 151);
-  /* The panel edge is measured against the canvas, not the chrome. */
-  --nav-edge:      oklch(0.330 0.030 151);
-
-  --nav-ink:            oklch(0.928 0.014 93);
-  /* Active row text: without this, --ink-strong resolves to the canvas's dark ink. */
-  --nav-ink-strong:     oklch(0.975 0.007 93);
-  --nav-ink-muted:      oklch(0.720 0.018 100);
-  --nav-ink-subtle:     oklch(0.659 0.018 110);
-  --nav-border-subtle:  oklch(0.290 0.028 151);
-  --nav-border-default: oklch(0.556 0.025 150);
-
-  --nav-green:        oklch(0.745 0.090 145);
-  --nav-green-hover:  oklch(0.805 0.090 145);
-  --nav-green-press:  oklch(0.805 0.090 145);
-  --nav-green-soft:   oklch(0.290 0.050 149);
-  --nav-green-ring:   oklch(0.745 0.090 145 / 0.55);
-  --nav-ink-on-green: oklch(0.185 0.024 151);
-
-  /* Chrome orange is only a rule on the active item, so 3:1 is enough. */
-  --nav-orange:         oklch(0.635 0.155 52);
-  --nav-danger:         oklch(0.700 0.150 28);
-  --nav-danger-soft:    oklch(0.280 0.070 28);
-
-  --nav-shadow-xs: 0 1px 2px oklch(0 0 0 / 0.28);
-  --nav-shadow-sm: 0 1px 3px oklch(0 0 0 / 0.34), 0 1px 2px oklch(0 0 0 / 0.28);
-  --nav-shadow-md: 0 4px 16px oklch(0 0 0 / 0.42);
-  --nav-shadow-lg: 0 12px 32px oklch(0 0 0 / 0.55);
-
-  /* === Back to the canvas ====================================================
-   A <dialog> declared inside the sidebar inherits its palette, but showModal()
-   paints it over the canvas. These aliases give the canvas palette back.
-   They depend on [data-theme="dark"] coming AFTER :root in this file. */
-  --canvas-background:             var(--background);
-  --canvas-surface:        var(--surface);
-  --canvas-surface-muted: var(--surface-muted);
-  --canvas-surface-inset:  var(--surface-inset);
-  --canvas-ink:           var(--ink);
-  --canvas-ink-strong:    var(--ink-strong);
-  --canvas-ink-muted:           var(--ink-muted);
-  --canvas-ink-subtle:           var(--ink-subtle);
-  --canvas-ink-on-green:   var(--ink-on-green);
-  --canvas-border-subtle:         var(--border-subtle);
-  --canvas-border-default:  var(--border-default);
-  --canvas-green:         var(--green);
-  --canvas-green-hover:   var(--green-hover);
-  --canvas-green-press:   var(--green-press);
-  --canvas-green-soft:    var(--green-soft);
-  --canvas-green-ring:    var(--green-ring);
-  --canvas-orange:         var(--orange);
-  --canvas-danger:         var(--danger);
-  --canvas-danger-soft:    var(--danger-soft);
-  --canvas-shadow-xs:      var(--shadow-xs);
-  --canvas-shadow-sm:      var(--shadow-sm);
-  --canvas-shadow-md:      var(--shadow-md);
-  --canvas-shadow-lg:      var(--shadow-lg);
+  /* The sidebar is the canvas a step deeper, not another material (§8). */
+  --nav-bg:        oklch(0.966 0.008 99);
 
   /* Layout (§4). */
   --sidebar-width:       280px;
-  --toc-width:           220px;
+  --toc-width:           208px;
   --topbar-height:       56px;
   /* On mobile the safe area makes the bar taller; what sticks under it reads this. */
   --topbar-height-mobile: calc(44px + env(safe-area-inset-top));
   --document-max-width:   760px;
+  /* The document card; on a narrower window it takes what the TOC leaves. */
+  --page-card-width: 960px;
   --document-gutter:      72px;
   --shell-max-width:     1720px;
   --editor-measure:      1600px;
@@ -304,7 +222,7 @@
 
   /* Typography (§3). Each fallback is of the same class as its face. */
   --font-ui:      'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-display: var(--font-ui);
   --font-mono:    'JetBrains Mono', ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   /* Role aliases: `data` is any value (slug, tag, path, date, count), `code` is code. */
   --font-data:    var(--font-mono);
@@ -326,65 +244,58 @@
 /* === Dark tokens ========================================================== */
 /* Warm charcoal (§2), corrected the same way as the light theme. */
 [data-theme="dark"] {
-  /* A third of §2's chroma: at 0.018–0.023 the whole app read as tinted green. */
-  --background:     oklch(0.170 0.006 150);
-  --surface:        oklch(0.205 0.007 150);
-  --surface-raised: oklch(0.238 0.008 150);
-  --surface-muted:  oklch(0.238 0.008 150);
-  --surface-inset:  oklch(0.265 0.008 150);
+  --background:     oklch(0.240 0.008 255);
+  --surface:        oklch(0.275 0.009 255);
+  --surface-raised: oklch(0.320 0.010 255);
+  --surface-muted:  oklch(0.300 0.010 255);
+  --surface-inset:  oklch(0.330 0.012 255);
 
-
-  --ink:         oklch(0.925 0.016 93);
-  --ink-strong:  oklch(0.975 0.007 93);
-  --ink-muted:   oklch(0.720 0.018 100);
-  /* Corrected from 0.550, which fails 4.5:1. */
-  --ink-subtle:  oklch(0.639 0.018 110);
-  --ink-on-green:    oklch(0.170 0.018 150);
+  --ink:         oklch(0.920 0.006 255);
+  --ink-strong:  oklch(0.970 0.004 255);
+  --ink-muted:   oklch(0.790 0.007 255);
+  /* 4.5:1 against --surface-inset, the worst surface it sits on. */
+  --ink-subtle:  oklch(0.735 0.008 255);
+  --ink-on-green:    oklch(0.200 0.018 150);
   --ink-on-identity: oklch(0.982 0.008 92);
 
-  --green:       oklch(0.745 0.090 145);
-  --green-hover: oklch(0.805 0.090 145);
-  --green-press: oklch(0.805 0.090 145);
-  --green-soft:  oklch(0.290 0.050 149);
-  /* Corrected as in light: alpha 0.13 fails 3:1 in both themes. */
-  --green-ring:  oklch(0.745 0.090 145 / 0.53);
+  --green:       oklch(0.780 0.090 145);
+  --green-hover: oklch(0.840 0.090 145);
+  --green-press: oklch(0.840 0.090 145);
+  --green-soft:  oklch(0.340 0.040 149);
+  --green-ring:  oklch(0.780 0.090 145 / 0.55);
 
-  --orange:       oklch(0.735 0.135 57);
-  /* On charcoal the orange passes as text, so one value covers both roles. */
-  --orange-ink:   oklch(0.735 0.135 57);
+  --orange:       oklch(0.760 0.135 57);
+  /* On graphite the orange passes as text, so one value covers both roles. */
+  --orange-ink:   oklch(0.760 0.135 57);
 
-  --border-subtle:  oklch(0.285 0.020 150);
-  /* Corrected from 0.345, which fails 3:1 as a control boundary. */
-  --border-default: oklch(0.538 0.025 150);
+  --border-subtle:  oklch(0.360 0.010 255);
+  /* 3:1 as a control boundary against the card. */
+  --border-default: oklch(0.590 0.012 255);
 
-  --danger:      oklch(0.700 0.150 28);
-  --danger-soft: oklch(0.280 0.070 28);
-  --ok-soft:     oklch(0.270 0.050 148);
+  --danger:      oklch(0.740 0.150 28);
+  --danger-soft: oklch(0.330 0.070 28);
+  --ok-soft:     oklch(0.320 0.050 148);
 
-  /* Pre-mixed as in light, composed over this theme's surface. */
-  --callout-bg: oklch(0.248 0.030 72.5);
-  --input-bg:   oklch(0.222 0.021 150.5);
+  --callout-bg: oklch(0.300 0.030 72.5);
+  --input-bg:   oklch(0.275 0.009 255);
 
-  --scrim: oklch(0.100 0.010 150 / 0.62);
+  --scrim: oklch(0.100 0.010 255 / 0.62);
 
-  --code-inline-bg:     oklch(0.290 0.050 149);
-  --code-inline-border: oklch(0.345 0.045 149);
+  --code-inline-bg:     oklch(0.340 0.040 149);
+  --code-inline-border: oklch(0.390 0.040 149);
 
-  /* Against this canvas the slab barely separates, so §9's border carries the edge. */
-  --code-bg:        oklch(0.115 0.014 150);
-  --code-text:      oklch(0.925 0.016 93);
-  --code-muted:     oklch(0.620 0.025 113);
-  --code-green:     oklch(0.760 0.110 142);
-  --code-orange:    oklch(0.790 0.130 61);
+  --code-bg:        oklch(0.215 0.008 255);
+  --code-text:      oklch(0.920 0.006 255);
+  --code-muted:     oklch(0.700 0.010 255);
+  --code-green:     oklch(0.780 0.110 142);
+  --code-orange:    oklch(0.800 0.130 61);
 
   --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.22);
   --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.28), 0 1px 2px oklch(0 0 0 / 0.22);
   --shadow-md: 0 4px 16px oklch(0 0 0 / 0.35);
   --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.5);
 
-  /* The chrome has no dark variant: it is the same ink in both themes (§8).
-     Its floor cannot be lightened: the avatar's inline colour is a control
-     boundary that would drop below 3:1. */
+  --nav-bg: oklch(0.210 0.009 255);
 }
 
 /* === Theme transition on key surfaces ==================================== */
@@ -567,43 +478,10 @@ a { color: inherit; }
 }
 
 /* === Sidebar ============================================================== */
-/* The chrome changes material by redefining the token NAMES its rules already
-   read. var() resolves at the matched element, so everything inside re-themes
-   with no rule of its own. --green-press is the active tree item's text. */
 .sidebar {
-  --background:             var(--nav-bg);
-  --surface:        var(--nav-bg);
-  --surface-muted: var(--nav-bg);
-  --surface-inset:  var(--nav-hover);
-
-  --ink: var(--nav-ink);
-  --ink-strong: var(--nav-ink-strong);
-  --ink-muted: var(--nav-ink-muted);
-  --ink-subtle: var(--nav-ink-subtle);
-  --ink-on-green: var(--nav-ink-on-green);
-
-  --border-subtle:        var(--nav-border-subtle);
-  --border-default: var(--nav-border-default);
-
-  --green:       var(--nav-green);
-  --green-hover: var(--nav-green-hover);
-  --green-press: var(--nav-green-press);
-  --green-soft:  var(--nav-green-soft);
-  --green-ring:  var(--nav-green-ring);
-
-  --orange: var(--nav-orange);
-
-  --danger:      var(--nav-danger);
-  --danger-soft: var(--nav-danger-soft);
-
-  --shadow-xs: var(--nav-shadow-xs);
-  --shadow-sm: var(--nav-shadow-sm);
-  --shadow-md: var(--nav-shadow-md);
-  --shadow-lg: var(--nav-shadow-lg);
-
   width: var(--sidebar-width);
-  background: linear-gradient(180deg, var(--nav-bg) 0%, var(--nav-bg-end) 100%);
-  border-right: 1px solid var(--nav-edge);
+  background: var(--nav-bg);
+  border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -697,7 +575,7 @@ a { color: inherit; }
   height: 18px;
   flex-shrink: 0;
   /* The brand mark is green on every surface (DESIGN.md §8). */
-  color: var(--nav-green);
+  color: var(--green);
 }
 
 /* === Workspaces (dropdown) ================================================ */
@@ -713,19 +591,20 @@ a { color: inherit; }
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border-default);
+  /* A labelled button, not a field: no boundary until hovered, as in Memos' header. */
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--text-base);
-  font-weight: 500;
+  font-weight: 600;
   min-height: 40px;
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
-.ws-trigger:hover { background: var(--surface-inset); border-color: var(--border-default); }
+.ws-trigger:hover { background: var(--surface-inset); }
 .ws-trigger-label {
   flex: 1;
   min-width: 0;
@@ -964,11 +843,11 @@ a { color: inherit; }
   transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 .page-list a:hover { background: var(--surface-inset); color: var(--ink); }
-/* §8: a 2px green rule and no surface, as on doction.site; weight and ink carry the rest. */
+/* §8: a filled surface; weight and ink carry it, so colour never travels alone. */
 .page-list a.active {
   color: var(--ink-strong);
   font-weight: 500;
-  box-shadow: inset 2px 0 0 var(--green);
+  background: var(--surface-inset);
 }
 /* Indent comes from the tree's aria-level: 14px per level. */
 .page-list [aria-level='2'] { padding-left: calc(var(--space-3) + 14px); }
@@ -1176,7 +1055,8 @@ a { color: inherit; }
 .content-body {
   flex: 1;
   /* §4: content starts 72px from the side. */
-  padding: var(--space-16) var(--document-gutter) var(--space-20);
+  /* Less on the right, so the card and the TOC use the width the window has. */
+  padding: var(--space-16) var(--space-6) var(--space-20) var(--document-gutter);
   /* The shell is capped here, not on .layout, so the sidebar stays on the edge. */
   max-width: var(--shell-max-width);
   display: flex;
@@ -1214,6 +1094,9 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   text-overflow: ellipsis;
 }
 .app-bar-actions { position: relative; flex: none; }
+/* The card's own buttons are on screen until its title scrolls away; only then does the
+   bar repeat them. `visibility` also takes the ⋯ out of the tab order. */
+.app-bar--reader:not(.app-bar--titled) .app-bar-actions { visibility: hidden; }
 /* On desktop a page's title shows in the bar only once its own H1 has scrolled
    under it, as doction.site's header does. `visibility` keeps the row's layout. */
 @media (min-width: 821px) {
@@ -1221,21 +1104,32 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 }
 
 .page, .placeholder { width: 100%; max-width: var(--document-max-width); min-width: 0; }
+/* The document is a card on the canvas, as a memo is (§4). */
+.page {
+  max-width: none;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-12);
+}
+@media (max-width: 820px) {
+  .page { padding: var(--space-5) var(--space-4); }
+}
 .editor { width: 100%; max-width: var(--editor-measure); }
 
 /* === Page wrapper + optional TOC column =================================== */
 .page-wrap {
   width: 100%;
-  max-width: var(--document-max-width);
+  max-width: var(--page-card-width);
   align-self: flex-start;
 }
 
 .page-wrap.has-toc {
-  max-width: calc(var(--document-max-width) + var(--toc-width) + var(--space-24));
+  max-width: calc(var(--page-card-width) + var(--toc-width) + var(--space-10));
   display: grid;
   grid-template-columns: 1fr var(--toc-width);
-  /* §4 asks for 64px as a minimum; at that distance the TOC read as part of the line. */
-  gap: var(--space-24);
+  /* The card's edge already separates the TOC from the text, so 48px is enough. */
+  gap: var(--space-10);
   align-items: start;
 }
 
@@ -1261,11 +1155,11 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .toc-item {
   display: block;
   font-family: var(--font-ui);
-  font-size: var(--text-sm);
+  font-size: var(--text-nav);
   color: var(--ink-subtle);
   text-decoration: none;
   line-height: 1.5;
-  padding: var(--space-0) var(--space-3);
+  padding: var(--space-1) var(--space-3);
   border-left: 1px solid var(--border-subtle);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1277,14 +1171,14 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
 .toc-item.active { color: var(--ink); border-left-color: var(--green); border-left-width: 2px; }
 .toc-h1 { font-weight: 500; }
 .toc-h2 { padding-left: var(--space-4); }
-.toc-h3 { padding-left: var(--space-6); font-size: var(--text-sm); }
+.toc-h3 { padding-left: var(--space-6); }
 
 @media (max-width: 1120px) {
   /* Between 820 and 1120px the bar stayed full width with no TOC, narrowing content for nothing. */
   :root { --sidebar-width: 220px; }
 
   .page-wrap.has-toc {
-    max-width: var(--document-max-width);
+    max-width: var(--page-card-width);
     grid-template-columns: 1fr;
   }
   .toc { display: none !important; }
@@ -1565,13 +1459,10 @@ html:not(.sidebar-collapsed) .app-bar > .sidebar-toggle { display: none; }
   position: relative;
   background: var(--code-bg);
   color: var(--code-text);
-  border: 1px solid var(--nav-edge);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  box-shadow: inset 0 1px 0 var(--code-sheen);
   padding: var(--space-5) var(--space-6);
   overflow-x: auto;
-  /* The slab is dark in both themes; without this the native scrollbar is light. */
-  color-scheme: dark;
 }
 .prose pre code { background: none; border: none; padding: 0; font-size: var(--text-base); line-height: 1.6; }
 
@@ -2070,7 +1961,8 @@ kbd {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  transform: translateY(-150%);
+  /* Far enough up that the shadow does not bleed onto the sidebar. */
+  transform: translateY(-300%);
   transition: transform var(--duration-fast) var(--ease-standard);
 }
 .skip-link:focus { transform: translateY(0); outline: none; }
@@ -2106,35 +1998,6 @@ kbd {
 .toast--error { border-left-color: var(--danger); }
 
 /* Confirm dialog (replaces native confirm()). */
-/* Declared inside the sidebar but painted over the canvas by showModal(): custom
-   properties inherit through the DOM, not the top layer, so the canvas palette is
-   redeclared here. Only the dialog; anchored menus stay dark. */
-.sidebar .confirm-dialog {
-  --background:             var(--canvas-background);
-  --surface:        var(--canvas-surface);
-  --surface-muted: var(--canvas-surface-muted);
-  --surface-inset:  var(--canvas-surface-inset);
-  --ink: var(--canvas-ink);
-  --ink-strong: var(--canvas-ink-strong);
-  --ink-muted: var(--canvas-ink-muted);
-  --ink-subtle: var(--canvas-ink-subtle);
-  --ink-on-green: var(--canvas-ink-on-green);
-  --border-subtle:        var(--canvas-border-subtle);
-  --border-default: var(--canvas-border-default);
-  --green:       var(--canvas-green);
-  --green-hover: var(--canvas-green-hover);
-  --green-press: var(--canvas-green-press);
-  --green-soft:  var(--canvas-green-soft);
-  --green-ring:  var(--canvas-green-ring);
-  --orange: var(--canvas-orange);
-  --danger:      var(--canvas-danger);
-  --danger-soft: var(--canvas-danger-soft);
-  --shadow-xs: var(--canvas-shadow-xs);
-  --shadow-sm: var(--canvas-shadow-sm);
-  --shadow-md: var(--canvas-shadow-md);
-  --shadow-lg: var(--canvas-shadow-lg);
-}
-
 .confirm-dialog {
   width: 100%;
   max-width: 380px;
@@ -2253,9 +2116,34 @@ kbd {
   padding: var(--space-2) var(--space-3);
 }
 /* The inbox's own capture form: the same field and actions, flush with the page column. */
-.notes-capture { margin-bottom: var(--space-6); }
-.notes-capture .capture-input { min-height: 0; }
+/* The capture box is a card with a bare textarea; the card carries the focus ring. */
+.notes-capture {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+}
+.notes-capture:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-ring); }
+.notes-capture .capture-input {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  resize: vertical;
+}
 .notes-capture .capture-actions { padding: var(--space-2) 0 0; }
+
+/* Each capture is its own card, as a memo is. */
+.notes-list { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
+.notes-list > .row {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
 
 /* Each tree row hosts a ⋯ menu, shown on hover or keyboard focus. */
 .page-row {
@@ -2795,21 +2683,21 @@ html {
   font-family: var(--font-data);
 }
 
-/* ── Serif headings ──────────────────────────────────────────────────────────── */
-/* §3: serif only for the page title and document H1; at 22 and 16px its x-height is too small. */
+/* ── Titles ─────────────────────────────────────────────────────────────────── */
+/* §3: the interface face at 600; the title is set apart by size, not by family. */
 .page-header h1,
 .prose h1,
 .settings-h1,
 .placeholder h1 {
   font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: -0.015em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-.page-header h1  { font-size: var(--text-3xl); line-height: 1.15; }
-.settings-h1     { font-size: var(--text-3xl); line-height: 1.1; }
-.placeholder h1  { font-size: var(--text-3xl); line-height: 1.1; }
-.prose h1        { font-size: var(--text-3xl); line-height: 1.15; }
+.page-header h1  { font-size: var(--text-2xl); line-height: 1.2; }
+.settings-h1     { font-size: var(--text-2xl); line-height: 1.2; }
+.placeholder h1  { font-size: var(--text-2xl); line-height: 1.2; }
+.prose h1        { font-size: var(--text-2xl); line-height: 1.2; }
 
 /* Section headings: interface face, weight 600, §3 sizes. */
 .prose h2, .prose h3 {
