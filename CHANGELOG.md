@@ -11,6 +11,23 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
+## 0.36.1 — 2026-10-27
+
+### Changed
+
+- The `>_` glyph has the same 2.5 stroke as the favicon and the docs logo, in the sidebar and
+  on the sign-in panel; its cursor blinks twice when it first appears.
+- The sidebar closes and opens like a drawer: its contents no longer rewrap on the way, and
+  the page moves with it on the same timing. Switching workspace fades the sheet into its tone.
+- The primary button lifts off the sheet on hover, here and on doction.site. The current
+  page's rule is drawn in, login and register rise in, and so does the confirm dialog.
+
+### Fixed
+
+- The primary button pressed by shrinking instead of moving into the sheet, and its offset
+  shadow snapped instead of collapsing.
+- A collapsed sidebar was invisible but its links still took keyboard focus.
+
 ## 0.36.0 — 2026-10-26
 
 ### Changed
