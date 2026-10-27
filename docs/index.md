@@ -5,6 +5,7 @@ hide:
 ---
 
 <div class="dx-hero" markdown>
+<div class="dx-hero-text" markdown>
 
 <p class="dx-eyebrow">self-hosted · markdown-first · REST + MCP</p>
 
@@ -21,6 +22,10 @@ the same pages over a REST API or a native MCP server — on your own hardware.<
 [MCP](mcp.md){ .md-button }
 
 </div>
+
+</div>
+
+<div class="dx-hero-figure" role="img" aria-label="A browser, a coding agent and a script reach doction over /app, /api/mcp and /api; doction keeps pages in git, Postgres and embeddings."></div>
 
 </div>
 
@@ -81,20 +86,6 @@ not here. There is no LLM, no API key and no SaaS inside it.
 </div>
 
 ## How it works
-
-```text
-   Human        Coding agent      Script
- (browser)         (MCP)          (curl)
-     │               │               │
-   /app          /api/mcp          /api
-     └───────────────┼───────────────┘
-                     │
-                  doction
-                     │
-   markdown in git · Postgres · embeddings
-                     │
-   knowledge · search · graph · history
-```
 
 The browser app and scripts use the REST API under `/api`; agents use MCP at `/api/mcp`.
 On every save, doction commits the page to git and extracts its frontmatter, tags and

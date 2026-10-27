@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useParams } from 'react-router'
 import { MoreHorizontal, PanelLeft } from 'lucide-react'
 import { api, isAbort, setWorkspace } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
 import { newPagePath, pagePath } from '../routes.js'
+import { applyWorkspaceTone } from '../workspaceTone.js'
 import NotFound from '../pages/NotFound.jsx'
 import Sidebar, { closeOnEscape } from './Sidebar.jsx'
 import CommandPalette from './CommandPalette.jsx'
@@ -44,6 +45,12 @@ export default function Layout() {
   // Set during render and not in an effect: children's effects run before the parent's,
   // so an effect here would arrive late and each view's first fetch would use the old one.
   if (ws) setWorkspace(ws)
+
+  // Before paint, so a workspace never flashes in the previous one's colour.
+  useLayoutEffect(() => {
+    applyWorkspaceTone(ws)
+    return () => applyWorkspaceTone(null)
+  }, [ws])
 
   const [pages, setPages] = useState([])
   // Which workspace the loaded tree belongs to. Without it, switching workspaces left the

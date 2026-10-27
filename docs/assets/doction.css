@@ -21,67 +21,79 @@
   --md-text-font: 'Manrope', system-ui, -apple-system, sans-serif;
   --md-code-font: 'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
 
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+
+  /* The site is the brand's own workspace: prussian, the app's default tone (§2). */
+  --mark:           oklch(0.88 0.14 95);
+  --on-mark:        oklch(0.22 0.02 258);
+  --shadow-hard:    3px 3px 0 var(--mark);
+  --sheet:          oklch(0.32 0.085 258);
+  --sheet-ink:      oklch(0.96 0.01 258);
+  --sheet-muted:    oklch(0.80 0.035 258);
+  --sheet-line:     oklch(0.96 0.01 258 / 0.16);
+  --sheet-boundary: oklch(0.66 0.04 258);
+  --sheet-hover:    oklch(0.37 0.085 258);
+  --sheet-deep:     oklch(0.27 0.085 258);
+  --sheet-grid:     oklch(0.96 0.01 258 / 0.06);
+  --code-bg:        oklch(0.25 0.064 258);
+  --code-text:      oklch(0.94 0.012 258);
+  --code-muted:     oklch(0.76 0.04 258);
+  --code-string:    oklch(0.88 0.14 95);
+  --code-number:    oklch(0.80 0.09 258);
 }
 
 [data-md-color-scheme="default"] {
-  --background:     oklch(0.982 0.005 95);
-  --surface:        oklch(1 0 0);
+  --background:     oklch(0.975 0.004 90);
+  --surface:        oklch(0.992 0.003 90);
   --surface-muted:  oklch(0.950 0.010 95);
   --surface-inset:  oklch(0.925 0.014 93);
-  --nav-bg:         oklch(0.966 0.008 99);
+  --nav-bg:         var(--sheet);
   --ink:            oklch(0.244 0.027 96);
   --ink-strong:     oklch(0.190 0.010 100);
   --ink-muted:      oklch(0.433 0.018 99);
   --ink-subtle:     oklch(0.490 0.012 97);
-  --ink-on-green:   oklch(0.982 0.008 92);
-  --green:          oklch(0.365 0.055 151);
-  --green-hover:    oklch(0.315 0.052 151);
-  --green-soft:     oklch(0.915 0.030 151);
-  --green-ring:     oklch(0.365 0.055 151 / 0.60);
-  --orange:         oklch(0.635 0.155 52);
+  --ink-on-accent:   oklch(0.982 0.008 92);
+  --accent:          oklch(0.45 0.11 258);
+  --accent-hover:    oklch(0.38 0.10 258);
+  --accent-soft:     oklch(0.935 0.030 258);
+  --accent-ring:     oklch(0.45 0.11 258 / 0.60);
   --border-subtle:  oklch(0.885 0.007 97);
   --border-default: oklch(0.620 0.012 97);
   --danger:         oklch(0.525 0.185 28);
-  --callout-bg:     oklch(0.960 0.022 63.2);
-  --code-inline-bg:     oklch(0.915 0.030 151);
-  --code-inline-border: oklch(0.870 0.035 151);
-  --code-bg:        oklch(0.960 0.008 95);
-  --code-text:      oklch(0.244 0.027 96);
-  --code-muted:     oklch(0.490 0.012 97);
-  --code-green:     oklch(0.365 0.055 151);
-  --code-orange:    oklch(0.515 0.133 52);
+  --callout-bg:     oklch(0.975 0.030 95);
+  --code-inline-bg:     oklch(0.945 0.020 258);
+  --code-inline-border: oklch(0.900 0.030 258);
 }
 
 [data-md-color-scheme="slate"] {
-  --background:     oklch(0.240 0.008 255);
-  --surface:        oklch(0.275 0.009 255);
-  --surface-muted:  oklch(0.300 0.010 255);
-  --surface-inset:  oklch(0.330 0.012 255);
-  --nav-bg:         oklch(0.210 0.009 255);
+  --background:     oklch(0.200 0.015 258);
+  --surface:        oklch(0.235 0.020 258);
+  --surface-muted:  oklch(0.255 0.020 258);
+  --surface-inset:  oklch(0.290 0.024 258);
+  --sheet:          oklch(0.17 0.047 258);
+  --sheet-muted:    oklch(0.76 0.035 258);
+  --sheet-boundary: oklch(0.55 0.04 258);
+  --sheet-hover:    oklch(0.23 0.051 258);
+  --sheet-deep:     oklch(0.14 0.043 258);
+  --code-bg:        oklch(0.15 0.043 258);
+  --nav-bg:         var(--sheet);
   --ink:            oklch(0.920 0.006 255);
   --ink-strong:     oklch(0.970 0.004 255);
   --ink-muted:      oklch(0.790 0.007 255);
   --ink-subtle:     oklch(0.735 0.008 255);
-  --ink-on-green:   oklch(0.200 0.018 150);
-  --green:          oklch(0.780 0.090 145);
-  --green-hover:    oklch(0.840 0.090 145);
-  --green-soft:     oklch(0.340 0.040 149);
-  --green-ring:     oklch(0.780 0.090 145 / 0.55);
-  --orange:         oklch(0.760 0.135 57);
-  --border-subtle:  oklch(0.360 0.010 255);
-  --border-default: oklch(0.590 0.012 255);
+  --ink-on-accent:   oklch(0.200 0.020 258);
+  --accent:          oklch(0.80 0.09 258);
+  --accent-hover:    oklch(0.86 0.08 258);
+  --accent-soft:     oklch(0.32 0.045 258);
+  --accent-ring:     oklch(0.80 0.09 258 / 0.55);
+  --border-subtle:  oklch(0.320 0.025 258);
+  --border-default: oklch(0.560 0.035 258);
   --danger:         oklch(0.740 0.150 28);
-  --callout-bg:     oklch(0.300 0.030 72.5);
-  --code-inline-bg:     oklch(0.340 0.040 149);
-  --code-inline-border: oklch(0.390 0.040 149);
-  --code-bg:        oklch(0.215 0.008 255);
-  --code-text:      oklch(0.920 0.006 255);
-  --code-muted:     oklch(0.700 0.010 255);
-  --code-green:     oklch(0.780 0.110 142);
-  --code-orange:    oklch(0.800 0.130 61);
+  --callout-bg:     oklch(0.270 0.030 90);
+  --code-inline-bg:     oklch(0.300 0.040 258);
+  --code-inline-border: oklch(0.350 0.045 258);
 }
 
 /* ── Material, mapped onto the tokens ──────────────────────────────────────────── */
@@ -99,21 +111,21 @@
   --md-primary-bg-color:        var(--ink);
   --md-primary-bg-color--light: var(--ink-muted);
 
-  --md-accent-fg-color:              var(--green-hover);
-  --md-accent-fg-color--transparent: var(--green-soft);
-  --md-accent-bg-color:              var(--ink-on-green);
+  --md-accent-fg-color:              var(--accent-hover);
+  --md-accent-fg-color--transparent: var(--accent-soft);
+  --md-accent-bg-color:              var(--ink-on-accent);
 
   --md-typeset-color:   var(--ink);
-  --md-typeset-a-color: var(--green);
-  --md-typeset-mark-color: var(--green-soft);
+  --md-typeset-a-color: var(--accent);
+  --md-typeset-mark-color: var(--accent-soft);
   --md-typeset-table-color: var(--border-subtle);
   --md-typeset-table-color--light: var(--surface-muted);
 
   --md-code-bg-color: var(--code-bg);
   --md-code-fg-color: var(--code-text);
-  /* The app's highlight.js roles: strings green, numbers orange, comments muted, the rest ink. */
-  --md-code-hl-string-color:      var(--code-green);
-  --md-code-hl-number-color:      var(--code-orange);
+  /* The app's highlight.js roles: strings in the mark, numbers in the accent, comments muted. */
+  --md-code-hl-string-color:      var(--code-string);
+  --md-code-hl-number-color:      var(--code-number);
   --md-code-hl-comment-color:     var(--code-muted);
   --md-code-hl-keyword-color:     var(--code-text);
   --md-code-hl-function-color:    var(--code-text);
@@ -138,13 +150,36 @@
 }
 
 /* ── Chrome ────────────────────────────────────────────────────────────────────── */
+/* The sheet (DESIGN.md §8): the header and the landing hero re-theme by name, as the app's
+   sidebar does, so every rule inside them reads these untouched. */
+.md-header, .md-typeset .dx-hero {
+  --ink:            var(--sheet-ink);
+  --ink-strong:     var(--sheet-ink);
+  --ink-muted:      var(--sheet-muted);
+  --ink-subtle:     var(--sheet-muted);
+  --border-subtle:  var(--sheet-line);
+  --border-default: var(--sheet-boundary);
+  --surface:        var(--sheet-deep);
+  --surface-inset:  var(--sheet-hover);
+  --accent:         var(--mark);
+  --accent-hover:   var(--mark);
+  --ink-on-accent:  var(--on-mark);
+  --md-primary-bg-color:        var(--sheet-ink);
+  --md-primary-bg-color--light: var(--sheet-muted);
+  --md-typeset-color:           var(--sheet-ink);
+  color: var(--ink);
+  background-color: var(--sheet);
+  background-image:
+    linear-gradient(var(--sheet-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--sheet-grid) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
 .md-header {
-  background: var(--nav-bg);
   border-bottom: 1px solid var(--border-subtle);
   box-shadow: none;
 }
-/* The brand mark is green on every surface (DESIGN.md §8). */
-.md-header__button.md-logo { color: var(--green); }
+/* The brand mark is the mark's yellow on the sheet (DESIGN.md §8). */
+.md-header__button.md-logo { color: var(--mark); }
 .md-footer { border-top: 1px solid var(--border-subtle); }
 .md-header--shadow { box-shadow: none; }
 .md-header__topic:first-child { font-weight: 600; }
@@ -157,9 +192,19 @@
 .md-sidebar .md-nav__link { padding: 4px 8px; border-radius: var(--radius-sm); }
 .md-sidebar .md-nav__link:hover { background: var(--surface-inset); }
 .md-sidebar .md-nav__link--active {
+  position: relative;
   background: var(--surface-inset);
   color: var(--ink-strong);
-  font-weight: 500;
+  font-weight: 600;
+}
+.md-sidebar .md-nav__link--active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: var(--mark);
 }
 
 /* The document rests on a card, as in the app (DESIGN.md §4). */
@@ -170,7 +215,20 @@
   padding: 32px 48px;
   margin-top: 24px;
 }
-.md-content__inner::before { display: none; }
+.md-content__inner { position: relative; }
+/* Registration marks on two corners, as on a drawing sheet and the app's page card. */
+.md-content__inner::before, .md-content__inner::after {
+  content: "";
+  display: block;
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: 0;
+  border: 0 solid var(--accent);
+  pointer-events: none;
+}
+.md-content__inner::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+.md-content__inner::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
 @media screen and (max-width: 44.9375em) {
   .md-content__inner { padding: 20px 16px; margin: 16px 8px; }
 }
@@ -181,14 +239,14 @@
   font-weight: 600;
   font-size: 28px;
   line-height: 1.2;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--ink);
 }
 .md-typeset h2 {
   font-weight: 600;
   font-size: 22px;
   line-height: 1.3;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.015em;
   margin-top: 56px;
 }
 .md-typeset h3 {
@@ -204,15 +262,15 @@
   text-decoration: underline;
   text-decoration-thickness: 1px;
 }
-.md-typeset a:hover { color: var(--green-hover); text-decoration: underline; }
-.md-typeset a:focus-visible { outline: 2px solid var(--green-ring); outline-offset: 2px; }
+.md-typeset a:hover { color: var(--accent-hover); text-decoration: underline; }
+.md-typeset a:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
 
 .md-typeset :not(pre) > code {
   font-size: 0.85em;
   background: var(--code-inline-bg);
   border: 1px solid var(--code-inline-border);
   border-radius: var(--radius-xs);
-  color: var(--ink);
+  color: var(--accent);
   padding: 0.1em 0.35em;
 }
 .md-typeset pre > code {
@@ -223,17 +281,30 @@
 }
 
 .md-typeset table:not([class]) {
-  font-size: 16px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: none;
+  border: 0;
+  border-radius: 0;
   box-shadow: none;
 }
-.md-typeset table:not([class]) th { background: var(--surface-muted); font-weight: 600; }
+/* Rules between rows only, as in the app. */
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td { border-top: 0; border-bottom: 1px solid var(--border-subtle); padding: 8px 16px 8px 0; }
+.md-typeset table:not([class]) th {
+  background: none;
+  font-family: var(--md-code-font);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  border-bottom-color: var(--border-default);
+}
 
 .md-typeset blockquote {
-  border-left: 2px solid var(--orange);
+  border-left: 3px solid var(--mark);
   background: var(--callout-bg);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  border-radius: 0;
   color: var(--ink);
   padding: 16px 20px;
 }
@@ -241,7 +312,7 @@
 .md-typeset .admonition,
 .md-typeset details {
   border: 1px solid var(--border-subtle);
-  border-left: 2px solid var(--orange);
+  border-left: 3px solid var(--mark);
   border-radius: var(--radius-sm);
   box-shadow: none;
   font-size: 16px;
@@ -267,15 +338,17 @@
   text-decoration: none;
 }
 .md-typeset .md-button--primary {
-  background: var(--green);
-  border-color: var(--green);
-  color: var(--ink-on-green);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink-on-accent);
+  box-shadow: var(--shadow-hard);
 }
+.md-typeset .md-button--primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--mark); }
 .md-typeset .md-button--primary:hover,
 .md-typeset .md-button--primary:focus {
-  background: var(--green-hover);
-  border-color: var(--green-hover);
-  color: var(--ink-on-green);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--ink-on-accent);
 }
 
 /* ── Grid cards: a line, not a shadow (DESIGN.md §6) ───────────────────────────── */
@@ -295,12 +368,35 @@
 .md-typeset .grid.cards strong { font-weight: 600; }
 
 /* ── Landing ───────────────────────────────────────────────────────────────────── */
-.md-typeset .dx-hero { margin: 24px 0 48px; }
+.md-typeset .dx-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: center;
+  margin: -32px -48px 48px;
+  padding: 48px;
+}
+.md-typeset .dx-hero-text { min-width: 0; }
+/* Drawn from the stylesheet: a CSS url resolves next to this file, which both sites ship with
+   the SVG beside it, whereas a markdown path would differ between the English and Spanish builds. */
+.md-typeset .dx-hero-figure {
+  width: 100%;
+  aspect-ratio: 360 / 230;
+  background: url('architecture.svg') center / contain no-repeat;
+}
 .md-typeset .dx-hero h1 {
   font-size: 52px;
+  font-weight: 700;
   line-height: 1.05;
+  letter-spacing: -0.035em;
   margin: 0 0 16px;
+  color: var(--ink);
 }
+/* On the sheet the hero's buttons trace its lines, and the primary takes the mark. */
+.md-typeset .dx-hero .md-button { background: transparent; color: var(--ink); }
+.md-typeset .dx-hero .md-button:hover { background: var(--surface-inset); color: var(--ink); }
+.md-typeset .dx-hero .md-button--primary,
+.md-typeset .dx-hero .md-button--primary:hover { background: var(--mark); border-color: var(--mark); color: var(--on-mark); box-shadow: 3px 3px 0 var(--sheet-line); }
 .md-typeset .dx-lead {
   font-size: 18px;
   line-height: 1.6;
@@ -312,11 +408,13 @@
 .md-typeset .dx-eyebrow {
   font-family: var(--md-code-font);
   font-size: 12px;
-  color: var(--ink-subtle);
-  letter-spacing: 0.02em;
+  color: var(--mark);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 @media screen and (max-width: 44.9375em) {
+  .md-typeset .dx-hero { grid-template-columns: minmax(0, 1fr); margin: -20px -16px 32px; padding: 32px 16px; }
   .md-typeset .dx-hero h1 { font-size: 36px; line-height: 1.15; }
   .md-typeset .dx-lead { font-size: 16px; }
 }

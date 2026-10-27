@@ -166,7 +166,7 @@ export default function Reader() {
     navigate(wsPath(ws))
   }
 
-  const updatedDate = view.updated_at ? view.updated_at.slice(0, 10) : ''
+  const updatedDate = view.updated_at ? view.updated_at.slice(0, 16).replace('T', ' ') : ''
   const editor = view.updated_by_name || view.updated_by_email
 
   return (
@@ -191,21 +191,27 @@ export default function Reader() {
 
           <h1 ref={titleRef}>{view.title}</h1>
 
-          <div className="page-header-foot">
-            <p className="meta">
-              {t('updated')} {updatedDate}
-              {editor && (
-                <>
-                  <span className="crumb-sep" aria-hidden="true">
-                    ·
-                  </span>{' '}
-                  {t('by')} {editor}
-                </>
-              )}
-            </p>
+          {/* A drawing's title block: the page's coordinates, one cell each. */}
+          <dl className="titleblock">
+            <div>
+              <dt>{t('page_label')}</dt>
+              <dd>{slug}</dd>
+            </div>
+            <div>
+              <dt>{t('updated')}</dt>
+              <dd>{updatedDate}</dd>
+            </div>
+            {editor && (
+              <div>
+                <dt>{t('by')}</dt>
+                <dd>{editor}</dd>
+              </div>
+            )}
+          </dl>
 
+          <div className="page-header-foot">
             <div className="page-actions">
-              <Link className="btn btn-sm" to={pagePath(ws, slug, '/edit')}>
+              <Link className="btn btn-sm btn-primary" to={pagePath(ws, slug, '/edit')}>
                 {t('edit')}
               </Link>
               <Link className="btn btn-sm" to={newPagePath(ws, slug)}>

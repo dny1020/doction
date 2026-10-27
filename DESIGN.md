@@ -4,10 +4,12 @@ This document describes the design **as implemented**, not as intended. Every va
 here is in `app/static/style.css` and can be verified by reading it. When the two
 disagree, the defect is in this document before it is in the stylesheet.
 
-Concept: a quiet notebook. The canvas is a flat off-white (graphite in dark theme), the
-document rests on a white card, and the sidebar is the same material one step deeper. The
-reference is Memos (usememos/memos): its surfaces, sidebar and card shape were measured and
-adapted here, not its code. Restrained, with no look of a generated template.
+Concept: **a drafting set**. Each workspace is a sheet of blueprint in its own colour; the
+navigation is drawn on that sheet, with a fine grid, and the document rests on drafting
+paper beside it. Pages carry what a drawing carries: a title block with their coordinates,
+numbered sections, registration marks on the corners. Diazo yellow marks where you are, in
+every workspace. The colour is information: it tells you which workspace you are in before
+you read a word.
 
 ---
 
@@ -18,22 +20,20 @@ a generic notes app.
 
 ### Principles
 
-1. The document is the visual protagonist.
-2. Few visual decisions, but deliberate ones.
-3. The canvas is flat; depth comes from a card resting on it, drawn with a line.
-4. Cards hold units of content (the document, a capture); inside them hierarchy is
-   built with typography, rhythm, alignment and tone, never with nested cards.
+1. The document is the visual protagonist; the sheet frames it and never competes.
+2. Colour means something: the workspace's hue is where you are, the mark is "you are
+   here". Nothing is coloured only to be colourful.
+3. The canvas behind a document is flat. The grid belongs to the sheet, never to paper.
+4. Depth is drawn, not blurred: a line, a hard offset shadow, a registration mark.
 5. Technical content uses monospace, controlled density, and restrained color.
 6. Design neither adds nor removes functionality, routes, panels, or information.
 
 ### Anti-patterns
 
-Do not implement purple or electric-blue gradients, visible-noise backgrounds,
-parchment or retro aesthetics, cards inside cards, borders wider than 8px, pills
-except genuinely round ones, large or repeated shadows, glassmorphism, "AI" or "MCP"
-labels as decoration, invented panels or metrics, neon graphs, or imitations of Notion,
-GitBook, Obsidian, or Linear. Memos is the one deliberate reference (see the concept above):
-its tones and shapes, adapted, never its components or its code.
+Do not implement gradients, glows, blurred or layered soft shadows, glassmorphism, noise
+over paper, gradient text, icon tiles above every heading, cards inside cards, pills
+except genuinely round ones, "AI" or "MCP" labels as decoration, invented panels or
+metrics, neon graphs, or imitations of Notion, GitBook, Obsidian, or Linear.
 
 ---
 
@@ -41,19 +41,41 @@ its tones and shapes, adapted, never its components or its code.
 
 All color goes through `oklch()`. Contrast ratios are always measured against the
 **worst** surface the token appears on, never against the page: a value measured only
-against the canvas passes review and then fails on a row with the pointer over it.
+against the canvas passes review and then fails on a row with the pointer over it. Every
+ratio below is the minimum over the six workspace tones.
+
+### The workspace's hue
+
+`--ws-h` and `--ws-c` are set on `<html>` by `frontend/src/workspaceTone.js`, from the
+active workspace's slug, so a workspace keeps its colour on every device without anything
+stored. With no workspace (login, register) the stylesheet's default stays: prussian, the
+brand's own.
+
+| Tone | `--ws-h` | `--ws-c` |
+|---|---|---|
+| prussian | 258 | 0.085 |
+| petrol | 215 | 0.050 |
+| indigo | 285 | 0.085 |
+| plum | 335 | 0.085 |
+| forest | 155 | 0.065 |
+| tile | 30 | 0.085 |
+
+Petrol and forest carry less chroma because at 0.085 the sheet and the accent leave sRGB.
+Six is the size of the set on purpose: enough to tell workspaces apart, few enough that each
+one was measured.
 
 ### Light theme
 
 ```css
 :root {
-  /* Surfaces: off-white canvas, white cards */
-  --background:     oklch(0.982 0.005 95);
-  --surface:        oklch(1 0 0);
-  --surface-raised: oklch(1 0 0);
+  --ws-h: 258;  --ws-c: 0.085;
+
+  /* Surfaces: drafting paper, never pure white */
+  --background:     oklch(0.975 0.004 90);
+  --surface:        oklch(0.992 0.003 90);
   --surface-muted:  oklch(0.950 0.010 95);
   --surface-inset:  oklch(0.925 0.014 93);
-  --nav-bg:         oklch(0.966 0.008 99);   /* the sidebar */
+  --nav-bg:         oklch(0.32 var(--ws-c) var(--ws-h));   /* the sheet */
 
   /* Ink: warm neutral grey */
   --ink:        oklch(0.244 0.027 96);
@@ -61,38 +83,28 @@ against the canvas passes review and then fails on a row with the pointer over i
   --ink-muted:  oklch(0.433 0.018 99);
   --ink-subtle: oklch(0.490 0.012 97);   /* 4.5:1 on --surface-inset */
 
-  /* Functional green: what gets clicked and what gets read */
-  --green:       oklch(0.365 0.055 151);
-  --green-hover: oklch(0.315 0.052 151);
-  --green-soft:  oklch(0.915 0.030 151);
-  --green-ring:  oklch(0.365 0.055 151 / 0.60);  /* ≥3.25:1 composited */
+  /* Accent: the workspace's hue, for what gets clicked and what gets read */
+  --accent:      oklch(0.45 calc(var(--ws-c) + 0.025) var(--ws-h));  /* ≥5.7:1 on inset */
+  --accent-soft: oklch(0.935 0.030 var(--ws-h));
+  --accent-ring: oklch(0.45 calc(var(--ws-c) + 0.025) var(--ws-h) / 0.60);
 
-  /* Orange: signal, not a dominant color */
-  --orange:     oklch(0.635 0.155 52);   /* decoration */
-  --orange-ink: oklch(0.515 0.133 52);   /* 4.50:1, marks that inform */
+  /* The mark: diazo yellow, the same everywhere */
+  --mark:    oklch(0.88 0.14 95);
+  --on-mark: oklch(0.22 0.02 258);
 
   /* Lines */
   --border-subtle:  oklch(0.885 0.007 97);
   --border-default: oklch(0.620 0.012 97);  /* 3:1, delimits controls */
 
-  /* State */
-  --danger:      oklch(0.525 0.185 28);
-  --danger-soft: oklch(0.911 0.046 28);
-  --ok-soft:     oklch(0.981 0.030 148);
-
-  /* Composite surfaces, precomputed */
-  --callout-bg: oklch(0.960 0.022 63.2);
-  --input-bg:   oklch(1 0 0);
-
-  /* Code: a quiet inset with the document's own inks */
-  --code-inline-bg: oklch(0.915 0.030 151);
-  --code-bg:        oklch(0.960 0.008 95);
-  --code-text:      oklch(0.244 0.027 96);
-  --code-muted:     oklch(0.490 0.012 97);
-  --code-green:     oklch(0.365 0.055 151);
-  --code-orange:    oklch(0.515 0.133 52);
+  /* Composite surfaces */
+  --callout-bg:     oklch(0.975 0.030 95);
+  --code-inline-bg: oklch(0.945 0.020 var(--ws-h));
+  --code-bg:        oklch(0.25 calc(var(--ws-c) * 0.75) var(--ws-h));
 }
 ```
+
+White on the accent (the primary button) is ≥6.8:1; the accent on its own soft tint is
+≥5.9:1.
 
 ### Dark theme
 
@@ -101,51 +113,36 @@ The selector is `[data-theme="dark"]` on `<html>`, **not** `.dark`: the theme to
 
 ```css
 [data-theme="dark"] {
-  --background:     oklch(0.240 0.008 255);
-  --surface:        oklch(0.275 0.009 255);
-  --surface-raised: oklch(0.320 0.010 255);
-  --surface-muted:  oklch(0.300 0.010 255);
-  --surface-inset:  oklch(0.330 0.012 255);
-  --nav-bg:         oklch(0.210 0.009 255);
+  /* Night paper, tinted by the workspace's hue at chroma ≤0.024 */
+  --background:     oklch(0.200 0.015 var(--ws-h));
+  --surface:        oklch(0.235 0.020 var(--ws-h));
+  --surface-inset:  oklch(0.290 0.024 var(--ws-h));
+  --nav-bg:         oklch(0.17 calc(var(--ws-c) * 0.55) var(--ws-h));
 
   --ink:        oklch(0.920 0.006 255);
-  --ink-strong: oklch(0.970 0.004 255);
-  --ink-muted:  oklch(0.790 0.007 255);
-  --ink-subtle: oklch(0.735 0.008 255);  /* 4.5:1 on --surface-inset */
+  --ink-subtle: oklch(0.735 0.008 255);   /* ≥5.9:1 on --surface-inset */
 
-  --green:      oklch(0.780 0.090 145);
-  --green-ring: oklch(0.780 0.090 145 / 0.55);  /* ≥3.36:1 composited */
-  --orange:     oklch(0.760 0.135 57);
+  --accent:      oklch(0.80 0.09 var(--ws-h));   /* ≥7.3:1 on inset */
+  --accent-soft: oklch(0.32 0.045 var(--ws-h));
 
-  --border-subtle:  oklch(0.360 0.010 255);
-  --border-default: oklch(0.590 0.012 255);  /* 3:1 */
-  --code-bg:        oklch(0.215 0.008 255);
+  --border-subtle:  oklch(0.320 0.025 var(--ws-h));
+  --border-default: oklch(0.560 0.035 var(--ws-h));  /* ≥3.0:1 on inset */
+  --callout-bg:     oklch(0.270 0.030 90);
+  --code-bg:        oklch(0.15 calc(var(--ws-c) * 0.5) var(--ws-h));
 }
 ```
 
-**Dark is graphite, not charcoal.** A soft blue-grey at chroma 0.008–0.012 keeps long
-reading comfortable and leaves green as the only hue that says something: accent, active
-element, and code.
+### The mark says "you are here"
 
-### Orange marks a note
+The accent is the interactive hue: links, primary actions, focus, inline code, the table of
+contents' active rule. The mark has the other job. It is the 3px rule on the active page in
+the tree, the rule beside a note, the primary button's offset shadow, the brand glyph on the
+sheet, and the strings in a code block. It is the same yellow in every workspace and both
+themes, so "you are here" reads the same everywhere.
 
-Green is the interactive and identity hue: links, the brand mark, and "you are here" — the
-active page, table-of-contents entry and settings section all carry a 2px green rule. Orange
-has one job left: the rule beside a quotation or an admonition, which says "this is set
-apart from the text". The application and the documentation site assign the two the same way.
-
-On paper the orange measures 2.48:1, below the 3:1 an informative mark needs.
-That's why there are two:
-
-- `--orange` **decorates** and can go unseen: a rule, a mark next to a word that is
-  already written. If no one loses anything by not seeing it, this is the one.
-- `--orange-ink` **informs**, and that's why it measures 4.50:1.
-
-The question that decides which one to use is what whoever doesn't see the mark loses.
-
-On graphite, orange does reach the ratio, so in dark theme a single value covers both
-roles. The rule doesn't change between themes; what changes is how many shades it takes
-to meet it.
+On paper the mark measures well below 3:1, so it **never carries text there**: it is a rule
+or a shadow beside something already said. On the sheet it passes as text (8.9:1), which is
+why the brand glyph and the sign-in button can use it.
 
 ---
 
@@ -164,13 +161,9 @@ fail exactly where it's used most.
 
 - **Manrope** — everything that is not code or data, titles included. Vendored at 400,
   500 and 600.
-- **JetBrains Mono** — code, paths, shortcuts, timestamps and metadata. Never a
-  sentence. That last rule is what makes the app read as documentation rather than as
-  an application with content inside it.
-
-Titles used to be set in Instrument Serif. Next to Memos-style cards the serif read as a
-second voice, so the title is now set apart by size and weight alone, here and on the
-documentation site, and the serif is no longer vendored.
+- **JetBrains Mono** — code, paths, shortcuts, timestamps, metadata, section numbers and
+  table headers. Never a sentence. That rule is what makes the app read as documentation
+  rather than as an application with content inside it.
 
 `Inter` appears in the stack but **is not vendored**: the real fallback is `system-ui`.
 
@@ -198,12 +191,13 @@ documentation site, and the serif is no longer vendored.
 | Document body | interface | 16px | 1.78 |
 | Interface | interface | 14px | 1.45 |
 | Navigation | interface | 13px | 1.3 |
-| Metadata | data | 11px | 1.45 |
+| Metadata, title block, table header | data | 11px | 1.45 |
 
-The page title uses the same 28px step as the document H1. 52px is reserved for a landing
-hero.
+Weight 400 for text, 500 for controls and navigation, 600 for titles, headings and the
+active page. The landing hero is the one place set at 700.
 
-Weight 400 for text, 500 for controls and navigation, 600 for titles and headings. Avoid 700.
+Tracking tightens with size: −0.025em on the page title and document H1, −0.015em on H2
+and H3, −0.035em on the hero.
 
 ---
 
@@ -221,7 +215,7 @@ Weight 400 for text, 500 for controls and navigation, 600 for titles and heading
 
 ```text
 Viewport
-├── Fixed sidebar: 280px, pinned to the edge
+├── Fixed sidebar (the sheet): 280px, pinned to the edge
 └── Main area
     ├── Top bar: 56px
     └── Document zone (max. 1720px)
@@ -235,17 +229,13 @@ Viewport
 Composition rules:
 
 - The sidebar **anchors to the window's edge**. The 1720px cap limits the content, not
-  the shell: applied to the whole thing, the panel ended up floating with the
-  background peeking out to its left.
+  the shell.
 - Content **starts** 72px from the side. Centering it would make the margin depend on
   the window's width.
-- The table of contents sits 40px from the card and 24px from the right edge. The card's
-  line already separates it from the text, so the old 96px of whitespace only made the
-  card narrower; the card takes whatever width the window leaves (816px at 1440).
-  Below 1120px the table of contents is hidden.
-- The document sits on one white card (`.page`): a 1px `--border-subtle` line, 8px radius,
-  32px by 48px of padding (20 by 16 under 820px), no shadow. It grows to 960px, so on a wide
-  window the text runs about 860px.
+- Below 1120px the table of contents is hidden.
+- The document sits on one paper card (`.page`): a 1px `--border-subtle` line, 3px radius,
+  32px by 48px of padding (20 by 16 under 820px), no shadow, and a 2px accent
+  registration mark on its top-left and bottom-right corners.
 
 ---
 
@@ -260,9 +250,6 @@ A 4px base, plus one optical step below it.
 --space-10: 40px;  --space-16: 64px;  --space-20: 80px;  --space-24: 96px;
 ```
 
-`--space-0` exists because there are seventeen places with 2px gaps under 11 and
-12px text, and bumping them to 4 fattens every badge and every inline mark.
-
 Document rhythm: 56px above an H2, 36px above an H3, 24px below a paragraph, 28px
 around a code block or a note.
 
@@ -271,157 +258,157 @@ around a code block or a note.
 ## 6. Radius, borders and shadows
 
 ```css
---radius-xs: 4px;   --radius-sm: 6px;   --radius-md: 8px;   --radius-lg: 8px;
---radius-xl: 12px;  --radius-pill: 999px;
+--radius-xs: 2px;   --radius-sm: 2px;   --radius-md: 3px;   --radius-lg: 3px;
+--radius-xl: 4px;   --radius-pill: 999px;
 
---shadow-1: 0 1px 2px  oklch(0.20 0.02 150 / 0.05);
---shadow-2: 0 4px 14px oklch(0.20 0.02 150 / 0.07);
---shadow-3: 0 12px 32px oklch(0.20 0.02 150 / 0.10);
+--shadow-hard:       3px 3px 0 var(--mark);
+--shadow-hard-press: 1px 1px 0 var(--mark);
 ```
 
-Controls 6px; cards and code 8px; modals 12px. The pill survives only on what's genuinely
-round: avatars and theme dots.
+A drawing has almost square corners: controls 2px, cards and code 3px, modals 4px. The pill
+survives only on what's genuinely round: avatars and theme dots.
 
-Shadows are for what floats — menus, popovers, modals. A card that rests on the page gets
-a line, not a shadow.
+The primary button carries a **hard offset shadow** in the mark, never a blurred one, and
+presses into the sheet: it moves 2px and the shadow shrinks to 1px. Menus, popovers and
+modals keep their soft floating shadows (`--shadow-1/2/3`); a card that rests on the page
+gets a line, not a shadow.
 
 ---
 
 ## 7. Material
 
-The canvas is a **flat tone**: off-white in the light theme, graphite in the dark one, with
-nothing painted over it. **No gradients, sheens, noise, grain, textures, or paper
-images.** Depth comes from white cards resting on it, each drawn with a line.
+The **canvas** is a flat tone: drafting paper in the light theme, night paper tinted by the
+workspace in the dark one, with nothing painted over it. The **sheet** — the sidebar, the
+sign-in panel, the documentation site's header and landing hero — carries a 16px drafting
+grid at 6% of its own ink. The grid never reaches the document, a table, a form, the editor
+or a modal.
 
 ---
 
 ## 8. Chrome
 
-Navigation is **the canvas one step deeper** (`--nav-bg`), separated from the content by a
-1px `--border-subtle` line. It used to be a dark green panel in both themes; next to
-Memos-style cards that read as a second application, so the sidebar now uses the same
-tokens as everything else and needs no palette of its own.
+Navigation is **the sheet** (`--nav-bg`): the workspace's hue, dark in both themes. A region
+that changes material redefines the palette's token *names* in its own scope rather than
+restating rules: `.sidebar, .auth-sheet` map `--ink`, `--ink-muted`, `--border-*`,
+`--surface*`, `--accent`, `--danger` and the rest onto `--sheet-*` values, so every shared
+component inside renders correctly on the sheet without a rule of its own. The menus that
+open inside the sidebar take the sheet's palette with them.
 
-The active page is a **filled row**: `--surface-inset` behind it, weight 500 and the strong
-ink, so colour never travels alone. Hover uses the same surface without the weight. The
-workspace selector is a labelled button with no boundary until hovered; the search field
-keeps its 3:1 boundary because it is a field.
+Measured on the sheet's worst ground, the hovered row, in all six tones: ink ≥9.0:1, muted
+ink ≥5.4:1 (≥7.8:1 dark), control boundary ≥4.0:1 (≥3.4:1 dark).
 
-In both themes the sidebar is a shade darker than the canvas (0.966 against 0.982 in
-light, 0.210 against 0.240 in dark), so it recedes.
+The active page is a **filled row** with the mark's 3px rule on its left edge, weight 600
+and the strong ink, so colour never travels alone. Hover uses the same fill without the rule
+or the weight.
 
 ### The brand mark
 
-The terminal glyph (`>_`, lucide `terminal`) is **green on every surface**: `--green` in the
-sidebar; the light-on-dark green in the documentation site's header and in the
-installable-app icons, which keep the earlier dark green ground; and in a browser tab, the
-dark green on a light tab and the light green on a dark one. SVGs used as images and PNGs
-cannot read custom properties, so those files carry the tokens' sRGB values (`#27472f`,
-`#88bc89`, `#030d05`), read from the browser rather than converted by hand.
-
-It used to be orange in the sidebar and blue in the favicon, a leftover of an earlier palette.
-One colour means the tab, the home screen, the application and its documentation are
-recognisably the same product.
+The terminal glyph (`>_`, lucide `terminal`) is **the mark's yellow on the sheet**, in the
+sidebar, on the sign-in panel and in the documentation site's header. In a browser tab and
+on a home screen it is the same glyph on a prussian square, so it reads on light and dark
+tabs alike. SVGs used as images and PNGs cannot read custom properties, so those files carry
+the tokens' sRGB values: `#14325d` (the default sheet) and `#f4d660` (the mark). The
+manifest's colours are the sheet; the address bar follows the canvas, `#f8f7f4` light and
+`#12161d` dark.
 
 ---
 
 ## 9. Document
 
-- A compact header inside the document's card: breadcrumbs, the title at 28px, then one row with the metadata on
-  the left and the page's actions on the right, closed by a line. Edit, New subpage and
-  History are visible there; Delete lives in the ⋯ menu beside them and is confirmed, so
-  the irreversible action is never the easiest one to hit.
+- A compact header inside the document's card: breadcrumbs, the title at 28px, the
+  **title block**, then the page's actions on the right, closed by a line. Edit is the
+  primary action; New subpage and History are visible beside it; Delete lives in the ⋯ menu
+  and is confirmed, so the irreversible action is never the easiest one to hit.
+- The **title block** is a drawing's: ruled cells in the data face, each with an 11px
+  uppercase label — the page's slug, its last update to the minute, and its last editor.
+  Under 820px the cells stack.
 - The document's first block begins within 160px of the top of the title. Its own top
   margin is dropped, because the header already closes with a line.
-- The top bar shows the page title (on desktop) and its ⋯ menu of page actions (at every
-  width) only after the page's own title has scrolled under it, so a page never says its
-  name, or offers its actions, twice on one screen.
-- Breadcrumbs in the data face, uppercase, 11px. Their separator carries the decorative
-  orange: it's `aria-hidden`, so it owes no one contrast.
-- Metadata strip with the two fields that exist, last-updated date and last editor.
-  There's no owner and no reading time.
-- Links in green. A wikilink to a page that doesn't exist yet is painted dim: there,
-  it's something to be written, not an error.
-- Dividers: a thin line and plenty of vertical space.
+- The top bar shows the page title (on desktop) and its ⋯ menu (at every width) only after
+  the page's own title has scrolled under it. Until then it draws no bottom rule either.
+- Breadcrumbs in the data face, uppercase, 11px; the separator is the accent and
+  `aria-hidden`.
+- **H2 sections are numbered** `01`, `02`… in the data face and the accent, by a CSS
+  counter: a numbering that no markdown has to carry.
+- Links in the accent, underlined. A wikilink to a page that doesn't exist yet is painted
+  dim and dashed: something to be written, not an error.
 - No markdown section sits inside a container.
 
 ### Notes
 
-2px orange left rule over a faint warm background, no italics: whole paragraphs in
-italics read worse.
+A 3px mark rule over a whisper of the same yellow, square corners, no italics.
+
+### Tables
+
+Rules between rows only, no vertical lines and no header fill. The header is set like the
+title block: data face, 11px, uppercase, muted ink, closed by a `--border-default` line.
+Cells are 14px with tabular figures. doction.site does the same.
 
 ### Code
 
-The **block** is a quiet inset on the card: `--code-bg` with a 1px `--border-subtle` line
-and an 8px radius, in the document's own inks. In dark theme it is a shade darker than the
-card. Its text color is declared on the block, not on the highlighter: highlighting only
-applies to fences that declare a language.
+The **block** is a piece of the sheet: `--code-bg`, dark in both themes, with strings in the
+mark and numbers in a light accent. Text ≥13:1, comments ≥7.4:1 and strings ≥11:1 against
+it, in all six tones. Its text color is declared on the block, not on the highlighter,
+because highlighting only applies to fences that declare a language.
 
-**Inline code** doesn't share that surface. It's typography inside a sentence, green on
-faint green.
-
-Highlighting is reduced to three signals over the code's ink: dimmed comments, strings
-in green, numbers in orange. Everything else stays `--code-text`.
+**Inline code** doesn't share that surface. It is the accent on a tint of its own hue,
+typography inside a sentence.
 
 ---
 
 ## 10. Table of contents
 
-208px wide, sticky position, 40px from the card. Interface typography at 13px, the
-navigation step, and the label at 12px. No card and no floating background.
-
-The active state has **a single carrier**: the green rule. The text steps up to the
-primary ink, which is already enough contrast without relying on color. Saying it with
-color and with the rule at once turns up the volume of the whole table of contents.
+208px wide, sticky, 40px from the card. Interface typography at 13px and the label at 12px.
+No card and no floating background. The active state has a single carrier: a 2px accent
+rule, with the text stepping up to the primary ink.
 
 ---
 
 ## 11. Controls
 
 ```css
-.button-primary  { height: 32px; background: var(--green); border-radius: var(--radius-sm); /* 6px */ }
-.button-secondary{ height: 32px; background: transparent; border: 1px solid var(--border-default); }
-.input           { min-height: 36px; background: var(--input-bg); border: 1px solid var(--border-default); }
-.input:focus     { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-ring); }
+.btn-primary { height: 32px; background: var(--accent); box-shadow: var(--shadow-hard); }
+.btn         { height: 32px; background: var(--surface); border: 1px solid var(--border-default); }
+.field       { min-height: 36px; background: var(--input-bg); border: 1px solid var(--border-default); }
+.field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 ```
 
-The focus ring measures at least 3.25:1 in light and 3.36:1 in dark, composited over the
-canvas, the card and the sidebar. A focus indicator needs
-3:1, and this one has had to be raised twice for falling short: any proposal to lower
-it goes against a deliberate correction.
+The focus ring is the accent at 60% (55% dark), so it follows the workspace; on the sheet it
+is the mark at 70%. A focus indicator needs 3:1 against both the control and what is behind
+it, and every proposal to lower it goes against a correction made twice already.
 
 ### Scrollbar
 
-Custom, not the system's. Defined once and inherited by the three places that scroll —
-the tree, the workspaces menu, and the table of contents — so it follows the theme. 8px wide, thumb rounded to its own width and thinner than the track
-thanks to a transparent border.
+Custom, not the system's. Defined once and inherited by the tree, the workspaces menu and
+the table of contents, so it follows the theme.
+
+### Sign-in
+
+Login and register are half sheet, half paper. The sheet (prussian, the brand's tone) holds
+the wordmark, one sentence, and a stamp in the data face; the paper holds the form. Under
+820px the sheet sits above the form.
 
 ### Theme toggle
 
 One component (`ThemeToggle.jsx`) in the sidebar footer, on login and on register, next to
 the language toggle. It shows the theme it switches to: lucide `moon` in light, `sun` in dark.
-doction.site's header uses the same two lucide icons (`docs/overrides/.icons/lucide/`), so the
-control reads the same on both.
+doction.site's header uses the same two lucide icons, so the control reads the same on both.
 
 ### One control, one action
 
-With the sidebar collapsed, only **one** button to expand it should be visible: the one
-in the top bar. The floating button that used to exist for that was removed once the
-bar became visible at every width.
+With the sidebar collapsed, only **one** button to expand it is visible: the one in the top
+bar.
 
 ---
 
 ## 12. Graph
 
-Nodes with no glow and no effects. The resting node is a surface with a green outline;
-the active one fills with green and carries a minimal orange signal on the outline.
-Relationships are cartographic lines, not constellations. The background uses soft
-tonal depth, no grids.
+Nodes with no glow and no effects. The resting node is a surface with an accent outline;
+the hovered one fills with the accent, and the fill and the label's ink carry the state.
+Relationships are cartographic lines, not constellations.
 
-Two states specific to doction that the general vocabulary doesn't name: an **orphan**
-page dims instead of alarming, because it isn't an error, just something no one has
-connected yet; a **broken** link is drawn dashed in the danger tone, because here it
-genuinely is a finding.
+An **orphan** page dims instead of alarming, because it isn't an error; a **broken** link is
+drawn dashed in the danger tone, because here it genuinely is a finding.
 
 ---
 
@@ -429,13 +416,13 @@ genuinely is a finding.
 
 ```css
 --ease-standard: cubic-bezier(0.2, 0, 0, 1);
---duration-fast: 120ms;   /* color, background, border */
---duration-base: 180ms;   /* shadow, opacity */
+--duration-fast: 120ms;   /* color, background, border, the button press */
+--duration-base: 180ms;   /* shadow, opacity, a theme or workspace change */
 --duration-slow: 240ms;   /* the mobile drawer */
 ```
 
-Only color, background, border, shadow and opacity. No bounces, dramatic entrances,
-continuous animations, or parallax.
+Color, background, border, shadow and opacity, plus the 1–2px translate of a pressed button.
+No bounces, dramatic entrances, continuous animations, or parallax.
 
 ---
 
@@ -443,16 +430,17 @@ continuous animations, or parallax.
 
 These rules are checked, not trusted.
 
-- **Contrast measured from the stylesheet itself**, not from a hand-written table: the
-  token blocks are parsed and every pair is calculated against each theme's floors —
-  canvas, card, inset, sidebar, the code block, and the notes' composited background. Zero failures is the condition for shipping.
+- **Contrast over every tone**, measured from the token values for all six workspace hues,
+  in both themes, against each token's worst ground — canvas, card, inset, the sheet and its
+  hovered row, the code block, and the notes' background. Zero failures is the condition
+  for shipping.
 - **Gamut**: a color outside sRGB gets remapped by the browser to something the author
   didn't choose, so a ratio calculated on the original value describes a color no one
-  sees.
+  sees. That is why petrol and forest carry less chroma.
 - **No color literal outside the token blocks**, and no token with zero callers.
-- **In a real browser, not only in screenshots.** Two defects from the last round — a
-  diagonal band in the material and an oversaturated brown note — were obvious on
-  screen and weren't caught in 102 automated screenshots.
+- **SVGs are XML.** A comment may not contain `--`; a token name written into an SVG's
+  comment made the favicon unparseable, and an image that fails to parse fails silently.
+- **In a real browser, not only in screenshots**, at desktop and phone width, both themes.
 - **Rebuild before measuring.** The stylesheet is linked with a content hash that only
   changes on build; without `make build-web` the measurement describes the previous
   stylesheet.

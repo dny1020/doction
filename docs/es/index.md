@@ -1,11 +1,12 @@
 ---
-source_sha256: 219ef7c2908633ecd4898f35e779e1860e2497000a16b180d8206bfb82c8a542
+source_sha256: 07274b2acc0cf687b9a8c23a8d21f46200cb45a2aad4c9ce694a128fe1c097a3
 description: Una base de conocimiento autoalojada, markdown primero, para personas y agentes de código. Markdown plano en git, búsqueda local, una API REST y un servidor MCP nativo.
 hide:
   - toc
 ---
 
 <div class="dx-hero" markdown>
+<div class="dx-hero-text" markdown>
 
 <p class="dx-eyebrow">autoalojado · markdown primero · REST + MCP</p>
 
@@ -23,6 +24,10 @@ hardware.</p>
 [MCP](mcp.md){ .md-button }
 
 </div>
+
+</div>
+
+<div class="dx-hero-figure" role="img" aria-label="Un navegador, un agente y un script llegan a doction por /app, /api/mcp y /api; doction guarda las páginas en git, Postgres y embeddings."></div>
 
 </div>
 
@@ -85,20 +90,6 @@ aquí. Dentro no hay ningún LLM, ninguna clave de API ni ningún SaaS.
 </div>
 
 ## Cómo funciona
-
-```text
-   Persona     Agente de código    Script
- (navegador)       (MCP)           (curl)
-     │               │               │
-   /app          /api/mcp          /api
-     └───────────────┼───────────────┘
-                     │
-                  doction
-                     │
-   markdown en git · Postgres · embeddings
-                     │
-  conocimiento · búsqueda · grafo · historial
-```
 
 La aplicación del navegador y los scripts usan la API REST bajo `/api`; los agentes usan MCP en
 `/api/mcp`. En cada guardado, doction hace commit de la página en git y extrae su frontmatter, sus

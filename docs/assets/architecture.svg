@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 230" fill="none" stroke="#eef2f9" stroke-width="1.2">
+  <!-- Drawn on the prussian sheet (DESIGN.md §8): sheet-ink lines, mark for doction itself.
+       sRGB because an SVG used as an image cannot read custom properties. -->
+  <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="10" fill="#eef2f9" stroke="none">
+    <text x="38" y="25">BROWSER</text><text x="157" y="25">AGENT</text><text x="276" y="25">SCRIPT</text>
+    <text x="48" y="75">/app</text><text x="148" y="75">/api/mcp</text><text x="282" y="75">/api</text>
+    <text x="151" y="135" fill="#f4d660">doction</text>
+    <text x="49" y="214">git</text><text x="149" y="214">postgres</text><text x="265" y="214">embeddings</text>
+  </g>
+  <rect x="18" y="8" width="84" height="26"/><rect x="128" y="8" width="88" height="26"/><rect x="250" y="8" width="88" height="26"/>
+  <path d="M60 34v26M172 34v26M294 34v26" stroke-dasharray="3 3"/>
+  <path d="M60 82v18h234V82M172 82v38"/>
+  <rect x="122" y="120" width="100" height="22" stroke="#f4d660" stroke-width="1.6"/>
+  <path d="M172 142v22M58 164h240M58 164v32M172 164v32M298 164v32"/>
+  <rect x="22" y="198" width="72" height="24"/><rect x="128" y="198" width="88" height="24"/><rect x="250" y="198" width="88" height="24"/>
+  <path stroke-width="0.8" opacity="0.7" d="M8 0v6M0 8h6M352 0v6M360 8h-6M8 230v-6M0 222h6M352 230v-6M360 222h-6"/>
+</svg>

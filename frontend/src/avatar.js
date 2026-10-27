@@ -14,14 +14,19 @@ export const AVATAR_COLORS = [
   '#5E7A37',
 ]
 
+// A stable index into a list of `size` entries, the same for the same text everywhere.
+export function stableIndex(text, size) {
+  const source = text || ''
+  let hash = 0
+  for (let i = 0; i < source.length; i++) {
+    hash = (hash * 31 + source.charCodeAt(i)) & 0xfffffff
+  }
+  return hash % size
+}
+
 // A stable automatic colour from the email.
 export function autoColor(email) {
-  const text = email || ''
-  let hash = 0
-  for (let i = 0; i < text.length; i++) {
-    hash = (hash * 31 + text.charCodeAt(i)) & 0xfffffff
-  }
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+  return AVATAR_COLORS[stableIndex(email, AVATAR_COLORS.length)]
 }
 
 // The colour to show: the user's choice, or the automatic one.

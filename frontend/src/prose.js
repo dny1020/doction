@@ -65,9 +65,9 @@ function mermaidPalette() {
   const line = token('--border-default')
   return {
     background: token('--background'),
-    primaryColor: token('--green-soft'),
+    primaryColor: token('--accent-soft'),
     primaryTextColor: ink,
-    primaryBorderColor: token('--green'),
+    primaryBorderColor: token('--accent'),
     secondaryColor: token('--surface-muted'),
     secondaryTextColor: ink,
     secondaryBorderColor: line,
@@ -76,8 +76,8 @@ function mermaidPalette() {
     tertiaryBorderColor: line,
     lineColor: line,
     textColor: ink,
-    mainBkg: token('--green-soft'),
-    nodeBorder: token('--green'),
+    mainBkg: token('--accent-soft'),
+    nodeBorder: token('--accent'),
     nodeTextColor: ink,
     edgeLabelBackground: token('--background'),
     clusterBkg: token('--surface-muted'),
