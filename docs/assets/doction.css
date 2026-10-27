@@ -182,7 +182,7 @@
 .md-header__button.md-logo { color: var(--mark); }
 .md-footer { border-top: 1px solid var(--border-subtle); }
 .md-header--shadow { box-shadow: none; }
-.md-header__topic:first-child { font-weight: 600; }
+.md-header__topic:first-child { font-weight: 600; letter-spacing: -0.01em; }
 .md-search__input { background: var(--surface); color: var(--ink); border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
 .md-search__input::placeholder { color: var(--ink-subtle); }
 
@@ -343,6 +343,13 @@
   color: var(--ink-on-accent);
   box-shadow: var(--shadow-hard);
 }
+/* As in the app: hover lifts the button off the sheet, a press pushes it in. */
+.md-typeset .md-button--primary {
+  transition: color 120ms, background-color 120ms, border-color 120ms, transform 120ms, box-shadow 120ms;
+}
+@media (hover: hover) {
+  .md-typeset .md-button--primary:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--mark); }
+}
 .md-typeset .md-button--primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--mark); }
 .md-typeset .md-button--primary:hover,
 .md-typeset .md-button--primary:focus {
@@ -442,3 +449,7 @@
   line-height: 1;
 }
 .md-header__button.dx-lang:hover { background: var(--surface-inset); color: var(--ink); border-color: var(--border-default); }
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .md-button--primary { transition: none; }
+}

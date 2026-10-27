@@ -263,13 +263,16 @@ around a code block or a note.
 
 --shadow-hard:       3px 3px 0 var(--mark);
 --shadow-hard-press: 1px 1px 0 var(--mark);
+--shadow-hard-lift:  4px 4px 0 var(--mark);
 ```
 
 A drawing has almost square corners: controls 2px, cards and code 3px, modals 4px. The pill
 survives only on what's genuinely round: avatars and theme dots.
 
 The primary button carries a **hard offset shadow** in the mark, never a blurred one, and
-presses into the sheet: it moves 2px and the shadow shrinks to 1px. Menus, popovers and
+presses into the sheet: it moves 2px and the shadow shrinks to 1px. On a pointer that can
+hover it lifts 1px the other way and the shadow grows to 4px. doction.site's primary button
+does the same. Menus, popovers and
 modals keep their soft floating shadows (`--shadow-1/2/3`); a card that rests on the page
 gets a line, not a shadow.
 
@@ -299,7 +302,7 @@ ink ≥5.4:1 (≥7.8:1 dark), control boundary ≥4.0:1 (≥3.4:1 dark).
 
 The active page is a **filled row** with the mark's 3px rule on its left edge, weight 600
 and the strong ink, so colour never travels alone. Hover uses the same fill without the rule
-or the weight.
+or the weight. The rule is drawn from its middle when a row becomes the current page.
 
 ### The brand mark
 
@@ -310,6 +313,10 @@ tabs alike. SVGs used as images and PNGs cannot read custom properties, so those
 the tokens' sRGB values: `#14325d` (the default sheet) and `#f4d660` (the mark). The
 manifest's colours are the sheet; the address bar follows the canvas, `#f8f7f4` light and
 `#12161d` dark.
+
+Everywhere it is drawn, the glyph has a 2.5 stroke: 22px in the sidebar, 26px on the sign-in
+panel, 24px in the docs header and the favicon. When the brand first appears, the prompt's
+cursor blinks twice and then holds.
 
 ---
 
@@ -418,11 +425,22 @@ drawn dashed in the danger tone, because here it genuinely is a finding.
 --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 --duration-fast: 120ms;   /* color, background, border, the button press */
 --duration-base: 180ms;   /* shadow, opacity, a theme or workspace change */
---duration-slow: 240ms;   /* the mobile drawer */
+--duration-slow: 240ms;   /* the sidebar, the sign-in entrance */
 ```
 
-Color, background, border, shadow and opacity, plus the 1–2px translate of a pressed button.
-No bounces, dramatic entrances, continuous animations, or parallax.
+Color, background, border, shadow and opacity, plus the 1–2px translate of a pressed or
+lifted button. The motions with a purpose:
+
+- **The sidebar closes like a drawer.** Its width animates over contents of fixed width, so
+  nothing rewraps on the way, and the page moves with it on the same timing. It turns hidden
+  only once closed, which also takes it out of the tab order. On mobile it slides in and out.
+- **Switching workspace fades the sheet** into the new tone.
+- **Content rises 6px** on navigation; search results stagger 30ms per row. On login and
+  register the sheet's lines rise in order, then the form. The confirm dialog rises in.
+- The current page's mark rule is drawn, and the brand's cursor blinks twice.
+
+No bounces, continuous animations or parallax. `prefers-reduced-motion: reduce` turns all of
+it into an instant change.
 
 ---
 
