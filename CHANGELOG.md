@@ -11,7 +11,24 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
-## Unreleased
+## 0.36.0 — 2026-10-26
+
+### Changed
+
+- **A drafting-sheet look, tinted per workspace.** Each workspace gets one of six fixed tones
+  derived from its slug (prussian, petrol, indigo, plum, forest, tile). The sidebar and the
+  login/register screens are a sheet of that tone with a fine grid, and links, inline code,
+  focus and the primary button follow it. One diazo-yellow mark says where you are: the
+  active page in the tree, note rules and the primary button's offset shadow.
+- Pages open with a title block (page, last update, editor), H2 sections are numbered, tables
+  get a mono header and the page card has corner marks. Edit is the primary button.
+- doction.site's header and hero use the same sheet, and the hero draws the architecture as a
+  line diagram instead of the ASCII one.
+- Brand icons, manifest and browser theme colour are yellow on prussian.
+
+### Fixed
+
+- The favicon was invalid XML (`--` inside a comment), so browsers did not render it.
 
 ### Added
 
