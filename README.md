@@ -14,11 +14,11 @@ container + a Postgres container — no API keys, no SaaS, no LLM inside doction
 > repo; search runs locally; agents talk to it over a standard MCP interface. doction does
 > *retrieval* — the language model lives in your agent, not here.
 
-![doction reading a page: sidebar page tree, table of contents, a mermaid diagram and a highlighted SQL block, all rendered client-side from stored markdown](docs/assets/ui.png)
+![doction reading a page: sidebar page tree, table of contents, a mermaid diagram and a SQL block, all rendered client-side from stored markdown](docs/assets/ui.png)
 
 Every save is a git commit, so any page's history is a real diff:
 
-![The history view of a page, showing a git diff with one line removed and two added](docs/assets/history.png)
+![The history view of a page, showing a git diff with one line added and one changed](docs/assets/history.png)
 
 ---
 
