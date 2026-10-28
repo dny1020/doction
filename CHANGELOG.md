@@ -11,6 +11,21 @@ Check what a deployment is actually running with `curl -s $DOCTION/health | jq .
 This file was reconstructed from the git history at 0.31.3. Entries before that are
 summarised per release rather than exhaustive.
 
+## 0.36.2 — 2026-10-28
+
+### Security
+
+- `filelock` 3.32.0 → 4.2.4 (GHSA-v4x8-3wr5-3wq8, GHSA-567q-5qvw-pf92, GHSA-9vhv-jxww-xfm5). It
+  is pulled in by `huggingface-hub` through `tokenizers` and ships in the image.
+- Development only, not in the image: `vitest` 5.0.5, which brings `@vitest/mocker` 5.0.5
+  (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp), and `zod` 4.6.7 (GHSA-mrhx-c7xc-m3w5).
+
+### Changed
+
+- The weekly dependency audit runs both pip-audit and npm audit even when the first fails,
+  opens or updates one issue labelled `security` when either finds something, and closes it
+  on the next clean run. It can also be started by hand.
+
 ## 0.36.1 — 2026-10-27
 
 ### Changed
