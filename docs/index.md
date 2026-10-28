@@ -189,7 +189,6 @@ ORM.
 - [Security](../SECURITY.md) — the security model, the reporting channel, and the hardening
   checklist.
 - [Design](../DESIGN.md) — the visual system, describing what is *implemented*.
-- [Changelog](../CHANGELOG.md) — what changed per release.
 - `evals/results/` — the retrieval measurements behind the search constants: why the reranker
   ships off and why the stemmer is English.
 

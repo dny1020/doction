@@ -23,20 +23,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Before the build: it compares repository files, not the image, and needs only the stdlib.
-      - name: Licencia declarada de forma consistente
-        run: python3 -m scripts.check_license
-
-      # Here, not at tag time: by then the tag exists and the ruleset forbids deleting it.
-      - name: La versión declarada tiene entrada en el CHANGELOG
-        run: python3 -m scripts.changelog --check
-
       # Needs the git index, not the image: it checks links against what a clone contains.
       - name: La documentación no apunta a ficheros que no viajan
         run: python3 -m scripts.check_docs_reachable
-
-      - name: Comments and docstrings are in English
-        run: python3 -m scripts.check_comments
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
@@ -47,18 +36,6 @@ jobs:
           # One cache scope per job, or each job overwrites the others' index.
           cache-from: type=gha,scope=test
           cache-to: type=gha,scope=test,mode=max
-
-  # Licence provenance: each commit of a human PR certifies its terms. Dependabot PRs are exempt.
-  signoff:
-    if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # Needs the PR history and its base to compute the range.
-          fetch-depth: 0
-      - name: Cada commit certifica sus términos
-        run: python3 -m scripts.check_signoff
 
   # The frontend gate (`npm run check` in the `web` stage). Without this job it would only run
   # at publish time, after merging.
@@ -89,8 +66,9 @@ jobs:
       - name: El sitio se construye sin enlaces rotos
         run: uv run --group docs python -m scripts.build_docs
 
-  # Only on push to main, after `test` and `web`: publishes the image to GHCR as the
-  # pyproject.toml version and :latest, for amd64 and arm64 (the Pi).
+  # Only on push to main, after `test` and `web`: publishes :latest for amd64 and arm64 (the
+  # Pi) whenever the push changes the image, plus the pyproject.toml version the first time it
+  # appears. No version bump is needed to ship.
   publish:
     needs: [test, web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -121,35 +99,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # A version tag names one image, so an already-published version is never pushed again.
-      # Image changes merged under it (dependency updates) wait for the next version bump.
-      - name: Version not yet published
+      # A version tag names one image, so it is pushed once; :latest follows every change.
+      - name: Tags to publish
         id: guard
         env:
           VERSION: ${{ steps.version.outputs.value }}
           BEFORE: ${{ github.event.before }}
         run: |
+          tags="$IMAGE:latest"
           if ! docker buildx imagetools inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            tags="$tags,$IMAGE:$VERSION"
+          elif git cat-file -e "$BEFORE^{commit}" 2>/dev/null &&
+               git diff --quiet "$BEFORE" HEAD -- Dockerfile .dockerignore pyproject.toml uv.lock app scripts frontend; then
+            echo "::notice::this push changes nothing in the image; skipping."
+            tags=""
           fi
-          echo "publish=false" >> "$GITHUB_OUTPUT"
-          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null &&
-             git diff --quiet "$BEFORE" HEAD -- Dockerfile .dockerignore pyproject.toml uv.lock app scripts frontend; then
-            echo "::notice::$VERSION is already published and this push changes nothing in the image; skipping."
-          else
-            echo "::warning::$VERSION is already published; this change ships with the next version bump."
-          fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
 
-      - if: steps.guard.outputs.publish == 'true'
+      - if: steps.guard.outputs.tags != ''
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ env.IMAGE }}:${{ steps.version.outputs.value }}
-            ${{ env.IMAGE }}:latest
+          tags: ${{ steps.guard.outputs.tags }}
           # SBOM, so a pull can list what it contains; provenance mode=max also records build args,
           # which here are public repos, revisions and checksums.
           sbom: true

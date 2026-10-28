@@ -1,5 +1,0 @@
-{#- The other language's code, like the app's language toggle, leading to this page in that
-    language. scripts/docs_hooks.py sets each `path` per page. -#}
-{% for alt in config.extra.alternate if alt.lang != config.theme.language %}
-  <a class="md-header__button dx-lang" href="{{ alt.path }}" hreflang="{{ alt.lang }}" lang="{{ alt.lang }}" title="{{ alt.name }}" aria-label="{{ alt.name }}">{{ alt.lang | upper }}</a>
-{% endfor %}

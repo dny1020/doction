@@ -7,7 +7,6 @@ on:
     paths:
       - "docs/**"
       - "mkdocs.yml"
-      - "mkdocs.es.yml"
       - "scripts/build_docs.py"
       - "scripts/docs_hooks.py"
       - "app/static/vendor/fonts/**"
@@ -15,8 +14,6 @@ on:
       - "CONTRIBUTING.md"
       - "SECURITY.md"
       - "DESIGN.md"
-      - "CHANGELOG.md"
-      - "CODE_OF_CONDUCT.md"
       - ".github/workflows/pages.yaml"
   workflow_dispatch:
 

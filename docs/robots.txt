@@ -2,4 +2,3 @@ User-agent: *
 Allow: /
 
 Sitemap: https://doction.site/sitemap.xml
-Sitemap: https://doction.site/es/sitemap.xml

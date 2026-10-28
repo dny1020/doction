@@ -43,7 +43,8 @@ claude mcp add --transport http doction $DOCTION/api/mcp \
 Features, how it works and the map of every page are in [`docs/`](docs/index.md), which is
 published at [doction.site](https://doction.site/). Development setup and the check gate are
 in [CONTRIBUTING.md](CONTRIBUTING.md), the security model and reporting channel in
-[SECURITY.md](SECURITY.md), and release notes in [CHANGELOG.md](CHANGELOG.md).
+[SECURITY.md](SECURITY.md), and release notes on the
+[GitHub releases](https://github.com/dny1020/doction/releases).
 
 ## License
 

@@ -25,6 +25,5 @@ def _read(key: str, fallback: str) -> str:
 VERSION = _read("version", "0.0.0")
 
 # The instance reports its licence because the AGPL obligation is its own, not the
-# repository's. pyproject.toml is the only hand-written declaration, and
-# scripts/check_license.py compares every other one against it.
+# repository's. pyproject.toml is the only hand-written declaration.
 LICENSE_ID = _read("license", "AGPL-3.0-only")

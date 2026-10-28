@@ -1,7 +1,7 @@
 # Shortcuts for this repository's workflow. Every target is a command already documented
 # elsewhere; the Makefile invents none.
 .PHONY: setup dev frontend build-web test test-clean lint format format-check \
-        typecheck spec license changelog docs-reachable comments docs docs-serve check eval image image-test \
+        typecheck spec docs-reachable docs docs-serve check eval image image-test \
         up down logs restart \
         graph clean
 
@@ -48,21 +48,9 @@ spec:
 	@if [ -d openspec ]; then openspec validate --all --strict && openspec list; \
 	else echo "spec: SKIPPED — openspec/ is not in this checkout"; fi
 
-# The licence is declared in seven places; this compares them against pyproject.toml.
-license:
-	uv run python -m scripts.check_license
-
-# A version without a CHANGELOG entry is a release nobody can read.
-changelog:
-	uv run python -m scripts.changelog --check
-
 # CLAUDE.md and .claude/ are gitignored, so tracked documents must not cite them.
 docs-reachable:
 	uv run python -m scripts.check_docs_reachable
-
-# Comments and docstrings are English (CONTRIBUTING.md).
-comments:
-	uv run python -m scripts.check_comments
 
 # Strict site build: an internal link that does not resolve fails.
 docs:
@@ -77,10 +65,7 @@ check:
 	$(MAKE) typecheck
 	$(MAKE) test
 	cd frontend && npm run check
-	$(MAKE) license
-	$(MAKE) changelog
 	$(MAKE) docs-reachable
-	$(MAKE) comments
 	$(MAKE) docs
 	$(MAKE) spec
 

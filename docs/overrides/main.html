@@ -2,11 +2,7 @@
     doction is. Loaded through `theme.custom_dir`; see openspec change `product-finish`. -#}
 {% extends "base.html" %}
 
-{% if config.theme.language == "es" %}
-  {% set home_title = "doction — base de conocimiento en markdown para personas y agentes de código" %}
-{% else %}
-  {% set home_title = "doction — markdown knowledge base for humans and coding agents" %}
-{% endif %}
+{% set home_title = "doction — markdown knowledge base for humans and coding agents" %}
 
 {% block htmltitle %}
   {% if page and page.is_homepage %}
@@ -26,7 +22,6 @@
     {% else %}
       {% set title = config.site_name %}
     {% endif %}
-    {# The Spanish site_url ends in /es/, which has its own copy of the assets. #}
     {% set image = config.site_url ~ "docs/assets/social.png" %}
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="{{ config.site_name }}">

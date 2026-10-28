@@ -384,8 +384,7 @@
   padding: 48px;
 }
 .md-typeset .dx-hero-text { min-width: 0; }
-/* Drawn from the stylesheet: a CSS url resolves next to this file, which both sites ship with
-   the SVG beside it, whereas a markdown path would differ between the English and Spanish builds. */
+/* Drawn from the stylesheet: a CSS url resolves next to this file, wherever the page sits. */
 .md-typeset .dx-hero-figure {
   width: 100%;
   aspect-ratio: 360 / 230;
@@ -431,24 +430,6 @@
   fill: none;
   stroke: currentColor;
 }
-
-/* The language switcher reads like the app's .lang-toggle: the other language's code. */
-.md-header__button.dx-lang {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--ink-subtle);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-}
-.md-header__button.dx-lang:hover { background: var(--surface-inset); color: var(--ink); border-color: var(--border-default); }
 
 @media (prefers-reduced-motion: reduce) {
   .md-typeset .md-button--primary { transition: none; }

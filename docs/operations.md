@@ -50,9 +50,8 @@ against the commit the release claims. Both attestations are attached to the ima
 extra manifests, which is why `docker manifest inspect` shows entries whose platform reads
 `unknown/unknown`.
 
-Release notes for a version live on its GitHub Release, generated from `CHANGELOG.md`.
-Releases start at 0.31.5; earlier tags predate the automation and have none, because the
-changelog describes that history in ranges rather than per version.
+Release notes for a version live on its
+[GitHub Release](https://github.com/dny1020/doction/releases), generated from the commits.
 
 ## Backup
 
@@ -134,7 +133,8 @@ Before you pull:
 
 - **Take a backup.** There is no rollback procedure, and the image tag you were on is your
   only way back.
-- **Read `CHANGELOG.md`** for the versions you are skipping.
+- **Read the [release notes](https://github.com/dny1020/doction/releases)** for the versions
+  you are skipping.
 
 What happens on the first boot of a new image:
 
