@@ -7,6 +7,8 @@ on:
   schedule:
     # Mondays 07:00 UTC: advisories are published without a push.
     - cron: "0 7 * * 1"
+  # The audit on demand, e.g. right after an advisory lands.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,9 +37,14 @@ jobs:
   # Known advisories in committed dependencies. Weekly only: what it finds was not introduced
   # by the triggering change, and a permanently red PR or main gets ignored.
   # PRs are gated by `dependency-review`, which only looks at what they add.
+  # A finding opens (or updates) one issue labelled `security`, so it reaches a person or an
+  # assigned agent instead of a red run nobody opens; a clean run closes it.
   audit:
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -49,9 +56,11 @@ jobs:
           enable-cache: true
 
       - name: pip-audit sobre el entorno bloqueado
+        id: pip
         run: |
           uv sync --frozen --no-dev
-          uv run --with pip-audit pip-audit --strict
+          set -o pipefail
+          uv run --with pip-audit pip-audit --strict 2>&1 | tee pip-audit.txt
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -59,10 +68,51 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # Runs even when pip-audit failed, so one report covers both ecosystems.
       - name: npm audit del frontend
+        id: npm
+        if: ${{ !cancelled() }}
         working-directory: frontend
         # `high` and up: moderate findings in Vite's tree are almost always dev tools.
-        run: npm audit --audit-level=high
+        run: |
+          set -o pipefail
+          npm audit --audit-level=high 2>&1 | tee ../npm-audit.txt
+
+      - name: Open or update the audit issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PIP: ${{ steps.pip.outcome }}
+          NPM: ${{ steps.npm.outcome }}
+        run: |
+          {
+            echo "The [dependency audit]($RUN_URL) found advisories: pip-audit **$PIP**, npm audit **$NPM**."
+            echo
+            echo "Fix by upgrading the package in \`uv.lock\` or \`frontend/package-lock.json\`; this issue closes on the next clean audit."
+            for f in pip-audit.txt npm-audit.txt; do
+              if [ -s "$f" ]; then
+                # shellcheck disable=SC2016 # the backticks are the markdown fence, not a command
+                printf '\n<details><summary>%s</summary>\n\n```\n%s\n```\n</details>\n' "$f" "$(tail -n 60 "$f")"
+              fi
+            done
+          } > body.md
+          gh label create security --color B60205 --description "Known advisory in a dependency" 2>/dev/null || true
+          n=$(gh issue list --label security --state open --search "Dependency audit in:title" --json number --jq '.[0].number')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body-file body.md
+          else
+            gh issue create --title "Dependency audit found known advisories" --label security --body-file body.md
+          fi
+
+      - name: Close the audit issue
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for n in $(gh issue list --label security --state open --search "Dependency audit in:title" --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "The weekly audit is clean again."
+          done
 
   # Scans the published image, base layer included: the only check that sees system packages.
   image:
