@@ -1,4 +1,4 @@
-"""Holds `docs/search.md` and `docs/tags-and-metadata.md` to what the code does.
+"""Holds `docs/search.md` and `docs/writing-pages.md` to what the code does.
 
 A failure names the page whose claim became untrue.
 """
@@ -6,7 +6,7 @@ A failure names the page whose claim became untrue.
 from app import meta
 
 SEARCH_DOC = "docs/search.md"
-TAGS_DOC = "docs/tags-and-metadata.md"
+TAGS_DOC = "docs/writing-pages.md"
 
 
 def _register(client, email="user@example.com", password="password123"):
@@ -112,7 +112,7 @@ def test_accents_fold_in_both_directions(client):
     )
 
 
-# ── The metadata block is not YAML (docs/tags-and-metadata.md) ───────────────
+# ── The metadata block is not YAML (docs/writing-pages.md) ───────────────────
 
 BLOCK_LIST = "---\ntags:\n  - kamailio\n  - sip\n---\n\nbody\n"
 INLINE_LIST = "---\ntags: [kamailio, sip]\n---\n\nbody\n"
@@ -165,7 +165,7 @@ def test_code_is_not_scanned_for_tags():
     )
 
 
-# ── Wikilink targets (docs/linking.md) ───────────────────────────────────────
+# ── Wikilink targets (docs/links-and-graph.md) ───────────────────────────────
 
 
 def test_a_title_works_as_a_wikilink_target():

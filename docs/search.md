@@ -82,6 +82,6 @@ it on only if you have measured your own corpus and found otherwise.
 
 ## Where to go next
 
-- [Tags and metadata](tags-and-metadata.md), and why `tag:` is not a filter
+- [Tags](writing-pages.md#tags), and why `tag:` is not a filter
 - [Configuration](configuration.md) for the search flags and what they cost
 - [Agents and MCP](mcp.md) for `sgrep` and the retrieval tools

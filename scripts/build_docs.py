@@ -27,10 +27,8 @@ FONTS = ROOT / "app" / "static" / "vendor" / "fonts"
 # Paths are repository-relative and keep their shape in the staged tree, so the relative links
 # from `docs/` resolve unchanged.
 ROOT_DOCS = [
-    "README.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
-    "DESIGN.md",
     # No extension, so MkDocs treats it as a static file and the link still resolves.
     "LICENSE",
 ]

@@ -1,8 +1,6 @@
 """MkDocs hooks: page destinations, link previews and keeping the site offline.
 
-- Writes `docs/index.md` at `/` and the README at `/introduction/`; links still resolve by
-  source path.
-- Drops the README's remote badge images from the site's copy.
+- Writes `docs/index.md` at `/`; links still resolve by source path.
 - Gives a page without a `description` one from its first paragraph.
 """
 
@@ -18,7 +16,6 @@ NOT_PROSE = ("#", "<", "```", "~~~", "|", "- ", "* ", "+ ", ">", "!!!", "???", "
 # source path -> output path
 DESTINATIONS = {
     "docs/index.md": "index.html",
-    "README.md": "introduction/index.html",
     "docs/robots.txt": "robots.txt",
 }
 
@@ -69,12 +66,4 @@ def on_page_markdown(markdown, page, **_):
         text = first_paragraph(markdown)
         if text:
             page.meta["description"] = describe(text)
-    if page.file.src_uri != "README.md":
-        return markdown
-    kept = []
-    for line in markdown.splitlines():
-        # A line that is only a remote image, e.g. `[![CI](https://…/badge.svg)](…)`.
-        remote_image = line.startswith(("![", "[![")) and "://" in line.split("](", 1)[-1]
-        if not remote_image:
-            kept.append(line)
-    return "\n".join(kept)
+    return markdown

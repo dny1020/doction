@@ -4,6 +4,10 @@ doction is two containers: the app, and a Postgres it talks to. There is no thir
 service, no broker, and no external API. The published image is multi-arch, so the same
 tag runs on amd64 and arm64 hardware — from a cloud VM to a small self-hosted board.
 
+Commands across these docs assume the container: prefix them with
+`docker compose exec doction` on the Compose stack. `$DOCTION` is the base URL of your instance,
+e.g. `https://wiki.example.com`. Anything marked **opt-in** is off unless you set its flag.
+
 ## Requirements
 
 | | Minimum | Comfortable |

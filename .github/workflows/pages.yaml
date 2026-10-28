@@ -10,10 +10,8 @@ on:
       - "scripts/build_docs.py"
       - "scripts/docs_hooks.py"
       - "app/static/vendor/fonts/**"
-      - "README.md"
       - "CONTRIBUTING.md"
       - "SECURITY.md"
-      - "DESIGN.md"
       - ".github/workflows/pages.yaml"
   workflow_dispatch:
 

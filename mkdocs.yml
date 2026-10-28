@@ -50,7 +50,7 @@ extra:
 extra_css:
   - docs/assets/doction.css
 
-# Serves docs/index.md at the site root and the README at /introduction/.
+# Serves docs/index.md at the site root.
 hooks:
   - scripts/docs_hooks.py
 
@@ -74,23 +74,17 @@ validation:
 nav:
   - Home: docs/index.md
   - Getting started:
-      - Introduction: README.md
       - docs/install.md
       - docs/configuration.md
   - Using doction:
       - docs/writing-pages.md
-      - docs/linking.md
-      - docs/tags-and-metadata.md
+      - docs/links-and-graph.md
       - docs/search.md
-      - docs/graph.md
   - Developer:
       - docs/api.md
       - docs/mcp.md
       - docs/architecture.md
-  - Operations:
-      - docs/operations.md
-      - docs/troubleshooting.md
+  - Operations: docs/operations.md
   - Project:
       - CONTRIBUTING.md
       - SECURITY.md
-      - DESIGN.md
