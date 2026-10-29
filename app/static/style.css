@@ -2335,12 +2335,23 @@ kbd {
 
 /* ── Touch and iPhone ─────────────────────────────────────────────────────────── */
 
-/* Safari zooms into inputs under 16px and never zooms back. */
+/* Safari zooms into inputs under 16px and never zooms back. `.field` and the search box set
+   their own 14px, so they are named here too, or their class wins over the element rule. */
 @media (pointer: coarse) {
   input,
   textarea,
-  select {
+  select,
+  .field:not(.title-input),
+  .search-field input {
     font-size: var(--text-md);
+  }
+}
+
+/* Installed to the home screen there is no browser, so no rubber-band or pull-to-refresh. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior: none;
   }
 }
 

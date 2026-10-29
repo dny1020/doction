@@ -384,6 +384,13 @@ The focus ring is the accent at 60% (55% dark), so it follows the workspace; on 
 is the mark at 70%. A focus indicator needs 3:1 against both the control and what is behind
 it, and every proposal to lower it goes against a correction made twice already.
 
+### Touch
+
+On a coarse pointer every field is 16px, the title excepted, or Safari zooms in on focus and
+never zooms back; small buttons keep their look and get a 44px hit area from a
+pseudo-element. Installed to the home screen (`display-mode: standalone`) the page has no
+rubber-band or pull-to-refresh.
+
 ### Scrollbar
 
 Custom, not the system's. Defined once and inherited by the tree, the workspaces menu and
