@@ -100,7 +100,6 @@ DELETE /api/workspaces/{slug}/members/{member_id}
 POST   /api/workspaces/{slug}/switch
 
 # pages
-GET    /api/notes
 GET    /api/pages
 POST   /api/pages
 DELETE /api/pages/{slug}

@@ -24,7 +24,6 @@ from app.models import (
     LinkEdge,
     Member,
     Mention,
-    NoteRef,
     Page,
     PageMeta,
     PageNode,
@@ -832,11 +831,8 @@ def list_pages_tree(workspace_id: int) -> list[PageNode]:
     """Flat DFS list carrying `depth`, for rendering the sidebar tree."""
     with connect() as conn:
         rows = conn.execute(
-            # Unfiled notes (memo, no parent) live in the paginated feed, not this tree.
             "SELECT p.id, p.slug, p.title, p.parent_id FROM pages p "
-            "LEFT JOIN page_meta m ON m.page_id = p.id "
             "WHERE p.workspace_id = %s AND p.deleted_at IS NULL "
-            "AND (m.type IS NULL OR m.type <> 'memo' OR p.parent_id IS NOT NULL) "
             "ORDER BY p.created_at, p.id",
             (workspace_id,),
         ).fetchall()
@@ -1352,41 +1348,6 @@ def list_children(workspace_id: int, slug: str) -> list[PageRef] | None:
             (row["id"],),
         ).fetchall()
         return [PageRef(slug=r["slug"], title=r["title"]) for r in rows]
-
-
-def list_notes(workspace_id: int, *, limit: int = 50, before: str | None = None) -> list[NoteRef]:
-    """Cursor-paginated feed of unfiled notes.
-
-    The inbox is `type: memo` *and* parentless, so moving a note under any page files it
-    into the tree. Separate from list_pages_tree, which paginates nothing.
-    """
-    limit = max(1, min(limit, 200))
-    sql = """
-        SELECT p.slug, p.title, p.created_at, p.content
-        FROM pages p
-        JOIN page_meta m ON m.page_id = p.id
-        WHERE p.workspace_id = %s AND p.deleted_at IS NULL
-          AND m.type = 'memo' AND p.parent_id IS NULL
-    """
-    params: list[object] = [workspace_id]
-    if before:
-        sql += " AND p.created_at < %s"
-        params.append(before)
-    sql += " ORDER BY p.created_at DESC LIMIT %s"
-    params.append(limit)
-    with connect() as conn:
-        rows = conn.execute(sql, params).fetchall()  # type: ignore[arg-type]
-        return [
-            NoteRef(
-                slug=r["slug"],
-                title=r["title"],
-                created_at=r["created_at"],
-                # Trimmed after the frontmatter is stripped: cut in SQL, the excerpt
-                # showed `--- type: memo ---` as if it were the note.
-                excerpt=meta.parse_frontmatter(r["content"] or "")[1].strip()[:200],
-            )
-            for r in rows
-        ]
 
 
 def delete_page(workspace_id: int, slug: str) -> bool:

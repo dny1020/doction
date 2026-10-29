@@ -47,7 +47,7 @@ export function DocumentSkeleton() {
   )
 }
 
-// List rows, for the trash, the inbox and settings.
+// List rows, for the trash and settings.
 export function ListSkeleton({ rows = 4 }) {
   const visible = useVisibleAfterDelay()
   if (!visible) return null

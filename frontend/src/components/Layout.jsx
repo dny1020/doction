@@ -10,7 +10,6 @@ import NotFound from '../pages/NotFound.jsx'
 import Sidebar, { closeOnEscape } from './Sidebar.jsx'
 import CommandPalette from './CommandPalette.jsx'
 import ConnectionStatus from './ConnectionStatus.jsx'
-import CaptureModal from './CaptureModal.jsx'
 import KeyboardShortcuts from './KeyboardShortcuts.jsx'
 
 // On mobile the sidebar is a drawer over the content: closed on arrival, closed on
@@ -64,8 +63,6 @@ export default function Layout() {
   )
   const [barMenuOpen, setBarMenuOpen] = useState(false)
   const [titleOffscreen, setTitleOffscreen] = useState(false)
-  // Bumped by every quick capture, so an open inbox reloads without a page refresh.
-  const [notesVersion, setNotesVersion] = useState(0)
   const barMenuRef = useRef(null)
 
   const setCollapsed = useCallback((value) => {
@@ -137,7 +134,6 @@ export default function Layout() {
   let barTitle = ''
   if (activePage) barTitle = activePage.title
   else if (location.pathname.startsWith('/settings')) barTitle = t('settings')
-  else if (tail === 'notes') barTitle = t('notes')
   else if (tail === 'trash') barTitle = t('trash')
   else if (tail === 'new') barTitle = t('new_page')
 
@@ -227,7 +223,6 @@ export default function Layout() {
                 pagesError,
                 reloadPages,
                 setTitleOffscreen,
-                notesVersion,
               }}
             />
           )}
@@ -236,7 +231,6 @@ export default function Layout() {
       {/* Fixed over the shell; it renders nothing while everything works. */}
       <ConnectionStatus />
       <CommandPalette ws={ws} pages={pages} />
-      <CaptureModal onCaptured={() => setNotesVersion((v) => v + 1)} />
       <KeyboardShortcuts ws={ws} />
     </div>
   )

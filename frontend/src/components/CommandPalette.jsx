@@ -56,13 +56,7 @@ export default function CommandPalette({ ws, pages }) {
   // ⌘K / Ctrl-K toggles from anywhere; Esc closes even with focus outside the input.
   useEffect(() => {
     function onKey(event) {
-      // Without Shift: ⌘⇧K is quick capture, and since `event.key` arrives as an
-      // uppercase 'K' this opened both, one on top of the other.
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        !event.shiftKey &&
-        (event.key === 'k' || event.key === 'K')
-      ) {
+      if ((event.metaKey || event.ctrlKey) && (event.key === 'k' || event.key === 'K')) {
         event.preventDefault()
         setOpen((isOpen) => !isOpen)
       } else if (event.key === 'Escape') {

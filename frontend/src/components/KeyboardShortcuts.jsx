@@ -108,12 +108,6 @@ export default function KeyboardShortcuts({ ws }) {
             </span>
           </li>
           <li>
-            <span>{t('capture')}</span>
-            <span>
-              <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>K</kbd>
-            </span>
-          </li>
-          <li>
             <span>{t('sc_save')}</span>
             <span>
               <kbd>⌘</kbd> <kbd>↵</kbd>

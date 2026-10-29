@@ -214,15 +214,6 @@ class PageDiff(_Out):
     diff: str
 
 
-class Note(_Out):
-    """`created_at` is the cursor for the next page of the feed (`before`)."""
-
-    slug: str
-    title: str
-    created_at: str
-    excerpt: str
-
-
 class ViewChild(_Out):
     slug: str
     title: str

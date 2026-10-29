@@ -119,16 +119,6 @@ class PendingDelivery:
 
 
 @dataclass
-class NoteRef:
-    """`created_at` is the pagination cursor for the note feed."""
-
-    slug: str
-    title: str
-    created_at: str
-    excerpt: str
-
-
-@dataclass
 class PageRef:
     slug: str
     title: str

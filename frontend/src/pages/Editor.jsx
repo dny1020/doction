@@ -158,14 +158,13 @@ export default function Editor({ mode }) {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [])
 
-  // ⌘S / Ctrl-S saves, and so does ⌘Enter, as in quick capture. The global shortcut
+  // ⌘S / Ctrl-S saves, and so does ⌘Enter. The global shortcut
   // listener ignores text fields on purpose, so this one lives here; requestSubmit goes
   // through the form's validation.
   useEffect(() => {
     function onKey(event) {
       if (!(event.metaKey || event.ctrlKey)) return
-      // ⌘Enter only from inside this form: quick capture (⌘⇧K) can be open over the
-      // editor, and its own ⌘Enter must not also save the page underneath.
+      // ⌘Enter only from inside this form, not from a dialog open over the editor.
       const isEnter = event.key === 'Enter' && formRef.current?.contains(event.target)
       if (event.key === 's' || event.key === 'S' || isEnter) {
         event.preventDefault()

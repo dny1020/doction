@@ -72,12 +72,6 @@ export const api = {
   del: (url) => request('DELETE', url),
 }
 
-// A quick capture is a page with `type: memo` and no title: the backend derives one from
-// the first line and gives it a timestamped slug. Shared by the capture modal and Notes.
-export function saveCapture(text) {
-  return api.post('/api/pages', { content: '---\ntype: memo\n---\n\n' + text })
-}
-
 // A cancelled request is not an error to show; any `.catch` that paints must ask first.
 export function isAbort(error) {
   return Boolean(error) && error.name === 'AbortError'

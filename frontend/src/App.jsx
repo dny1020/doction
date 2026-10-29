@@ -17,7 +17,6 @@ import TokensSection from './pages/settings/Tokens.jsx'
 import WebhooksSection from './pages/settings/Webhooks.jsx'
 import SystemSection from './pages/settings/System.jsx'
 import Trash from './pages/Trash.jsx'
-import Notes from './pages/Notes.jsx'
 import { ListSkeleton } from './components/Skeleton.jsx'
 // Code-split: d3-force and the drawing are only needed on this route.
 const Graph = lazy(() => import('./pages/Graph.jsx'))
@@ -55,7 +54,7 @@ function HomeRedirect() {
   return <Navigate to={wsPath(slug)} replace />
 }
 
-// Old-scheme URLs (/p/<slug>, /new, /trash, /notes) still resolve, against the last
+// Old-scheme URLs (/p/<slug>, /new, /trash) still resolve, against the last
 // visited workspace, so an old bookmark opens its page rather than a 404.
 function LegacyRedirect({ to }) {
   const slug = useHomeWorkspace()
@@ -103,7 +102,6 @@ export const routes = [
           { path: '/w/:ws/p/:slug/edit', element: <Editor mode="edit" /> },
           { path: '/w/:ws/p/:slug/history', element: <History /> },
           { path: '/w/:ws/trash', element: <Trash /> },
-          { path: '/w/:ws/notes', element: <Notes /> },
           {
             path: '/w/:ws/graph',
             element: (
@@ -137,7 +135,6 @@ export const routes = [
           { path: '/p/:slug/history', element: <LegacyRedirect to="/p/:slug/history" /> },
           { path: '/new', element: <LegacyRedirect to="/new" /> },
           { path: '/trash', element: <LegacyRedirect to="/trash" /> },
-          { path: '/notes', element: <LegacyRedirect to="/notes" /> },
         ],
       },
       { path: '*', element: <NotFound standalone /> },

@@ -1,4 +1,4 @@
-"""Move (cycle-safe), rename with aliases, quick capture and the feed."""
+"""Move (cycle-safe), rename with aliases, untitled pages and children."""
 
 
 def _token(client, email="v2@example.com", password="password123") -> str:
@@ -145,7 +145,7 @@ def test_forward_reference_resolves_when_target_is_created(client):
     assert any(b["slug"] == "adelantada" for b in r.json()["backlinks"])
 
 
-# ── capture ──────────────────────────────────────────────────────────────────
+# ── untitled pages ───────────────────────────────────────────────────────────
 
 
 def test_capture_without_title_derives_one(client):
@@ -162,87 +162,17 @@ def test_capture_without_title_does_not_collide(client):
     assert not any(s.startswith("untitled") for s in slugs)
 
 
-# ── Feed and tree ────────────────────────────────────────────────────────────
+# ── tree ─────────────────────────────────────────────────────────────────────
 
 
-def test_memos_are_in_the_feed_and_out_of_the_tree(client):
+def test_a_memo_page_is_an_ordinary_page_in_the_tree(client):
+    """Captures made before the inbox was removed still carry `type: memo`; they must
+    show up in the tree rather than vanish."""
     token = _token(client)
-    _create(client, token, title="Doc normal", content="soy documentacion")
-    _create(client, token, content="---\ntype: memo\n---\nsoy una captura")
-
-    feed = client.get("/api/notes", headers=_h(token)).json()
-    assert len(feed) == 1
-    assert feed[0]["excerpt"]
-
-    # Registration seeds example pages, so this asserts the memo's absence rather
-    # than the size of the tree.
-    tree = client.get("/api/pages", headers=_h(token)).json()
-    slugs = {p["slug"] for p in tree}
-    assert "doc-normal" in slugs
-    assert feed[0]["slug"] not in slugs
-
-
-def test_filing_a_memo_moves_it_from_the_inbox_into_the_tree(client):
-    """Filing is move_page, without rewriting anyone's frontmatter."""
-    token = _token(client)
-    _create(client, token, title="Homelab", content="raiz")
     memo = _create(client, token, content="---\ntype: memo\n---\nrevisar el router")
 
-    assert [n["slug"] for n in client.get("/api/notes", headers=_h(token)).json()] == [memo["slug"]]
-
-    r = client.post(
-        f"/api/pages/{memo['slug']}/move",
-        json={"parent_slug": "homelab"},
-        headers=_h(token),
-    )
-    assert r.status_code == 200, r.text
-
-    assert client.get("/api/notes", headers=_h(token)).json() == []
-
     tree = client.get("/api/pages", headers=_h(token)).json()
-    archivada = next(p for p in tree if p["slug"] == memo["slug"])
-    assert archivada["depth"] == 1
-
-    # Still a memo: content untouched, only its place changes.
-    page = client.get(f"/api/pages/{memo['slug']}", headers=_h(token)).json()
-    assert "type: memo" in page["content"]
-
-
-def test_memo_moved_back_to_root_returns_to_the_inbox(client):
-    token = _token(client)
-    _create(client, token, title="Homelab", content="raiz")
-    memo = _create(client, token, content="---\ntype: memo\n---\nvuelve a la bandeja")
-
-    client.post(
-        f"/api/pages/{memo['slug']}/move",
-        json={"parent_slug": "homelab"},
-        headers=_h(token),
-    )
-    client.post(
-        f"/api/pages/{memo['slug']}/move",
-        json={"parent_slug": None},
-        headers=_h(token),
-    )
-
-    assert [n["slug"] for n in client.get("/api/notes", headers=_h(token)).json()] == [memo["slug"]]
-    tree = client.get("/api/pages", headers=_h(token)).json()
-    assert memo["slug"] not in {p["slug"] for p in tree}
-
-
-def test_feed_paginates_by_cursor(client):
-    token = _token(client)
-    for i in range(3):
-        _create(client, token, content=f"---\ntype: memo\n---\nnota {i}")
-
-    page1 = client.get("/api/notes?limit=2", headers=_h(token)).json()
-    assert len(page1) == 2
-    # Ordered by creation date, newest first.
-    assert page1[0]["created_at"] >= page1[1]["created_at"]
-
-    page2 = client.get(
-        f"/api/notes?limit=2&before={page1[-1]['created_at']}", headers=_h(token)
-    ).json()
-    assert all(n["slug"] not in {p["slug"] for p in page1} for n in page2)
+    assert memo["slug"] in {p["slug"] for p in tree}
 
 
 # ── children ─────────────────────────────────────────────────────────────────
@@ -256,14 +186,3 @@ def test_children_lists_direct_descendants_only(client):
 
     kids = client.get(f"/api/pages/{raiz['slug']}/children", headers=_h(token)).json()
     assert [k["slug"] for k in kids] == [hijo["slug"]]
-
-
-def test_inbox_excerpt_hides_the_frontmatter(client):
-    """Quick capture exists so nobody writes metadata; showing it in the excerpt turns
-    `--- type: memo ---` into the note's text."""
-    token = _token(client)
-    _create(client, token, content="---\ntype: memo\n---\n\nrevisar el dispatcher del SBC")
-
-    note = client.get("/api/notes", headers=_h(token)).json()[0]
-    assert note["excerpt"] == "revisar el dispatcher del SBC"
-    assert "type: memo" not in note["excerpt"]

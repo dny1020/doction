@@ -666,18 +666,6 @@ def api_system(request: Request):
     return report
 
 
-@api_router.get("/notes", tags=["pages"], response_model=list[out.Note])
-def api_notes(request: Request, limit: int = 50, before: str | None = None):
-    """Chronological feed of quick captures (`type: memo`), paginated by cursor.
-
-    Deliberately separate from the tree: list_pages_tree does not paginate and quick
-    capture grows without bound.
-    """
-    uid = _api_user(request)
-    wid = _api_workspace(request, uid)
-    return db.list_notes(wid, limit=limit, before=before)
-
-
 @api_router.get(
     "/search",
     tags=["search"],

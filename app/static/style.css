@@ -2287,51 +2287,7 @@ kbd {
   }
 }
 
-/* ── Capture, inbox and per-page actions ───────────────────────────────────── */
-
-/* The capture modal reuses .palette with a textarea. */
-.capture-input {
-  resize: vertical;
-  min-height: 7rem;
-  font-family: inherit;
-  line-height: 1.5;
-}
-.capture-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-}
-/* The inbox's own capture form: the same field and actions, flush with the page column. */
-/* The capture box is a card with a bare textarea; the card carries the focus ring. */
-.notes-capture {
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
-}
-.notes-capture:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
-.notes-capture .capture-input {
-  min-height: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  box-shadow: none;
-  resize: vertical;
-}
-.notes-capture .capture-actions { padding: var(--space-2) 0 0; }
-
-/* Each capture is its own card, as a memo is. */
-.notes-list { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
-.notes-list > .row {
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-}
+/* ── Per-page actions ─────────────────────────────────────────────────────────── */
 
 /* Each tree row hosts a ⋯ menu, shown on hover or keyboard focus. */
 .page-row {
@@ -2362,7 +2318,7 @@ kbd {
   background: var(--surface-inset);
 }
 
-.inbox-link {
+.side-link {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -2372,7 +2328,7 @@ kbd {
   text-decoration: none;
   border-radius: var(--radius-sm);
 }
-.inbox-link:hover {
+.side-link:hover {
   background: var(--surface-inset);
   color: var(--ink);
 }
@@ -2595,7 +2551,7 @@ html {
 /* Press feedback: on touch it is the only confirmation of a tap. */
 .btn,
 .new-btn,
-.inbox-link,
+.side-link,
 .sidebar-toggle,
 .theme-toggle,
 .lang-toggle,
@@ -2610,7 +2566,7 @@ html {
 }
 .btn:active,
 .new-btn:active,
-.inbox-link:active,
+.side-link:active,
 .sidebar-toggle:active,
 .theme-toggle:active,
 .lang-toggle:active,
