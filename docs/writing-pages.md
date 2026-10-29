@@ -21,7 +21,7 @@ identity everywhere: the URL, the API path, the filename in the git repo and the
 wikilink. Pass `slug` explicitly to choose it yourself.
 
 `title` is optional. Leave it out and the title is taken from the first line of the content,
-which is what makes a one-line capture worth saving without inventing a heading for it.
+which is what makes a one-line note worth saving without inventing a heading for it.
 
 Slugs are unique per workspace. Workspace slugs are unique globally, because a workspace slug is
 also a directory name in the git repo.

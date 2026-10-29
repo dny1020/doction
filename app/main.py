@@ -106,7 +106,7 @@ class _TokenIn(BaseModel):
 
 
 class _PageIn(BaseModel):
-    # Optional: a one-line capture should not force a title. db.create_page derives
+    # Optional: a one-line note should not force a title. db.create_page derives
     # one from the first line of the content.
     title: str = ""
     content: str = ""

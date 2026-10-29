@@ -3,7 +3,7 @@ WELCOME = """\
 
 A quiet, markdown-first place to think, document, and operate.
 
-- **Capture** notes fast — title, write markdown, save.
+- **Write** notes fast — title, markdown, save.
 - **Search** everything from the sidebar (full-text, instant).
 - **Read** in a calm, focused pane.
 

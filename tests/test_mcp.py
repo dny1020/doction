@@ -162,7 +162,7 @@ def test_create_get_roundtrip(client):
 
 
 def test_create_without_title_derives_it(client):
-    """The title is no longer required: quick capture derives it from the text."""
+    """The title is optional: it is derived from the first line of the text."""
     token = _register_and_token(client)
     data = _tool_data(_call(client, token, "create_page", {"content": "orphan"}))
     assert data["title"] == "orphan"

@@ -107,7 +107,7 @@ def test_semantic_and_hybrid_snippets_carry_no_markup(semantic_client):
 
 
 def test_snippet_does_not_lead_with_frontmatter(client):
-    """A quick capture opens with `--- type: memo ---`; showing that as the page text
+    """A page can open with a metadata block; showing that as the page text
     turns the metadata into the result."""
     token = _token(client)
     _page(client, token, "Captura", "---\ntype: memo\n---\n\nrevisar el dispatcher del SBC")
