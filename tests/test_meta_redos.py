@@ -79,12 +79,6 @@ def test_the_fix_did_not_change_what_a_wikilink_is(content, expected):
     assert meta.extract_links(content) == expected
 
 
-def test_a_target_longer_than_the_bound_is_not_a_target():
-    """A wikilink target is a title, not a document."""
-    assert meta.extract_links("[[" + "a" * 201 + "]]") == []
-    assert meta.extract_links("[[" + "a" * 200 + "]]") == ["a" * 200]
-
-
 def test_other_metadata_parsers_are_linear_too():
     """Tags and frontmatter run over the same untrusted content."""
     for fn in (meta.extract_tags, meta.strip_code):

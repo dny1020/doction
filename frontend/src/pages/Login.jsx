@@ -6,8 +6,9 @@ import { useI18n } from '../i18n.jsx'
 import LanguageToggle from '../components/LanguageToggle.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
-export default function Login() {
-  const { login } = useAuth()
+export default function Login({ mode = 'login' }) {
+  const auth = useAuth()
+  const isRegister = mode === 'register'
   const { t } = useI18n()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -20,7 +21,7 @@ export default function Login() {
     setError(null)
     setBusy(true)
     try {
-      await login(email, password)
+      await (isRegister ? auth.register : auth.login)(email, password)
       navigate('/')
     } catch (err) {
       setError(err.message)
@@ -36,12 +37,12 @@ export default function Login() {
           <Terminal className="brand-icon lucide" size={24} aria-hidden="true" />
           doction
         </h1>
-        <p className="auth-tagline">{t('login_subtitle')}</p>
+        <p className="auth-tagline">{t(isRegister ? 'register_subtitle' : 'login_subtitle')}</p>
         <span className="auth-stamp">self-hosted · markdown · git</span>
       </aside>
       <div className="auth-main">
         <div className="card auth-card">
-          <h2>{t('log_in')}</h2>
+          <h2>{t(isRegister ? 'create_account' : 'log_in')}</h2>
           {error && <div className="auth-error">{error}</div>}
           <form onSubmit={onSubmit}>
             <label className="field-label" htmlFor="email">
@@ -68,11 +69,19 @@ export default function Login() {
               required
             />
             <button className="btn btn-primary auth-submit" type="submit" disabled={busy}>
-              {busy ? t('loading') : t('log_in')}
+              {busy ? t('loading') : t(isRegister ? 'create_account' : 'log_in')}
             </button>
           </form>
           <p className="auth-switch">
-            {t('login_switch_q')} <Link to="/register">{t('create_an_account')}</Link>
+            {isRegister ? (
+              <>
+                {t('register_switch_q')} <Link to="/login">{t('log_in')}</Link>
+              </>
+            ) : (
+              <>
+                {t('login_switch_q')} <Link to="/register">{t('create_an_account')}</Link>
+              </>
+            )}
           </p>
           <div className="auth-lang sidebar-controls">
             <LanguageToggle />

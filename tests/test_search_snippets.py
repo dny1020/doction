@@ -6,13 +6,9 @@ Guards the stored XSS where <mark> from ts_headline was painted as HTML.
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.helpers import get_token
+
 PAYLOAD = "<img src=x onerror=alert(1)> dispatcher failover"
-
-
-def _token(client) -> str:
-    client.post("/api/auth/register", json={"email": "u@test.com", "password": "password123"})
-    r = client.post("/api/token", json={"email": "u@test.com", "password": "password123"})
-    return r.json()["token"]
 
 
 def _page(client, token: str, title: str, content: str) -> str:
@@ -52,7 +48,7 @@ def semantic_client(main_module, monkeypatch):
 
 
 def test_keyword_snippet_adds_no_markup(client):
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Kamailio dispatcher", PAYLOAD)
 
     hits = _search(client, token, "dispatcher", "keyword")
@@ -63,7 +59,7 @@ def test_keyword_snippet_adds_no_markup(client):
 
 
 def test_keyword_snippet_marks_only_the_match(client):
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Kamailio dispatcher", PAYLOAD)
 
     parts = _search(client, token, "dispatcher", "keyword")[0]["parts"]
@@ -79,7 +75,7 @@ def test_keyword_snippet_marks_only_the_match(client):
 
 def test_control_characters_in_content_cannot_forge_a_match(client):
     """Sentinels are stripped from the text before highlighting."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Kamailio dispatcher", "\x01todo marcado\x02 dispatcher")
 
     parts = _search(client, token, "dispatcher", "keyword")[0]["parts"]
@@ -93,7 +89,7 @@ def test_semantic_and_hybrid_snippets_carry_no_markup(semantic_client):
     from app import embeddings
 
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Kamailio dispatcher", PAYLOAD)
     embeddings.drain_pending()
 
@@ -109,7 +105,7 @@ def test_semantic_and_hybrid_snippets_carry_no_markup(semantic_client):
 def test_snippet_does_not_lead_with_frontmatter(client):
     """A page can open with a metadata block; showing that as the page text
     turns the metadata into the result."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Captura", "---\ntype: memo\n---\n\nrevisar el dispatcher del SBC")
 
     hits = _search(client, token, "dispatcher", "keyword")
@@ -162,7 +158,7 @@ def _hit(client, token, query, slug):
 
 
 def _runbook(client):
-    token = _token(client)
+    token = get_token(client)
     return token, _page(client, token, "TLS runbook", MARKDOWN_PAGE)
 
 
@@ -208,7 +204,7 @@ def test_stripping_did_not_cost_the_highlighting(client):
 
 def test_a_page_cannot_forge_a_highlight_through_the_stripping(client):
     """The control characters are removed from what the stripping produced, not before it."""
-    token = _token(client)
+    token = get_token(client)
     slug = _page(client, token, "Forged", "\x01certbot\x02 renew and **\x01nginx\x02** restart")
     hit = _hit(client, token, "renew", slug)
     assert "\x01" not in hit["snippet"] and "\x02" not in hit["snippet"]
@@ -218,7 +214,7 @@ def test_a_page_cannot_forge_a_highlight_through_the_stripping(client):
 
 def test_ranking_is_unaffected_by_the_stripping(client):
     """Syntax comes off the snippet, not off search_vector: a heading is still findable."""
-    token = _token(client)
+    token = get_token(client)
     slug = _page(client, token, "Headed", "## Kamailio dispatcher\n\nbody text")
     r = client.get(
         "/api/search", params={"q": "kamailio"}, headers={"Authorization": f"Bearer {token}"}

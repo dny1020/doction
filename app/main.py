@@ -298,7 +298,6 @@ def api_create_workspace(request: Request, body: _WorkspaceIn):
 
 
 def _api_owned_workspace(uid: int, slug: str) -> Workspace:
-    """Resolve a workspace by slug, requiring the user to be its owner."""
     ws = db.get_workspace_by_slug(uid, slug)
     if ws is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
@@ -1087,42 +1086,26 @@ def _registration_open() -> bool:
     return not DISABLE_REGISTRATION or not db.has_users()
 
 
-def _ws_cookie(response: Response, slug: str) -> None:
+def _set_cookie(response: Response, name: str, value: str, max_age: int) -> None:
     response.set_cookie(
-        "workspace",
-        slug,
-        httponly=True,
-        samesite="lax",
-        secure=SECURE_COOKIES,
-        max_age=WORKSPACE_MAX_AGE,
+        name, value, httponly=True, samesite="lax", secure=SECURE_COOKIES, max_age=max_age
     )
+
+
+def _ws_cookie(response: Response, slug: str) -> None:
+    _set_cookie(response, "workspace", slug, WORKSPACE_MAX_AGE)
 
 
 def _issue_session(
     response: Response, user_id: int, ws_slug: str | None = None, token_version: int = 0
 ) -> None:
-    """Set the httponly session cookie and, when given, the active workspace cookie."""
-    response.set_cookie(
-        "session",
-        _encode_token(user_id, token_version),
-        httponly=True,
-        samesite="lax",
-        secure=SECURE_COOKIES,
-        max_age=SESSION_MAX_AGE,
-    )
+    _set_cookie(response, "session", _encode_token(user_id, token_version), SESSION_MAX_AGE)
     if ws_slug:
         _ws_cookie(response, ws_slug)
 
 
 def _lang_cookie(response: Response, lang: str) -> None:
-    response.set_cookie(
-        "lang",
-        lang,
-        httponly=True,
-        samesite="lax",
-        secure=SECURE_COOKIES,
-        max_age=LANG_MAX_AGE,
-    )
+    _set_cookie(response, "lang", lang, LANG_MAX_AGE)
 
 
 @app.get(

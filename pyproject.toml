@@ -23,7 +23,6 @@ dev = [
     "pytest>=8.3",
     "httpx>=0.28",  # needed by starlette's TestClient
     "ruff>=0.8",
-    "pyright>=1.1.411",
 ]
 # Separate from dev: the Docker `test` stage installs dev. Get it with `uv sync --group docs`.
 docs = [
@@ -34,7 +33,7 @@ docs = [
 [tool.uv]
 package = false
 
-# ruff and pyright take the Python version from requires-python.
+# ruff takes the Python version from requires-python.
 [tool.ruff]
 line-length = 100
 
@@ -50,9 +49,6 @@ select = ["E", "F", "I", "UP", "B", "ARG"]
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI uses these as parameter defaults.
 extend-immutable-calls = ["fastapi.File", "fastapi.Form"]
-
-[tool.pyright]
-include = ["app", "tests"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

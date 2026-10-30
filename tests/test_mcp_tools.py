@@ -3,35 +3,11 @@
 `upsert_page_section` takes most of this file, because it is the one that writes.
 """
 
-import json
-
 import pytest
 from fastapi.testclient import TestClient
 
 from app import db, meta
-
-
-def _token(client, email="u@test.com") -> str:
-    client.post("/api/auth/register", json={"email": email, "password": "password123"})
-    r = client.post("/api/token", json={"email": email, "password": "password123"})
-    return r.json()["token"]
-
-
-def _call(client, token: str, tool: str, arguments: dict | None = None) -> dict:
-    msg = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/call",
-        "params": {"name": tool, "arguments": arguments or {}},
-    }
-    r = client.post("/api/mcp", json=msg, headers={"Authorization": f"Bearer {token}"})
-    assert r.status_code == 200
-    return r.json()["result"]
-
-
-def _data(result: dict):
-    assert not result.get("isError"), result
-    return json.loads(result["content"][0]["text"])
+from tests.helpers import get_token, mcp_call, tool_data
 
 
 def _error(result: dict) -> str:
@@ -71,11 +47,11 @@ Restaura el certificado anterior desde el backup.
 
 
 def test_search_knowledge_returns_hybrid_order_with_provenance(client):
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
     _page(client, token, "Café", "Recetas de café, nada que ver.")
 
-    hits = _data(_call(client, token, "search_knowledge", {"query": "certbot"}))
+    hits = tool_data(mcp_call(client, token, "search_knowledge", {"query": "certbot"}))
     assert hits
     assert hits[0]["slug"] == "renovacion-tls"
     # Provenance travels with the result: which channel found it, and at what rank.
@@ -85,25 +61,25 @@ def test_search_knowledge_returns_hybrid_order_with_provenance(client):
 
 
 def test_search_knowledge_filters_by_tag(client):
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Con etiqueta", "Certbot y renovación. #tls")
     _page(client, token, "Sin etiqueta", "Certbot y renovación, sin etiquetar.")
 
-    todos = _data(_call(client, token, "search_knowledge", {"query": "certbot"}))
+    todos = tool_data(mcp_call(client, token, "search_knowledge", {"query": "certbot"}))
     assert {h["slug"] for h in todos} >= {"con-etiqueta", "sin-etiqueta"}
 
-    filtrados = _data(
-        _call(client, token, "search_knowledge", {"query": "certbot", "tags": ["tls"]})
+    filtrados = tool_data(
+        mcp_call(client, token, "search_knowledge", {"query": "certbot", "tags": ["tls"]})
     )
     assert [h["slug"] for h in filtrados] == ["con-etiqueta"]
 
 
 def test_search_knowledge_with_a_tag_that_matches_nothing_returns_empty(client):
     """A filter that matches nothing returns nothing, not the unfiltered list."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
-    hits = _data(
-        _call(client, token, "search_knowledge", {"query": "certbot", "tags": ["ninguna"]})
+    hits = tool_data(
+        mcp_call(client, token, "search_knowledge", {"query": "certbot", "tags": ["ninguna"]})
     )
     assert hits == []
 
@@ -132,11 +108,11 @@ def test_get_rag_context_carries_the_hierarchy(semantic_client):
     from app import embeddings
 
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
     embeddings.drain_pending()
 
-    out = _data(_call(client, token, "get_rag_context", {"query": "certbot"}))
+    out = tool_data(mcp_call(client, token, "get_rag_context", {"query": "certbot"}))
     assert out["mode"] == "semantic"
     assert out["chunks"], out
     chunk = out["chunks"][0]
@@ -149,10 +125,10 @@ def test_get_rag_context_carries_the_hierarchy(semantic_client):
 
 def test_get_rag_context_without_vectors_returns_sections_not_extracts(client):
     """The degraded channel returns the whole section, not ts_headline's twelve words."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
-    out = _data(_call(client, token, "get_rag_context", {"query": "certbot"}))
+    out = tool_data(mcp_call(client, token, "get_rag_context", {"query": "certbot"}))
     assert out["mode"] == "fts"
     assert out["chunks"], out
     chunk = out["chunks"][0]
@@ -165,28 +141,28 @@ def test_get_rag_context_without_vectors_returns_sections_not_extracts(client):
 
 def test_get_rag_context_quotes_and_never_composes(client):
     """Every chunk appears verbatim in a stored page."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
     page = client.get(
         "/api/pages/renovacion-tls", headers={"Authorization": f"Bearer {token}"}
     ).json()["content"]
 
-    out = _data(_call(client, token, "get_rag_context", {"query": "certbot"}))
+    out = tool_data(mcp_call(client, token, "get_rag_context", {"query": "certbot"}))
     for chunk in out["chunks"]:
         assert chunk["text"] in page, chunk["text"]
 
 
 def test_get_rag_context_rejects_an_empty_query(client):
     """Asking for context with no query is a caller error, not an empty answer."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
-    assert "query" in _error(_call(client, token, "get_rag_context", {"query": "   "}))
+    assert "query" in _error(mcp_call(client, token, "get_rag_context", {"query": "   "}))
 
 
 def test_get_rag_context_with_nothing_to_match_returns_empty(client):
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
-    out = _data(_call(client, token, "get_rag_context", {"query": "zzzzinexistente"}))
+    out = tool_data(mcp_call(client, token, "get_rag_context", {"query": "zzzzinexistente"}))
     assert out["chunks"] == []
 
 
@@ -194,13 +170,13 @@ def test_get_rag_context_with_nothing_to_match_returns_empty(client):
 
 
 def test_get_workspace_tree_nests_subpages(client):
-    token = _token(client)
+    token = get_token(client)
     parent = _page(client, token, "Infra", "raíz")
     child = _page(client, token, "Kamailio", "hija", parent=parent)
     _page(client, token, "Dispatcher", "nieta", parent=child)
     _page(client, token, "Runbooks", "otra raíz")
 
-    tree = _data(_call(client, token, "get_workspace_tree"))
+    tree = tool_data(mcp_call(client, token, "get_workspace_tree"))
     assert tree["workspace"]["slug"]
     by_slug = {p["slug"]: p for p in tree["pages"]}
     assert "infra" in by_slug and "runbooks" in by_slug
@@ -214,10 +190,10 @@ def test_get_workspace_tree_nests_subpages(client):
 
 
 def test_read_page_raw_returns_the_bytes_a_write_must_preserve(client):
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
-    out = _data(_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))
+    out = tool_data(mcp_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))
     assert out["content"] == RUNBOOK
     assert out["content"].startswith("---\n"), "el frontmatter va en su sitio, sin parsear"
     # And parsed as well, so it need not be read twice.
@@ -226,9 +202,10 @@ def test_read_page_raw_returns_the_bytes_a_write_must_preserve(client):
 
 
 def test_read_page_raw_on_a_missing_page_errors(client):
-    token = _token(client)
+    token = get_token(client)
     assert (
-        "not found" in _error(_call(client, token, "read_page_raw", {"slug": "no-existe"})).lower()
+        "not found"
+        in _error(mcp_call(client, token, "read_page_raw", {"slug": "no-existe"})).lower()
     )
 
 
@@ -237,18 +214,18 @@ def test_read_page_raw_on_a_missing_page_errors(client):
 
 def test_upsert_replaces_only_its_own_section(client):
     """The rest of the document stays byte for byte identical."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
-    _data(
-        _call(
+    tool_data(
+        mcp_call(
             client,
             token,
             "upsert_page_section",
             {"slug": "renovacion-tls", "heading": "Certbot", "body": "Nuevo procedimiento."},
         )
     )
-    out = _data(_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))
+    out = tool_data(mcp_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))
     content = out["content"]
 
     assert "Nuevo procedimiento." in content
@@ -260,28 +237,30 @@ def test_upsert_replaces_only_its_own_section(client):
 
 
 def test_upsert_adds_a_missing_section_at_the_end(client):
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
-    _data(
-        _call(
+    tool_data(
+        mcp_call(
             client,
             token,
             "upsert_page_section",
             {"slug": "renovacion-tls", "heading": "Monitorización", "body": "Alerta a 15 días."},
         )
     )
-    content = _data(_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))["content"]
+    content = tool_data(mcp_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))[
+        "content"
+    ]
     assert content.rstrip().endswith("## Monitorización\n\nAlerta a 15 días.")
     assert content.index("## Rollback") < content.index("## Monitorización")
 
 
 def test_upsert_can_place_a_new_section_under_a_parent(client):
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
-    _data(
-        _call(
+    tool_data(
+        mcp_call(
             client,
             token,
             "upsert_page_section",
@@ -294,18 +273,20 @@ def test_upsert_can_place_a_new_section_under_a_parent(client):
             },
         )
     )
-    content = _data(_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))["content"]
+    content = tool_data(mcp_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))[
+        "content"
+    ]
     assert content.index("## Certbot") < content.index("### Comprobación")
     assert content.index("### Comprobación") < content.index("## Rollback")
 
 
 def test_upsert_refuses_when_two_headings_collide(client):
     """Choosing between two identical headings for the caller would be guessing."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Ambigua", "## Setup\n\nuno\n\n## Otra\n\nx\n\n## Setup\n\ndos")
 
     message = _error(
-        _call(
+        mcp_call(
             client,
             token,
             "upsert_page_section",
@@ -315,17 +296,17 @@ def test_upsert_refuses_when_two_headings_collide(client):
     assert "2 headings match" in message
     assert "disambiguate" in message
     # And the page did not change.
-    content = _data(_call(client, token, "read_page_raw", {"slug": "ambigua"}))["content"]
+    content = tool_data(mcp_call(client, token, "read_page_raw", {"slug": "ambigua"}))["content"]
     assert content.count("## Setup") == 2 and "tres" not in content
 
 
 def test_upsert_disambiguates_by_level(client):
     """Same text at two levels: `level` decides and the write goes through."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Niveles", "## Setup\n\nsección\n\n### Setup\n\nsubsección")
 
     message = _error(
-        _call(
+        mcp_call(
             client,
             token,
             "upsert_page_section",
@@ -333,28 +314,28 @@ def test_upsert_disambiguates_by_level(client):
         )
     )
     assert "levels [2, 3]" in message
-    content = _data(_call(client, token, "read_page_raw", {"slug": "niveles"}))["content"]
+    content = tool_data(mcp_call(client, token, "read_page_raw", {"slug": "niveles"}))["content"]
     assert content.count("Setup") == 2
 
 
 def test_upsert_preserves_a_code_fence_in_a_neighbouring_section(client):
     """Neighbouring markdown syntax is untouched: fences, tables and all."""
-    token = _token(client)
+    token = get_token(client)
     doc = (
         "# Doc\n\n## Código\n\n```bash\n## esto no es un encabezado\ncertbot renew\n```\n\n"
         "## Tabla\n\n| a | b |\n|:--|--:|\n| 1 | 2 |\n\n## Notas\n\nviejo\n"
     )
     _page(client, token, "Doc", doc)
 
-    _data(
-        _call(
+    tool_data(
+        mcp_call(
             client,
             token,
             "upsert_page_section",
             {"slug": "doc", "heading": "Notas", "body": "nuevo"},
         )
     )
-    content = _data(_call(client, token, "read_page_raw", {"slug": "doc"}))["content"]
+    content = tool_data(mcp_call(client, token, "read_page_raw", {"slug": "doc"}))["content"]
     assert "```bash\n## esto no es un encabezado\ncertbot renew\n```" in content
     assert "| a | b |\n|:--|--:|\n| 1 | 2 |" in content
     assert "nuevo" in content and "viejo" not in content
@@ -362,16 +343,16 @@ def test_upsert_preserves_a_code_fence_in_a_neighbouring_section(client):
 
 def test_upsert_records_a_version_and_requeues_for_indexing(client):
     """Goes through the same path as any other write, not a shortcut."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
     with db.connect() as conn:
         conn.execute("UPDATE pages SET embed_dirty = 0")
     versions_before = len(
-        _data(_call(client, token, "get_page_history", {"slug": "renovacion-tls"}))
+        tool_data(mcp_call(client, token, "get_page_history", {"slug": "renovacion-tls"}))
     )
 
-    _data(
-        _call(
+    tool_data(
+        mcp_call(
             client,
             token,
             "upsert_page_section",
@@ -381,7 +362,7 @@ def test_upsert_records_a_version_and_requeues_for_indexing(client):
 
     # History: one more version.
     versions_after = len(
-        _data(_call(client, token, "get_page_history", {"slug": "renovacion-tls"}))
+        tool_data(mcp_call(client, token, "get_page_history", {"slug": "renovacion-tls"}))
     )
     assert versions_after == versions_before + 1
     # Index: the page is re-queued, its chunks are stale.
@@ -389,7 +370,7 @@ def test_upsert_records_a_version_and_requeues_for_indexing(client):
 
 
 def test_upsert_fires_the_same_webhook_event_as_any_write(client):
-    token = _token(client)
+    token = get_token(client)
     client.post(
         "/api/webhooks",
         json={"url": "https://nowhere.invalid/hook", "events": ""},
@@ -399,8 +380,8 @@ def test_upsert_fires_the_same_webhook_event_as_any_write(client):
     with db.connect() as conn:
         conn.execute("DELETE FROM webhook_deliveries")
 
-    _data(
-        _call(
+    tool_data(
+        mcp_call(
             client,
             token,
             "upsert_page_section",
@@ -414,12 +395,12 @@ def test_upsert_fires_the_same_webhook_event_as_any_write(client):
 
 def test_two_agents_editing_different_sections_both_survive(client):
     """The case the tool exists for: nobody sends back the whole body they read."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Renovación TLS", RUNBOOK)
 
     for heading, body in (("Certbot", "de A"), ("Rollback", "de B")):
-        _data(
-            _call(
+        tool_data(
+            mcp_call(
                 client,
                 token,
                 "upsert_page_section",
@@ -427,14 +408,16 @@ def test_two_agents_editing_different_sections_both_survive(client):
             )
         )
 
-    content = _data(_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))["content"]
+    content = tool_data(mcp_call(client, token, "read_page_raw", {"slug": "renovacion-tls"}))[
+        "content"
+    ]
     assert "de A" in content and "de B" in content
 
 
 def test_upsert_on_a_missing_page_errors(client):
-    token = _token(client)
+    token = get_token(client)
     message = _error(
-        _call(
+        mcp_call(
             client, token, "upsert_page_section", {"slug": "no-existe", "heading": "X", "body": "y"}
         )
     )
@@ -442,11 +425,11 @@ def test_upsert_on_a_missing_page_errors(client):
 
 
 def test_another_workspace_cannot_write_a_section(client):
-    token_a = _token(client, "a@test.com")
+    token_a = get_token(client, "a@test.com")
     _page(client, token_a, "Renovación TLS", RUNBOOK)
-    token_b = _token(client, "b@test.com")
+    token_b = get_token(client, "b@test.com")
 
-    result = _call(
+    result = mcp_call(
         client,
         token_b,
         "upsert_page_section",
@@ -487,25 +470,25 @@ def test_find_section_ignores_headings_inside_a_fence():
 
 def _graph_fixture(client, token):
     """kamailio ←→ rtpengine, kamailio → asterisk → dialplan, and one broken target."""
-    _data(_call(client, token, "create_page", {"title": "Dialplan", "content": "hojas"}))
-    _data(
-        _call(
+    tool_data(mcp_call(client, token, "create_page", {"title": "Dialplan", "content": "hojas"}))
+    tool_data(
+        mcp_call(
             client,
             token,
             "create_page",
             {"title": "Asterisk", "content": "PBX. Consulta [[dialplan]]."},
         )
     )
-    _data(
-        _call(
+    tool_data(
+        mcp_call(
             client,
             token,
             "create_page",
             {"title": "Kamailio", "content": "SBC. Ver [[rtpengine]] y [[asterisk]]."},
         )
     )
-    _data(
-        _call(
+    tool_data(
+        mcp_call(
             client,
             token,
             "create_page",
@@ -515,10 +498,10 @@ def _graph_fixture(client, token):
 
 
 def test_agent_walks_one_hop_in_both_directions(client):
-    token = _token(client)
+    token = get_token(client)
     _graph_fixture(client, token)
 
-    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
+    out = tool_data(mcp_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
     assert out["slug"] == "kamailio"
     assert out["depth"] == 1
     reached = {n["slug"]: n for n in out["neighbors"]}
@@ -532,10 +515,12 @@ def test_agent_walks_one_hop_in_both_directions(client):
 
 
 def test_agent_walks_two_hops_and_gets_the_path(client):
-    token = _token(client)
+    token = get_token(client)
     _graph_fixture(client, token)
 
-    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio", "depth": 2}))
+    out = tool_data(
+        mcp_call(client, token, "get_linked_knowledge", {"slug": "kamailio", "depth": 2})
+    )
     reached = {n["slug"]: n for n in out["neighbors"]}
     assert "dialplan" in reached
     assert reached["dialplan"]["distance"] == 2
@@ -544,10 +529,10 @@ def test_agent_walks_two_hops_and_gets_the_path(client):
 
 
 def test_agent_sees_whether_a_target_exists(client):
-    token = _token(client)
+    token = get_token(client)
     _graph_fixture(client, token)
 
-    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "rtpengine"}))
+    out = tool_data(mcp_call(client, token, "get_linked_knowledge", {"slug": "rtpengine"}))
     reached = {n["slug"]: n for n in out["neighbors"]}
     assert reached["kamailio"]["exists"] is True
     # The broken target is returned rather than swallowed: it is the sign someone
@@ -556,30 +541,36 @@ def test_agent_sees_whether_a_target_exists(client):
 
 
 def test_traversal_terminates_on_a_cycle(client):
-    token = _token(client)
-    _data(_call(client, token, "create_page", {"title": "Uno", "content": "voy a [[dos]]"}))
-    _data(_call(client, token, "create_page", {"title": "Dos", "content": "voy a [[tres]]"}))
-    _data(_call(client, token, "create_page", {"title": "Tres", "content": "vuelvo a [[uno]]"}))
+    token = get_token(client)
+    tool_data(mcp_call(client, token, "create_page", {"title": "Uno", "content": "voy a [[dos]]"}))
+    tool_data(mcp_call(client, token, "create_page", {"title": "Dos", "content": "voy a [[tres]]"}))
+    tool_data(
+        mcp_call(client, token, "create_page", {"title": "Tres", "content": "vuelvo a [[uno]]"})
+    )
 
-    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "uno", "depth": 3}))
+    out = tool_data(mcp_call(client, token, "get_linked_knowledge", {"slug": "uno", "depth": 3}))
     slugs = [n["slug"] for n in out["neighbors"]]
     assert sorted(slugs) == ["dos", "tres"]  # each once, and "uno" does not come back
     assert len(slugs) == len(set(slugs))
 
 
 def test_a_self_link_reaches_nobody(client):
-    token = _token(client)
-    _data(_call(client, token, "create_page", {"title": "Sola", "content": "me cito: [[sola]]"}))
+    token = get_token(client)
+    tool_data(
+        mcp_call(client, token, "create_page", {"title": "Sola", "content": "me cito: [[sola]]"})
+    )
 
-    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "sola"}))
+    out = tool_data(mcp_call(client, token, "get_linked_knowledge", {"slug": "sola"}))
     assert out["neighbors"] == []
 
 
 def test_depth_is_capped_and_the_cap_is_declared(client):
-    token = _token(client)
+    token = get_token(client)
     _graph_fixture(client, token)
 
-    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio", "depth": 99}))
+    out = tool_data(
+        mcp_call(client, token, "get_linked_knowledge", {"slug": "kamailio", "depth": 99})
+    )
     assert out["depth"] == 3
 
     listed = client.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
@@ -588,20 +579,22 @@ def test_depth_is_capped_and_the_cap_is_declared(client):
 
 
 def test_a_truncated_neighbourhood_says_so(client):
-    token = _token(client)
+    token = get_token(client)
     _graph_fixture(client, token)
 
-    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio", "limit": 1}))
+    out = tool_data(
+        mcp_call(client, token, "get_linked_knowledge", {"slug": "kamailio", "limit": 1})
+    )
     assert len(out["neighbors"]) == 1
     assert out["truncated"] is True
 
-    whole = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
+    whole = tool_data(mcp_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
     assert whole["truncated"] is False
 
 
 def test_unknown_page_is_a_tool_error(client):
-    token = _token(client)
-    result = _call(client, token, "get_linked_knowledge", {"slug": "no-existe"})
+    token = get_token(client)
+    result = mcp_call(client, token, "get_linked_knowledge", {"slug": "no-existe"})
     assert result["isError"] is True
 
 
@@ -616,11 +609,14 @@ def test_the_relational_tools_say_which_relation_they_traverse(client):
 
 
 def test_backlinks_and_traversal_agree_at_one_hop(client):
-    token = _token(client)
+    token = get_token(client)
     _graph_fixture(client, token)
 
-    back = {p["slug"] for p in _data(_call(client, token, "list_backlinks", {"slug": "kamailio"}))}
-    out = _data(_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
+    back = {
+        p["slug"]
+        for p in tool_data(mcp_call(client, token, "list_backlinks", {"slug": "kamailio"}))
+    }
+    out = tool_data(mcp_call(client, token, "get_linked_knowledge", {"slug": "kamailio"}))
     # `both` counts as incoming: they cite each other, so it is still a backlink.
     incoming = {n["slug"] for n in out["neighbors"] if n["via"] in ("incoming", "both")}
     assert back == incoming

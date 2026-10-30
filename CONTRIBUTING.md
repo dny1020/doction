@@ -18,7 +18,7 @@ make frontend             # Vite dev server, proxies /api to :8000
 ## Before you open a pull request
 
 ```bash
-make check                # ruff, pyright, pytest, the frontend gate and the docs build
+make check                # ruff, pytest, the frontend gate and the docs build
 ```
 
 `make docs` needs `uv sync --group docs` once. Run `cd frontend && npm run test` when you touch

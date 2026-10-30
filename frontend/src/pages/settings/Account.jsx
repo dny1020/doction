@@ -15,7 +15,6 @@ export default function AccountSection() {
   )
 }
 
-// ── Profile: display name and avatar colour ─────────────────────────────────
 function ProfileSection() {
   const { user, refresh } = useAuth()
   const { t } = useI18n()
@@ -102,7 +101,6 @@ function ProfileSection() {
   )
 }
 
-// ── Password ─────────────────────────────────────────────────────────────────
 function PasswordSection() {
   const { t } = useI18n()
   const toast = useToast()

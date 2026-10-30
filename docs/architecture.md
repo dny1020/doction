@@ -71,7 +71,7 @@ Three modes on `GET /api/search?mode=`:
 term lose to a page that is merely about the same topic — you type a hostname and get an
 essay. Putting lexical hits first fixes that without giving up conceptual recall.
 
-**MCP's `sgrep` stays unfiltered on purpose.** A human wants the best answer at the top; an
+**MCP's `search_knowledge` stays unfiltered on purpose.** A human wants the best answer at the top; an
 agent wants the whole ranked list so it can decide. Truncating for an agent throws away
 the context it was going to reason over.
 

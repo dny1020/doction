@@ -1,15 +1,16 @@
-"""Tests for semantic search (sgrep / rag).
+"""Tests for semantic search (search_knowledge / get_rag_context).
 
 Uses a deterministic stub embedder (EMBED_STUB=1) and a no-op enrichment worker;
 embedding is driven explicitly via embeddings.drain_pending() for determinism.
 """
 
 import importlib
-import json
 import os
 
 import pytest
 from fastapi.testclient import TestClient
+
+from tests.helpers import get_token, mcp_call, tool_data
 
 
 @pytest.fixture()
@@ -30,29 +31,6 @@ def client(main_module, monkeypatch):
         yield c
 
 
-def _token(client) -> str:
-    client.post("/api/auth/register", json={"email": "u@test.com", "password": "password123"})
-    r = client.post("/api/token", json={"email": "u@test.com", "password": "password123"})
-    return r.json()["token"]
-
-
-def _call(client, token: str, tool: str, arguments: dict | None = None) -> dict:
-    msg = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/call",
-        "params": {"name": tool, "arguments": arguments or {}},
-    }
-    r = client.post("/api/mcp", json=msg, headers={"Authorization": f"Bearer {token}"})
-    assert r.status_code == 200
-    return r.json()["result"]
-
-
-def _data(result: dict):
-    assert not result.get("isError"), result
-    return json.loads(result["content"][0]["text"])
-
-
 def _drain():
     import app.embeddings as emb
 
@@ -60,7 +38,7 @@ def _drain():
 
 
 def _seed_pages(client, token):
-    _call(
+    mcp_call(
         client,
         token,
         "create_page",
@@ -69,7 +47,7 @@ def _seed_pages(client, token):
             "content": "kamailio dispatcher load balancing sip routing failover",
         },
     )
-    _call(
+    mcp_call(
         client,
         token,
         "create_page",
@@ -84,8 +62,8 @@ def _seed_pages(client, token):
 def test_chunks_created_and_dirty_cleared(client):
     import app.db as db
 
-    token = _token(client)
-    _call(client, token, "create_page", {"title": "Note", "content": "alpha beta gamma"})
+    token = get_token(client)
+    mcp_call(client, token, "create_page", {"title": "Note", "content": "alpha beta gamma"})
     assert db.pages_to_embed()  # dirty before drain
     _drain()
     assert db.pages_to_embed() == []  # nothing dirty after drain
@@ -98,18 +76,20 @@ def test_chunks_created_and_dirty_cleared(client):
 def test_update_marks_dirty_again(client):
     import app.db as db
 
-    token = _token(client)
-    created = _data(_call(client, token, "create_page", {"title": "Doc", "content": "first"}))
+    token = get_token(client)
+    created = tool_data(
+        mcp_call(client, token, "create_page", {"title": "Doc", "content": "first"})
+    )
     _drain()
     assert db.pages_to_embed() == []
-    _call(client, token, "update_page", {"slug": created["slug"], "content": "second version"})
+    mcp_call(client, token, "update_page", {"slug": created["slug"], "content": "second version"})
     assert any(r.id for r in db.pages_to_embed())
 
 
-def test_sgrep_ranks_by_meaning(client):
-    token = _token(client)
+def test_search_knowledge_ranks_by_meaning(client):
+    token = get_token(client)
     _seed_pages(client, token)
-    results = _data(_call(client, token, "sgrep", {"query": "sip routing"}))
+    results = tool_data(mcp_call(client, token, "search_knowledge", {"query": "sip routing"}))
     assert results, results
     assert results[0]["slug"] == "kamailio-dispatcher"
     # Found semantically: it carries a cosine score and a rank in that list.
@@ -119,11 +99,11 @@ def test_sgrep_ranks_by_meaning(client):
     assert all(r["slug"] != "coffee-recipes" for r in results[:1])
 
 
-def test_sgrep_reports_which_retrievers_found_a_page(client):
+def test_search_knowledge_reports_which_retrievers_found_a_page(client):
     """Provenance is part of the result: an exact hit and a semantic neighbour differ."""
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
-    results = _data(_call(client, token, "sgrep", {"query": "dispatcher"}))
+    results = tool_data(mcp_call(client, token, "search_knowledge", {"query": "dispatcher"}))
     top = next(r for r in results if r["slug"] == "kamailio-dispatcher")
     assert top["keyword_match"] is True
     assert top["via"] in ("fts", "both")
@@ -132,10 +112,10 @@ def test_sgrep_reports_which_retrievers_found_a_page(client):
     assert "parts" not in top, "el troceado del resaltado es cosa de la interfaz"
 
 
-def test_rag_returns_chunks_with_provenance(client):
-    token = _token(client)
+def test_get_rag_context_returns_chunks_with_provenance(client):
+    token = get_token(client)
     _seed_pages(client, token)
-    out = _data(_call(client, token, "rag", {"query": "load balancing sip"}))
+    out = tool_data(mcp_call(client, token, "get_rag_context", {"query": "load balancing sip"}))
     assert out["mode"] == "semantic"
     assert out["chunks"], out
     chunk = out["chunks"][0]
@@ -145,10 +125,10 @@ def test_rag_returns_chunks_with_provenance(client):
 
 def test_semantic_falls_back_to_fts_when_disabled(client, monkeypatch):
     """With no vector channel, hybrid is lexical: one channel does not fuse with itself."""
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     monkeypatch.setenv("SEMANTIC_SEARCH", "0")
-    results = _data(_call(client, token, "sgrep", {"query": "dispatcher"}))
+    results = tool_data(mcp_call(client, token, "search_knowledge", {"query": "dispatcher"}))
     assert results
     assert all(r["via"] == "fts" for r in results)
     assert all(r["score"] is None for r in results)
@@ -156,7 +136,7 @@ def test_semantic_falls_back_to_fts_when_disabled(client, monkeypatch):
 
 
 def test_search_endpoint_semantic_mode(client):
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     r = client.get(
         "/api/search",
@@ -171,7 +151,7 @@ def test_search_endpoint_semantic_mode(client):
 def test_min_score_filters_weak_hits(client):
     import app.embeddings as emb
 
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     wid = 1
 
@@ -188,7 +168,7 @@ def test_min_score_does_not_break_fts_fallback(client, monkeypatch):
     """In the FTS fallback the score is None, so filtering by number would blow up."""
     import app.embeddings as emb
 
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     monkeypatch.setenv("SEMANTIC_SEARCH", "0")
 
@@ -198,7 +178,7 @@ def test_min_score_does_not_break_fts_fallback(client, monkeypatch):
 
 
 def test_search_endpoint_applies_min_score(client):
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     r = client.get(
         "/api/search",
@@ -222,7 +202,7 @@ def _search(client, token: str, q: str, mode: str) -> list[dict]:
 
 
 def test_hybrid_puts_exact_matches_first_without_duplicates(client):
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
 
     results = _search(client, token, "dispatcher", "hybrid")
@@ -240,8 +220,8 @@ def test_hybrid_puts_exact_matches_first_without_duplicates(client):
 
 def test_hybrid_finds_pages_that_fts_alone_misses(client):
     """The point of hybrid: `_fts_query` ANDs its terms, so one extra word returns nothing."""
-    token = _token(client)
-    _call(client, token, "create_page", {"title": "Espresso", "content": "espresso"})
+    token = get_token(client)
+    mcp_call(client, token, "create_page", {"title": "Espresso", "content": "espresso"})
     _drain()
 
     assert _search(client, token, "espresso", "keyword")  # exact term, so FTS sees it
@@ -252,7 +232,7 @@ def test_hybrid_finds_pages_that_fts_alone_misses(client):
 
 
 def test_hybrid_degrades_to_fts_when_semantic_off(client, monkeypatch):
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     monkeypatch.setenv("SEMANTIC_SEARCH", "0")
 
@@ -314,7 +294,7 @@ def test_hybrid_is_deterministic(client):
     """The same query on the same data always gives the same order."""
     from app import embeddings as emb
 
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     first = [h["slug"] for h in emb.search(1, "sip routing", mode="hybrid")]
     second = [h["slug"] for h in emb.search(1, "sip routing", mode="hybrid")]
@@ -325,7 +305,7 @@ def test_hybrid_carries_both_ranks(client):
     """The order can be checked rather than believed: every hit carries its rank."""
     from app import embeddings as emb
 
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     hits = emb.search(1, "dispatcher", mode="hybrid")
     assert hits
@@ -339,7 +319,7 @@ def test_hybrid_never_scores_a_cosine_against_a_ts_rank(client):
     """Order comes from positions only: two different scales are never added."""
     from app import embeddings as emb
 
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     hits = emb.search(1, "sip routing", mode="hybrid")
     expected = sorted(hits, key=lambda h: (-h["rrf"], h["slug"]))
@@ -355,15 +335,17 @@ def test_hybrid_never_scores_a_cosine_against_a_ts_rank(client):
 
 
 def test_ui_api_and_mcp_agree(client):
-    """One query, one order: the sidebar, /api/search and sgrep never diverge."""
+    """One query, one order: the sidebar, /api/search and search_knowledge never diverge."""
     from app import embeddings as emb
 
-    token = _token(client)
+    token = get_token(client)
     _seed_pages(client, token)
     direct = [h["slug"] for h in emb.search(1, "dispatcher", mode="hybrid")]
     api = client.get(
         "/api/search?mode=hybrid&q=dispatcher", headers={"Authorization": f"Bearer {token}"}
     ).json()
-    mcp = _data(_call(client, token, "sgrep", {"query": "dispatcher", "limit": 50}))
+    mcp = tool_data(
+        mcp_call(client, token, "search_knowledge", {"query": "dispatcher", "limit": 50})
+    )
     assert [h["slug"] for h in api] == direct
     assert [h["slug"] for h in mcp] == direct

@@ -4,14 +4,14 @@ import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY
 // graphLayout.test.js can measure overlaps without a browser.
 
 export const NODE_R = 5
-export const MAX_R = 14
+const MAX_R = 14
 export const LABEL_AT = 40 // above this, only nodes with links are labelled
 
 // Label geometry, shared by the collider and the renderer. Centred under the node, so each
 // node is a symmetric box, the only shape forceCollide can model.
-export const LABEL_PX = 6.6 // mean advance of the UI face at --text-sm (12px)
+const LABEL_PX = 6.6 // mean advance of the UI face at --text-sm (12px)
 export const LABEL_BASELINE = 13 // from the node's centre down to the label's baseline
-export const LABEL_MAX = 24 // characters; a title longer than this is elided
+const LABEL_MAX = 24 // characters; a title longer than this is elided
 
 export function labelOf(title) {
   const text = title || ''

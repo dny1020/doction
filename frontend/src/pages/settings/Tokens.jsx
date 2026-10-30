@@ -4,7 +4,6 @@ import { useI18n } from '../../i18n.jsx'
 import { useToast } from '../../components/Toast.jsx'
 import { useConfirm } from '../../components/ConfirmDialog.jsx'
 
-// ── API tokens ──────────────────────────────────────────────────────────────
 export default function TokensSection() {
   const { t } = useI18n()
   const toast = useToast()

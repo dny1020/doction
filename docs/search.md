@@ -13,7 +13,7 @@ Search is scoped to one workspace and has three modes, selected with `mode=`:
 | `hybrid` | both, fused by rank | needs `SEMANTIC_SEARCH=1` |
 
 The interface's sidebar uses `hybrid`, because semantic alone lets an exact term lose to a page
-that is merely related. MCP's `sgrep` returns the ranked list unfiltered, because an agent wants
+that is merely related. MCP's `search_knowledge` returns the ranked list unfiltered, because an agent wants
 to do its own cutting.
 
 On an instance with semantic search off, a `semantic` or `hybrid` query is answered with keyword
@@ -84,4 +84,4 @@ it on only if you have measured your own corpus and found otherwise.
 
 - [Tags](writing-pages.md#tags), and why `tag:` is not a filter
 - [Configuration](configuration.md) for the search flags and what they cost
-- [Agents and MCP](mcp.md) for `sgrep` and the retrieval tools
+- [Agents and MCP](mcp.md) for `search_knowledge` and the retrieval tools

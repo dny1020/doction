@@ -80,7 +80,7 @@ maintained by Postgres itself. Semantic search is layered on top and opt-in.
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `SEMANTIC_SEARCH` | off | `1` enables local embeddings: the `sgrep` and `rag` MCP tools, and `mode=semantic` / `mode=hybrid` on `/api/search`. A MiniLM int8 ONNX model (~23 MB) ships in the image and loads lazily. A background worker embeds pages without blocking requests. With the flag off, semantic modes degrade to full-text search rather than erroring. |
+| `SEMANTIC_SEARCH` | off | `1` enables local embeddings: the semantic half of the `search_knowledge` and `get_rag_context` MCP tools, and `mode=semantic` / `mode=hybrid` on `/api/search`. A MiniLM int8 ONNX model (~23 MB) ships in the image and loads lazily. A background worker embeds pages without blocking requests. With the flag off, semantic modes degrade to full-text search rather than erroring. |
 | `RERANK` | off | `1` re-scores the top 20 semantic hits with a local cross-encoder. Requires `SEMANTIC_SEARCH=1`. **Leave it off.** |
 
 ### Why the reranker ships off

@@ -112,7 +112,6 @@ def _now() -> str:
 
 
 # ── Rows to dataclasses ──────────────────────────────────────────────────────
-# .get(...) throughout, so a column a query did not select comes back as None.
 
 
 def _to_user(row: dict) -> User:

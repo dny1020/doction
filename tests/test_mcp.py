@@ -1,14 +1,7 @@
 """Tests for the native MCP endpoint (JSON-RPC 2.0 over POST /api/mcp)."""
 
-import json
-
 from app.meta import extract_links
-
-
-def _register_and_token(client) -> str:
-    client.post("/api/auth/register", json={"email": "u@test.com", "password": "password123"})
-    r = client.post("/api/token", json={"email": "u@test.com", "password": "password123"})
-    return r.json()["token"]
+from tests.helpers import get_token, mcp_call, tool_data
 
 
 def _rpc(
@@ -26,17 +19,6 @@ def _rpc(
         msg["params"] = params
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     return client.post("/api/mcp", json=msg, headers=headers)
-
-
-def _call(client, token: str, tool: str, arguments: dict | None = None) -> dict:
-    r = _rpc(client, "tools/call", {"name": tool, "arguments": arguments or {}}, token=token)
-    assert r.status_code == 200
-    return r.json()["result"]
-
-
-def _tool_data(result: dict):
-    assert not result.get("isError"), result
-    return json.loads(result["content"][0]["text"])
 
 
 def test_initialize_unauthenticated(client):
@@ -105,8 +87,6 @@ def test_tools_list(client):
         "list_backlinks",
         "get_linked_knowledge",
         "related_pages",
-        "sgrep",
-        "rag",
         "suggest_links",
         "suggest_tags",
         "summarize_page",
@@ -138,70 +118,70 @@ def test_tools_call_requires_auth(client):
 
 
 def test_unknown_tool(client):
-    token = _register_and_token(client)
+    token = get_token(client)
     r = _rpc(client, "tools/call", {"name": "drop_tables", "arguments": {}}, token=token)
     assert r.json()["error"]["code"] == -32602
 
 
 def test_list_workspaces(client):
-    token = _register_and_token(client)
-    data = _tool_data(_call(client, token, "list_workspaces"))
+    token = get_token(client)
+    data = tool_data(mcp_call(client, token, "list_workspaces"))
     assert data[0]["slug"] == "personal"
 
 
 def test_create_get_roundtrip(client):
-    token = _register_and_token(client)
-    created = _tool_data(
-        _call(
+    token = get_token(client)
+    created = tool_data(
+        mcp_call(
             client, token, "create_page", {"title": "Runbook SBC", "content": "# Failover\nkamctl"}
         )
     )
-    page = _tool_data(_call(client, token, "get_page", {"slug": created["slug"]}))
+    page = tool_data(mcp_call(client, token, "get_page", {"slug": created["slug"]}))
     assert page["title"] == "Runbook SBC"
     assert "kamctl" in page["content"]
 
 
 def test_create_without_title_derives_it(client):
     """The title is optional: it is derived from the first line of the text."""
-    token = _register_and_token(client)
-    data = _tool_data(_call(client, token, "create_page", {"content": "orphan"}))
+    token = get_token(client)
+    data = tool_data(mcp_call(client, token, "create_page", {"content": "orphan"}))
     assert data["title"] == "orphan"
 
 
 def test_search_pages(client):
-    token = _register_and_token(client)
-    _call(client, token, "create_page", {"title": "Kamailio tips", "content": "dispatcher list"})
-    data = _tool_data(_call(client, token, "search_pages", {"query": "dispatcher"}))
+    token = get_token(client)
+    mcp_call(client, token, "create_page", {"title": "Kamailio tips", "content": "dispatcher list"})
+    data = tool_data(mcp_call(client, token, "search_pages", {"query": "dispatcher"}))
     assert any(r["slug"] == "kamailio-tips" for r in data)
 
 
 def test_update_page(client):
-    token = _register_and_token(client)
-    created = _tool_data(_call(client, token, "create_page", {"title": "Draft", "content": "v1"}))
-    _tool_data(_call(client, token, "update_page", {"slug": created["slug"], "content": "v2"}))
-    page = _tool_data(_call(client, token, "get_page", {"slug": created["slug"]}))
+    token = get_token(client)
+    created = tool_data(mcp_call(client, token, "create_page", {"title": "Draft", "content": "v1"}))
+    tool_data(mcp_call(client, token, "update_page", {"slug": created["slug"], "content": "v2"}))
+    page = tool_data(mcp_call(client, token, "get_page", {"slug": created["slug"]}))
     assert page["content"] == "v2"
     assert page["title"] == "Draft"
 
 
 def test_get_page_history(client):
-    token = _register_and_token(client)
-    created = _tool_data(_call(client, token, "create_page", {"title": "Hist", "content": "a"}))
-    _tool_data(_call(client, token, "update_page", {"slug": created["slug"], "content": "b"}))
-    history = _tool_data(_call(client, token, "get_page_history", {"slug": created["slug"]}))
+    token = get_token(client)
+    created = tool_data(mcp_call(client, token, "create_page", {"title": "Hist", "content": "a"}))
+    tool_data(mcp_call(client, token, "update_page", {"slug": created["slug"], "content": "b"}))
+    history = tool_data(mcp_call(client, token, "get_page_history", {"slug": created["slug"]}))
     assert len(history) >= 2
     assert {"sha", "timestamp", "message"} <= set(history[0])
 
 
 def test_page_not_found_is_tool_error(client):
-    token = _register_and_token(client)
-    result = _call(client, token, "get_page", {"slug": "nope"})
+    token = get_token(client)
+    result = mcp_call(client, token, "get_page", {"slug": "nope"})
     assert result["isError"] is True
 
 
 def test_unknown_workspace_is_tool_error(client):
-    token = _register_and_token(client)
-    result = _call(client, token, "list_pages", {"workspace": "ghost"})
+    token = get_token(client)
+    result = mcp_call(client, token, "list_pages", {"workspace": "ghost"})
     assert result["isError"] is True
 
 

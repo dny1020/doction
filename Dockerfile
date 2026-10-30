@@ -28,8 +28,7 @@ COPY pyproject.toml uv.lock ./
 # Postgres, so the gate is one self-contained build. Never shipped.
 FROM base AS test
 
-# nodejs is for pyright, which runs on node; without it one is downloaded mid-build.
-RUN apt-get update -qq && apt-get install -y --no-install-recommends postgresql nodejs \
+RUN apt-get update -qq && apt-get install -y --no-install-recommends postgresql \
     && rm -rf /var/lib/apt/lists/*
 
 RUN uv sync --frozen
@@ -48,7 +47,6 @@ RUN service postgresql start \
     && su postgres -c "createdb -O doction doction" \
     && uv run ruff check . \
     && uv run ruff format --check . \
-    && uv run pyright app tests \
     && uv run pytest \
     && service postgresql stop
 

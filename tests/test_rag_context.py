@@ -7,12 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import embeddings
-
-
-def _token(client, email="u@test.com") -> str:
-    client.post("/api/auth/register", json={"email": email, "password": "password123"})
-    r = client.post("/api/token", json={"email": email, "password": "password123"})
-    return r.json()["token"]
+from tests.helpers import get_token
 
 
 def _page(client, token: str, title: str, content: str) -> str:
@@ -56,7 +51,7 @@ def _long_page(sections: int, filler: int = 400) -> str:
 
 def test_budget_bounds_the_context_not_a_fragment_count(semantic_client):
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Runbook TLS", _long_page(sections=8))
     embeddings.drain_pending()
 
@@ -72,7 +67,7 @@ def test_budget_bounds_the_context_not_a_fragment_count(semantic_client):
 def test_a_fragment_that_does_not_fit_is_left_out_whole(semantic_client):
     """Cutting it in half would return text the page does not say."""
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Runbook TLS", _long_page(sections=6))
     embeddings.drain_pending()
 
@@ -89,7 +84,7 @@ def test_a_fragment_that_does_not_fit_is_left_out_whole(semantic_client):
 
 def test_truncated_is_false_when_everything_fits(semantic_client):
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Corta", "# Corta\n\nCertbot y poco más.")
     embeddings.drain_pending()
 
@@ -99,7 +94,7 @@ def test_truncated_is_false_when_everything_fits(semantic_client):
 
 def test_limit_still_caps_the_pieces_for_whoever_wants_fewer(semantic_client):
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Runbook TLS", _long_page(sections=8))
     embeddings.drain_pending()
 
@@ -114,7 +109,7 @@ def test_limit_still_caps_the_pieces_for_whoever_wants_fewer(semantic_client):
 def test_two_pieces_of_one_section_collapse(semantic_client):
     """A section past the ceiling becomes several chunks and still counts once."""
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     largo = "Certbot renovación. " + ("detalle del procedimiento " * 200)
     _page(client, token, "Runbook TLS", f"# Runbook TLS\n\n## Certbot\n\n{largo}\n")
     embeddings.drain_pending()
@@ -127,7 +122,7 @@ def test_two_pieces_of_one_section_collapse(semantic_client):
 def test_distinct_sections_of_one_page_both_survive(semantic_client):
     """The opposite error: collapsing two sections that answer different things."""
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(
         client,
         token,
@@ -169,7 +164,7 @@ def test_says_the_same_does_not_collapse_short_unrelated_fragments():
 
 
 def test_the_lexical_channel_honours_the_budget(client):
-    token = _token(client)
+    token = get_token(client)
     for i in range(5):
         _page(client, token, f"Certbot {i}", _long_page(sections=2))
 
@@ -179,7 +174,7 @@ def test_the_lexical_channel_honours_the_budget(client):
 
 
 def test_the_lexical_channel_deduplicates_too(client):
-    token = _token(client)
+    token = get_token(client)
     cuerpo = "# Doc\n\n## Certbot\n\nRenovar con certbot renew y recargar nginx después.\n"
     _page(client, token, "Uno", cuerpo)
     _page(client, token, "Dos", cuerpo)
@@ -190,7 +185,7 @@ def test_the_lexical_channel_deduplicates_too(client):
 
 
 def test_the_lexical_channel_reports_no_score_rather_than_inventing_one(client):
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Doc", "# Doc\n\n## Certbot\n\nRenovar con certbot renew.\n")
 
     out = embeddings.rag_context(1, "certbot", budget=100000)
@@ -199,7 +194,7 @@ def test_the_lexical_channel_reports_no_score_rather_than_inventing_one(client):
 
 def test_search_keeps_its_highlighted_extracts(client):
     """The UI search is unchanged: the highlighting is what the sidebar paints."""
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Doc", "# Doc\n\n## Certbot\n\nRenovar con certbot renew.\n")
 
     hits = client.get("/api/search?q=certbot", headers={"Authorization": f"Bearer {token}"}).json()

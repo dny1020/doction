@@ -313,24 +313,10 @@ def _tool_upsert_page_section(user_id: int, args: dict) -> dict:
     return {"slug": slug, "heading": heading, "updated": True}
 
 
-def _tool_sgrep(user_id: int, args: dict) -> list[dict]:
-    query = _require(args, "query")
-    ws = _workspace(user_id, args)
-    limit = int(args.get("limit") or 10)
-    # The same search the sidebar and /api/search serve, so an agent over MCP and a
-    # person looking at the UI never see two orders for one query.
-    hits = embeddings.search(int(ws.id), query, mode="hybrid")[:limit]
-    # `parts` exists to draw highlighting in the UI. An agent reads text, and they are
-    # dataclasses json.dumps cannot serialize anyway.
-    return [{k: v for k, v in hit.items() if k != "parts"} for hit in hits]
-
-
 def _tool_rag(user_id: int, args: dict) -> dict:
     query = _require(args, "query")
     ws = _workspace(user_id, args)
     budget = int(args.get("budget") or embeddings.CONTEXT_BUDGET)
-    # `limit` is still accepted for agents configured against the old `rag`, but the
-    # budget is the bound; it is only a cap on pieces for callers who want fewer.
     limit = int(args["limit"]) if args.get("limit") else None
     return embeddings.rag_context(int(ws.id), query, budget=budget, limit=limit)
 
@@ -681,24 +667,6 @@ TOOLS: list[dict] = [
         },
     },
     {
-        "name": "sgrep",
-        "description": (
-            "Hybrid search: the lexical and the vector rankings fused by reciprocal "
-            "rank. Returns slug, title, score, matched chunk, and which retrievers "
-            "found it. Identical ordering to the web UI and /api/search. Degrades to "
-            "full-text search when semantic search is disabled or not yet indexed."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Natural-language query."},
-                "limit": {"type": "integer", "default": 10},
-                **_WORKSPACE_PROP,
-            },
-            "required": ["query"],
-        },
-    },
-    {
         "name": "suggest_links",
         "description": (
             "Pages this page should probably link to but doesn't yet: cosine similarity "
@@ -750,29 +718,10 @@ TOOLS: list[dict] = [
         ),
         "inputSchema": {"type": "object", "properties": {**_WORKSPACE_PROP}},
     },
-    {
-        "name": "rag",
-        "description": (
-            "Retrieval pipe: returns the top-k most relevant chunks with provenance "
-            "(slug, ord, score, text) for the agent to synthesize an answer. Does NOT "
-            "generate text itself."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string"},
-                "limit": {"type": "integer", "default": 6},
-                **_WORKSPACE_PROP,
-            },
-            "required": ["query"],
-        },
-    },
 ]
 
 # Tool name to the function implementing it; each takes (user_id, args) and returns
-# JSON-ready data. The old names — `sgrep`, `rag`, `list_pages`, `get_page` — still
-# work for one more version so an agent configured against them does not break
-# mid-conversation; `tools/list` announces only the new ones.
+# JSON-ready data.
 TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
     # The five tools of the agent contract.
     "search_knowledge": _tool_search_knowledge,
@@ -796,8 +745,6 @@ TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
     "list_backlinks": _tool_list_backlinks,
     "get_linked_knowledge": _tool_get_linked_knowledge,
     "related_pages": _tool_related_pages,
-    "sgrep": _tool_sgrep,
-    "rag": _tool_rag,
     "suggest_links": _tool_suggest_links,
     "suggest_tags": _tool_suggest_tags,
     "summarize_page": _tool_summarize_page,

@@ -7,7 +7,7 @@ import { useDocumentTitle } from '../useDocumentTitle.js'
 // One route and one section per screen. The two-column breakpoint (1120px, where the reader
 // drops its TOC) lives only in CSS: both navigations render and a media query hides one.
 
-export const SECTIONS = [
+const SECTIONS = [
   { path: 'account', key: 'sec_account' },
   { path: 'preferences', key: 'sec_preferences' },
   { path: 'workspaces', key: 'sec_workspaces' },

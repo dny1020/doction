@@ -9,12 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import embeddings
-
-
-def _token(client) -> str:
-    client.post("/api/auth/register", json={"email": "u@test.com", "password": "password123"})
-    r = client.post("/api/token", json={"email": "u@test.com", "password": "password123"})
-    return r.json()["token"]
+from tests.helpers import get_token
 
 
 def _page(client, token: str, title: str, content: str) -> str:
@@ -47,7 +42,7 @@ IDENTICA = "## Configuración\n\nEditar el fichero y reiniciar el servicio para 
 def test_sibling_sections_stay_apart(semantic_client):
     """A query answered by one section retrieves that section, not a sibling."""
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(
         client,
         token,
@@ -68,7 +63,7 @@ def test_sibling_sections_are_not_near_identical_vectors(semantic_client):
     import numpy as np
 
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(
         client,
         token,
@@ -98,7 +93,7 @@ def test_identically_worded_sections_in_different_pages_do_not_collide(semantic_
     must still keep them from scoring equally.
     """
     client = semantic_client
-    token = _token(client)
+    token = get_token(client)
     _page(client, token, "Kamailio", f"# Kamailio\n\n{IDENTICA}")
     _page(client, token, "Asterisk", f"# Asterisk\n\n{IDENTICA}")
     embeddings.drain_pending()

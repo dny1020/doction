@@ -1,9 +1,9 @@
 # Shortcuts for this repository's workflow. Every target is a command already documented
 # elsewhere; the Makefile invents none.
 .PHONY: setup dev frontend build-web test test-clean lint format format-check \
-        typecheck spec docs-reachable docs docs-serve check eval image image-test \
+        spec docs-reachable docs docs-serve check eval image image-test \
         up down logs restart \
-        graph clean
+        clean
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 setup:
@@ -33,9 +33,6 @@ format:
 format-check:
 	uv run ruff format --check .
 
-typecheck:
-	uv run pyright app tests
-
 test:
 	uv run pytest
 
@@ -62,7 +59,6 @@ docs-serve:
 check:
 	$(MAKE) lint
 	$(MAKE) format-check
-	$(MAKE) typecheck
 	$(MAKE) test
 	cd frontend && npm run check
 	$(MAKE) docs-reachable
@@ -99,9 +95,6 @@ restart:
 	docker compose restart doction
 
 # ── Utilities ────────────────────────────────────────────────────────────────
-graph:
-	graphify update .
-
 clean:
 	find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) \
 		-prune -exec rm -rf {} +

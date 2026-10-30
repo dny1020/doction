@@ -283,6 +283,6 @@ def _exploding_encoder(name: str):
     class Exploding:
         pass
 
-    Exploding.name = name  # type: ignore[attr-defined]
-    Exploding.__init__ = lambda self: pytest.fail("no debe construirse el encoder")  # type: ignore[method-assign]
+    Exploding.name = name
+    Exploding.__init__ = lambda self: pytest.fail("no debe construirse el encoder")
     return Exploding

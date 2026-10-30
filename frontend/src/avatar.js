@@ -24,18 +24,15 @@ export function stableIndex(text, size) {
   return hash % size
 }
 
-// A stable automatic colour from the email.
 export function autoColor(email) {
   return AVATAR_COLORS[stableIndex(email, AVATAR_COLORS.length)]
 }
 
-// The colour to show: the user's choice, or the automatic one.
 export function avatarColor(user) {
   if (!user) return AVATAR_COLORS[0]
   return user.avatar_color || autoColor(user.email)
 }
 
-// The avatar's initial: from the display name if there is one, otherwise the email.
 export function avatarLetter(name, email) {
   const source = (name || email || '?').trim()
   return source ? source.charAt(0).toUpperCase() : '?'

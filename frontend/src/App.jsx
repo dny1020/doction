@@ -5,14 +5,13 @@ import { wsPath } from './routes.js'
 import { useI18n } from './i18n.jsx'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
-import Register from './pages/Register.jsx'
 import Reader from './pages/Reader.jsx'
 import Editor from './pages/Editor.jsx'
 import History from './pages/History.jsx'
 import Settings from './pages/Settings.jsx'
 import AccountSection from './pages/settings/Account.jsx'
 import PreferencesSection from './pages/settings/Preferences.jsx'
-import WorkspacesSection from './pages/settings/Workspaces.jsx'
+import WorkspaceSettings from './components/WorkspaceSettings.jsx'
 import TokensSection from './pages/settings/Tokens.jsx'
 import WebhooksSection from './pages/settings/Webhooks.jsx'
 import SystemSection from './pages/settings/System.jsx'
@@ -84,7 +83,7 @@ export const routes = [
         path: '/register',
         element: (
           <GuestOnly>
-            <Register />
+            <Login mode="register" />
           </GuestOnly>
         ),
       },
@@ -121,7 +120,7 @@ export const routes = [
               { index: true, element: <Navigate to="account" replace /> },
               { path: 'account', element: <AccountSection /> },
               { path: 'preferences', element: <PreferencesSection /> },
-              { path: 'workspaces', element: <WorkspacesSection /> },
+              { path: 'workspaces', element: <WorkspaceSettings /> },
               { path: 'tokens', element: <TokensSection /> },
               { path: 'webhooks', element: <WebhooksSection /> },
               { path: 'system', element: <SystemSection /> },

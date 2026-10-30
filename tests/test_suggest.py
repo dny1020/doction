@@ -4,13 +4,12 @@ Same approach as test_semantic.py: deterministic stub embedder (EMBED_STUB=1),
 no background worker, embedding driven explicitly via drain_pending().
 """
 
-import json
-
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
 from app import graph, suggest
+from tests.helpers import mcp_call, tool_data
 
 # ── Pure functions (no app, no db) ───────────────────────────────────────────
 
@@ -104,23 +103,6 @@ def _drain():
     import app.embeddings as emb
 
     return emb.drain_pending()
-
-
-def _call(client, token: str, tool: str, arguments: dict | None = None) -> dict:
-    msg = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/call",
-        "params": {"name": tool, "arguments": arguments or {}},
-    }
-    r = client.post("/api/mcp", json=msg, headers={"Authorization": f"Bearer {token}"})
-    assert r.status_code == 200
-    return r.json()["result"]
-
-
-def _data(result: dict):
-    assert not result.get("isError"), result
-    return json.loads(result["content"][0]["text"])
 
 
 def test_suggest_links_semantic_and_excludes_linked(client):
@@ -263,14 +245,14 @@ def test_mcp_tools_and_calls(client):
     slug = _create(client, "MCP note", "kamailio kamailio dispatcher routing for agents")
     _drain()
 
-    tags = _data(_call(client, token, "suggest_tags", {"slug": slug}))
+    tags = tool_data(mcp_call(client, token, "suggest_tags", {"slug": slug}))
     assert "kamailio" in [s["tag"] for s in tags["suggestions"]]
 
-    insights = _data(_call(client, token, "workspace_insights"))
+    insights = tool_data(mcp_call(client, token, "workspace_insights"))
     assert insights["pages"] >= 1
 
-    summary = _data(_call(client, token, "summarize_page", {"slug": slug, "sentences": 1}))
+    summary = tool_data(mcp_call(client, token, "summarize_page", {"slug": slug, "sentences": 1}))
     assert summary["slug"] == slug
 
-    missing = _call(client, token, "suggest_links", {"slug": "nope"})
+    missing = mcp_call(client, token, "suggest_links", {"slug": "nope"})
     assert missing.get("isError")

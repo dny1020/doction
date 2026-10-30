@@ -2,11 +2,7 @@
 
 import unittest.mock as mock
 
-
-def _register_and_token(client) -> str:
-    client.post("/api/auth/register", json={"email": "u@test.com", "password": "password123"})
-    r = client.post("/api/token", json={"email": "u@test.com", "password": "password123"})
-    return r.json()["token"]
+from tests.helpers import get_token
 
 
 def _headers(token: str) -> dict:
@@ -14,7 +10,7 @@ def _headers(token: str) -> dict:
 
 
 def test_git_commit_stored_on_create(client):
-    token = _register_and_token(client)
+    token = get_token(client)
     r = client.post(
         "/api/pages",
         json={"title": "My Page", "content": "Hello git"},
@@ -36,7 +32,7 @@ def test_git_commit_stored_on_create(client):
 
 
 def test_history_endpoint_returns_commits(client):
-    token = _register_and_token(client)
+    token = get_token(client)
     r = client.post(
         "/api/pages",
         json={"title": "History Test", "content": "v1"},
@@ -62,7 +58,7 @@ def test_history_endpoint_returns_commits(client):
 
 
 def test_history_at_commit_returns_old_content(client):
-    token = _register_and_token(client)
+    token = get_token(client)
     r = client.post(
         "/api/pages",
         json={"title": "Rollback Test", "content": "original content"},
@@ -82,7 +78,7 @@ def test_history_at_commit_returns_old_content(client):
 
 def test_git_failure_is_silent(client):
     """If git fails (e.g. not installed), page creation still succeeds."""
-    token = _register_and_token(client)
+    token = get_token(client)
     import app.git_repo as git_module
 
     with mock.patch.object(git_module, "commit_page", return_value=None):
@@ -95,13 +91,13 @@ def test_git_failure_is_silent(client):
 
 
 def test_history_returns_empty_for_unknown_slug(client):
-    token = _register_and_token(client)
+    token = get_token(client)
     r = client.get("/api/pages/nonexistent/history", headers=_headers(token))
     assert r.status_code == 404
 
 
 def test_history_diff_returns_unified_diff(client):
-    token = _register_and_token(client)
+    token = get_token(client)
     slug = client.post(
         "/api/pages", json={"title": "Diff Test", "content": "line one"}, headers=_headers(token)
     ).json()["slug"]
@@ -116,7 +112,7 @@ def test_history_diff_returns_unified_diff(client):
 
 
 def test_history_diff_root_commit_is_full_add(client):
-    token = _register_and_token(client)
+    token = get_token(client)
     slug = client.post(
         "/api/pages",
         json={"title": "Root Diff", "content": "original line"},

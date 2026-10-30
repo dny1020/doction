@@ -79,20 +79,19 @@ whole page to add a paragraph produces a diff nobody can review.
 
 ## Choosing between the search tools
 
-Four tools return "relevant pages" and they are not interchangeable.
+Three tools return "relevant pages" and they are not interchangeable.
 
 | Tool | Ranking | Reach for it when |
 | --- | --- | --- |
 | `search_pages` | Postgres full-text, `ts_rank` | you know the term that appears in the page |
-| `sgrep` | semantic, blended with a keyword boost | you know the *idea* but not the wording |
 | `search_knowledge` | lexical and vector fused by reciprocal rank | general purpose; the best default |
-| `rag` | top-k chunks, not pages, with provenance | you are about to synthesize an answer and need passages |
+| `get_rag_context` | passages, not pages, with provenance | you are about to synthesize an answer and need passages |
 
-`sgrep` and `rag` need `SEMANTIC_SEARCH=1`. With it off they degrade to full-text search
+Their semantic half needs `SEMANTIC_SEARCH=1`. With it off they degrade to full-text search
 rather than failing, so a tool call still returns something useful — check the `mode` field
 in the response to know which path answered.
 
-Unlike the web UI's sidebar, `sgrep` returns the whole ranked list unfiltered. That is
+Unlike the web UI's sidebar, `search_knowledge` returns the whole ranked list unfiltered. That is
 deliberate: an agent should decide what is relevant, not receive someone else's cutoff.
 
 ## Traversal: links versus tags
@@ -130,8 +129,6 @@ wikilink is information, and it is how you find the page someone meant to write.
 | `get_page_history` | a page's git history |
 | `search_pages` | full-text search |
 | `search_knowledge` | fused lexical + vector ranking |
-| `sgrep` | semantic search with keyword boost |
-| `rag` | top-k chunks with provenance |
 | `get_rag_context` | assembled passages within a character budget |
 | `extract` | structured query by frontmatter `type:` / tags (no LLM) |
 | `list_backlinks` | incoming wikilinks, one hop |

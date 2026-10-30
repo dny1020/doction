@@ -60,3 +60,4 @@ graphify-out/
 # the same tracked files.
 build/
 site/
+skills-lock.json

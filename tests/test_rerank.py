@@ -1,4 +1,4 @@
-"""Tests for the opt-in cross-encoder reranker (RERANK=1 on top of sgrep).
+"""Tests for the opt-in cross-encoder reranker (RERANK=1 on top of hybrid search).
 
 Uses the deterministic stub reranker (EMBED_STUB=1): score = query-token overlap.
 """
