@@ -14,8 +14,8 @@ credentials. `tools/call` requires a Bearer token.
 
 `initialize` also returns `instructions`, which MCP clients show to the model: pages connect
 only through `[[slug]]` / `[[slug|label]]` wikilinks, nesting a page under a parent does not
-link them, and `suggest_links` finds what is worth linking. An agent learns this on connect,
-so a prompt does not have to repeat it.
+link them, `suggest_links` finds what is worth linking, and pages are written for people in
+natural prose. An agent learns this on connect, so a prompt does not have to repeat it.
 
 Two kinds work:
 

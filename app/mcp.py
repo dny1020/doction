@@ -28,7 +28,9 @@ INSTRUCTIONS = (
     "subpages and related pages should link each other. A link to a slug that does not "
     "exist yet is kept as a page still to be written. After writing, `suggest_links` "
     "lists pages worth linking, and `list_backlinks` shows what links in. Tags are "
-    "inline #tags or a frontmatter `tags:` list."
+    "inline #tags or a frontmatter `tags:` list. Pages are read by people: write natural "
+    "prose in full sentences, in the language the page already uses, with no telegraphic "
+    "notes and no internal IDs standing in for explanations."
 )
 _LINK_HINT = " Link other pages with [[slug]] or [[slug|label]]; nesting alone does not."
 PROTOCOL_VERSIONS = {"2024-11-05", "2025-03-26", "2025-06-18"}
