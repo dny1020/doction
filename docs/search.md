@@ -24,7 +24,8 @@ know.
 
 ## There is no query syntax
 
-Every non-word character is discarded, and what remains is joined as **required prefix terms**.
+Every non-word character is discarded, and what remains is joined as **alternative prefix terms**:
+a page matches if it holds any of them, and pages holding more of them rank higher.
 That single sentence explains every result below, all measured against a running instance holding
 one page about Kamailio and one about Asterisk:
 
@@ -32,15 +33,15 @@ one page about Kamailio and one about Asterisk:
 | --- | --- | --- |
 | `kamailio` | the Kamailio page | ordinary term |
 | `kam` | the Kamailio page | every term is a prefix match |
-| `kamailio OR asterisk` | **nothing** | `or` is an English stopword and is dropped; the two terms are then both required, and no page has both |
-| `-asterisk kamailio` | **nothing** | the `-` is discarded, so the term you tried to exclude becomes required |
+| `kamailio OR asterisk` | both pages | `or` is an English stopword and is dropped; it changes nothing, since any term already matches |
+| `-asterisk kamailio` | both pages | the `-` is discarded, so the term you tried to exclude still matches |
 | `"asterisk queues"` | pages with those words far apart and in either order | the quotes are discarded; there is no phrase search |
 | `the` | **nothing** | a query of only stopwords compiles to an empty query |
-| `tag:voip` | **nothing** | not a field filter; `tag` becomes a required literal term |
+| `tag:voip` | pages containing "voip" or a word starting with "tag" | not a field filter; `tag` is an ordinary term |
 
-Three of those return zero results while looking like they should return something, and one
-returns the opposite of what was asked. None of them is an error, so nothing tells you. If a
-query surprises you, reduce it to bare words and try again.
+Operators are ignored rather than rejected: `OR` is redundant, `-` does not exclude and quotes do
+not make a phrase. None of them is an error, so nothing tells you. If a query surprises you,
+reduce it to bare words and try again.
 
 Accents fold in both directions. `renovacion` finds a page containing "Renovación" and the
 reverse also holds. That is what the project's own text-search configuration exists for:

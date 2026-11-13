@@ -1425,12 +1425,14 @@ def _fts_query(raw: str) -> str:
     """Turn user input into a safe prefix tsquery.
 
     The terms are already filtered to \\w+, so `term:*` is always valid tsquery syntax
-    and there is nothing to inject.
+    and there is nothing to inject. Any term matches and ts_rank orders: against AND it
+    lifts MRR 0.46 → 0.61 and zero-result queries 32% → 0%
+    (evals/results/2026-11-13-fts-or-vs-and.json).
     """
     terms = re.findall(r"[\w]+", raw, flags=re.UNICODE)
     if not terms:
         return ""
-    return " & ".join(f"{term}:*" for term in terms)
+    return " | ".join(f"{term}:*" for term in terms)
 
 
 # Markdown syntax stripped for ts_headline only: snippets are prose, ranking still uses the

@@ -218,17 +218,15 @@ def test_hybrid_puts_exact_matches_first_without_duplicates(client):
     assert vias == sorted(vias, key=lambda v: v != "fts")
 
 
-def test_hybrid_finds_pages_that_fts_alone_misses(client):
-    """The point of hybrid: `_fts_query` ANDs its terms, so one extra word returns nothing."""
+def test_one_extra_word_does_not_hide_a_page(client):
+    """`_fts_query` ORs its terms, so a word the page lacks only lowers its rank."""
     token = get_token(client)
     mcp_call(client, token, "create_page", {"title": "Espresso", "content": "espresso"})
     _drain()
 
-    assert _search(client, token, "espresso", "keyword")  # exact term, so FTS sees it
-    assert not _search(client, token, "espresso cappuccino", "keyword")  # AND: one is missing
-    rescatados = _search(client, token, "espresso cappuccino", "hybrid")
-    assert [r["slug"] for r in rescatados] == ["espresso"]
-    assert rescatados[0]["via"] == "semantic"
+    assert [r["slug"] for r in _search(client, token, "espresso cappuccino", "keyword")] == [
+        "espresso"
+    ]
 
 
 def test_hybrid_degrades_to_fts_when_semantic_off(client, monkeypatch):

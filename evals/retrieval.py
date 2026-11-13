@@ -243,7 +243,15 @@ def main() -> None:
         table: dict[str, dict] = {}
         per_query: dict[str, dict] = {}
 
-        for label, config in FTS_CONFIGS.items():
+        # The counterfactual to AND: any term matches and ts_rank orders. Swapped in only for
+        # the `-or` rows; db.search_pages looks `_fts_query` up at call time.
+        fts_and = db._fts_query
+
+        def fts_or(raw: str) -> str:
+            return fts_and(raw).replace(" & ", " | ")
+
+        for label, config in {**FTS_CONFIGS, "fts-or": "doction"}.items():
+            db._fts_query = fts_or if label.endswith("-or") else fts_and
             runs, detail = [], {}
             for q in queries:
                 start = time.perf_counter()
@@ -258,8 +266,10 @@ def main() -> None:
         for label, mode, rerank in (
             ("semantic", "semantic", False),
             ("hybrid", "hybrid", False),
+            ("hybrid-or", "hybrid", False),
             ("hybrid+rerank", "hybrid", True),
         ):
+            db._fts_query = fts_or if label.endswith("-or") else fts_and
             if rerank:
                 os.environ["RERANK"] = "1"
             else:
@@ -281,6 +291,7 @@ def main() -> None:
             table[label] = {**_score(runs), **_section_recall(sections)}
             per_query[label] = detail
         os.environ.pop("RERANK", None)
+        db._fts_query = fts_and
 
         # `rag` measures the assembled context, which is what an agent receives. The
         # `semantic` and `hybrid` rows measure `embeddings.search`, so a change inside

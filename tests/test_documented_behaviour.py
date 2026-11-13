@@ -44,24 +44,23 @@ def _two_pages(client, token: str) -> tuple[str, str]:
 # ── There is no query syntax (docs/search.md) ────────────────────────────────
 
 
-def test_or_is_not_a_disjunction(client):
-    """`OR` is dropped as a stopword and the terms are both required."""
+def test_any_term_matches(client):
+    """`OR` is dropped as a stopword; it changes nothing because any term already matches."""
     token = _token(client)
     kamailio, asterisk = _two_pages(client, token)
     assert _search(client, token, "kamailio") == [kamailio]
     assert _search(client, token, "asterisk") == [asterisk]
-    assert _search(client, token, "kamailio OR asterisk") == [], (
-        f"OR now behaves like a disjunction; {SEARCH_DOC} says it returns nothing"
+    assert set(_search(client, token, "kamailio OR asterisk")) == {kamailio, asterisk}, (
+        f"terms are no longer alternatives; {SEARCH_DOC} says any term matches"
     )
 
 
-def test_a_leading_minus_requires_instead_of_excluding(client):
-    """The `-` is discarded, so the term a user tried to exclude becomes required."""
+def test_a_leading_minus_does_not_exclude(client):
+    """The `-` is discarded, so the term a user tried to exclude still matches."""
     token = _token(client)
-    kamailio, _ = _two_pages(client, token)
-    assert _search(client, token, "kamailio") == [kamailio]
-    assert _search(client, token, "-asterisk kamailio") == [], (
-        f"negation now does something; {SEARCH_DOC} says the term becomes required"
+    _, asterisk = _two_pages(client, token)
+    assert asterisk in _search(client, token, "-asterisk kamailio"), (
+        f"negation now does something; {SEARCH_DOC} says the term still matches"
     )
 
 
@@ -97,8 +96,8 @@ def test_quotes_do_not_make_a_phrase(client):
 def test_field_syntax_is_not_a_filter(client):
     """`tag:voip` is two ordinary terms, one of them the literal word "tag"."""
     token = _token(client)
-    _two_pages(client, token)
-    assert _search(client, token, "tag:voip") == [], (
+    untagged = _page(client, token, "Tagging notes", "Tag every page you write.")
+    assert untagged in _search(client, token, "tag:voip"), (
         f"a field filter now exists; {SEARCH_DOC} says `tag:` is not one"
     )
 
