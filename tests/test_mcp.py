@@ -123,6 +123,14 @@ def test_unknown_tool(client):
     assert r.json()["error"]["code"] == -32602
 
 
+def test_tools_call_logs_the_tool_name(client, caplog):
+    # Which tools agents actually call is only measurable if the server says so.
+    token = get_token(client)
+    with caplog.at_level("INFO", logger="app.mcp"):
+        mcp_call(client, token, "list_workspaces")
+    assert any("tool=list_workspaces" in r.getMessage() for r in caplog.records)
+
+
 def test_list_workspaces(client):
     token = get_token(client)
     data = tool_data(mcp_call(client, token, "list_workspaces"))

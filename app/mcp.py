@@ -782,6 +782,7 @@ def _call_tool(request: Request, msg_id: str | int | None, params: dict) -> dict
     if handler is None:
         return _error(msg_id, -32602, f"Unknown tool: {name}")
     arguments = params.get("arguments") or {}
+    logger.info("mcp: tool=%s user=%s", name, user_id)
     try:
         return _result(msg_id, _tool_text(handler(int(user_id), arguments)))
     except ValueError as exc:
