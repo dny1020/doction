@@ -56,6 +56,7 @@ class ApiTokenCreated(_Out):
 
 
 class ApiToken(_Out):
+    policy: dict | None = None
     id: int
     name: str
     created_at: str
@@ -165,6 +166,8 @@ class PageNode(_Out):
 
 
 class Page(_Out):
+    revision: int = 1
+    git_status: str = "pending"
     slug: str
     title: str
     content: str

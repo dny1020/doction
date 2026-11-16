@@ -4,6 +4,7 @@ Dependency-free and pure — the structure comes out of the markdown itself. Ind
 lives in app.db.
 """
 
+import json
 import re
 
 from app.models import Chunk
@@ -31,6 +32,13 @@ def strip_code(text: str) -> str:
 
 def _parse_scalar_or_list(value: str):
     value = value.strip()
+    if value.startswith('"'):
+        try:
+            decoded = json.loads(value)
+            if isinstance(decoded, str):
+                return decoded
+        except ValueError:
+            pass
     if value.startswith("[") and value.endswith("]"):
         inner = value[1:-1]
         return [v.strip().strip("\"'") for v in inner.split(",") if v.strip()]

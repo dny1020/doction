@@ -262,9 +262,13 @@ def _one_part(text: str) -> list[SnippetPart]:
 
 
 def _fts_results(
-    workspace_id: int, query: str, k: int, tags: list[str] | None = None
+    workspace_id: int,
+    query: str,
+    k: int,
+    tags: list[str] | None = None,
+    allowed_slugs: set[str] | None = None,
 ) -> list[dict]:
-    rows = db.search_pages(workspace_id, query, limit=k, tags=tags)
+    rows = db.search_pages(workspace_id, query, limit=k, tags=tags, allowed_slugs=allowed_slugs)
     return [
         {
             "slug": r.slug,
@@ -285,6 +289,7 @@ def semantic_search(
     k: int = 10,
     min_score: float | None = None,
     tags: list[str] | None = None,
+    allowed_slugs: set[str] | None = None,
 ) -> list[dict]:
     """The vector list: cosine similarity, ranked. Falls back to FTS when unavailable.
 
@@ -295,16 +300,18 @@ def semantic_search(
     if not query:
         return []
     if not semantic_enabled():
-        return _fts_results(workspace_id, query, k, tags=tags)
+        return _fts_results(workspace_id, query, k, tags=tags, allowed_slugs=allowed_slugs)
 
     rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
+    if allowed_slugs is not None:
+        rows = [row for row in rows if row.slug in allowed_slugs]
     if tags:
         # Narrowed before scoring, not after: the fusion combines by position, so an
         # excluded page left holding a rank counts as much as a result.
         allowed = db.slugs_with_tags(workspace_id, tags)
         rows = [row for row in rows if row.slug in allowed]
     if not rows:
-        return _fts_results(workspace_id, query, k, tags=tags)
+        return _fts_results(workspace_id, query, k, tags=tags, allowed_slugs=allowed_slugs)
 
     qvec = get_embedder().encode([query])[0]
     mat = np.stack([_from_blob(r.vector) for r in rows])
@@ -377,7 +384,13 @@ def _rrf(rankings: list[tuple[float, list[str]]]) -> dict[str, float]:
     return scores
 
 
-def _hybrid(workspace_id: int, query: str, *, tags: list[str] | None = None) -> list[dict]:
+def _hybrid(
+    workspace_id: int,
+    query: str,
+    *,
+    tags: list[str] | None = None,
+    allowed_slugs: set[str] | None = None,
+) -> list[dict]:
     """The lexical and vector lists, fused by rank.
 
     Only the order is fused. A page found by FTS still shows its highlighted extract —
@@ -385,8 +398,10 @@ def _hybrid(workspace_id: int, query: str, *, tags: list[str] | None = None) -> 
     """
     # Each list is narrowed inside its own engine: fusing positions requires the
     # positions to already be counted over the filtered set.
-    lexical = db.search_pages(workspace_id, query, tags=tags)
-    vector = semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE, tags=tags)
+    lexical = db.search_pages(workspace_id, query, tags=tags, allowed_slugs=allowed_slugs)
+    vector = semantic_search(
+        workspace_id, query, min_score=SEARCH_MIN_SCORE, tags=tags, allowed_slugs=allowed_slugs
+    )
     # With semantics off, or nothing indexed, `semantic_search` already returned FTS
     # hits. Fusing FTS with itself reorders nothing and would claim two channels voted.
     if vector and vector[0]["via"] == "fts":
@@ -437,6 +452,7 @@ def search(
     *,
     mode: str = "keyword",
     tags: list[str] | None = None,
+    allowed_slugs: set[str] | None = None,
 ) -> list[dict]:
     """The three search modes: `keyword` (FTS), `semantic` and `hybrid`.
 
@@ -447,10 +463,18 @@ def search(
         return []
 
     if mode == "hybrid":
-        return _hybrid(workspace_id, query, tags=tags)
+        return _hybrid(workspace_id, query, tags=tags, allowed_slugs=allowed_slugs)
 
     if mode == "semantic":
-        results = list(semantic_search(workspace_id, query, min_score=SEARCH_MIN_SCORE, tags=tags))
+        results = list(
+            semantic_search(
+                workspace_id,
+                query,
+                min_score=SEARCH_MIN_SCORE,
+                tags=tags,
+                allowed_slugs=allowed_slugs,
+            )
+        )
         for r in results:
             r["snippet"] = r["chunk"]
             r["parts"] = _one_part(r["chunk"])
@@ -458,7 +482,7 @@ def search(
 
     return [
         {"slug": r.slug, "title": r.title, "snippet": r.snippet, "parts": r.parts}
-        for r in db.search_pages(workspace_id, query, tags=tags)
+        for r in db.search_pages(workspace_id, query, tags=tags, allowed_slugs=allowed_slugs)
     ]
 
 
@@ -546,7 +570,9 @@ def _context_path(workspace: str, title: str, section: str) -> str:
     return " > ".join(part for part in [workspace, title, section] if part)
 
 
-def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> list[dict]:
+def _fts_context(
+    workspace_id: int, query: str, workspace: str, pages: int, allowed_slugs: set[str] | None = None
+) -> list[dict]:
     """Lexical-channel candidates: whole sections, not ranking extracts.
 
     ts_headline's twelve words explain a match but are no answer. Chunked on the fly as
@@ -554,7 +580,7 @@ def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> l
     """
     terms = {word for word in _words(query) if len(word) > 2}
     candidates: list[dict] = []
-    for hit in db.search_pages(workspace_id, query, limit=pages):
+    for hit in db.search_pages(workspace_id, query, limit=pages, allowed_slugs=allowed_slugs):
         page = db.get_page(hit.slug, workspace_id)
         if page is None:
             continue
@@ -587,13 +613,17 @@ def _fts_context(workspace_id: int, query: str, workspace: str, pages: int) -> l
     return candidates
 
 
-def _section_candidates(workspace_id: int, query: str, workspace: str, pool: int) -> list[dict]:
+def _section_candidates(
+    workspace_id: int, query: str, workspace: str, pool: int, allowed_slugs: set[str] | None = None
+) -> list[dict]:
     """Candidate chunks: the fusion picks the pages, cosine picks the section.
 
     Walked in rounds (every page's best section, then each one's second), so the budget
     covers every relevant page before going deep into one.
     """
     rows = db.workspace_chunk_vectors(workspace_id, current_model_name(), meta.CHUNKER_ID)
+    if allowed_slugs is not None:
+        rows = [row for row in rows if row.slug in allowed_slugs]
     if not rows:
         return []
 
@@ -617,7 +647,9 @@ def _section_candidates(workspace_id: int, query: str, workspace: str, pool: int
     # Same fusion the UI and MCP serve: its lexical half carries the title signal the
     # vector channel gave up when the title left the embedding.
     vector_order = sorted(top, key=lambda slug: (-top[slug], slug))
-    lexical_order = [hit.slug for hit in db.search_pages(workspace_id, query)]
+    lexical_order = [
+        hit.slug for hit in db.search_pages(workspace_id, query, allowed_slugs=allowed_slugs)
+    ]
     fused = _rrf([(1.0, lexical_order), (RRF_VECTOR_WEIGHT, vector_order)])
     if not fused:
         return []
@@ -656,6 +688,7 @@ def rag_context(
     *,
     budget: int = CONTEXT_BUDGET,
     limit: int | None = None,
+    allowed_slugs: set[str] | None = None,
 ) -> dict:
     """Retrieval only: chunks plus provenance, no generated text.
 
@@ -676,12 +709,12 @@ def rag_context(
     candidates: list[dict] = []
     mode = "fts"
     if semantic_enabled():
-        candidates = _section_candidates(workspace_id, query, workspace, pool)
+        candidates = _section_candidates(workspace_id, query, workspace, pool, allowed_slugs)
         if candidates:
             mode = "semantic"
 
     if mode == "fts":
-        candidates = _fts_context(workspace_id, query, workspace, pool)
+        candidates = _fts_context(workspace_id, query, workspace, pool, allowed_slugs)
 
     chunks, truncated = _pack_context(candidates, budget, limit)
     return {"query": query, "mode": mode, "chunks": chunks, "truncated": truncated}

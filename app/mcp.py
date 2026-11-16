@@ -11,7 +11,7 @@ from collections.abc import Callable
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
-from app import db, embeddings, git_repo, graph, meta, suggest
+from app import access, db, embeddings, git_repo, graph, meta, suggest
 from app.models import Workspace
 from app.schemas import JsonRpcResponse
 from app.version import VERSION
@@ -30,7 +30,12 @@ INSTRUCTIONS = (
     "lists pages worth linking, and `list_backlinks` shows what links in. Tags are "
     "inline #tags or a frontmatter `tags:` list. Pages are read by people: write natural "
     "prose in full sentences, in the language the page already uses, with no telegraphic "
-    "notes and no internal IDs standing in for explanations."
+    "notes and no internal IDs standing in for explanations. "
+    "For shared agent memory, use query_knowledge_context across workspaces, "
+    "read_page_sections for long pages, and get_knowledge_object for typed relations. "
+    "Use stable idempotency_key values on creation and expected_revision on full-page updates. "
+    "Typed relationships are separate from ordinary wikilinks; archive evidence with "
+    "set_knowledge_metadata rather than copying summaries into several pages."
 )
 _LINK_HINT = " Link other pages with [[slug]] or [[slug|label]]; nesting alone does not."
 PROTOCOL_VERSIONS = {"2024-11-05", "2025-03-26", "2025-06-18"}
@@ -66,7 +71,12 @@ def _git_commit(user_id: int, ws: Workspace, slug: str, title: str, content: str
 
 
 def _tool_list_workspaces(user_id: int, _args: dict) -> list[dict]:
-    return [{"slug": w.slug, "name": w.name, "role": w.role} for w in db.list_workspaces(user_id)]
+    return [
+        {"slug": w.slug, "name": w.name, "role": w.role}
+        for w in db.list_workspaces(user_id)
+        if access.policy.get() is None
+        or any(g["workspace"] == w.slug for g in access.policy.get()["grants"])
+    ]
 
 
 def _tool_list_members(user_id: int, args: dict) -> list[dict]:
@@ -94,6 +104,8 @@ def _tool_get_page(user_id: int, args: dict) -> dict:
         "title": page.title,
         "content": page.content,
         "parent_slug": page.parent_slug,
+        "revision": page.revision,
+        "git_status": "synced" if page.git_revision == page.revision else "pending",
         "created_at": page.created_at,
         "updated_at": page.updated_at,
     }
@@ -124,6 +136,7 @@ def _tool_create_page(user_id: int, args: dict) -> dict:
         content,
         parent_slug=args.get("parent_slug") or None,
         requested_slug=args.get("slug") or None,
+        idempotency_key=args.get("idempotency_key") or None,
     )
     page = db.get_page(slug, int(ws.id))
     final_title = page.title if page else title
@@ -178,7 +191,9 @@ def _tool_update_page(user_id: int, args: dict) -> dict:
         raise ValueError(f"Page not found: {slug}")
     title = str(args["title"]) if args.get("title") is not None else page.title
     content = str(args["content"]) if args.get("content") is not None else page.content
-    db.update_page(user_id, int(ws.id), slug, title, content)
+    db.update_page(
+        user_id, int(ws.id), slug, title, content, expected_revision=args.get("expected_revision")
+    )
     _git_commit(user_id, ws, slug, title, content)
     return {"slug": slug, "title": title, "updated": True}
 
@@ -243,7 +258,12 @@ def _tool_search_knowledge(user_id: int, args: dict) -> list[dict]:
     tags = args.get("tags") or None
     if isinstance(tags, str):
         tags = [tags]
-    hits = embeddings.search(int(ws.id), query, mode="hybrid", tags=tags)[:limit]
+    from app.knowledge import eligible_slugs
+
+    allowed = eligible_slugs(int(ws.id), {"type": args["type"]}) if args.get("type") else None
+    hits = embeddings.search(int(ws.id), query, mode="hybrid", tags=tags, allowed_slugs=allowed)[
+        :limit
+    ]
     # `parts` exists to draw highlighting in the UI. An agent reads text, and they are
     # dataclasses json.dumps cannot serialize anyway.
     return [{k: v for k, v in hit.items() if k != "parts"} for hit in hits]
@@ -754,6 +774,101 @@ TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
 }
 
 
+# Additive structured-memory operations preserve the existing text MCP contract.
+from app import knowledge  # noqa: E402
+
+_KNOWLEDGE_PROPERTIES = {
+    "workspace": {"type": "string"},
+    "slug": {"type": "string"},
+    "target": {"type": "string"},
+    "kind": {"type": "string", "enum": sorted(knowledge.RELATIONS)},
+    "evidence": {"type": "string"},
+    "properties": {"type": "object"},
+    "expected_revision": {"type": "integer", "minimum": 1},
+    "alias": {"type": "string"},
+    "relation_id": {"type": "integer"},
+    "heading": {"type": "string"},
+    "offset": {"type": "integer", "minimum": 0},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+    "newest_first": {"type": "boolean"},
+    "query": {"type": "string"},
+    "workspaces": {"type": "array", "items": {"type": "string"}, "maxItems": 20},
+    "budget": {"type": "integer", "minimum": 1, "maximum": 50000},
+    "type": {"type": "string"},
+    "status": {"type": "string"},
+    "as_of": {"type": "string"},
+    "entity": {"type": "string"},
+}
+_TOOL_FIELDS = {
+    "get_knowledge_history": (
+        ["workspace", "slug", "offset", "limit"],
+        ["slug"],
+        "Read durable Markdown revisions with user or token provenance, even if Git is pending.",
+    ),
+    "get_knowledge_object": (
+        ["workspace", "slug"],
+        ["slug"],
+        "Read Markdown, stable identity, properties and typed relations.",
+    ),
+    "read_page_sections": (
+        ["workspace", "slug", "heading", "offset", "limit", "newest_first"],
+        ["slug"],
+        "Read whole page sections with pagination; newest_first reads the tail first.",
+    ),
+    "set_knowledge_metadata": (
+        ["workspace", "slug", "properties", "expected_revision"],
+        ["slug", "properties"],
+        "Set typed properties in Markdown frontmatter; use status archived to retain evidence.",
+    ),
+    "relate_knowledge": (
+        ["workspace", "slug", "target", "kind", "evidence"],
+        ["slug", "target", "kind"],
+        "Relate two objects with a typed edge and evidence, without copying content.",
+    ),
+    "remove_knowledge_relation": (
+        ["workspace", "slug", "relation_id"],
+        ["slug", "relation_id"],
+        "Remove a typed outgoing relation.",
+    ),
+    "add_entity_alias": (
+        ["workspace", "slug", "alias"],
+        ["slug", "alias"],
+        "Add an unambiguous name for an existing entity, preserving its identity.",
+    ),
+    "query_knowledge_context": (
+        ["query", "workspaces", "budget", "limit", "type", "status", "as_of", "entity"],
+        ["query"],
+        "Retrieve context across authorized workspaces with a global budget and relation filters. "
+        "Active objects by default.",
+    ),
+    "retry_page_version": (
+        ["workspace", "slug"],
+        ["slug"],
+        "Retry a pending Git snapshot using current stored content.",
+    ),
+}
+for _name, (_fields, _required, _description) in _TOOL_FIELDS.items():
+    TOOLS.append(
+        {
+            "name": _name,
+            "description": _description,
+            "inputSchema": {
+                "type": "object",
+                "properties": {field: _KNOWLEDGE_PROPERTIES[field] for field in _fields},
+                "required": _required,
+            },
+        }
+    )
+TOOL_HANDLERS.update(knowledge.HANDLERS)
+for _tool in TOOLS:
+    if _tool["name"] == "create_page":
+        _tool["inputSchema"]["properties"]["idempotency_key"] = {"type": "string", "maxLength": 200}
+    if _tool["name"] == "search_knowledge":
+        _tool["inputSchema"]["properties"]["type"] = {"type": "string"}
+    if _tool["name"] == "update_page":
+        _tool["inputSchema"]["properties"]["expected_revision"] = {"type": "integer", "minimum": 1}
+
+
 # ── JSON-RPC dispatch ────────────────────────────────────────────────────────
 
 
@@ -768,6 +883,8 @@ def _error(msg_id: str | int | None, code: int, message: str) -> dict:
 def _tool_text(data: dict | list | str, *, is_error: bool = False) -> dict:
     text = data if isinstance(data, str) else json.dumps(data, ensure_ascii=False, indent=2)
     result: dict = {"content": [{"type": "text", "text": text}]}
+    if isinstance(data, dict):
+        result["structuredContent"] = data
     if is_error:
         result["isError"] = True
     return result
@@ -782,14 +899,34 @@ def _call_tool(request: Request, msg_id: str | int | None, params: dict) -> dict
     if handler is None:
         return _error(msg_id, -32602, f"Unknown tool: {name}")
     arguments = params.get("arguments") or {}
+    if not isinstance(arguments, dict):
+        return _error(msg_id, -32602, "Tool arguments must be an object")
     logger.info("mcp: tool=%s user=%s", name, user_id)
     try:
+        from app.knowledge import authorize_tool
+
+        authorize_tool(int(user_id), name, arguments)
         return _result(msg_id, _tool_text(handler(int(user_id), arguments)))
-    except ValueError as exc:
-        return _result(msg_id, _tool_text(str(exc), is_error=True))
+    except (ValueError, PermissionError, TypeError, KeyError) as exc:
+        code = (
+            "FORBIDDEN"
+            if isinstance(exc, PermissionError)
+            else (
+                "CONFLICT"
+                if isinstance(exc, db.RevisionConflict)
+                else ("NOT_FOUND" if "not found" in str(exc).lower() else "INVALID_ARGUMENT")
+            )
+        )
+        error = _tool_text(str(exc), is_error=True)
+        error["structuredContent"] = {"error": {"code": code, "message": str(exc)}}
+        return _result(msg_id, error)
     except Exception:
         logger.exception("mcp: tool %s failed", name)
-        return _result(msg_id, _tool_text(f"Tool {name} failed unexpectedly", is_error=True))
+        error = _tool_text(f"Tool {name} failed unexpectedly", is_error=True)
+        error["structuredContent"] = {
+            "error": {"code": "INTERNAL_ERROR", "message": "Tool failed unexpectedly"}
+        }
+        return _result(msg_id, error)
 
 
 def _handle_message(request: Request, msg) -> dict | None:

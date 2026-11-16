@@ -1,7 +1,7 @@
 # Agents and MCP
 
 doction speaks MCP (Model Context Protocol) natively at `POST /api/mcp`: JSON-RPC 2.0,
-stateless, no SDK. 27 tools over the same data the REST API and the web UI see.
+stateless, no SDK. 34 tools over the same data the REST API and the web UI see.
 
 The division of labour is the important part. **doction retrieves; your agent generates.**
 There is no language model inside doction, so no tool here writes prose — `summarize_page`
@@ -156,3 +156,95 @@ wikilink is information, and it is how you find the page someone meant to write.
   the `tsvector` column itself.
 - **Scope your writes to a workspace.** Access is by membership, and a token carries its
   user's memberships. A token cannot reach a workspace its user was never added to.
+
+## Structured memory
+
+The original page tools remain available. The following tools add structured memory without
+requiring agents to rewrite existing pages. REST clients can call the same operations at
+`POST /api/knowledge/{operation}`, passing the MCP arguments as the JSON body.
+
+| Tool | Arguments and result |
+| --- | --- |
+| `get_knowledge_object` | `workspace`, `slug`: stable page `id`, Markdown, parsed properties, aliases, relations, revision and Git status |
+| `read_page_sections` | `workspace`, `slug`, optional `heading`, `offset`, `limit`, `newest_first`: whole sections and `next_offset` |
+| `get_knowledge_history` | `workspace`, `slug`, optional `offset`, `limit`: durable Markdown revisions with actor and recording date |
+| `set_knowledge_metadata` | `workspace`, `slug`, `properties`, optional `expected_revision`: update frontmatter and return the object |
+| `relate_knowledge` | `workspace`, `slug`, `target`, `kind`, optional `evidence`: create a typed edge within one workspace |
+| `remove_knowledge_relation` | `workspace`, `slug`, `relation_id`: remove an outgoing typed edge |
+| `add_entity_alias` | `workspace`, `slug`, `alias`: identify the same entity by another normalized name; collisions fail |
+| `query_knowledge_context` | `query`, optional `workspaces`, `type`, `status`, `entity`, `as_of`, `budget`, `limit`: passages across workspaces with one shared budget |
+| `retry_page_version` | `workspace`, `slug`: retry a pending Git snapshot |
+
+Types are `Project`, `Service`, `Runbook`, `Incident`, `Decision`, `Conversation`, `Person`,
+`Event`, `Task`, `Concept` and `Research`. Existing custom frontmatter types remain readable.
+Statuses are `active`, `draft`, `superseded` and `archived`. Additional supported properties are
+`source`, `source_revision`, `external_id`, `observed_at`, `valid_from`, `valid_until` and
+`reviewed_at`. Date properties accept ISO dates or timestamps. Unknown frontmatter fields
+are retained when metadata is edited.
+
+Typed edges support `affects`, `belongs_to`, `derived_from`, `supersedes`, `decided_by` and
+`related_to`. They are stored in PostgreSQL and returned in the object's JSON; they do not
+rewrite Markdown or replace wikilinks. Database backups must include these tables. A Markdown-only
+export cannot reconstruct typed edges. Aliases resolve within a workspace and do not merge entities.
+
+`query_knowledge_context` defaults to active objects, including legacy pages without a status.
+Metadata and direct typed-neighbor constraints apply before retrieval ranking and limits. `entity`
+selects an entity plus its direct typed neighbors, in either direction. `as_of` filters the stored
+validity interval; it does not reconstruct historical Markdown. Candidates from each workspace are
+combined by local rank with deterministic workspace/slug tie breaking, then deduplicated and packed
+into the global character budget. This combines existing lexical/vector retrieval with graph filters;
+it is not a graph inference engine. Use `get_knowledge_history` for actual recorded revisions.
+
+### Concurrent writes and retries
+
+- `upsert_page_section` locks the page before reading and changing it, preserving concurrent edits
+  to different sections. The last completed write to the same section wins.
+- `get_page` and `get_knowledge_object` return `revision`. Pass it as `expected_revision` to
+  `update_page` (also REST `PUT /api/pages/{slug}`) to detect stale full-page edits. Omission preserves
+  the legacy last-writer-wins behavior. Metadata edits automatically check the revision they read.
+- `create_page` accepts `idempotency_key` (also REST `POST /api/pages`). Keys are workspace-scoped;
+  identical retries return the same page, while changed payloads or a trashed target return conflict.
+  Use a stable conversation/event ID, not a timestamp generated again on every retry.
+- MCP errors keep the original human-readable text and add
+  `structuredContent.error` with `code` and `message`. Codes include `FORBIDDEN`, `CONFLICT`,
+  `NOT_FOUND` and `INVALID_ARGUMENT`. Successful object results also provide `structuredContent`.
+- New content revisions are recorded in PostgreSQL in the same transaction as the content change,
+  with `user:<id>` or `token:<id>` provenance. Existing pages receive a baseline marked `legacy:user:`;
+  this does not invent earlier history. Git remains a separate Markdown backup: `git_status` is
+  `synced` only when its snapshot matches the current revision, otherwise `pending`.
+
+### Token capabilities
+
+`POST /api/tokens` accepts an optional `policy`. Existing tokens and tokens created without a policy
+retain their original membership-based access. An empty grant list denies all knowledge access.
+A restricted token cannot mint tokens, change accounts, manage memberships or administer workspaces.
+Bearer credentials take precedence over session cookies when both are supplied.
+
+```json
+{
+  "name": "agent_rpi",
+  "policy": {
+    "grants": [
+      {"workspace": "agente", "actions": ["read", "create", "update", "relate"]},
+      {"workspace": "personal", "actions": ["read"]},
+      {"workspace": "work", "actions": ["read"]},
+      {"workspace": "work", "actions": ["update"], "pages": ["inbox"]},
+      {"workspace": "bussisnes", "actions": ["read"]},
+      {"workspace": "bussisnes", "actions": ["update"], "pages": ["inbox"]}
+    ]
+  }
+}
+```
+
+Actions are `read`, `create`, `update`, `delete` and `relate`. Grants add permissions and never
+bypass workspace membership. `pages` restricts an action to exact slugs; creation is workspace-wide.
+Tools exposing neighbors or workspace-wide information require workspace-wide read access. Capability
+restrictions apply equally to REST and MCP. Human confirmation remains the calling agent's responsibility.
+
+For `agent_rpi`, migrate to one idempotent `Conversation` object and `Service` objects linked by
+`affects`; do not copy conversation summaries into each service. Preserve source IDs and label LLM
+summaries as unverified summaries. Archive conversations explicitly instead of deleting their evidence.
+Retrieve with `query_knowledge_context`, and follow `next_offset` when reading long pages. Existing
+clients continue to work, but must adopt these operations to gain this behavior. Deploy Doction first,
+then update clients and issue separate restricted tokens for infra, Claude Code and Codex. No client
+configuration or running deployment is changed by this server update.

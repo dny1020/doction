@@ -27,7 +27,20 @@ from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import HTTP_303_SEE_OTHER
 
-from app import db, embeddings, git_repo, graph, i18n, mcp, meta, ocr, seed, suggest, webhooks
+from app import (
+    access,
+    db,
+    embeddings,
+    git_repo,
+    graph,
+    i18n,
+    mcp,
+    meta,
+    ocr,
+    seed,
+    suggest,
+    webhooks,
+)
 from app import schemas as out
 from app.auth import (
     TOKEN_PREFIX,
@@ -112,6 +125,7 @@ class _PageIn(BaseModel):
     content: str = ""
     parent_slug: str | None = None
     slug: str | None = None
+    idempotency_key: str | None = None
 
 
 class _WebhookIn(BaseModel):
@@ -130,6 +144,7 @@ class _RenameIn(BaseModel):
 
 
 class _PagePatch(BaseModel):
+    expected_revision: int | None = None
     title: str | None = None
     content: str | None = None
 
@@ -140,6 +155,7 @@ class _WorkspaceIn(BaseModel):
 
 class _ApiTokenIn(BaseModel):
     name: str = "token"
+    policy: access.Policy | None = None
 
 
 class _MemberIn(BaseModel):
@@ -165,6 +181,11 @@ def _api_workspace(request: Request, user_id: int) -> int:
     ws = getattr(request.state, "workspace", None)
     if ws is None:
         ws = db.ensure_default_workspace(user_id)
+    action = {"GET": "read", "POST": "create", "PUT": "update", "DELETE": "delete"}.get(
+        request.method, "read"
+    )
+    # The middleware guards the route; this also guards default-workspace fallback.
+    access.require(ws.slug, action, request.path_params.get("slug"))
     return int(ws.id)
 
 
@@ -206,7 +227,9 @@ def api_token(request: Request, body: _TokenIn):
 def api_create_token(request: Request, body: _ApiTokenIn):
     uid = _api_user(request)
     token = generate_api_token()
-    token_id = db.create_api_token(uid, body.name, hash_api_token(token))
+    token_id = db.create_api_token(
+        uid, body.name, hash_api_token(token), body.policy.model_dump() if body.policy else None
+    )
     # The plaintext is returned once and never stored.
     return {"id": token_id, "name": body.name.strip() or "token", "token": token}
 
@@ -277,11 +300,11 @@ def api_revoke_token(request: Request, token_id: int):
 
 @api_router.get("/workspaces", tags=["workspaces"], response_model=list[out.Workspace])
 def api_list_workspaces(request: Request):
-    uid = _api_user(request)
+    _api_user(request)
     # Built by hand to return only these fields, not user_id and the rest.
     return [
         {"id": w.id, "slug": w.slug, "name": w.name, "role": w.role}
-        for w in db.list_workspaces(uid)
+        for w in request.state.workspaces
     ]
 
 
@@ -416,12 +439,15 @@ def api_create_page(request: Request, body: _PageIn):
             body.content,
             parent_slug=body.parent_slug,
             requested_slug=body.slug,
+            idempotency_key=body.idempotency_key,
         )
+    except db.RevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     page = db.get_page(slug, wid)
     title = page.title if page else body.title
-    _commit_page(request, wid, slug, title, body.content)
+    _commit_page(request, wid, slug, title, page.content if page else body.content)
     return {"slug": slug, "title": title}
 
 
@@ -484,7 +510,13 @@ def api_get_page(request: Request, slug: str):
         "title": page.title,
         "content": page.content,
         "parent_slug": page.parent_slug,
-        "children": [{"slug": c.slug, "title": c.title} for c in children],
+        "revision": page.revision,
+        "git_status": "synced" if page.git_revision == page.revision else "pending",
+        "children": [
+            {"slug": c.slug, "title": c.title}
+            for c in children
+            if access.allowed(_workspace_slug(request, wid), "read", c.slug)
+        ],
         "created_at": page.created_at,
         "updated_at": page.updated_at,
     }
@@ -500,7 +532,11 @@ def api_update_page(request: Request, slug: str, body: _PagePatch):
     new_title = body.title if body.title is not None else page.title
     new_content = body.content if body.content is not None else page.content
     try:
-        db.update_page(uid, wid, slug, new_title, new_content)
+        db.update_page(
+            uid, wid, slug, new_title, new_content, expected_revision=body.expected_revision
+        )
+    except db.RevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     _commit_page(request, wid, slug, new_title, new_content)
@@ -706,6 +742,9 @@ def _me_payload(user_id: int, active_slug: str | None) -> dict:
     """The current user and their workspaces, for the SPA to start from."""
     user = db.get_user_by_id(user_id)
     workspaces = db.list_workspaces(user_id)
+    if access.policy.get() is not None:
+        permitted = {g["workspace"] for g in access.policy.get()["grants"]}
+        workspaces = [w for w in workspaces if w.slug in permitted]
     active = None
     for w in workspaces:
         if w.slug == active_slug:
@@ -1016,6 +1055,13 @@ async def serve_upload(request: Request, name: str) -> Response:
     return FileResponse(path)
 
 
+@api_router.post("/knowledge/{operation}", tags=["knowledge"])
+def api_knowledge(request: Request, operation: str, arguments: dict) -> dict:
+    from app.knowledge import rest_call
+
+    return rest_call(request, operation, arguments)
+
+
 app.include_router(api_router)
 app.include_router(mcp.router)
 
@@ -1249,8 +1295,10 @@ async def attach_user(request: Request, call_next):
     # revoked individually rather than by version.
     user_id: int | None = None
     token_ver: int | None = None
+    token_policy = None
+    token_actor = None
     session_claims = _decode_token(request.cookies.get("session") or "")
-    if session_claims is not None:
+    if session_claims is not None and not request.headers.get("authorization"):
         user_id, token_ver = session_claims
     else:
         auth = request.headers.get("authorization", "")
@@ -1258,6 +1306,12 @@ async def attach_user(request: Request, call_next):
             bearer = auth[7:].strip()
             if bearer.startswith(TOKEN_PREFIX):
                 user_id = db.resolve_api_token(hash_api_token(bearer))
+                if user_id is not None:
+                    token_access = db.token_access(hash_api_token(bearer))
+                    if token_access is None:
+                        user_id = None  # revoked between authentication and policy lookup
+                    else:
+                        token_actor, token_policy = token_access
             else:
                 bearer_claims = _decode_token(bearer)
                 if bearer_claims is not None:
@@ -1280,6 +1334,9 @@ async def attach_user(request: Request, call_next):
             if not workspaces:
                 db.ensure_default_workspace(user_id)
                 workspaces = db.list_workspaces(user_id)
+            if token_policy is not None:
+                permitted = {g["workspace"] for g in token_policy["grants"]}
+                workspaces = [w for w in workspaces if w.slug in permitted]
             request.state.workspaces = workspaces
 
             # ?ws= is explicit, so an unknown one is an error; the cookie only remembers the last
@@ -1300,7 +1357,19 @@ async def attach_user(request: Request, call_next):
                 workspace = workspaces[0]
             request.state.workspace = workspace
 
-    response = await call_next(request)
+    policy_reset = access.policy.set(token_policy)
+    actor_reset = access.actor.set(token_actor)
+    try:
+        if token_policy is not None and request.url.path.startswith("/api/"):
+            from app.knowledge import authorize_rest
+
+            authorize_rest(request)
+        response = await call_next(request)
+    except PermissionError as exc:
+        response = JSONResponse({"detail": str(exc)}, status_code=403)
+    finally:
+        access.policy.reset(policy_reset)
+        access.actor.reset(actor_reset)
 
     workspace = getattr(request.state, "workspace", None)
     if workspace is not None and request.cookies.get("workspace") != workspace.slug:

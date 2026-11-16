@@ -1,9 +1,11 @@
 """Page versioning with git: silent, and never blocks a save."""
 
+import fcntl
 import logging
 import os
 import re
 import subprocess
+from functools import wraps
 from pathlib import Path
 
 from app.models import HistoryEntry
@@ -36,6 +38,19 @@ def ensure_repo() -> None:
     subprocess.run(["git", "-C", str(pages), "config", "user.name", "doction"], capture_output=True)
 
 
+def _serialized(function):
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        pages = _pages_dir()
+        pages.mkdir(parents=True, exist_ok=True)
+        with (pages / ".doction-lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            return function(*args, **kwargs)
+
+    return wrapped
+
+
+@_serialized
 def commit_page(
     ws_slug: str, page_slug: str, content: str, author: str, message: str
 ) -> str | None:
@@ -95,6 +110,7 @@ def commit_page(
     return sha.stdout.strip() or None
 
 
+@_serialized
 def rename_page_file(ws_slug: str, old_slug: str, new_slug: str, author: str) -> str | None:
     """`git mv` the .md and commit; None if anything fails.
 
@@ -150,8 +166,8 @@ def commit_and_record(
     workspace_id: int,
     ws_slug: str,
     page_slug: str,
-    title: str,
-    content: str,
+    title: str,  # noqa: ARG001 - retained for existing callers
+    content: str,  # noqa: ARG001
     author: str,
 ) -> None:
     """Commit the save and store the resulting SHA on the page.
@@ -160,9 +176,24 @@ def commit_and_record(
     """
     from app import db
 
-    sha = commit_page(ws_slug, page_slug, content, author, f"Save: {title}")
-    if sha:
-        db.set_page_git_commit(workspace_id, page_slug, sha)
+    # PostgreSQL serializes snapshots across processes; read current content after locking.
+    # The conditional update cannot mark a newer concurrent edit as backed up.
+    with db.connect() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(17321, %s)", (workspace_id,))
+        row = conn.execute(
+            "SELECT title, content, revision FROM pages WHERE workspace_id = %s AND slug = %s "
+            "AND deleted_at IS NULL",
+            (workspace_id, page_slug),
+        ).fetchone()
+        if row is None:
+            return
+        sha = commit_page(ws_slug, page_slug, row["content"], author, f"Save: {row['title']}")
+        if sha:
+            conn.execute(
+                "UPDATE pages SET git_commit = %s, git_revision = %s "
+                "WHERE workspace_id = %s AND slug = %s AND revision = %s",
+                (sha, row["revision"], workspace_id, page_slug, row["revision"]),
+            )
 
 
 def get_page_history(ws_slug: str, page_slug: str, limit: int = 50) -> list[HistoryEntry]:

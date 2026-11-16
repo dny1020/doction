@@ -204,3 +204,12 @@ redirects that lead to it.
 
 The 404-for-forbidden behaviour is deliberate. Answering 403 for a workspace you cannot see would
 confirm that it exists.
+
+## Structured memory
+
+```
+POST /api/knowledge/{operation}
+```
+
+Uses the corresponding MCP operation name and arguments as a JSON object. See
+[Agents and MCP](mcp.md#structured-memory) for operations and permission rules.

@@ -65,6 +65,15 @@ def test_tools_list(client):
     r = _rpc(client, "tools/list")
     tools = {t["name"] for t in r.json()["result"]["tools"]}
     assert tools == {
+        "get_knowledge_history",
+        "get_knowledge_object",
+        "read_page_sections",
+        "set_knowledge_metadata",
+        "relate_knowledge",
+        "remove_knowledge_relation",
+        "add_entity_alias",
+        "query_knowledge_context",
+        "retry_page_version",
         # The five in the agent contract.
         "search_knowledge",
         "get_rag_context",

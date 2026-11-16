@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -13,7 +14,7 @@ from psycopg import Connection
 from psycopg.rows import DictRow, dict_row
 from psycopg_pool import ConnectionPool
 
-from app import meta
+from app import access, meta
 from app.avatar import normalize_color
 from app.models import (
     ApiToken,
@@ -149,6 +150,8 @@ def _to_page(row: dict) -> Page:
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
         git_commit=row.get("git_commit"),
+        revision=row.get("revision", 1),
+        git_revision=row.get("git_revision"),
         embed_dirty=row.get("embed_dirty"),
         updated_by=row.get("updated_by"),
         deleted_at=row.get("deleted_at"),
@@ -227,6 +230,30 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         ) STORED
     )
     """,
+    "ALTER TABLE pages ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 1",
+    "ALTER TABLE pages ADD COLUMN IF NOT EXISTS git_revision BIGINT",
+    "ALTER TABLE pages ADD COLUMN IF NOT EXISTS idempotency_key TEXT",
+    "ALTER TABLE pages ADD COLUMN IF NOT EXISTS request_hash TEXT",
+    "CREATE UNIQUE INDEX IF NOT EXISTS pages_idempotency_idx "
+    "ON pages(workspace_id, idempotency_key)",
+    "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS policy_json TEXT",
+    """CREATE TABLE IF NOT EXISTS knowledge_relations (
+        id BIGSERIAL PRIMARY KEY,
+        source_id BIGINT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+        target_id BIGINT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL, evidence TEXT NOT NULL DEFAULT '', actor TEXT NOT NULL,
+        created_at TEXT NOT NULL, UNIQUE (source_id, target_id, kind)
+    )""",
+    "CREATE INDEX IF NOT EXISTS knowledge_relations_target_idx ON knowledge_relations(target_id)",
+    """CREATE TABLE IF NOT EXISTS knowledge_revisions (
+        page_id BIGINT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+        revision BIGINT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL,
+        actor TEXT NOT NULL, recorded_at TEXT NOT NULL, PRIMARY KEY (page_id, revision)
+    )""",
+    """INSERT INTO knowledge_revisions (page_id, revision, title, content, actor, recorded_at)
+        SELECT id, revision, title, content, 'legacy:user:' || COALESCE(updated_by, user_id)::text,
+               updated_at FROM pages WHERE COALESCE(updated_by, user_id) IS NOT NULL
+        ON CONFLICT DO NOTHING""",
     "CREATE UNIQUE INDEX IF NOT EXISTS pages_workspace_slug_idx ON pages(workspace_id, slug)",
     "CREATE INDEX IF NOT EXISTS pages_user_idx ON pages(user_id)",
     "CREATE INDEX IF NOT EXISTS pages_parent_idx ON pages(parent_id)",
@@ -951,6 +978,7 @@ def create_page(
     *,
     parent_slug: str | None = None,
     requested_slug: str | None = None,
+    idempotency_key: str | None = None,
 ) -> str:
     _check_content_size(content)
     title = title.strip() or meta.derive_title(content)
@@ -965,6 +993,22 @@ def create_page(
     now = _now()
 
     with connect() as conn:
+        fingerprint = hashlib.sha256(
+            json.dumps([title, content, parent_slug, requested_slug], ensure_ascii=False).encode()
+        ).hexdigest()
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (workspace_id,))
+        if idempotency_key:
+            if not isinstance(idempotency_key, str) or len(idempotency_key) > 200:
+                raise ValueError("Idempotency key too long")
+            previous = conn.execute(
+                "SELECT slug, request_hash, deleted_at FROM pages "
+                "WHERE workspace_id = %s AND idempotency_key = %s",
+                (workspace_id, idempotency_key),
+            ).fetchone()
+            if previous:
+                if previous["request_hash"] != fingerprint or previous["deleted_at"]:
+                    raise RevisionConflict("Idempotency key already used")
+                return previous["slug"]
         parent_id = _resolve_parent_id(
             conn,
             parent_slug,
@@ -975,15 +1019,28 @@ def create_page(
             """
             INSERT INTO pages (
                 user_id, workspace_id, parent_id, slug, title, content,
-                created_at, updated_at, updated_by
+                created_at, updated_at, updated_by, idempotency_key, request_hash
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (user_id, workspace_id, parent_id, slug, title, content, now, now, user_id),
+            (
+                user_id,
+                workspace_id,
+                parent_id,
+                slug,
+                title,
+                content,
+                now,
+                now,
+                user_id,
+                idempotency_key,
+                fingerprint,
+            ),
         ).fetchone()
         assert row is not None
         page_id = int(row["id"])
+        _record_revision(conn, page_id, user_id)
         _index_page_meta(conn, page_id, workspace_id, content)
         # Forward references: links written before their target existed would stay
         # broken forever otherwise.
@@ -998,24 +1055,44 @@ def create_page(
         return slug
 
 
-def update_page(user_id: int, workspace_id: int, slug: str, title: str, content: str) -> str | None:
-    """Update a page, keeping its slug stable; returns the slug, or None if missing."""
+class RevisionConflict(ValueError):
+    """A retry or edit conflicts with stored knowledge."""
+
+
+def _write_page(conn, user_id, workspace_id, row, title, content):
+    _check_content_size(content)
+    conn.execute(
+        "UPDATE pages SET title = %s, content = %s, updated_at = %s, updated_by = %s, "
+        "revision = revision + 1, embed_dirty = 1 WHERE id = %s",
+        (title, content, _now(), user_id, row["id"]),
+    )
+    _record_revision(conn, row["id"], user_id)
+    _index_page_meta(conn, int(row["id"]), workspace_id, content)
+    emit_event(conn, workspace_id, "page.updated", {"page": {"slug": row["slug"], "title": title}})
+
+
+def update_page(
+    user_id: int,
+    workspace_id: int,
+    slug: str,
+    title: str,
+    content: str,
+    *,
+    expected_revision: int | None = None,
+) -> str | None:
     _check_content_size(content)
     title = title.strip() or meta.derive_title(content)
     with connect() as conn:
         row = conn.execute(
-            "SELECT id FROM pages WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
+            "SELECT id, slug, revision FROM pages WHERE slug = %s AND workspace_id = %s "
+            "AND deleted_at IS NULL FOR UPDATE",
             (slug, workspace_id),
         ).fetchone()
         if row is None:
             return None
-        conn.execute(
-            "UPDATE pages SET title = %s, content = %s, updated_at = %s, updated_by = %s "
-            "WHERE id = %s",
-            (title, content, _now(), user_id, row["id"]),
-        )
-        _index_page_meta(conn, int(row["id"]), workspace_id, content)
-        emit_event(conn, workspace_id, "page.updated", {"page": {"slug": slug, "title": title}})
+        if expected_revision is not None and row["revision"] != expected_revision:
+            raise RevisionConflict("Revision conflict: read the page again before updating")
+        _write_page(conn, user_id, workspace_id, row, title, content)
         return slug
 
 
@@ -1029,18 +1106,19 @@ def upsert_page_section(
     level: int = 2,
     parent: str | None = None,
 ) -> str | None:
-    """Write a single section of a page. Returns the slug, or None if it does not exist.
-
-    Goes through `update_page` so git history, reindexing and webhooks happen as for any
-    write. `AmbiguousSection` propagates.
-    """
-    page = get_page(slug, workspace_id)
-    if page is None:
-        return None
-    content = meta.upsert_section(page.content, heading, body, level=level, parent=parent)
-    if content == page.content:
+    """Lock before reading so concurrent section edits never replace each other."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id, slug, title, content FROM pages WHERE slug = %s AND workspace_id = %s "
+            "AND deleted_at IS NULL FOR UPDATE",
+            (slug, workspace_id),
+        ).fetchone()
+        if row is None:
+            return None
+        content = meta.upsert_section(row["content"], heading, body, level=level, parent=parent)
+        if content != row["content"]:
+            _write_page(conn, user_id, workspace_id, row, row["title"], content)
         return slug
-    return update_page(user_id, workspace_id, slug, page.title, content)
 
 
 # ── Outgoing webhooks ────────────────────────────────────────────────────────
@@ -1299,6 +1377,7 @@ def rename_page(workspace_id: int, slug: str, new_slug: str) -> str | None:
     if not base:
         raise ValueError("empty slug")
     with connect() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (workspace_id,))
         row = conn.execute(
             "SELECT id, slug FROM pages "
             "WHERE slug = %s AND workspace_id = %s AND deleted_at IS NULL",
@@ -1487,6 +1566,7 @@ def search_pages(
     query: str,
     limit: int = 20,
     tags: list[str] | None = None,
+    allowed_slugs: set[str] | None = None,
 ) -> list[SearchHit]:
     """Lexical workspace search, optionally narrowed by tags.
 
@@ -1505,6 +1585,9 @@ def search_pages(
             " AND EXISTS (SELECT 1 FROM page_tags t WHERE t.page_id = p.id AND t.tag = ANY(%s))"
         )
         tag_params = [[t.strip().lstrip("#").lower() for t in tags if t.strip()]]
+    if allowed_slugs is not None:
+        tag_join += " AND p.slug = ANY(%s)"
+        tag_params.append(sorted(allowed_slugs))
     with connect() as conn:
         rows = conn.execute(
             f"""
@@ -1974,12 +2057,18 @@ def set_page_git_commit(workspace_id: int, slug: str, sha: str) -> None:
         )
 
 
-def create_api_token(user_id: int, name: str, token_hash: str) -> int:
+def create_api_token(user_id: int, name: str, token_hash: str, policy: dict | None = None) -> int:
     with connect() as conn:
         row = conn.execute(
-            "INSERT INTO api_tokens (user_id, name, token_hash, created_at) "
-            "VALUES (%s, %s, %s, %s) RETURNING id",
-            (user_id, name.strip() or "token", token_hash, _now()),
+            "INSERT INTO api_tokens (user_id, name, token_hash, created_at, policy_json) "
+            "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (
+                user_id,
+                name.strip() or "token",
+                token_hash,
+                _now(),
+                json.dumps(policy) if policy is not None else None,
+            ),
         ).fetchone()
         assert row is not None
         return int(row["id"])
@@ -1988,7 +2077,7 @@ def create_api_token(user_id: int, name: str, token_hash: str) -> int:
 def list_api_tokens(user_id: int) -> list[ApiToken]:
     with connect() as conn:
         rows = conn.execute(
-            "SELECT id, name, created_at, last_used_at FROM api_tokens "
+            "SELECT id, name, created_at, last_used_at, policy_json FROM api_tokens "
             "WHERE user_id = %s ORDER BY created_at, id",
             (user_id,),
         ).fetchall()
@@ -1998,6 +2087,7 @@ def list_api_tokens(user_id: int) -> list[ApiToken]:
                 name=r["name"],
                 created_at=r["created_at"],
                 last_used_at=r["last_used_at"],
+                policy=json.loads(r["policy_json"]) if r["policy_json"] else None,
             )
             for r in rows
         ]
@@ -2033,3 +2123,22 @@ def resolve_api_token(token_hash: str) -> int | None:
                 (_now(), row["id"]),
             )
         return int(row["user_id"])
+
+
+def token_access(token_hash: str) -> tuple[str, dict | None] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id, policy_json FROM api_tokens WHERE token_hash = %s", (token_hash,)
+        ).fetchone()
+        if row is None:
+            return None
+        return f"token:{row['id']}", json.loads(row["policy_json"]) if row["policy_json"] else None
+
+
+def _record_revision(conn, page_id, user_id):
+    conn.execute(
+        "INSERT INTO knowledge_revisions (page_id, revision, title, content, actor, recorded_at) "
+        "SELECT id, revision, title, content, %s, %s FROM pages WHERE id = %s "
+        "ON CONFLICT DO NOTHING",
+        (access.actor.get() or f"user:{user_id}", _now(), page_id),
+    )

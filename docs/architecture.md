@@ -25,18 +25,20 @@ browser, `curl`, and an agent without a separate API.
 A saved page exists in two places at once, and they answer different questions.
 
 **On disk**, as a markdown file in a git repo at `{DATA_DIR}/pages/<workspace>/<slug>.md`.
-This is the source of truth for content and history. Every save is a commit, so
-`GET /api/pages/{slug}/history` is `git log` and the diff view is `git diff`. Git failures
-never break a save — the page is written and indexed either way, you just lose that
-commit.
+This is a readable Markdown snapshot with Git history: `GET /api/pages/{slug}/history`
+is `git log` and the diff view is `git diff`. Git failures do not reject a database save.
+The current revision reports `git_status: pending` until a successful snapshot matches it;
+`retry_page_version` retries the current content. Repository writes are serialized across processes.
 
-**In Postgres**, as a row plus its extracted metadata. This is the source of truth for
-*queries*: search, the tag index, the link graph, the page tree. Nothing here is content
-you would mourn; it is all derivable from the files.
+**In Postgres**, as the authoritative current page, transactional content revisions and
+extracted metadata. Typed relationships and token capabilities also live here. Database backups
+are required to preserve the complete knowledge model; Markdown alone is not sufficient.
+Postgres serves search, the tag index, both kinds of relationships and the page tree.
+The search indexes can be rebuilt, but capabilities, typed relations and durable revisions
+cannot be reconstructed from Markdown files alone.
 
-That split is why the backup story has two halves. The database alone gives you an index
-of pages you no longer have; the volume alone gives you pages with no search until they
-are reindexed.
+Back up both the database and the data volume: the database preserves structured knowledge,
+and the volume preserves the Git repository and uploads.
 
 ## The schema converges, it does not migrate
 

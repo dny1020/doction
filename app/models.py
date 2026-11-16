@@ -46,6 +46,7 @@ class ApiToken:
     name: str
     created_at: str
     last_used_at: str | None
+    policy: dict | None = None
 
 
 @dataclass
@@ -59,6 +60,8 @@ class Page:
     parent_id: int | None = None
     created_at: str | None = None
     updated_at: str | None = None
+    revision: int = 1
+    git_revision: int | None = None
     git_commit: str | None = None
     embed_dirty: int | None = None
     updated_by: int | None = None
