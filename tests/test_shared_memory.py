@@ -88,19 +88,8 @@ def test_revision_conflict_rest_and_mcp(client):
 
 def test_relations_identity_archive_and_sections(client):
     token = get_token(client)
-    service = create(client, token)
+    service = create(client, token, content="---\ntype: Service\n---\nServicio")
     event = create(client, token, "Incidente", "## Primero\nViejo\n\n## Segundo\nReciente\n")
-    tool_data(
-        mcp_call(
-            client,
-            token,
-            "set_knowledge_metadata",
-            {
-                "slug": event,
-                "properties": {"type": "Incident", "source": "conversation:123"},
-            },
-        )
-    )
     related = tool_data(
         mcp_call(
             client,
@@ -129,6 +118,17 @@ def test_relations_identity_archive_and_sections(client):
             )
         )
         == related
+    )
+    tool_data(
+        mcp_call(
+            client,
+            token,
+            "set_knowledge_metadata",
+            {
+                "slug": event,
+                "properties": {"type": "Incident", "source": "conversation:123"},
+            },
+        )
     )
     original = tool_data(mcp_call(client, token, "get_knowledge_object", {"slug": service}))
     tool_data(
@@ -448,7 +448,16 @@ def test_context_filters_before_candidate_limit_and_across_workspaces(client):
 
 def test_type_filter_and_metadata_round_trip(client):
     token = get_token(client)
+    project = create(client, token, "Proyecto", "---\ntype: Project\n---\nProyecto")
     slug = create(client, token, "Decisión", "Certbot seleccionado")
+    tool_data(
+        mcp_call(
+            client,
+            token,
+            "relate_knowledge",
+            {"slug": slug, "target": project, "kind": "belongs_to"},
+        )
+    )
     source = '"Evidencia" de Danilo \\ original'
     obj = tool_data(
         mcp_call(

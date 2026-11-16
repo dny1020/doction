@@ -11,7 +11,7 @@ from collections.abc import Callable
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
-from app import access, db, embeddings, git_repo, graph, meta, suggest
+from app import access, db, embeddings, git_repo, graph, graph_contract, meta, suggest
 from app.models import Workspace
 from app.schemas import JsonRpcResponse
 from app.version import VERSION
@@ -22,7 +22,7 @@ SERVER_INFO = {"name": "doction", "version": VERSION}
 # Sent once on `initialize`; clients show it to the model, so an agent learns how pages
 # connect without being told in every prompt. The graph is built from wikilinks only.
 INSTRUCTIONS = (
-    "doction is a markdown wiki. Pages connect only through wikilinks: write [[slug]] or "
+    "doction is a markdown wiki. Ordinary page references use wikilinks: write [[slug]] or "
     "[[slug|label]] in the markdown to link to another page in the same workspace. "
     "Nesting a page under a parent does not link them, so a parent page should link its "
     "subpages and related pages should link each other. A link to a slug that does not "
@@ -34,6 +34,13 @@ INSTRUCTIONS = (
     "For shared agent memory, use query_knowledge_context across workspaces, "
     "read_page_sections for long pages, and get_knowledge_object for typed relations. "
     "Use stable idempotency_key values on creation and expected_revision on full-page updates. "
+    "New Decision objects require belongs_to -> Project; "
+    "Incident objects require affects -> Service. "
+    "Create the target first, then supply relations in create_page with the Markdown "
+    "frontmatter type. Example: relations=[{kind:'belongs_to',target:'my-project'}]. "
+    "Read graph_context on page reads and query related evidence before answering. "
+    "For pending reminders use list_reminders, never semantic search. "
+    "create_reminder stores dates and document links; it does not send notifications. "
     "Typed relationships are separate from ordinary wikilinks; archive evidence with "
     "set_knowledge_metadata rather than copying summaries into several pages."
 )
@@ -104,6 +111,7 @@ def _tool_get_page(user_id: int, args: dict) -> dict:
         "title": page.title,
         "content": page.content,
         "parent_slug": page.parent_slug,
+        "graph_context": graph_contract.read_context(int(ws.id), page),
         "revision": page.revision,
         "git_status": "synced" if page.git_revision == page.revision else "pending",
         "created_at": page.created_at,
@@ -137,6 +145,7 @@ def _tool_create_page(user_id: int, args: dict) -> dict:
         parent_slug=args.get("parent_slug") or None,
         requested_slug=args.get("slug") or None,
         idempotency_key=args.get("idempotency_key") or None,
+        relations=args.get("relations"),
     )
     page = db.get_page(slug, int(ws.id))
     final_title = page.title if page else title
@@ -305,6 +314,7 @@ def _tool_read_page_raw(user_id: int, args: dict) -> dict:
         "updated_at": page.updated_at,
         "content": page.content,
         "frontmatter": front,
+        "graph_context": graph_contract.read_context(int(ws.id), page),
         "tags": meta.extract_tags(page.content),
     }
 
@@ -775,7 +785,7 @@ TOOL_HANDLERS: dict[str, Callable[[int, dict], dict | list | str]] = {
 
 
 # Additive structured-memory operations preserve the existing text MCP contract.
-from app import knowledge  # noqa: E402
+from app import knowledge, reminders  # noqa: E402
 
 _KNOWLEDGE_PROPERTIES = {
     "workspace": {"type": "string"},
@@ -860,8 +870,95 @@ for _name, (_fields, _required, _description) in _TOOL_FIELDS.items():
         }
     )
 TOOL_HANDLERS.update(knowledge.HANDLERS)
+TOOL_HANDLERS.update(reminders.HANDLERS)
+for _name, _model, _description in (
+    (
+        "create_reminder",
+        reminders.Create,
+        "Create a dated reminder linked to documentation. "
+        "Use exactly one of due_date (all day) or due_at (date and time), plus an IANA timezone. "
+        "Defaults to the calling user as responsible. Use idempotency_key for retries. "
+        "This stores a reminder; it does not send a notification.",
+    ),
+    (
+        "update_reminder",
+        reminders.Patch,
+        "Complete, cancel, reopen or reschedule a reminder. "
+        "Pass id, workspace and expected_revision from list_reminders. "
+        "When switching date/time scheduling, explicitly clear the other field with null.",
+    ),
+):
+    _schema = _model.model_json_schema()
+    _schema["properties"]["workspace"] = {"type": "string"}
+    _schema.setdefault("required", []).append("workspace")
+    if _name == "update_reminder":
+        _schema["properties"]["id"] = {"type": "integer", "minimum": 1}
+        _schema["required"].append("id")
+    TOOLS.append({"name": _name, "description": _description, "inputSchema": _schema})
+TOOLS.append(
+    {
+        "name": "get_reminder_history",
+        "description": "Read reminder revisions with previous dates, status and actor.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "workspace": {"type": "string"},
+                "id": {"type": "integer", "minimum": 1},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                "offset": {"type": "integer", "minimum": 0},
+            },
+            "required": ["workspace", "id"],
+        },
+    }
+)
+TOOLS.append(
+    {
+        "name": "list_reminders",
+        "description": "Answer what is pending using exact dates and status, not semantic search. "
+        "Defaults to pending reminders assigned to the caller across authorized workspaces. "
+        "Returns document links, timezone and revision; follow next_offset for more.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "workspace": {"type": "string", "description": "Workspace slug or all."},
+                "status": {"type": "string", "enum": ["pending", "completed", "cancelled", "all"]},
+                "period": {"type": "string", "enum": ["overdue", "today", "upcoming", "all"]},
+                "scope": {"type": "string", "enum": ["mine", "workspace"]},
+                "page_slug": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                "offset": {"type": "integer", "minimum": 0},
+            },
+        },
+    }
+)
+
 for _tool in TOOLS:
+    if _tool["name"] in {"get_page", "read_page_raw", "get_knowledge_object"}:
+        _tool["description"] += (
+            " Returns graph_context; use its guidance to consult related evidence."
+        )
+    if _tool["name"] == "relate_knowledge":
+        _tool["description"] += " Decision: belongs_to -> Project. Incident: affects -> Service."
     if _tool["name"] == "create_page":
+        _tool["description"] += (
+            " Supply relations atomically: Decision requires belongs_to -> Project; "
+            "Incident requires affects -> Service. Create the target first. "
+            "Nesting is hierarchy only."
+        )
+        _tool["inputSchema"]["properties"]["relations"] = {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "kind": {"type": "string", "enum": sorted(knowledge.RELATIONS)},
+                    "target": {"type": "string"},
+                    "evidence": {"type": "string", "maxLength": 4000},
+                },
+                "required": ["kind", "target"],
+            },
+        }
         _tool["inputSchema"]["properties"]["idempotency_key"] = {"type": "string", "maxLength": 200}
     if _tool["name"] == "search_knowledge":
         _tool["inputSchema"]["properties"]["type"] = {"type": "string"}
@@ -912,7 +1009,9 @@ def _call_tool(request: Request, msg_id: str | int | None, params: dict) -> dict
             "FORBIDDEN"
             if isinstance(exc, PermissionError)
             else (
-                "CONFLICT"
+                "RELATION_REQUIRED"
+                if isinstance(exc, db.RelationRequired)
+                else "CONFLICT"
                 if isinstance(exc, db.RevisionConflict)
                 else ("NOT_FOUND" if "not found" in str(exc).lower() else "INVALID_ARGUMENT")
             )

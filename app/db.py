@@ -14,7 +14,7 @@ from psycopg import Connection
 from psycopg.rows import DictRow, dict_row
 from psycopg_pool import ConnectionPool
 
-from app import access, meta
+from app import access, graph_contract, meta
 from app.avatar import normalize_color
 from app.models import (
     ApiToken,
@@ -230,6 +230,7 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         ) STORED
     )
     """,
+    "ALTER TABLE pages ADD COLUMN IF NOT EXISTS graph_required BOOLEAN NOT NULL DEFAULT FALSE",
     "ALTER TABLE pages ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 1",
     "ALTER TABLE pages ADD COLUMN IF NOT EXISTS git_revision BIGINT",
     "ALTER TABLE pages ADD COLUMN IF NOT EXISTS idempotency_key TEXT",
@@ -377,6 +378,35 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS upload_texts_search_idx ON upload_texts USING GIN(search_vector)",
+    """CREATE TABLE IF NOT EXISTS reminders (
+        id BIGSERIAL PRIMARY KEY,
+        workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        title TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '',
+        due_date DATE, due_at TIMESTAMPTZ, timezone TEXT NOT NULL,
+        assignee_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+        created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+        actor TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending', 'completed', 'cancelled')),
+        revision BIGINT NOT NULL DEFAULT 1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        idempotency_key TEXT, request_hash TEXT,
+        UNIQUE(workspace_id, idempotency_key),
+        CHECK ((due_date IS NULL) <> (due_at IS NULL))
+    )""",
+    "CREATE INDEX IF NOT EXISTS reminders_pending_idx "
+    "ON reminders(workspace_id, assignee_id, status)",
+    """CREATE TABLE IF NOT EXISTS reminder_pages (
+        reminder_id BIGINT NOT NULL REFERENCES reminders(id) ON DELETE CASCADE,
+        page_id BIGINT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+        PRIMARY KEY(reminder_id, page_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS reminder_pages_page_idx ON reminder_pages(page_id)",
+    """CREATE TABLE IF NOT EXISTS reminder_revisions (
+        reminder_id BIGINT NOT NULL REFERENCES reminders(id) ON DELETE CASCADE,
+        revision BIGINT NOT NULL, payload_json TEXT NOT NULL,
+        PRIMARY KEY(reminder_id, revision)
+    )""",
 ]
 
 
@@ -979,8 +1009,10 @@ def create_page(
     parent_slug: str | None = None,
     requested_slug: str | None = None,
     idempotency_key: str | None = None,
+    relations: list[dict] | None = None,
 ) -> str:
     _check_content_size(content)
+    relations = graph_contract.normalize(relations)
     title = title.strip() or meta.derive_title(content)
     # With no requested slug and no title, the slug comes from a timestamp: derived
     # from the title, a hundred untitled notes would be untitled-2 ... -101.
@@ -993,9 +1025,10 @@ def create_page(
     now = _now()
 
     with connect() as conn:
-        fingerprint = hashlib.sha256(
-            json.dumps([title, content, parent_slug, requested_slug], ensure_ascii=False).encode()
-        ).hexdigest()
+        payload = [title, content, parent_slug, requested_slug]
+        if relations:
+            payload.append(relations)
+        fingerprint = hashlib.sha256(json.dumps(payload, ensure_ascii=False).encode()).hexdigest()
         conn.execute("SELECT pg_advisory_xact_lock(%s)", (workspace_id,))
         if idempotency_key:
             if not isinstance(idempotency_key, str) or len(idempotency_key) > 200:
@@ -1040,6 +1073,12 @@ def create_page(
         ).fetchone()
         assert row is not None
         page_id = int(row["id"])
+        conn.execute(
+            "UPDATE pages SET graph_required = %s WHERE id = %s",
+            (graph_contract.page_type(content) in graph_contract.REQUIRED, page_id),
+        )
+        graph_contract.attach(conn, workspace_id, page_id, slug, relations, user_id, now)
+        graph_contract.validate(conn, page_id)
         _record_revision(conn, page_id, user_id)
         _index_page_meta(conn, page_id, workspace_id, content)
         # Forward references: links written before their target existed would stay
@@ -1055,17 +1094,31 @@ def create_page(
         return slug
 
 
+class RelationRequired(ValueError):
+    """A typed object is missing a mandatory graph relation."""
+
+
 class RevisionConflict(ValueError):
     """A retry or edit conflicts with stored knowledge."""
 
 
 def _write_page(conn, user_id, workspace_id, row, title, content):
     _check_content_size(content)
+    previous = conn.execute(
+        "SELECT content, graph_required FROM pages WHERE id = %s", (row["id"],)
+    ).fetchone()
+    required = previous["graph_required"] or (
+        graph_contract.page_type(content) in graph_contract.REQUIRED
+        and graph_contract.page_type(content) != graph_contract.page_type(previous["content"])
+    )
     conn.execute(
         "UPDATE pages SET title = %s, content = %s, updated_at = %s, updated_by = %s, "
         "revision = revision + 1, embed_dirty = 1 WHERE id = %s",
         (title, content, _now(), user_id, row["id"]),
     )
+    conn.execute("UPDATE pages SET graph_required = %s WHERE id = %s", (required, row["id"]))
+    graph_contract.validate(conn, row["id"])
+    graph_contract.validate_dependents(conn, row["id"])
     _record_revision(conn, row["id"], user_id)
     _index_page_meta(conn, int(row["id"]), workspace_id, content)
     emit_event(conn, workspace_id, "page.updated", {"page": {"slug": row["slug"], "title": title}})
@@ -1083,6 +1136,7 @@ def update_page(
     _check_content_size(content)
     title = title.strip() or meta.derive_title(content)
     with connect() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (workspace_id,))
         row = conn.execute(
             "SELECT id, slug, revision FROM pages WHERE slug = %s AND workspace_id = %s "
             "AND deleted_at IS NULL FOR UPDATE",
@@ -1108,6 +1162,7 @@ def upsert_page_section(
 ) -> str | None:
     """Lock before reading so concurrent section edits never replace each other."""
     with connect() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (workspace_id,))
         row = conn.execute(
             "SELECT id, slug, title, content FROM pages WHERE slug = %s AND workspace_id = %s "
             "AND deleted_at IS NULL FOR UPDATE",
@@ -1435,12 +1490,17 @@ def delete_page(workspace_id: int, slug: str) -> bool:
     in listings, search and links.
     """
     with connect() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (workspace_id,))
         cur = conn.execute(
             "UPDATE pages SET deleted_at = %s WHERE slug = %s AND workspace_id = %s "
             "AND deleted_at IS NULL",
             (_now(), slug, workspace_id),
         )
         if cur.rowcount > 0:
+            page_id = conn.execute(
+                "SELECT id FROM pages WHERE workspace_id = %s AND slug = %s", (workspace_id, slug)
+            ).fetchone()["id"]
+            graph_contract.validate_dependents(conn, page_id)
             emit_event(conn, workspace_id, "page.deleted", {"page": {"slug": slug}})
         return cur.rowcount > 0
 
@@ -1460,11 +1520,17 @@ def list_deleted_pages(workspace_id: int) -> list[Page]:
 def restore_page(workspace_id: int, slug: str) -> bool:
     """Take a page back out of the trash."""
     with connect() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (workspace_id,))
         cur = conn.execute(
             "UPDATE pages SET deleted_at = NULL WHERE slug = %s AND workspace_id = %s "
             "AND deleted_at IS NOT NULL",
             (slug, workspace_id),
         )
+        if cur.rowcount > 0:
+            page_id = conn.execute(
+                "SELECT id FROM pages WHERE workspace_id = %s AND slug = %s", (workspace_id, slug)
+            ).fetchone()["id"]
+            graph_contract.validate(conn, page_id)
         return cur.rowcount > 0
 
 

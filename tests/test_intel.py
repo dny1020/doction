@@ -5,12 +5,21 @@ from tests.helpers import get_token, mcp_call, tool_data
 
 def test_extract_by_type_and_tag(client):
     token = get_token(client)
+    project = tool_data(
+        mcp_call(
+            client,
+            token,
+            "create_page",
+            {"title": "SIP project", "content": "---\ntype: Project\n---\nSIP migration"},
+        )
+    )["slug"]
     mcp_call(
         client,
         token,
         "create_page",
         {
             "title": "Migrate SIP",
+            "relations": [{"kind": "belongs_to", "target": project}],
             "content": "---\ntype: decision\ntags: [sip, kamailio]\n---\nWe migrate.",
         },
     )

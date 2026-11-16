@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from fastapi import HTTPException
 
-from app import access, db, embeddings, meta
+from app import access, db, embeddings, graph_contract, meta
 
 TYPES = {
     "Project",
@@ -41,6 +41,8 @@ WRITE_TOOLS = {
 def authorize_tool(user_id, name, args):
     if access.policy.get() is None:
         return
+    if name in {"create_reminder", "list_reminders", "update_reminder", "get_reminder_history"}:
+        return  # reminder handlers enforce workspace membership and capabilities
     if name == "list_workspaces":
         return
     if name == "query_knowledge_context":
@@ -63,6 +65,8 @@ def authorize_tool(user_id, name, args):
 
 def authorize_rest(request):
     path = request.url.path
+    if path == "/api/reminders" or re.fullmatch(r"/api/reminders/\d+(?:/history)?", path):
+        return  # each handler resolves its own workspace, including aggregate reads
     if path == "/api/mcp":
         return
     # Management operations cannot be used to mint a stronger token or change membership.
@@ -164,6 +168,7 @@ def get_object(user_id, args):
         "updated_at": page.updated_at,
         "aliases": [r["slug"] for r in aliases],
         "relations": relations(int(ws.id), page.id),
+        "graph_context": graph_contract.read_context(int(ws.id), page),
         "git_status": "synced" if page.git_revision == page.revision else "pending",
     }
 
@@ -266,6 +271,7 @@ def relate(user_id, args):
     if not isinstance(evidence, str) or len(evidence) > 4000:
         raise ValueError("Evidence must be text of at most 4000 characters")
     with db.connect() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (int(ws.id),))
         # Serialize relation changes with deletion of either endpoint.
         rows = conn.execute(
             "SELECT id FROM pages WHERE id = ANY(%s) AND deleted_at IS NULL ORDER BY id FOR UPDATE",
@@ -292,6 +298,7 @@ def relate(user_id, args):
 def remove_relation(user_id, args):
     ws, page = page_for(user_id, args)
     with db.connect() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (int(ws.id),))
         row = conn.execute(
             "SELECT t.slug FROM knowledge_relations r JOIN pages t "
             "ON t.id = r.target_id WHERE r.id = %s AND r.source_id = %s",
@@ -304,6 +311,7 @@ def remove_relation(user_id, args):
             "DELETE FROM knowledge_relations WHERE id = %s AND source_id = %s",
             (int(args["relation_id"]), page.id),
         )
+        graph_contract.validate(conn, page.id)
     return {"removed": True}
 
 

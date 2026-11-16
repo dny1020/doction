@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
+  Bell,
   Check,
   ChevronsUpDown,
   Share2,
@@ -225,6 +226,9 @@ export default function Sidebar({ ws, pages, pagesReady, pagesError, onReload, o
       )}
 
       <div className="sidebar-foot">
+        <Link className="side-link" to={wsPath(ws, '/reminders')}>
+          <Bell className="lucide" size={15} /> {t('reminders')}
+        </Link>
         <Link className="side-link" to={wsPath(ws, '/graph')}>
           <Share2 className="lucide" size={15} /> {t('graph')}
         </Link>

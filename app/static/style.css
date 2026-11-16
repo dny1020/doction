@@ -3031,3 +3031,27 @@ html {
   .graph-facts { gap: var(--space-4); }
   .graph-canvas { min-height: 260px; }
 }
+
+/* Reminders extend the document's existing paper, controls and row rhythm. */
+.reminders-heading { display: flex; align-items: start; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+.reminders-heading .btn { flex-shrink: 0; }
+.reminders-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin: var(--space-5) 0; }
+.reminders-filters label { display: grid; gap: var(--space-2); font-size: var(--text-base); min-width: 0; }
+.reminders .field { width: 100%; min-width: 0; }
+.reminder-form { padding: var(--space-6) 0; margin: var(--space-6) 0; border-block: 1px solid var(--border-default); }
+.reminder-form h2, .reminder-group h2 { font-size: var(--text-xl); margin: 0 0 var(--space-4); }
+.reminder-group { margin-top: var(--space-8); }
+.reminder-row { align-items: start; padding-block: var(--space-5); }
+.reminder-row h3 { font-size: var(--text-md); margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
+.reminder-row p { margin: 0; }
+.reminder-row .row-actions { flex-shrink: 0; flex-wrap: wrap; }
+.reminder-links { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); list-style: none; padding: 0; margin: var(--space-2) 0 0; font-size: var(--text-base); }
+.reminder-overdue, .reminder-error { color: var(--danger); }
+.reminder-checkbox { display: flex; align-items: start; gap: var(--space-2); padding-block: var(--space-2); overflow-wrap: anywhere; }
+.reminder-checkbox input { margin-top: 3px; flex-shrink: 0; accent-color: var(--accent); }
+.reminder-documents { margin-block: var(--space-5); padding: var(--space-3); border: 1px solid var(--border-subtle); max-height: 240px; overflow: auto; }
+.reminder-notes { margin-top: var(--space-2); }
+.reminder-notes summary { cursor: pointer; font-size: var(--text-base); color: var(--ink-muted); padding-block: var(--space-2); }
+.reminder-notes .prose { font-size: var(--text-base); }
+.page-reminders h2 { margin: 0; font-size: var(--text-lg); }
+@media (max-width: 540px) { .reminders-filters { grid-template-columns: 1fr; } .reminder-row .row-actions { width: 100%; } }

@@ -10,7 +10,7 @@ export function setWorkspace(slug) {
 }
 
 export function withWorkspace(url) {
-  if (!workspace) return url
+  if (!workspace || new URL(url, window.location.origin).searchParams.has('ws')) return url
   return url + (url.includes('?') ? '&' : '?') + 'ws=' + encodeURIComponent(workspace)
 }
 
@@ -55,7 +55,9 @@ async function request(method, url, body, signal) {
   if (!response.ok) {
     let message = 'Error ' + response.status
     if (data && data.detail) {
-      message = data.detail
+      message = Array.isArray(data.detail)
+        ? data.detail.map((item) => item.msg).join('; ')
+        : data.detail
     }
     const error = new Error(message)
     error.status = response.status

@@ -16,6 +16,7 @@ import TokensSection from './pages/settings/Tokens.jsx'
 import WebhooksSection from './pages/settings/Webhooks.jsx'
 import SystemSection from './pages/settings/System.jsx'
 import Trash from './pages/Trash.jsx'
+const Reminders = lazy(() => import('./pages/Reminders.jsx'))
 import { ListSkeleton } from './components/Skeleton.jsx'
 // Code-split: d3-force and the drawing are only needed on this route.
 const Graph = lazy(() => import('./pages/Graph.jsx'))
@@ -101,6 +102,14 @@ export const routes = [
           { path: '/w/:ws/p/:slug/edit', element: <Editor mode="edit" /> },
           { path: '/w/:ws/p/:slug/history', element: <History /> },
           { path: '/w/:ws/trash', element: <Trash /> },
+          {
+            path: '/w/:ws/reminders',
+            element: (
+              <Suspense fallback={<ListSkeleton />}>
+                <Reminders />
+              </Suspense>
+            ),
+          },
           {
             path: '/w/:ws/graph',
             element: (

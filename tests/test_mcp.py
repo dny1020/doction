@@ -65,6 +65,10 @@ def test_tools_list(client):
     r = _rpc(client, "tools/list")
     tools = {t["name"] for t in r.json()["result"]["tools"]}
     assert tools == {
+        "get_reminder_history",
+        "create_reminder",
+        "list_reminders",
+        "update_reminder",
         "get_knowledge_history",
         "get_knowledge_object",
         "read_page_sections",

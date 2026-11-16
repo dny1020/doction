@@ -102,3 +102,8 @@ Two containers, one `.env`, and a first user.
 
 [Install doction](install.md){ .md-button .md-button--primary }
 [Configuration](configuration.md){ .md-button }
+
+## Reminders
+
+Track dated actions per workspace or across authorized workspaces, link them to documentation,
+and let agents query pending items through MCP. See [reminders](mcp.md#reminders).

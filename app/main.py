@@ -33,10 +33,12 @@ from app import (
     embeddings,
     git_repo,
     graph,
+    graph_contract,
     i18n,
     mcp,
     meta,
     ocr,
+    reminders,
     seed,
     suggest,
     webhooks,
@@ -126,6 +128,7 @@ class _PageIn(BaseModel):
     parent_slug: str | None = None
     slug: str | None = None
     idempotency_key: str | None = None
+    relations: list[dict] | None = None
 
 
 class _WebhookIn(BaseModel):
@@ -440,6 +443,7 @@ def api_create_page(request: Request, body: _PageIn):
             parent_slug=body.parent_slug,
             requested_slug=body.slug,
             idempotency_key=body.idempotency_key,
+            relations=body.relations,
         )
     except db.RevisionConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -510,6 +514,7 @@ def api_get_page(request: Request, slug: str):
         "title": page.title,
         "content": page.content,
         "parent_slug": page.parent_slug,
+        "graph_context": graph_contract.read_context(wid, page),
         "revision": page.revision,
         "git_status": "synced" if page.git_revision == page.revision else "pending",
         "children": [
@@ -1055,11 +1060,81 @@ async def serve_upload(request: Request, name: str) -> Response:
     return FileResponse(path)
 
 
+@api_router.get("/reminders", tags=["reminders"])
+def api_list_reminders(
+    request: Request,
+    workspace: str | None = None,
+    status: str = "pending",
+    period: str = "all",
+    scope: str = "mine",
+    page_slug: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict:
+    return _reminder_call(
+        request,
+        reminders.list_items,
+        {
+            "workspace": workspace,
+            "status": status,
+            "period": period,
+            "scope": scope,
+            "page_slug": page_slug,
+            "limit": limit,
+            "offset": offset,
+        },
+    )
+
+
+@api_router.post("/reminders", tags=["reminders"], status_code=201)
+def api_create_reminder(request: Request, body: reminders.Create, workspace: str) -> dict:
+    return _reminder_call(request, reminders.create, {**body.model_dump(), "workspace": workspace})
+
+
+@api_router.put("/reminders/{reminder_id}", tags=["reminders"])
+def api_update_reminder(
+    request: Request, reminder_id: int, body: reminders.Patch, workspace: str
+) -> dict:
+    return _reminder_call(
+        request,
+        reminders.update,
+        {**body.model_dump(exclude_unset=True), "workspace": workspace, "id": reminder_id},
+    )
+
+
+@api_router.get("/reminders/{reminder_id}/history", tags=["reminders"])
+def api_reminder_history(
+    request: Request, reminder_id: int, workspace: str, limit: int = 20, offset: int = 0
+) -> dict:
+    return _reminder_call(
+        request,
+        reminders.history,
+        {"workspace": workspace, "id": reminder_id, "limit": limit, "offset": offset},
+    )
+
+
+def _reminder_call(request, handler, args):
+    user_id = _api_user(request)
+    try:
+        return handler(user_id, args)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except db.RevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @api_router.post("/knowledge/{operation}", tags=["knowledge"])
 def api_knowledge(request: Request, operation: str, arguments: dict) -> dict:
     from app.knowledge import rest_call
 
     return rest_call(request, operation, arguments)
+
+
+@app.exception_handler(db.RelationRequired)
+async def graph_requirement_error(_request: Request, exc: db.RelationRequired):
+    return JSONResponse({"detail": str(exc), "code": "RELATION_REQUIRED"}, status_code=400)
 
 
 app.include_router(api_router)

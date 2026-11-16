@@ -166,6 +166,7 @@ class PageNode(_Out):
 
 
 class Page(_Out):
+    graph_context: dict | None = None
     revision: int = 1
     git_status: str = "pending"
     slug: str

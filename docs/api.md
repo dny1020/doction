@@ -213,3 +213,14 @@ POST /api/knowledge/{operation}
 
 Uses the corresponding MCP operation name and arguments as a JSON object. See
 [Agents and MCP](mcp.md#structured-memory) for operations and permission rules.
+
+## Reminders
+
+```
+GET /api/reminders
+POST /api/reminders
+PUT /api/reminders/{reminder_id}
+GET /api/reminders/{reminder_id}/history
+```
+
+See [reminders](mcp.md#reminders) for scheduling, responsibility and document links.

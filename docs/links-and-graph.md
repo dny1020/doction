@@ -143,3 +143,12 @@ reproducible between runs.
 
 - [Writing pages](writing-pages.md) for slugs, renames, aliases and tags
 - [Agents and MCP](mcp.md) for `get_linked_knowledge` and the other tools
+
+## Typed relationships and agent guidance
+
+Wikilinks and the graph view above remain ordinary references. Typed relationships are a separate
+structure: `belongs_to`, `affects` and other kinds are created explicitly through the knowledge tools.
+New `Decision` and `Incident` pages require a qualifying typed relationship, while existing typed
+pages remain editable without a forced migration. Creating a subpage still does not infer a relation.
+See [required relationships](mcp.md#required-relationships-for-new-typed-pages) for atomic creation,
+validation, token permissions and the graph context agents receive on reads.

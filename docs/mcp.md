@@ -1,7 +1,7 @@
 # Agents and MCP
 
 doction speaks MCP (Model Context Protocol) natively at `POST /api/mcp`: JSON-RPC 2.0,
-stateless, no SDK. 34 tools over the same data the REST API and the web UI see.
+stateless, no SDK. 38 tools over the same data the REST API and the web UI see.
 
 The division of labour is the important part. **doction retrieves; your agent generates.**
 There is no language model inside doction, so no tool here writes prose — `summarize_page`
@@ -248,3 +248,117 @@ Retrieve with `query_knowledge_context`, and follow `next_offset` when reading l
 clients continue to work, but must adopt these operations to gain this behavior. Deploy Doction first,
 then update clients and issue separate restricted tokens for infra, Claude Code and Codex. No client
 configuration or running deployment is changed by this server update.
+
+### Required relationships for new typed pages
+
+Agents receive the rules through MCP `initialize` and the descriptions of `create_page`,
+`get_page`, `read_page_raw` and `relate_knowledge`. Page reads also include a bounded
+`graph_context` containing readable typed edges, the applicable requirement, whether it is
+enforced, and guidance for retrieving related evidence. Reading never creates relationships.
+Instructions guide clients; validation is enforced by the server through REST and MCP.
+
+New pages declaring `type: Decision` require at least one outgoing `belongs_to` edge to an
+existing `Project`. New pages declaring `type: Incident` require at least one outgoing
+`affects` edge to an existing `Service`. These four type names are matched without case
+sensitivity for graph validation. Other types and pages without a type remain unrestricted.
+Subpage nesting, tags and wikilinks do not satisfy these requirements.
+
+Create the target first, then use `create_page` with a `relations` array:
+
+```json
+{
+  "title": "Use PostgreSQL",
+  "content": "---\ntype: Decision\n---\nWe selected PostgreSQL for this project.",
+  "idempotency_key": "decision:postgresql:project-x",
+  "relations": [
+    {"kind": "belongs_to", "target": "project-x", "evidence": "Architecture review"}
+  ]
+}
+```
+
+Each relation has `kind`, an existing target slug or alias in the same workspace, and optional
+`evidence`. The REST equivalent is `POST /api/pages` with the same JSON. Page creation, relations,
+metadata, revision and event queue commit together or roll back together. Relations participate in
+idempotency matching; their order does not matter. An explicit `relate` token grant and read access
+to each target are required in addition to creation permission.
+
+A missing mandatory relationship produces an actionable `RELATION_REQUIRED` MCP error. REST writes
+return a client error with the explanation. No incomplete new typed page is left behind. For an
+existing untyped page, call `relate_knowledge` before promoting it with `set_knowledge_metadata`
+or a Markdown edit. Existing typed pages from before this feature remain editable without a forced
+migration; their reads show `enforced: false`. Changing a legacy page to a different constrained type
+activates the contract. Merely reading a legacy page never modifies it.
+
+For enforced pages, removing the last qualifying relation, trashing its last qualifying target,
+or changing that target's type is rejected. Add a replacement relation before removing the old one.
+Restoring a trashed enforced page checks its requirements again. Ordinary page creation retains its
+existing response shape; read the result with `get_page` or `get_knowledge_object` to inspect the graph.
+
+The server cannot force a client to follow instructions, declare a type or consult evidence. It can
+require valid relationships for the declared constrained types and make the next retrieval step clear.
+
+## Reminders
+
+Reminders are workspace records with a title, Markdown notes, a responsible member and a schedule.
+They can link to multiple documents in that workspace by stable page ID. They do not create pages
+in the wiki tree or add graph nodes. Renaming a linked document preserves the relationship; a trashed
+document is shown as unavailable. Permanent document deletion removes its current link, retaining
+the reminder and its recorded revisions.
+
+| Tool | Purpose |
+| --- | --- |
+| `create_reminder` | Create in `workspace` with `title`, optional `notes`, exactly one of `due_date` or `due_at`, `timezone`, optional `assignee_id`, `page_slugs` and `idempotency_key` |
+| `list_reminders` | Query authorized workspaces with exact status/date filters; no search text required |
+| `update_reminder` | Pass `workspace`, `id`, `expected_revision` and changed fields; supports `pending`, `completed`, `cancelled`, reassignment and rescheduling |
+| `get_reminder_history` | Read recorded revisions with previous schedules, status and actor; accepts `workspace`, `id`, `limit`, `offset` |
+
+For example, after identifying the relevant backup document:
+
+```json
+{
+  "workspace": "personal",
+  "title": "Review backup recovery",
+  "notes": "Follow the recovery steps and record the result.",
+  "due_at": "2026-12-01T09:00:00",
+  "timezone": "America/Bogota",
+  "page_slugs": ["backup-runbook"],
+  "idempotency_key": "backup-review:2026-12-01"
+}
+```
+
+Dates use `due_date: "2026-12-01"` for an all-day reminder, or `due_at` for an instant. A local time
+without an offset is interpreted in the supplied IANA timezone. Ambiguous or nonexistent DST clock
+times are rejected; provide an explicit offset to disambiguate. The default timezone is
+`America/Bogota`; clients should supply the user's intended zone. UTC instants are stored together
+with that zone. A date-only reminder is overdue only on the following local day. A timed reminder
+is overdue after its instant. Pending items are grouped into disjoint `overdue`, `today`, `upcoming`
+buckets, computed at query time; no process needs to run at midnight.
+
+`list_reminders` defaults to `status: pending`, `scope: mine` (assigned to the authenticated user)
+and all authorized workspaces. Select one workspace, or use `workspace: all`; `scope: workspace`
+includes other responsible members and unassigned records. Use `period: overdue|today|upcoming|all`,
+`page_slug` with one workspace for document-related pending actions, and `limit`/`offset` for paging.
+Results include `total`, `next_offset`, workspace, document links and revision. Do not use semantic
+retrieval to answer whether the user has pending reminders.
+
+Read access is workspace-wide. Creation requires `read` + `create`; updates require `read` + `update`.
+These checks apply to REST and MCP and never bypass membership. Responsibility defaults to the
+calling user, and can be assigned only to a member of the workspace. Agents using a separate account
+must explicitly assign the human's user ID when appropriate. Page-restricted grants do not grant
+workspace-wide reminder access.
+
+The REST surface is `GET /api/reminders`, `POST /api/reminders?workspace=<slug>`,
+`PUT /api/reminders/{id}?workspace=<slug>` and
+`GET /api/reminders/{id}/history?workspace=<slug>`. Writes accept the same fields as MCP, excluding
+`workspace`/`id` from the JSON body. Changing scheduling mode requires clearing the other field with
+`null`. Revision mismatches return conflict; a successful creation retry returns its original response.
+Content, document links, recorded revision and change event are saved atomically.
+
+The UI lives at `/app/w/<workspace>/reminders`, with workspace/all-workspaces filters and a separate
+responsible-person filter. A document shows its pending reminders and a create action that preselects
+that document. Reminder notes support Markdown. Completing, cancelling, reopening and changing dates
+do not erase recorded history.
+
+This version stores and retrieves reminders; it does not send scheduled notifications or implement
+recurrence. Existing webhooks can receive `reminder.created`/`reminder.updated` change events, which
+are not due-time alerts. No action is executed when a reminder becomes overdue.

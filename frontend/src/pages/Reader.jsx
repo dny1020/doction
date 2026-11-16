@@ -7,6 +7,7 @@ import { newPagePath, pagePath, wsPath } from '../routes.js'
 import { useToast } from '../components/Toast.jsx'
 import { useConfirm } from '../components/ConfirmDialog.jsx'
 import Markdown from '../components/Markdown.jsx'
+import PageReminders from '../components/PageReminders.jsx'
 import Toc from '../components/Toc.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { DocumentSkeleton } from '../components/Skeleton.jsx'
@@ -288,6 +289,8 @@ export default function Reader() {
             </div>
           </section>
         )}
+
+        <PageReminders ws={ws} slug={slug} />
 
         {(view.backlinks.length > 0 || view.related.length > 0) && (
           <section className="relations">
