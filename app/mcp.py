@@ -40,7 +40,8 @@ INSTRUCTIONS = (
     "frontmatter type. Example: relations=[{kind:'belongs_to',target:'my-project'}]. "
     "Read graph_context on page reads and query related evidence before answering. "
     "For pending reminders use list_reminders, never semantic search. "
-    "create_reminder stores dates and document links; it does not send notifications. "
+    "create_reminder stores dates and document links. ntfy alerts require the responsible user "
+    "to enable notification preferences; list_reminders reports delivery state. "
     "Typed relationships are separate from ordinary wikilinks; archive evidence with "
     "set_knowledge_metadata rather than copying summaries into several pages."
 )
@@ -878,7 +879,7 @@ for _name, _model, _description in (
         "Create a dated reminder linked to documentation. "
         "Use exactly one of due_date (all day) or due_at (date and time), plus an IANA timezone. "
         "Defaults to the calling user as responsible. Use idempotency_key for retries. "
-        "This stores a reminder; it does not send a notification.",
+        "ntfy alerts are sent when the responsible user enables notification preferences.",
     ),
     (
         "update_reminder",

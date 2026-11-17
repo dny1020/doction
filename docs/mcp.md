@@ -359,6 +359,8 @@ responsible-person filter. A document shows its pending reminders and a create a
 that document. Reminder notes support Markdown. Completing, cancelling, reopening and changing dates
 do not erase recorded history.
 
-This version stores and retrieves reminders; it does not send scheduled notifications or implement
-recurrence. Existing webhooks can receive `reminder.created`/`reminder.updated` change events, which
-are not due-time alerts. No action is executed when a reminder becomes overdue.
+Scheduled ntfy notifications are available when the responsible user enables them in Settings >
+Preferences. `list_reminders` includes live `notification` delivery state. Recurrence and automatic
+infrastructure actions are not implemented. Existing webhooks receive `reminder.created` and
+`reminder.updated` change events independently of scheduled notifications.
+See [notification setup](configuration.md#reminder-notifications-ntfy) for destination and timing.

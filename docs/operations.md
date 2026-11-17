@@ -401,3 +401,31 @@ reproduction — a `curl` invocation separates a server bug from a browser one. 
 
 Security problems go to [the private advisory channel](https://github.com/dny1020/doction/security/advisories/new),
 never a public issue.
+## Reminder delivery and recovery
+
+The reminder worker checks due items every 30 seconds. Timings are approximate when the server is busy
+or ntfy is unavailable. Each reminder's schedule generation has one durable queue entry; worker replicas
+coordinate with PostgreSQL locks. Recorded successful deliveries are not repeated on restart.
+Notifications are cancelled on completion, cancellation, reassignment or rescheduling. Reopening or
+changing the schedule creates a new generation; if already due, it can notify again. Editing only title,
+notes or document links does not resend a confirmed notification. Pending notices use current content.
+
+Network errors, HTTP 408/429 and 5xx responses retry with exponential backoff, starting at 30 seconds,
+up to eight attempts (roughly an hour plus processing time). Other HTTP errors, including redirects,
+fail immediately. Redirects never forward the ntfy token. The response must contain a valid ntfy message
+acknowledgement before a delivery is marked sent. Acknowledgement means ntfy accepted the message;
+it does not confirm that a phone displayed or read it.
+
+Reminder queries expose `notification.state` (`disabled`, `scheduled`, `pending`, `sent`, `failed`,
+`cancelled`), attempt count, next attempt, delivery time and a sanitized last error. Refresh the reminder
+list to inspect current state. For HTTP 401/403 check topic permissions and token. After correcting the
+personal preferences, save to requeue failed deliveries. Disabling preferences pauses pending deliveries.
+
+A crash or timeout after ntfy accepted a message but before Doction recorded its acknowledgement can
+cause a repeated delivery on retry. ntfy has no assumed transaction with PostgreSQL; this implementation
+does not promise exactly-once delivery across that boundary. Persistent delivery rows prevent normal
+polling, concurrency and restart duplicates after success has been recorded.
+
+Backups must include `notification_settings`, `reminder_notifications`, reminders and their revisions.
+Worker logs include delivery ID, result and attempt count; they do not log message content, destinations
+or credentials. Tests use simulated publishers and a local HTTP stub, never a real user's topic.

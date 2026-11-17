@@ -126,7 +126,10 @@ def serialize(conn, row, now=None):
         "JOIN pages p ON p.id = rp.page_id WHERE rp.reminder_id = %s ORDER BY p.title, p.id",
         (row["id"],),
     ).fetchall()
+    from app.reminder_notifications import delivery_state
+
     return {
+        "notification": delivery_state(conn, row),
         "id": row["id"],
         "workspace": row["workspace"],
         "workspace_name": row["workspace_name"],
@@ -234,11 +237,24 @@ def update(user_id, args):
         due_date, due_at, _ = schedule(values["due_date"], values["due_at"], values["timezone"])
         if "assignee_id" in patch:
             assign(conn, ws.id, body.assignee_id)
+        rearm = (due_date, due_at, values["timezone"], values["assignee_id"]) != (
+            old["due_date"],
+            old["due_at"],
+            old["timezone"],
+            old["assignee_id"],
+        ) or (old["status"] != "pending" and values["status"] == "pending")
+        generation = old["notification_generation"] + int(rearm)
+        if rearm or values["status"] != "pending":
+            conn.execute(
+                "UPDATE reminder_notifications SET status = 'cancelled' "
+                "WHERE reminder_id = %s AND status = 'pending'",
+                (reminder_id,),
+            )
         conn.execute(
             "UPDATE reminders SET title = %s, notes = %s, due_date = %s, due_at = %s, "
             "timezone = %s, "
             "assignee_id = %s, status = %s, revision = revision + 1, "
-            "updated_at = NOW(), actor = %s "
+            "updated_at = NOW(), actor = %s, notification_generation = %s "
             "WHERE id = %s",
             (
                 values["title"],
@@ -249,6 +265,7 @@ def update(user_id, args):
                 values["assignee_id"],
                 values["status"],
                 access.actor.get() or f"user:{user_id}",
+                generation,
                 reminder_id,
             ),
         )

@@ -45,6 +45,7 @@ services:
       OCR_UPLOADS: ${OCR_UPLOADS:-0}
       OCR_LANGS: ${OCR_LANGS:-eng+spa}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DOCTION_PUBLIC_URL: ${DOCTION_PUBLIC_URL:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]

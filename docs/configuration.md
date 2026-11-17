@@ -1,7 +1,7 @@
 # Configuration
 
-Everything is an environment variable. There is no config file and no settings UI, so a
-running instance is fully described by its environment plus its two volumes.
+Server settings use environment variables. Personal reminder notifications are configured in
+Settings > Preferences and stored in PostgreSQL. Back up the database and data volume.
 
 ## Required in production
 
@@ -153,3 +153,40 @@ curl -s $DOCTION/health | jq
 
 `GET /api/system` (authenticated) reports which optional features resolved as enabled,
 which is the honest answer to "did `SEMANTIC_SEARCH=1` actually take effect".
+
+## Reminder notifications (ntfy)
+
+Each user configures their own ntfy topic in **Settings > Preferences > Reminder notifications**.
+Notifications are disabled until explicitly enabled. No new service or dependency is needed; a worker
+inside Doction checks pending reminders every 30 seconds and records delivery in PostgreSQL.
+
+1. Subscribe to your topic using the ntfy app.
+2. Enter its full URL, for example `https://ntfy.example.com/my-private-topic`.
+3. Add a token if that topic requires authentication. Save, then use **Send a test** to verify setup.
+4. Enable notifications and save. Existing pending reminders whose notification time has passed are
+   included, so catch-up after a restart or enabling does not silently discard them.
+
+The destination belongs to the reminder's responsible user, not its creator or workspace. The
+responsible user must still be a member of that workspace. Each notice contains the reminder title,
+workspace, date/time and titles of linked non-deleted documents; Markdown notes are not sent.
+Date/time reminders notify at their instant. Date-only reminders notify at **09:00 in the reminder's
+own timezone**, configurable per user. This notification time does not change when a date-only reminder
+becomes overdue: it remains due for that whole local date.
+
+The topic must use HTTP(S), without credentials, query parameters or a fragment. Internal/LAN ntfy
+servers and reverse-proxy path prefixes are supported. Credentials are stored in the database and are
+never returned by the API or printed in worker logs. Database backups include those credentials.
+Leaving the token field blank keeps the stored token; explicitly remove it to clear authentication.
+Changing servers requires a new token or explicit removal, preventing accidental credential forwarding.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DOCTION_PUBLIC_URL` | empty | Optional public origin, e.g. `https://doction.example.com`, for a notification click-through link. Omit `/app`; Doction adds the configured application path. Notifications work without it. |
+
+The personal REST endpoints are `GET/PUT /api/notification-settings` and
+`POST /api/notification-settings/test`. A save accepts `enabled`, `ntfy_url`, optional `token`, and
+`date_only_time` in `HH:MM` format. The response exposes only `has_token`, never the token. Restricted
+agent tokens cannot read or change this personal configuration, or send test notifications. They can
+read delivery state through authorized reminder queries.
+
+No daily digest or recurrence is added. The worker does not execute any action described in a reminder.

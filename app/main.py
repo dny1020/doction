@@ -13,7 +13,8 @@ from pathlib import Path
 
 import jwt
 from fastapi import APIRouter, FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.exception_handlers import http_exception_handler
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -38,6 +39,7 @@ from app import (
     mcp,
     meta,
     ocr,
+    reminder_notifications,
     reminders,
     seed,
     suggest,
@@ -1015,8 +1017,15 @@ async def lifespan(_: FastAPI):
     # Unconditional: with no webhooks registered the query returns nothing and the
     # worker sleeps. One more flag would be one more way to lose events silently.
     webhook_task = asyncio.create_task(webhooks.delivery_worker())
+    reminder_task = asyncio.create_task(reminder_notifications.delivery_worker())
 
     yield
+
+    reminder_task.cancel()
+    try:
+        await reminder_task
+    except asyncio.CancelledError:
+        pass
 
     webhook_task.cancel()
     try:
@@ -1058,6 +1067,27 @@ async def serve_upload(request: Request, name: str) -> Response:
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path)
+
+
+@api_router.get("/notification-settings", tags=["reminders"])
+def api_notification_settings(request: Request) -> dict:
+    return reminder_notifications.get_settings(_api_user(request))
+
+
+@api_router.put("/notification-settings", tags=["reminders"])
+def api_save_notification_settings(request: Request, body: reminder_notifications.Settings) -> dict:
+    try:
+        return reminder_notifications.save_settings(_api_user(request), body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@api_router.post("/notification-settings/test", tags=["reminders"])
+def api_test_notification_settings(request: Request) -> dict:
+    try:
+        return reminder_notifications.test_settings(_api_user(request))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @api_router.get("/reminders", tags=["reminders"])
@@ -1130,6 +1160,16 @@ def api_knowledge(request: Request, operation: str, arguments: dict) -> dict:
     from app.knowledge import rest_call
 
     return rest_call(request, operation, arguments)
+
+
+@app.exception_handler(RequestValidationError)
+async def private_validation_error(request: Request, exc: RequestValidationError):
+    if request.url.path.startswith("/api/notification-settings"):
+        details = [
+            {"loc": item["loc"], "msg": item["msg"], "type": item["type"]} for item in exc.errors()
+        ]
+        return JSONResponse({"detail": details}, status_code=422)
+    return await request_validation_exception_handler(request, exc)
 
 
 @app.exception_handler(db.RelationRequired)

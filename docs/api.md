@@ -224,3 +224,11 @@ GET /api/reminders/{reminder_id}/history
 ```
 
 See [reminders](mcp.md#reminders) for scheduling, responsibility and document links.
+
+## Reminder notification preferences
+
+```
+GET /api/notification-settings
+PUT /api/notification-settings
+POST /api/notification-settings/test
+```

@@ -102,10 +102,16 @@ function WorkspaceReminders({ ws }) {
         <div>
           <h1 className="settings-h1">{t('reminders')}</h1>
           <p className="card-desc">{t('reminders_desc')}</p>
+          <Link to="/settings/preferences">{t('notif_configure')}</Link>
         </div>
-        <button className="btn btn-primary" type="button" onClick={() => setEditing('new')}>
-          {t('reminder_new')}
-        </button>
+        <div className="row-actions">
+          <button className="btn" type="button" onClick={() => load()}>
+            {t('notif_refresh')}
+          </button>
+          <button className="btn btn-primary" type="button" onClick={() => setEditing('new')}>
+            {t('reminder_new')}
+          </button>
+        </div>
       </div>
       <div className="reminders-filters">
         <label>
@@ -215,6 +221,20 @@ function WorkspaceReminders({ ws }) {
                         <p className="meta">
                           {item.workspace_name} · {item.assignee_name || t('reminder_unassigned')}
                         </p>
+                        {item.notification && (
+                          <p
+                            className="meta"
+                            role={item.notification.state === 'failed' ? 'status' : undefined}
+                          >
+                            {t('notif_state_' + item.notification.state)}
+                            {item.due_date && item.notification.state === 'scheduled'
+                              ? ' · ' + item.notification.date_only_time
+                              : ''}
+                            {item.notification.last_error
+                              ? ' · ' + item.notification.last_error
+                              : ''}
+                          </p>
+                        )}
                         {item.notes && <ReminderNotes text={item.notes} ws={item.workspace} />}
                         <ReminderHistory item={item} />
                         {item.pages.length > 0 && (

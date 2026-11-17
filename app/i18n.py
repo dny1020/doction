@@ -540,6 +540,87 @@ _ES.update(
     }
 )
 
+_EN.update(
+    {
+        "notif_refresh": "Refresh",
+        "notif_title": "Reminder notifications",
+        "notif_description": (
+            "Receive reminders through your own ntfy topic. Each reminder goes only "
+            "to its responsible person."
+        ),
+        "notif_enable": "Enable ntfy notifications",
+        "notif_url": "ntfy topic URL",
+        "notif_destination_help": (
+            "Enter your complete topic URL. Notices include title, workspace, date "
+            "and document titles; notes are not sent."
+        ),
+        "notif_token": "ntfy token (optional)",
+        "notif_token_kept": "A token is stored. Leave this field empty to keep it.",
+        "notif_token_optional": "Use a token if your ntfy topic requires authentication.",
+        "notif_clear_token": "Remove the stored token",
+        "notif_date_clock": "Notification time for date-only reminders",
+        "notif_clock_help": (
+            "Uses each reminder’s timezone. Reminders with a time notify at that "
+            "exact scheduled time."
+        ),
+        "notif_catchup_help": (
+            "Enabling notifications also sends pending reminders whose notification "
+            "time has already passed. Saving retries failed deliveries."
+        ),
+        "notif_save_before_test": "Save changes before sending a test.",
+        "notif_saved": "Notification preferences saved",
+        "notif_test": "Send a test",
+        "notif_test_sent": "Test accepted by ntfy",
+        "notif_configure": "Configure notifications",
+        "notif_state_disabled": "Notifications disabled",
+        "notif_state_scheduled": "Notification scheduled",
+        "notif_state_pending": "Notification delivery pending",
+        "notif_state_sent": "Notification accepted by ntfy",
+        "notif_state_failed": "Notification delivery failed",
+        "notif_state_cancelled": "Notification cancelled",
+    }
+)
+_ES.update(
+    {
+        "notif_refresh": "Actualizar",
+        "notif_title": "Avisos de recordatorios",
+        "notif_description": (
+            "Recibe recordatorios en tu propio topic de ntfy. Cada aviso se envía "
+            "solo al responsable."
+        ),
+        "notif_enable": "Activar avisos por ntfy",
+        "notif_url": "URL del topic de ntfy",
+        "notif_destination_help": (
+            "Introduce la URL completa del topic. Los avisos incluyen título, "
+            "workspace, fecha y títulos de documentos; las notas no se envían."
+        ),
+        "notif_token": "Token de ntfy (opcional)",
+        "notif_token_kept": "Hay un token guardado. Deja este campo vacío para conservarlo.",
+        "notif_token_optional": "Usa un token si tu topic de ntfy requiere autenticación.",
+        "notif_clear_token": "Eliminar el token guardado",
+        "notif_date_clock": "Hora de aviso para recordatorios de solo fecha",
+        "notif_clock_help": (
+            "Usa la zona horaria de cada recordatorio. Los que tienen hora avisan en "
+            "el momento programado."
+        ),
+        "notif_catchup_help": (
+            "Al activar los avisos también se envían los pendientes cuya hora de "
+            "aviso ya pasó. Guardar reintenta las entregas fallidas."
+        ),
+        "notif_save_before_test": "Guarda los cambios antes de enviar una prueba.",
+        "notif_saved": "Preferencias de avisos guardadas",
+        "notif_test": "Enviar prueba",
+        "notif_test_sent": "Prueba aceptada por ntfy",
+        "notif_configure": "Configurar avisos",
+        "notif_state_disabled": "Avisos desactivados",
+        "notif_state_scheduled": "Aviso programado",
+        "notif_state_pending": "Envío de aviso pendiente",
+        "notif_state_sent": "Aviso aceptado por ntfy",
+        "notif_state_failed": "Error al enviar el aviso",
+        "notif_state_cancelled": "Aviso cancelado",
+    }
+)
+
 _CATALOGS: dict[str, dict[str, str]] = {
     "en": _EN,
     "es": {**_EN, **_ES},

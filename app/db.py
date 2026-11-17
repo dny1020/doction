@@ -394,6 +394,10 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         UNIQUE(workspace_id, idempotency_key),
         CHECK ((due_date IS NULL) <> (due_at IS NULL))
     )""",
+    "ALTER TABLE reminders ADD COLUMN IF NOT EXISTS notification_generation "
+    "BIGINT NOT NULL DEFAULT 1",
+    "CREATE INDEX IF NOT EXISTS reminders_notify_assignee_idx "
+    "ON reminders(assignee_id) WHERE status = 'pending'",
     "CREATE INDEX IF NOT EXISTS reminders_pending_idx "
     "ON reminders(workspace_id, assignee_id, status)",
     """CREATE TABLE IF NOT EXISTS reminder_pages (
@@ -402,6 +406,24 @@ SCHEMA_STATEMENTS: list[LiteralString] = [
         PRIMARY KEY(reminder_id, page_id)
     )""",
     "CREATE INDEX IF NOT EXISTS reminder_pages_page_idx ON reminder_pages(page_id)",
+    """CREATE TABLE IF NOT EXISTS notification_settings (
+        user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        enabled BOOLEAN NOT NULL DEFAULT FALSE, ntfy_url TEXT NOT NULL DEFAULT '',
+        ntfy_token TEXT NOT NULL DEFAULT '', date_only_time TIME NOT NULL DEFAULT '09:00'
+    )""",
+    """CREATE TABLE IF NOT EXISTS reminder_notifications (
+        id BIGSERIAL PRIMARY KEY,
+        reminder_id BIGINT NOT NULL REFERENCES reminders(id) ON DELETE CASCADE,
+        generation BIGINT NOT NULL,
+        assignee_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending', 'sent', 'failed', 'cancelled')),
+        attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        delivered_at TIMESTAMPTZ, last_error TEXT, message_id TEXT,
+        UNIQUE(reminder_id, generation)
+    )""",
+    "CREATE INDEX IF NOT EXISTS reminder_notifications_due_idx "
+    "ON reminder_notifications(next_attempt_at) WHERE status = 'pending'",
     """CREATE TABLE IF NOT EXISTS reminder_revisions (
         reminder_id BIGINT NOT NULL REFERENCES reminders(id) ON DELETE CASCADE,
         revision BIGINT NOT NULL, payload_json TEXT NOT NULL,

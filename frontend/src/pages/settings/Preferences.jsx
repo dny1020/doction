@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useI18n } from '../../i18n.jsx'
 import { useToast } from '../../components/Toast.jsx'
+import NotificationPreferences from './Notifications.jsx'
 import { getTheme, toggleTheme } from '../../theme.js'
 
 // Theme and language. The same controls also live in the sidebar footer — they are used
@@ -30,33 +31,36 @@ export default function PreferencesSection() {
   }
 
   return (
-    <section className="card">
-      <h2 className="card-title">{t('sec_preferences')}</h2>
-      <p className="card-desc">{t('preferences_desc')}</p>
+    <>
+      <section className="card">
+        <h2 className="card-title">{t('sec_preferences')}</h2>
+        <p className="card-desc">{t('preferences_desc')}</p>
 
-      <div className="row">
-        <span className="row-name">{t('theme')}</span>
-        <button className="btn" type="button" onClick={onToggleTheme}>
-          {theme === 'dark' ? t('theme_dark') : t('theme_light')}
-        </button>
-      </div>
-
-      <div className="row">
-        <span className="row-name">{t('language')}</span>
-        <div className="row-actions">
-          {langs.map((code) => (
-            <button
-              key={code}
-              className={'btn' + (code === lang ? ' btn-primary' : '')}
-              type="button"
-              aria-pressed={code === lang}
-              onClick={() => onSetLang(code)}
-            >
-              {code.toUpperCase()}
-            </button>
-          ))}
+        <div className="row">
+          <span className="row-name">{t('theme')}</span>
+          <button className="btn" type="button" onClick={onToggleTheme}>
+            {theme === 'dark' ? t('theme_dark') : t('theme_light')}
+          </button>
         </div>
-      </div>
-    </section>
+
+        <div className="row">
+          <span className="row-name">{t('language')}</span>
+          <div className="row-actions">
+            {langs.map((code) => (
+              <button
+                key={code}
+                className={'btn' + (code === lang ? ' btn-primary' : '')}
+                type="button"
+                aria-pressed={code === lang}
+                onClick={() => onSetLang(code)}
+              >
+                {code.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+      <NotificationPreferences />
+    </>
   )
 }
